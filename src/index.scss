@@ -1,0 +1,41 @@
+@import "./theme.scss";
+:root {
+    font-family: "ClashGrotesk-Regular", system-ui, Avenir, Helvetica, Arial,
+        sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+
+    background-color: #000;
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    #black-ellips > * {
+        fill: #121212;
+    }
+
+    #quest-view > * .rt-TextFieldRoot {
+        width: 100%;
+    }
+}
+
+#root {
+    min-height: 100vh;
+    width: 100vw;
+    background-color: #000;
+}
+
+#root * {
+    z-index: 1;
+}
+
+body {
+    margin: 0;
+    display: flex;
+    place-items: center;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: #000;
+}
