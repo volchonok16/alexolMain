@@ -1,4 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 @import "./theme.scss";
+
 :root {
     font-family: "ClashGrotesk-Regular", system-ui, Avenir, Helvetica, Arial,
         sans-serif;
