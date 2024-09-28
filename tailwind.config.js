@@ -7,6 +7,8 @@ export default {
     extend: {
       colors: {
         'header-bg-color': '#232526',
+        'golden': '#C0A570',
+        'base': '#3D3D3D'
       },
       backgroundImage: {
         'home-image': "url('/src/assets/home/faculty_home.png')",
@@ -16,6 +18,7 @@ export default {
       fontFamily: {
         'IMB Plex Sans': ['IMB Plex Sans', 'Candara', 'Segoe', 'Segoe UI', 'Optima', 'Arial', 'sans-serif'],
         'clash-display': ['ClashGrotesk-Regular', 'sans-serif'],
+        'alexol': ['GothamPro', 'sans-serif']
       },
       spacing: {
         '26': '6.5rem',
