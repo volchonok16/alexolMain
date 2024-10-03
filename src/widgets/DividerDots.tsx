@@ -1,0 +1,15 @@
+interface IProps {
+    className?: string;
+}
+
+export const DividerDots = (props: IProps) => {
+    return (
+        <div className={`${props.className} flex items-center`}>
+            <div className="h-1 w-[200px] bg-gradient-to-r from-[#97794D] to-[#E3CB8F]"></div>
+            <div className="mx-2 rounded-full bg-gradient-to-r from-[#97794D] to-[#E3CB8F] w-[11px] h-[11px]"></div>
+            <div className="mx-2 rounded-full bg-gradient-to-r from-[#97794D] to-[#E3CB8F] w-[11px] h-[11px]"></div>
+            <div className="mx-2 rounded-full bg-gradient-to-r from-[#97794D] to-[#E3CB8F] w-[11px] h-[11px]"></div>
+            <div className="h-1 w-[200px] bg-gradient-to-r from-[#97794D] to-[#E3CB8F]"></div>
+        </div>
+    );
+};
