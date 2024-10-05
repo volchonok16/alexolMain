@@ -1,15 +1,17 @@
 import { Experts } from "@/components/Experts";
 import { Features } from "@/components/Features";
 import Layout from "@/components/Layout";
-import PageHeader from "@/components/PageHeader";
+import { PageHeader } from "@/components/PageHeader";
 import { PageTitle } from "@/components/PageTItle";
 import { Steps } from "@/components/Steps";
+import { SocialMediaBlock } from "@/components/SocialMediaBlock";
 import "react-toastify/dist/ReactToastify.css";
 
 const HomeView = () => {
     return (
         <Layout>
             <PageHeader />
+            <SocialMediaBlock />
             <PageTitle />
             <Features />
             <Steps />
