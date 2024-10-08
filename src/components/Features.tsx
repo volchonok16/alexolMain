@@ -20,7 +20,6 @@ export const Features = () => {
                     </p>
                 </div>
                 <div className="w-[460px] h-[250px] relative">
-                    <div className="absolute top-[60px] left-[-70px] w-[130px] h-[130px] rounded-full bg-white"></div>
                     <img
                         className="drop-shadow-xl w-full h-full"
                         src={img1}
@@ -30,7 +29,6 @@ export const Features = () => {
             </div>
             <div className="flex justify-between mt-10">
                 <div className="w-[460px] h-[250px] relative">
-                    <div className="absolute top-[60px] right-[-70px] w-[130px] h-[130px] rounded-full bg-white"></div>
                     <img
                         className="drop-shadow-xl w-full h-full"
                         src={img2}
@@ -67,7 +65,6 @@ export const Features = () => {
                     </p>
                 </div>
                 <div className="w-[460px] h-[250px] relative">
-                    <div className="absolute top-[60px] left-[-70px] w-[130px] h-[130px] rounded-full bg-white"></div>
                     <img
                         className="drop-shadow-xl w-full h-full"
                         src={img3}
@@ -77,7 +74,6 @@ export const Features = () => {
             </div>
             <div className="flex justify-between mt-10">
                 <div className="w-[460px] h-[250px] relative">
-                    <div className="absolute top-[60px] right-[-70px] w-[130px] h-[130px] rounded-full bg-white"></div>
                     <img
                         className="drop-shadow-xl w-full h-full"
                         src={img4}

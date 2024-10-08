@@ -7,6 +7,7 @@ import { Partners } from "@/components/Partners";
 import { Steps } from "@/components/Steps";
 import { SocialMediaBlock } from "@/components/SocialMediaBlock";
 import "react-toastify/dist/ReactToastify.css";
+import { Contacts } from "@/components/Contacts";
 
 const HomeView = () => {
     return (
@@ -18,6 +19,7 @@ const HomeView = () => {
             <Steps />
             <Experts />
             <Partners />
+            <Contacts />
         </Layout>
     );
 };
