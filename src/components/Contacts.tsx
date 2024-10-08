@@ -19,7 +19,7 @@ export const Contacts = () => {
                                 <div className="rounded-[10px] m-[1px] bg-white">
                                     <a
                                         href={item.link}
-                                        className="p-2 m-[1px] hover:bg-golden/25 text-center text-xl leading-5 rounded-[10px] cursor-pointer flex flex-row gap-4 justify-between"
+                                        className="p-2 m-[1px] hover:shadow-[0px_4px_10px_0px_#C0A570] text-center text-xl leading-5 rounded-[10px] cursor-pointer flex flex-row gap-4 justify-between"
                                     >
                                         <div className="bg-gradient-to-r from-golden2 to-golden3 bg-clip-text text-transparent">
                                             {item.title}
