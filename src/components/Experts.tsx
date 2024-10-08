@@ -10,7 +10,7 @@ export const Experts = () => {
     const onMouseLeave = () => setOpenDescId(null);
 
     return (
-        <section className="w-full max-w-[1440px] h-[920px] mt-12 pt-12">
+        <section className="w-full max-w-[1440px] h-[750px] mt-12 pt-12">
             <div className="flex flex-col items-center">
                 <p className="text-[48px] leading-normal">Наши эксперты</p>
                 <DividerSolid className="w-[130px]" />
