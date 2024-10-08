@@ -8,7 +8,9 @@ export default {
       colors: {
         'header-bg-color': '#232526',
         'golden': '#C0A570',
-        'base': '#3D3D3D'
+        'golden2': '#97794D',
+        'golden3': '#E3CB8F',
+        'dark-gray': '#3D3D3D'
       },
       backgroundImage: {
         'home-image': "url('/src/assets/home/faculty_home.png')",
