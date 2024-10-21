@@ -1,6 +1,9 @@
 import { DividerSolid } from "@/widgets/DividerSolid";
 import bg from "../assets/experts/bg.png";
 import avatar1 from "../assets/experts/avatar-1.png";
+import avatar2 from "../assets/experts/avatar-2.png";
+import avatar3 from "../assets/experts/avatar-3.png";
+import avatar4 from "../assets/experts/avatar-4.png";
 import { useState } from "react";
 
 export const Experts = () => {
@@ -25,68 +28,55 @@ export const Experts = () => {
                 style={{ backgroundImage: `url(${bg})` }}
             >
                 <div className="flex flex-wrap w-[768px] gap-8">
-                    <div
-                        className="w-[350px] cursor-pointer flex"
-                        onMouseEnter={() => onHoverAvatar(1)}
-                        onMouseLeave={onMouseLeave}
-                    >
-                        <img src={avatar1} alt="" />
-                        {openDescId === 1 && (
-                            <div className="w-[236px] h-[134px] rounded-lg px-4 py-2 ml-2 text-white bg-gradient-to-r from-[#1D2228] to-[#313944]">
-                                <p>
-                                    Топ-1 специалист в области аналитики, может
-                                    самостоятельно поднять с 0 целую контору
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                    <div
-                        className="w-[350px] cursor-pointer flex"
-                        onMouseEnter={() => onHoverAvatar(2)}
-                        onMouseLeave={onMouseLeave}
-                    >
-                        <img src={avatar1} alt="" />
-                        {openDescId === 2 && (
-                            <div className="w-[236px] h-[134px] rounded-lg px-4 py-2 ml-2 text-white bg-gradient-to-r from-[#1D2228] to-[#313944]">
-                                <p>
-                                    Топ-1 специалист в области аналитики, может
-                                    самостоятельно поднять с 0 целую контору
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                    <div
-                        className="w-[350px] cursor-pointer flex"
-                        onMouseEnter={() => onHoverAvatar(3)}
-                        onMouseLeave={onMouseLeave}
-                    >
-                        <img src={avatar1} alt="" />
-                        {openDescId === 3 && (
-                            <div className="w-[236px] h-[134px] rounded-lg px-4 py-2 ml-2 text-white bg-gradient-to-r from-[#1D2228] to-[#313944]">
-                                <p>
-                                    Топ-1 специалист в области аналитики, может
-                                    самостоятельно поднять с 0 целую контору
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                    <div
-                        className="w-[350px] cursor-pointer flex"
-                        onMouseEnter={() => onHoverAvatar(4)}
-                        onMouseLeave={onMouseLeave}
-                    >
-                        <img src={avatar1} alt="" />
-                        {openDescId === 4 && (
-                            <div className="w-[236px] h-[134px] rounded-lg px-4 py-2 ml-2 text-white bg-gradient-to-r from-[#1D2228] to-[#313944]">
-                                <p>
-                                    Топ-1 специалист в области аналитики, может
-                                    самостоятельно поднять с 0 целую контору
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                    {experts.map((el, idx) => (
+                        <div
+                            className="w-[350px] h-[200px] cursor-pointer flex relative"
+                            onMouseEnter={() => onHoverAvatar(idx)}
+                            onMouseLeave={onMouseLeave}
+                        >
+                            <img src={el.img} className="absolute z-10 h-[105px] w-[100px]" style={{zIndex: "10"}}/>
+                            {openDescId === idx && (
+                                <div className="absolute z-[1] top-[30px] left-[30px] pl-[40px] w-[340px] h-[160px] rounded-lg px-4 py-2 ml-2 text-white bg-gradient-to-r from-[#1D2228] to-[#313944]">
+                                    <p className="text-[18px] pl-12 font-bold">{el.name}</p>
+                                    <p className="text-[13px] min-h-[35px] pl-12 text-[#5F6164]">{el.spec}</p>
+                                    <p className="text-[10px] mt-4">{el.desc}</p>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
         </section>
     );
 };
+
+const experts = [
+    {
+        id: 1,
+        img: avatar2,
+        name: "Анна Журавлева",
+        spec: "Эксперт Психологии",
+        desc: "В своей практической работе использует методы психоанализа, кризисной и семейной психологии, психосоматики и гештальт терапии.",
+    },
+    {
+        id: 2,
+        img: avatar1,
+        name: "Александр Тараскин",
+        spec: "CEO",
+        desc: "В свой практике использует весь наработанный экспертный опыт в областе аналитики. А так же опыт управления командами.",
+    },
+    {
+        id: 3,
+        img: avatar3,
+        name: "Иван Капусткин",
+        spec: "Руководитель технического департамента",
+        desc: "В своей практики использует свой многолетний опыт разработки frontend и backend, опыт обучения сотрудников и их развития",
+    },
+    {
+        id: 4,
+        img: avatar4,
+        name: "Олег Осипов",
+        spec: "Руководитель юридического департамента ",
+        desc: "Использует в своей работе анализ актуальной судебной практики, нестандартные и стандартные логические пути решения",
+    },
+];

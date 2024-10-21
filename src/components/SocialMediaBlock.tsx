@@ -36,14 +36,14 @@ export const SocialMediaBlock = () => {
                 </div>
             </div>
             <div className='w-[786px] h-[548px] relative'>
-                <Block1 className='absolute top-[155px] left-[32px] rotate-[-54]' />
-                <Block2 className='absolute top-[400px] left-[50px] rotate-[-75]' />
-                <Block3 className='absolute top-[35px] left-[230px] rotate-[45]' />
-                <Block4 className='absolute top-[300px] left-[250px] rotate-[-54]' />
-                <Block5 className='absolute top-[100px] left-[450px] rotate-[-60]' />
-                <Block6 className='absolute top-[350px] left-[460px] rotate-[45]' />
-                <Block7 className='absolute top-[20px] left-[650px] rotate-[-67]' />
-                <Block8 className='absolute top-[170px] left-[620px] rotate-[-75]' />
+                <Block1 className='cube cube--1 rotate-[-54]' />
+                <Block2 className='cube cube--2 rotate-[-75]' />
+                <Block3 className='cube cube--3 rotate-[45]' />
+                <Block4 className='cube cube--4 rotate-[-54]' />
+                <Block5 className='cube cube--5 rotate-[-60]' />
+                <Block6 className='cube cube--6 rotate-[45]' />
+                <Block7 className='cube cube--7 rotate-[-67]' />
+                <Block8 className='cube cube--8 rotate-[-75]' />
             </div>
         </div>
     )

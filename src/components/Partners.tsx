@@ -5,7 +5,9 @@ import incubatorImg from "../assets/partners/it-inclubator.png";
 import incubatorLogo from "../assets/partners/it-inclubator-logo.png";
 import skyproImg from "../assets/partners/sky-pro.png";
 import skyproLogo from "../assets/partners/sky-pro-logo.png";
-import bg from "../assets/steps/steps-bg.png";
+import pranaImg from "../assets/partners/prana.png";
+import pranaLogo from "../assets/partners/prana-logo.png";
+import bg from "../assets/partners/bg.png";
 import { DividerSolid } from "@/widgets/DividerSolid";
 
 import VkLogo from "../assets/vk.svg";
@@ -46,15 +48,17 @@ export const Partners = () => {
                 }}
                 rewind={false}
                 rtl={false}
-                showDots={false}
+                arrows={false}
+                showDots={true}
                 slidesToSlide={1}
                 swipeable
+                className="drop-shadow-md"
             >
                 {partnersInfo.map((el) => {
                     return (
                         <div
-                            className="flex justify-between text-right px-20 py-5"
-                            style={{ background: `url(${bg})` }}
+                            className="flex justify-between text-right px-20 py-5 rounded-2xl"
+                            style={{ background: `url(${bg})`, backgroundSize: "100% 100%" }}
                         >
                             <div>
                                 <img className="w-[600px]" src={el.img} />
@@ -112,6 +116,20 @@ const partnersInfo = [
         logo: skyproLogo,
         title: "Обучение IT-профессиям с нуля с гарантией новой работы",
         desc: "Цель Skypro — не просто продавать курсы людям, а обучать и устраивать на реальную работу",
+        mail: "skypro@skyeng.ru",
+        socials: {
+            vk: "https://vk.com",
+            wa: "https://web.whats.app",
+            inst: "https://instagram.com",
+            tg: "https://tg.me",
+        },
+    },
+    {
+        id: 2,
+        img: pranaImg,
+        logo: pranaLogo,
+        title: "Центр психологии PRANA",
+        desc: "Семейная, кризисная психология, психосоматика, псхоанализ, коучинг",
         mail: "skypro@skyeng.ru",
         socials: {
             vk: "https://vk.com",

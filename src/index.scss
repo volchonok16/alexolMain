@@ -1,11 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import "./components/cubeAnimation.scss";
 @import "./theme.scss";
+@import "./fonts/stylesheet.css";
 
 @layer base {
     @font-face {
-      font-family: 'GothamPro';
+      font-family: 'Gotham Pro';
       font-style: normal;
       font-weight: 400;
       font-display: swap;
@@ -14,7 +17,7 @@
   }
 
 :root {
-    font-family: "GothamPro";
+    font-family: "Gotham Pro";
 }
 
 #root {
