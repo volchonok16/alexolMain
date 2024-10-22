@@ -34,7 +34,7 @@ export const Experts = () => {
                             onMouseEnter={() => onHoverAvatar(idx)}
                             onMouseLeave={onMouseLeave}
                         >
-                            <img src={el.img} className="absolute z-10 h-[105px] w-[100px]" style={{zIndex: "10"}}/>
+                            <img src={el.img} className="absolute z-10 h-[105px] w-[100px]" style={{zIndex: "10", borderRadius: "5px"}}/>
                             {openDescId === idx && (
                                 <div className="absolute z-[1] top-[30px] left-[30px] pl-[40px] w-[340px] h-[160px] rounded-lg px-4 py-2 ml-2 text-white bg-gradient-to-r from-[#1D2228] to-[#313944]">
                                     <p className="text-[18px] pl-12 font-bold">{el.name}</p>
