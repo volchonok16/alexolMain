@@ -1,11 +1,16 @@
-<svg width="134.664062" height="133.907135" viewBox="0 0 134.664 133.907" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-	<path id="Vector" d="M49.16 0.55L0.55 49.77L18.72 116.17L67.33 66.95L49.16 0.55Z" fill="#3F3E5E" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M49.16 0.55L0.55 49.77L18.72 116.17L67.33 66.95L49.16 0.55Z" fill="#FFC898" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M49.16 0.55L0.55 49.77L18.72 116.17L67.33 66.95L49.16 0.55Z" fill="#FFC898" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M49.16 0.55L0.55 49.77L18.72 116.17L67.33 66.95L49.16 0.55Z" fill="#FFC898" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M115.84 17.71L49.16 0.55L67.33 66.95L134.1 84.13L115.84 17.71Z" fill="#3F3E5E" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M115.84 17.71L49.16 0.55L67.33 66.95L134.1 84.13L115.84 17.71Z" fill="#FFC898" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M115.84 17.71L49.16 0.55L67.33 66.95L134.1 84.13L115.84 17.71Z" fill="#71F9F0" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M67.33 66.95L18.72 116.17L85.49 133.35L134.1 84.13L67.33 66.95Z" fill="#3F3E5E" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M49.65 0.42L67.89 67.1L18.47 117.14L0 49.62L49.01 0L116.25 17.3L134.66 84.27L85.65 133.9L17.75 116.43L67.17 66.39L134.23 83.64L133.98 84.61L67.2 67.43L67.33 66.95L67.68 67.3L19.08 116.52L18.72 116.17L18.84 115.68L85.62 132.86L85.49 133.35L85.14 133L133.75 83.78L134.1 84.13L133.62 84.26L115.36 17.84L115.84 17.71L115.72 18.19L49.04 1.04L49.16 0.55L49.52 0.9L0.91 50.12L0.55 49.77L1.04 49.64L19.2 116.04L18.72 116.17L18.36 115.82L66.97 66.6L67.33 66.95L66.85 67.08L48.68 0.68L49.65 0.42ZM66.85 67.08L48.68 0.68L49.65 0.42L67.81 66.82L66.85 67.08Z" fill="#FFC898" fill-opacity="1.000000" fill-rule="evenodd"/>
+<svg width="134.663574" height="133.907227" viewBox="0 0 134.664 133.907" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<defs/>
+	<path id="Vector" d="M49.16 0.55L0.55 49.77L18.72 116.17L67.33 66.95L49.16 0.55Z" fill="#3D3D3D" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M49.16 0.55L0.55 49.77L18.72 116.17L67.33 66.95L49.16 0.55Z" fill="#97794D" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M49.16 0.55L0.55 49.77L18.72 116.17L67.33 66.95L49.16 0.55Z" fill="#97794D" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M49.16 0.55L0.55 49.77L18.72 116.17L67.33 66.95L49.16 0.55Z" fill="#97794D" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M115.84 17.71L49.16 0.55L67.33 66.95L134.1 84.13L115.84 17.71Z" fill="#3D3D3D" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M115.84 17.71L49.16 0.55L67.33 66.95L134.1 84.13L115.84 17.71Z" fill="#97794D" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<linearGradient x1="18.767479" y1="116.216835" x2="115.859825" y2="17.726921" id="paint_linear_483_36_0" gradientUnits="userSpaceOnUse">
+		<stop stop-color="#97794D"/>
+		<stop offset="1.000000" stop-color="#E3CB8F"/>
+	</linearGradient>
+	<path id="Vector" d="M115.84 17.71L49.16 0.55L67.33 66.95L134.1 84.13L115.84 17.71Z" fill="url(#paint_linear_483_36_0)" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M67.33 66.95L18.72 116.17L85.49 133.35L134.1 84.13L67.33 66.95Z" fill="#3D3D3D" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M49.64 0.42L67.89 67.1L18.46 117.14L0 49.62L49.01 0L116.25 17.3L134.66 84.27L85.65 133.9L17.75 116.43L67.17 66.39L134.22 83.64L133.98 84.61L67.2 67.43L67.33 66.95L67.68 67.3L19.07 116.52L18.72 116.17L18.84 115.68L85.62 132.86L85.49 133.35L85.14 133L133.74 83.78L134.1 84.13L133.62 84.26L115.36 17.84L115.84 17.71L115.72 18.19L49.04 1.04L49.16 0.55L49.52 0.9L0.91 50.12L0.55 49.77L1.04 49.64L19.2 116.04L18.72 116.17L18.36 115.82L66.97 66.6L67.33 66.95L66.84 67.08L48.68 0.68L49.64 0.42ZM66.84 67.08L48.68 0.68L49.64 0.42L67.81 66.82L66.84 67.08Z" fill="#97794D" fill-opacity="1.000000" fill-rule="evenodd"/>
 </svg>

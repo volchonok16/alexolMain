@@ -1,11 +1,16 @@
-<svg width="83.714844" height="76.806030" viewBox="0 0 83.7148 76.806" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-	<path id="Vector" d="M83.14 34.43L58.91 0.52L17.62 4.48L41.85 38.4L83.14 34.43Z" fill="#A46A38" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M83.14 34.43L58.91 0.52L17.62 4.48L41.85 38.4L83.14 34.43Z" fill="#FF8F50" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M83.14 34.43L58.91 0.52L17.62 4.48L41.85 38.4L83.14 34.43Z" fill="#FF8F50" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M83.14 34.43L58.91 0.52L17.62 4.48L41.85 38.4L83.14 34.43Z" fill="#FF8F50" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M66.1 72.26L83.14 34.43L41.85 38.4L24.8 76.28L66.1 72.26Z" fill="#A46A38" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M66.1 72.26L83.14 34.43L41.85 38.4L24.8 76.28L66.1 72.26Z" fill="#FF8F50" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M66.1 72.26L83.14 34.43L41.85 38.4L24.8 76.28L66.1 72.26Z" fill="#6CBCB0" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M41.85 38.4L17.62 4.49L0.57 42.36L24.8 76.28L41.85 38.4Z" fill="#A46A38" fill-opacity="1.000000" fill-rule="nonzero"/>
-	<path id="Vector" d="M83.19 34.93L41.61 38.92L16.71 4.07L59.15 0L83.71 34.38L66.44 72.73L24.56 76.8L0 42.42L17.53 3.49L42.43 38.34L25.25 76.48L24.34 76.07L41.4 38.19L41.85 38.4L41.44 38.69L17.22 4.78L17.62 4.49L18.08 4.69L1.02 42.57L0.57 42.36L0.98 42.07L25.2 75.98L24.8 76.28L24.75 75.78L66.05 71.76L66.1 72.26L65.65 72.05L82.68 34.23L83.14 34.43L82.73 34.72L58.5 0.81L58.91 0.52L58.96 1.02L17.67 4.98L17.62 4.48L18.03 4.19L42.26 38.11L41.85 38.4L41.8 37.9L83.09 33.94L83.19 34.93ZM41.8 37.9L83.09 33.94L83.19 34.93L41.9 38.9L41.8 37.9Z" fill="#FF8F50" fill-opacity="1.000000" fill-rule="evenodd"/>
+<svg width="85.409180" height="77.793457" viewBox="0 0 85.4092 77.7935" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<defs/>
+	<path id="Vector" d="M84.26 34.95L60.03 1.04L17.58 4.61L42.97 38.92L84.26 34.95Z" fill="#97794D" fill-opacity="1.000000" fill-rule="evenodd"/>
+	<path id="Vector" d="M84.26 34.95L60.03 1.04L17.58 4.61L42.97 38.92L84.26 34.95Z" fill="#313944" fill-opacity="1.000000" fill-rule="evenodd"/>
+	<path id="Vector" d="M84.26 34.95L60.03 1.04L17.58 4.61L42.97 38.92L84.26 34.95Z" fill="#313944" fill-opacity="1.000000" fill-rule="evenodd"/>
+	<linearGradient x1="17.934891" y1="4.294258" x2="67.042137" y2="72.911835" id="paint_linear_216_843_0" gradientUnits="userSpaceOnUse">
+		<stop stop-color="#97794D"/>
+		<stop offset="1.000000" stop-color="#E3CB8F"/>
+	</linearGradient>
+	<path id="Vector" d="M84.26 34.95L60.03 1.04L17.58 4.61L42.97 38.92L84.26 34.95Z" fill="url(#paint_linear_216_843_0)" fill-opacity="1.000000" fill-rule="evenodd"/>
+	<path id="Vector" d="M67.22 72.78L84.26 34.95L42.41 38.86L25.35 76.74L67.22 72.78Z" fill="#97794D" fill-opacity="1.000000" fill-rule="evenodd"/>
+	<path id="Vector" d="M67.22 72.78L84.26 34.95L42.41 38.86L25.35 76.74L67.22 72.78Z" fill="#313944" fill-opacity="1.000000" fill-rule="evenodd"/>
+	<path id="Vector" d="M67.22 72.78L84.26 34.95L42.41 38.86L25.35 76.74L67.22 72.78Z" fill="#E3CB8F" fill-opacity="1.000000" fill-rule="evenodd"/>
+	<path id="Vector" d="M42.41 38.86L16.08 5.61L1.13 42.82L25.35 76.74L42.41 38.86Z" fill="#97794D" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M83.58 34.01L84.26 34.95L83.78 36L83.78 36L67.22 72.78L26.5 76.63L25.35 76.74L24.68 75.8L1.13 42.82L15.65 6.68L16.08 5.61L16.8 6.51L31.31 24.85L42.41 38.86L42.9 38.82L42.74 38.6L42.34 38.06L32.11 24.24L18.28 5.56L17.58 4.61L18.75 4.51L60.03 1.04L83.58 34.01L83.58 34.01ZM15.88 3.75L60.51 0L85.4 34.84L67.89 73.72L24.87 77.79L0 42.96L15.73 3.8L15.71 3.76L15.75 3.76L15.8 3.64L15.88 3.75Z" fill="#97794D" fill-opacity="1.000000" fill-rule="evenodd"/>
 </svg>
