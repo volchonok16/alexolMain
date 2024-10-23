@@ -15,11 +15,16 @@ import WhatsAppLogo from "../assets/whatsapp.svg";
 import InstLogo from "../assets/inst.svg";
 import TgLogo from "../assets/tg.svg";
 import { Link } from "react-router-dom";
+import { DividerDots } from "@/widgets/DividerDots";
 
 export const Partners = () => {
   return (
     <section className="mt-10">
-      <p className="text-center mb-10 text-[36px]">Наши партнеры</p>
+      <div className="flex flex-col items-center mt-12 mb-10">
+        <DividerDots className="mb-10" />
+        <p className="text-[48px] leading-normal">Наши партнеры</p>
+        <DividerSolid className="w-[130px]" />
+      </div>
       <Carousel
         responsive={{
           desktop: {
