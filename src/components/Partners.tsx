@@ -53,13 +53,22 @@ export const Partners = () => {
         showDots={true}
         slidesToSlide={1}
         swipeable
-        className="drop-shadow-md"
+        autoPlay={true}
+        autoPlaySpeed={10000}
+        infinite={true}
+        customTransition="transform 0.5s ease-in-out"
+        transitionDuration={500}
+        className="drop-shadow-md "
       >
         {partnersInfo.map((el) => {
           return (
             <div
               className="flex justify-between text-right px-20 py-5 rounded-2xl"
-              style={{ background: `url(${bg})`, backgroundSize: "100% 100%" }}
+              style={{
+                background: `url(${bg})`,
+                backgroundSize: "100% 100%",
+                height: "530px",
+              }}
             >
               <div>
                 <img className="w-[600px]" src={el.img} />
