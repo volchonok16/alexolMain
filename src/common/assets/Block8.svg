@@ -1,11 +1,33 @@
-<svg width="85" height="81" viewBox="0 0 85 81" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M84.1803 47.1134L68.4225 8.52899L26.5625 1.27456L43.0931 41.4545L84.1803 47.1134Z" fill="#2A3039"/>
-<path d="M84.1803 47.1134L68.4225 8.52899L26.5625 1.27456L43.0931 41.4545L84.1803 47.1134Z" fill="#313944"/>
-<path d="M84.1803 47.1134L68.4225 8.52899L26.5625 1.27456L43.0931 41.4545L84.1803 47.1134Z" fill="#313944"/>
-<path d="M84.1803 47.1134L68.4225 8.52899L26.5625 1.27456L43.0931 41.4545L84.1803 47.1134Z" fill="#313944"/>
-<path d="M58.8863 79.992L84.1803 47.1134L42.5625 41.2745L17.2331 74.1999L58.8863 79.992Z" fill="#2A3039"/>
-<path d="M58.8863 79.992L84.1803 47.1134L42.5625 41.2745L17.2331 74.1999L58.8863 79.992Z" fill="#313944"/>
-<path d="M58.8863 79.992L84.1803 47.1134L42.5625 41.2745L17.2331 74.1999L58.8863 79.992Z" fill="#D1B780"/>
-<path d="M42.5625 41.2745L25.531 2.59408L1.4753 35.6154L17.2331 74.1999L42.5625 41.2745Z" fill="#2A3039"/>
-<path d="M84.5345 46.6582L68.8854 8.33995L68.7807 8.08361L68.5079 8.03633L26.6479 0.7819L25.7555 0.627255L26.1001 1.46479L33.5037 19.4602L25.9886 2.39259L25.6384 1.59739L25.1268 2.29967L1.07117 35.321L0.907008 35.5464L1.01242 35.8045L16.6616 74.1228L16.3124 74.5767L16.8791 74.6555L17.0991 75.1941L17.4522 74.7352L58.8174 80.4872L59.1053 80.5272L59.2826 80.2968L84.3997 47.6484L84.971 47.7271L84.7519 47.1905L85.1003 46.7376L84.5345 46.6582Z" stroke="#313944"/>
+<svg width="81.030762" height="82.177734" viewBox="0 0 81.0308 82.1777" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<defs>
+		<linearGradient x1="-123.194702" y1="-445.592468" x2="85.106262" y2="355.637634" id="paint_linear_483_10_0" gradientUnits="userSpaceOnUse">
+			<stop stop-color="#1D2228"/>
+			<stop offset="1.000000" stop-color="#313944"/>
+		</linearGradient>
+	</defs>
+	<linearGradient x1="-123.194702" y1="-445.592468" x2="85.106262" y2="355.637634" id="paint_linear_483_100_0" gradientUnits="userSpaceOnUse">
+		<stop stop-color="#1D2228"/>
+		<stop offset="1.000000" stop-color="#313944"/>
+	</linearGradient>
+	<path id="Vector" d="M80.47 52.42L70.02 12.07L30.06 0.96L40.51 41.31L80.47 52.42Z" fill="url(#paint_linear_483_100_0)" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M80.47 52.42L70.02 12.07L30.06 0.96L40.51 41.31L80.47 52.42Z" fill="#313944" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M80.47 52.42L70.02 12.07L30.06 0.96L40.51 41.31L80.47 52.42Z" fill="#313944" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M80.47 52.42L70.02 12.07L30.06 0.96L40.51 41.31L80.47 52.42Z" fill="#313944" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<linearGradient x1="-123.194702" y1="-445.592468" x2="85.106262" y2="355.637634" id="paint_linear_483_104_1" gradientUnits="userSpaceOnUse">
+		<stop stop-color="#1D2228"/>
+		<stop offset="1.000000" stop-color="#313944"/>
+	</linearGradient>
+	<path id="Vector" d="M51 81.61L80.47 52.42L40.51 41.31L11 70.55L51 81.61Z" fill="url(#paint_linear_483_104_1)" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M51 81.61L80.47 52.42L40.51 41.31L11 70.55L51 81.61Z" fill="#313944" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<linearGradient x1="30.028572" y1="0.976122" x2="50.994492" y2="81.621582" id="paint_linear_483_106_2" gradientUnits="userSpaceOnUse">
+		<stop stop-color="#97794D"/>
+		<stop offset="1.000000" stop-color="#E3CB8F"/>
+	</linearGradient>
+	<path id="Vector" d="M51 81.61L80.47 52.42L40.51 41.31L11 70.55L51 81.61Z" fill="url(#paint_linear_483_106_2)" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<linearGradient x1="-123.194702" y1="-445.592468" x2="85.106262" y2="355.637634" id="paint_linear_483_107_3" gradientUnits="userSpaceOnUse">
+		<stop stop-color="#1D2228"/>
+		<stop offset="1.000000" stop-color="#313944"/>
+	</linearGradient>
+	<path id="Vector" d="M40.51 41.31L30.06 0.96L0.55 30.2L11 70.55L40.51 41.31Z" fill="url(#paint_linear_483_107_3)" fill-opacity="1.000000" fill-rule="nonzero"/>
+	<path id="Vector" d="M80.34 52.9L40.1 41.71L29.36 0.25L70.43 11.67L81.03 52.57L51.15 82.17L10.59 70.95L0 30.05L30.33 0L41.07 41.46L11.35 70.9L10.65 70.19L40.16 40.95L40.51 41.31L40.03 41.43L29.58 1.09L30.06 0.96L30.41 1.32L0.9 30.56L0.55 30.2L1.04 30.07L11.49 70.42L11 70.55L11.13 70.06L51.13 81.13L51 81.61L50.65 81.26L80.12 52.06L80.47 52.42L79.99 52.54L69.54 12.2L70.02 12.07L69.89 12.55L29.93 1.44L30.06 0.96L30.54 0.84L40.99 41.18L40.51 41.31L40.64 40.83L80.6 51.94L80.34 52.9ZM40.64 40.83L80.6 51.94L80.34 52.9L40.38 41.79L40.64 40.83Z" fill="#313944" fill-opacity="1.000000" fill-rule="evenodd"/>
 </svg>
