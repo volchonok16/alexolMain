@@ -2,16 +2,10 @@ import { FC, ReactNode } from "react";
 
 export interface LayoutProps {
   children: ReactNode;
-  //   theme: string;
 }
 
 const Layout: FC<LayoutProps> = (props) => {
   const { children } = props;
-
-  //   const backgroundColor =
-  //     theme === "dark-theme"
-  //       ? "w-100 h-100 bg-[#3D3D3D] text-[#FFFFFF]"
-  //       : "w-100 h-100 bg-[#FFFFFF] text-[#3D3D3D]";
 
   return (
     <div

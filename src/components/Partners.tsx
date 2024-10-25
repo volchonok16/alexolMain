@@ -2,11 +2,14 @@ import Carousel from "react-multi-carousel";
 import "react-multi-carousel/lib/styles.css";
 
 import incubatorImg from "../assets/partners/it-inclubator.png";
-import incubatorLogo from "../assets/partners/it-inclubator-logo.png";
+import incubatorLogoLight from "../assets/partners/it-inclubator-logo-lignt.png";
+import incubatorLogoDark from "../assets/partners/it-inclubator-logo-dark.png";
 import skyproImg from "../assets/partners/sky-pro.png";
-import skyproLogo from "../assets/partners/sky-pro-logo.png";
+import skyProLogoLight from "../assets/partners/sky-pro-logo-light.png";
+import skyProLogoDark from "../assets/partners/sky-pro-logo-dark.png";
 import pranaImg from "../assets/partners/prana.png";
-import pranaLogo from "../assets/partners/prana-logo.png";
+import pranaLogoLight from "../assets/partners/prana-logo-light.png";
+import pranaLogoDark from "../assets/partners/prana-logo-dark.png";
 import bg from "../assets/partners/bg.png";
 import { DividerSolid } from "@/widgets/DividerSolid";
 
@@ -17,7 +20,7 @@ import InstLogo from "../assets/inst.svg";
 import TgLogo from "../assets/tg.svg";
 import { Link } from "react-router-dom";
 
-export const Partners = () => {
+export const Partners = ({ theme }) => {
   return (
     <section className="mt-10">
       <Carousel
@@ -61,11 +64,17 @@ export const Partners = () => {
         className="drop-shadow-md "
       >
         {partnersInfo.map((el) => {
+          const logoForTheme =
+            theme === "dark-theme" ? el.logoDark : el.logoLight;
+
           return (
             <div
-              className="flex justify-between text-right px-10 py-5 rounded-2xl"
+              key={el.id}
+              className="flex justify-between text-right px-10 py-5"
               style={{
-                background: `url(${bg})`,
+                background: `url(${bg}) var(--background-block-steps)`,
+                borderRadius: "48px",
+                backgroundBlendMode: "overlay",
                 backgroundSize: "100% 100%",
                 height: "560px",
               }}
@@ -78,7 +87,7 @@ export const Partners = () => {
                   <p className="text-[48px] leading-normal">Наши партнеры</p>
                   <DividerSolid className="w-[130px]" />
                 </div>
-                <img src={el.logo} />
+                <img src={logoForTheme} />
                 <p className="text-[26px] font-medium">{el.title}</p>
                 <p className="text-[24px] font-normal mt-5">{el.desc}</p>
                 <p className="text-[24px] cursor-pointer mt-5">{el.mail}</p>
@@ -127,7 +136,8 @@ const partnersInfo = [
   {
     id: 1,
     img: incubatorImg,
-    logo: incubatorLogo,
+    logoLight: incubatorLogoLight,
+    logoDark: incubatorLogoDark,
     title: "Образовательная экосистема для развития карьеры в IT",
     desc: "Обучение, тренажеры, поддержка 1 на 1 и дружное комьюнити созданное разработчиками для разработчиков",
     mail: "support+229319@it-incubator.eu",
@@ -143,7 +153,8 @@ const partnersInfo = [
   {
     id: 2,
     img: skyproImg,
-    logo: skyproLogo,
+    logoLight: skyProLogoLight,
+    logoDark: skyProLogoDark,
     title: "Обучение IT-профессиям с нуля с гарантией новой работы",
     desc: "Цель Skypro — не просто продавать курсы людям, а обучать и устраивать на реальную работу",
     mail: "skypro@skyeng.ru",
@@ -158,7 +169,8 @@ const partnersInfo = [
   {
     id: 2,
     img: pranaImg,
-    logo: pranaLogo,
+    logoLight: pranaLogoLight,
+    logoDark: pranaLogoDark,
     title: "Центр психологии PRANA",
     desc: "Семейная, кризисная психология, психосоматика, психоанализ, коучинг. Быстрая помощь в решении проблемных ситуаций.Различные виды консультаций.",
     mail: "prana.vedic.center@gmail.com",

@@ -31,7 +31,7 @@ const HomeView = () => {
       <Features />
       <Steps />
       <Experts />
-      <Partners />
+      <Partners theme={theme} />
       <Contacts />
     </Layout>
   );

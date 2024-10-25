@@ -27,13 +27,12 @@ export const PageHeader: React.FC<IProps> = ({ theme, setTheme }) => {
       />
       <div className="flex flex-row items-center justify-center gap-7 flex-1">
         {menuItems.map((item) => (
-          <div className="px-7 py-1 hover:bg-golden/25 text-center text-2xl hover:text-golden rounded-[10px] cursor-pointer">
+          <div key={item} className="px-7 py-1 hover:bg-golden/25 text-center text-2xl hover:text-golden rounded-[10px] cursor-pointer">
             {item}
           </div>
         ))}
       </div>
       <Toggle
-        className="mr-[24px]"
         style={{
           transform: `rotate(${rotateToggle}deg)`,
           filter: `var(--filterStyle)`,

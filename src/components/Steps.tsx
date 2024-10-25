@@ -20,7 +20,10 @@ export const Steps = () => {
       </div>
       <section
         className="w-full max-w-[1440px] h-[920px] mt-12 pt-12"
-        style={{ backgroundImage: `url(${bg})` }}
+        style={{
+          background: `url(${bg}) var(--background-block-steps)`,
+          backgroundBlendMode: "overlay",
+        }}
       >
         <div className="flex justify-around items-center">
           <div className="flex flex-col items-center">

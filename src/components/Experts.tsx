@@ -32,6 +32,7 @@ export const Experts = () => {
         <div className="flex flex-wrap w-[768px] gap-8">
           {experts.map((el, idx) => (
             <div
+              key={idx}
               className="w-[350px] h-[200px] cursor-pointer flex relative"
               onMouseEnter={() => onHoverAvatar(idx)}
               onMouseLeave={onMouseLeave}
