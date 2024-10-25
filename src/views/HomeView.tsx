@@ -8,20 +8,33 @@ import { Steps } from "@/components/Steps";
 import { SocialMediaBlock } from "@/components/SocialMediaBlock";
 import "react-toastify/dist/ReactToastify.css";
 import { Contacts } from "@/components/Contacts";
+import { useEffect, useState } from "react";
 
 const HomeView = () => {
-    return (
-        <Layout>
-            <PageHeader />
-            <SocialMediaBlock />
-            <PageTitle />
-            <Features />
-            <Steps />
-            <Experts />
-            <Partners />
-            <Contacts />
-        </Layout>
-    );
+  const [theme, setTheme] = useState<string>("light-theme");
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+
+    document.body.className = theme;
+  }, [theme]);
+
+  return (
+    <Layout>
+      <PageHeader theme={theme} setTheme={setTheme} />
+      <SocialMediaBlock />
+      <PageTitle />
+      <Features />
+      <Steps />
+      <Experts />
+      <Partners />
+      <Contacts />
+    </Layout>
+  );
 };
 
 export default HomeView;
