@@ -1,4 +1,5 @@
-import bg from "../assets/steps/steps-bg.png";
+import bgLight from "../assets/steps/steps-bg-light.png";
+import bgDark from "../assets/steps/steps-bg-dark.png";
 import smm from "../assets/steps/smm.png";
 import media from "../assets/steps/media.png";
 import partnership from "../assets/steps/partnership.png";
@@ -10,19 +11,24 @@ import ArrowSvg from "../assets/steps/arrow.svg";
 import { DividerSolid } from "@/widgets/DividerSolid";
 import { DividerDots } from "@/widgets/DividerDots";
 
-export const Steps = () => {
+interface IProps {
+  theme: string;
+}
+
+export const Steps: React.FC<IProps> = ({ theme }) => {
+  const bg = theme === "dark-theme" ? bgDark : bgLight;
+
   return (
     <>
       <div className="flex flex-col items-center mt-12">
         <DividerDots className="mb-10" />
         <p className="text-[48px] leading-normal">Наш путь</p>
-        <DividerSolid className="w-[130px]" />
+        <DividerSolid className="w-[100px]" />
       </div>
       <section
         className="w-full max-w-[1440px] h-[920px] mt-12 pt-12"
         style={{
-          background: `url(${bg}) var(--background-block-steps)`,
-          backgroundBlendMode: "overlay",
+          background: `url(${bg})`,
         }}
       >
         <div className="flex justify-around items-center">

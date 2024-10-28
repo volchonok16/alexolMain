@@ -18,7 +18,7 @@ export const Experts = () => {
       <div className="flex flex-col items-center">
         <DividerDots className="mb-10" />
         <p className="text-[48px] leading-normal">Наши эксперты</p>
-        <DividerSolid className="w-[130px]" />
+        <DividerSolid className="w-[200px]" />
         <p className="mt-8">
           Каждый из наших сотрудников является экспертом в своей области с
           опытом <b>более 5 лет</b>

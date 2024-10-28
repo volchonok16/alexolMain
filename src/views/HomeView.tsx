@@ -29,7 +29,7 @@ const HomeView = () => {
       <SocialMediaBlock />
       <PageTitle />
       <Features />
-      <Steps />
+      <Steps theme={theme} />
       <Experts />
       <Partners theme={theme} />
       <Contacts />

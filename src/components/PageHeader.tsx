@@ -1,4 +1,3 @@
-// import { useEffect, useState } from "react";
 import Logo from "../common/assets/Logo1.svg";
 import Toggle from "../common/assets/Toggle.svg";
 import { menuItems } from "./constants";

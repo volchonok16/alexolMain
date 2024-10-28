@@ -10,7 +10,8 @@ import skyProLogoDark from "../assets/partners/sky-pro-logo-dark.png";
 import pranaImg from "../assets/partners/prana.png";
 import pranaLogoLight from "../assets/partners/prana-logo-light.png";
 import pranaLogoDark from "../assets/partners/prana-logo-dark.png";
-import bg from "../assets/partners/bg.png";
+import bgLight from "../assets/partners/bg-light.png";
+import bgDark from "../assets/partners/bg-dark.png";
 import { DividerSolid } from "@/widgets/DividerSolid";
 
 import VkLogo from "../assets/vk.svg";
@@ -71,12 +72,14 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
           const logoForTheme =
             theme === "dark-theme" ? el.logoDark : el.logoLight;
 
+          const bg = theme === "dark-theme" ? bgDark : bgLight;
+
           return (
             <div
               key={el.id}
               className="flex justify-between text-right px-10 py-5"
               style={{
-                background: `url(${bg}) var(--background-block-steps)`,
+                background: `url(${bg}) no-repeat center / cover`,
                 borderRadius: "48px",
                 backgroundBlendMode: "overlay",
                 backgroundSize: "100% 100%",

@@ -7,7 +7,7 @@ export const DividerSolid = (props: IProps) => {
 
   return (
     <div
-      className={`${className} h-1 w-[270px] bg-gradient-to-r from-[#97794D] to-[#E3CB8F]`}
+      className={`${className} h-1 bg-gradient-to-r from-[#97794D] to-[#E3CB8F]`}
     />
   );
 };
