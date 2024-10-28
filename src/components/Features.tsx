@@ -7,7 +7,7 @@ import bg from "../assets/features/bg.png";
 
 export const Features = () => {
     return (
-        <section className="px-4" style={{ backgroundImage: `url(${bg})` }}>
+        <section style={{ backgroundImage: `url(${bg})` }}>
             <div className="flex justify-between mt-10">
                 <div className="max-w-[780px]">
                     <p className="text-[32px]">Развитие медиа</p>
