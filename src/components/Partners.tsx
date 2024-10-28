@@ -20,7 +20,11 @@ import InstLogo from "../assets/inst.svg";
 import TgLogo from "../assets/tg.svg";
 import { Link } from "react-router-dom";
 
-export const Partners = ({ theme }) => {
+interface IProps {
+  theme: string;
+}
+
+export const Partners: React.FC<IProps> = ({ theme }) => {
   return (
     <section className="mt-10">
       <Carousel
