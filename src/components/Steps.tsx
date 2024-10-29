@@ -1,5 +1,6 @@
 import bgLight from "../assets/steps/steps-bg-light.png";
 import bgDark from "../assets/steps/steps-bg-dark.png";
+
 import smm from "../assets/steps/smm.png";
 import media from "../assets/steps/media.png";
 import partnership from "../assets/steps/partnership.png";

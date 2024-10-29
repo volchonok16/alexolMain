@@ -16,6 +16,13 @@ export const PageHeader: React.FC<IProps> = ({ theme, setTheme }) => {
 
   const rotateToggle = theme === "dark-theme" ? 180 : 0;
 
+  const handleScrollToAnchor = (item: string) => {
+    const anchor = document.getElementById(item);
+    if (anchor) {
+      anchor.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <div className="h-[90px] flex flex-row items-center gap-7">
       <Logo
@@ -26,7 +33,11 @@ export const PageHeader: React.FC<IProps> = ({ theme, setTheme }) => {
       />
       <div className="flex flex-row items-center justify-center gap-7 flex-1">
         {menuItems.map((item) => (
-          <div key={item} className="px-7 py-1 hover:bg-golden/25 text-center text-2xl hover:text-golden rounded-[10px] cursor-pointer">
+          <div
+            key={item}
+            className="px-7 py-1 hover:bg-golden/25 text-center text-2xl hover:text-golden rounded-[10px] cursor-pointer"
+            onClick={() => handleScrollToAnchor(item)}
+          >
             {item}
           </div>
         ))}

@@ -27,7 +27,7 @@ export const Experts = () => {
 
       <div
         className="h-[500px] mt-8 pl-32 flex justify-center items-center"
-        style={{ backgroundImage: `url(${bg})` }}
+        style={{ background: `url(${bg}) no-repeat center` }}
       >
         <div className="flex flex-wrap w-[768px] gap-8">
           {experts.map((el, idx) => (

@@ -27,7 +27,7 @@ interface IProps {
 
 export const Partners: React.FC<IProps> = ({ theme }) => {
   return (
-    <section className="mt-10">
+    <section id="Сотрудничество" className="mt-10">
       <Carousel
         responsive={{
           desktop: {

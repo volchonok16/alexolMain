@@ -27,11 +27,17 @@ export const SocialMediaBlock = () => {
         </div>
         <div className="w-[139px] h-[4px] bg-gradient-to-r from-golden2 to-golden3 self-center mb-10" />
         <div className="text-xl self-center mb-12">{socialMediaText}</div>
-        <div className="w-[400px] flex flex-row flex-wrap items-center justify-center gap-7 self-center">
+        <div
+          id="Контент"
+          className="w-[400px] flex flex-row flex-wrap items-center justify-center gap-7 self-center"
+        >
           {socialMediaLinks.map((item) => {
             const Logo = item.logo;
             return (
-              <div key={item.title} className="flex-1 rounded-[10px] bg-gradient-to-r from-golden2 to-golden3 grow shadow-[8px_8px_8px_rgba(156,137,77,0.25)] transition-shadow duration-300 ease-in-out ">
+              <div
+                key={item.title}
+                className="flex-1 rounded-[10px] bg-gradient-to-r from-golden2 to-golden3 grow shadow-[8px_8px_8px_rgba(156,137,77,0.25)] transition-shadow duration-300 ease-in-out "
+              >
                 <div
                   className="rounded-[10px] m-[1px] hover:shadow-[inset_4px_4px_8px_rgba(156,137,77,0.25)]"
                   style={{

@@ -9,6 +9,7 @@ import { SocialMediaBlock } from "@/components/SocialMediaBlock";
 import "react-toastify/dist/ReactToastify.css";
 import { Contacts } from "@/components/Contacts";
 import { useEffect, useState } from "react";
+import bg from "../assets/features/bg.png";
 
 const HomeView = () => {
   const [theme, setTheme] = useState<string>("light-theme");
@@ -22,14 +23,15 @@ const HomeView = () => {
 
     document.body.className = theme;
   }, [theme]);
-
   return (
     <Layout>
       <PageHeader theme={theme} setTheme={setTheme} />
       <SocialMediaBlock />
       <PageTitle />
-      <Features />
-      <Steps theme={theme} />
+      <section style={{ background: `url(${bg}) repeat-y top / auto 37%` }}>
+        <Features />
+        <Steps theme={theme} />
+      </section>
       <Experts />
       <Partners theme={theme} />
       <Contacts />
