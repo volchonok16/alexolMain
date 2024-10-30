@@ -1,11 +1,9 @@
 import { socialMediaLinks } from "./constants";
-import bg from "../assets/features/bg.png";
 
 export const Contacts = () => {
   return (
     <section
-      className="flex justify-between pt-20 pb-10 sm:pb-20"
-      style={{ background: `url(${bg}) repeat-y` }}
+      className="flex justify-between pt-20"
     >
       <div className="basis-[40%]">
         <p className="text-[32px]">Контакты</p>

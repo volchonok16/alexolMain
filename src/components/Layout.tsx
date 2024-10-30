@@ -16,7 +16,7 @@ const Layout: FC<LayoutProps> = (props) => {
       }}
     >
       <div className="overflow-x-hidden sm:max-w-[1440px] mx-auto">
-        <div className="px-4 flex flex-col items-center min-h-screen w-full pt-9">
+        <div className="px-4 flex flex-col items-center min-h-screen w-full mb-10 sm:mb-20 pt-9">
           {/* <PageHeader /> */}
           <div className="flex-1 w-full">{children}</div>
         </div>
