@@ -52,109 +52,55 @@
     }
   }
 }
-@media (max-width: 375px) {
-  .cube {
-    position: absolute;
-
-    &--1 {
-      left: 8px;
-      top: 40px;
-
-      animation: rotate-cube1 10s ease-in-out infinite;
-    }
-    &--2 {
-      left: 13px;
-      top: 104px;
-
-      animation: rotate-cube2 10s ease-in-out infinite;
-    }
-    &--3 {
-      left: 59px;
-      top: 9px;
-
-      animation: rotate-cube3 10s ease-in-out infinite;
-    }
-    &--4 {
-      left: 65px;
-      top: 78px;
-
-      animation: rotate-cube1 10s ease-in-out infinite;
-    }
-    &--5 {
-      left: 117px;
-      top: 26px;
-
-      animation: rotate-cube2 10s ease-in-out infinite;
-    }
-    &--6 {
-      left: 119px;
-      top: 91px;
-
-      animation: rotate-cube3 10s ease-in-out infinite;
-    }
-    &--7 {
-      left: 169px;
-      top: 5px;
-
-      animation: rotate-cube1 10s ease-in-out infinite;
-    }
-    &--8 {
-      left: 161px;
-      top: 44px;
-
-      animation: rotate-cube2 10s ease-in-out infinite;
-    }
-  }
-}
 @media (max-width: 768px) {
   .cube {
     position: absolute;
 
     &--1 {
-      left: 30px;
-      top: 40px;
+      left: 15px;
+      top: 70px;
 
       animation: rotate-cube1 10s ease-in-out infinite;
     }
     &--2 {
-      left: 0px;
-      top: 150px;
+      left: 23px;
+      top: 180px;
 
       animation: rotate-cube2 10s ease-in-out infinite;
     }
     &--3 {
-      left: 120px;
-      top: 50px;
+      left: 102px;
+      top: 27px;
 
       animation: rotate-cube3 10s ease-in-out infinite;
     }
     &--4 {
-      left: 100px;
-      top: 150px;
+      left: 111px;
+      top: 135px;
 
       animation: rotate-cube1 10s ease-in-out infinite;
     }
     &--5 {
-      left: 220px;
-      top: 50px;
+      left: 195px;
+      top: 45px;
 
       animation: rotate-cube2 10s ease-in-out infinite;
     }
     &--6 {
-      left: 180px;
-      top: 150px;
+      left: 200px;
+      top: 157px;
 
       animation: rotate-cube3 10s ease-in-out infinite;
     }
     &--7 {
-      left: 270px;
-      top: 10px;
+      left: 284px;
+      top: 9px;
 
       animation: rotate-cube1 10s ease-in-out infinite;
     }
     &--8 {
       left: 270px;
-      top: 100px;
+      top: 76px;
 
       animation: rotate-cube2 10s ease-in-out infinite;
     }

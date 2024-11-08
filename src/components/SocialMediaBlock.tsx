@@ -18,16 +18,16 @@ export const SocialMediaBlock = () => {
     return (
         <div className="flex flex-row justify-between items-center relative">
             <div className="absolute sm:top-2 top-0 right-0">
-                <Background className="w-[350px] h-auto md:w-[400px] lg:w-[786px]" />
-                <div className="w-[250px] h-[144px] md:w-[400px] lg:w-[786px] lg:h-[548px] absolute top-0">
-                    <Block1 className="cube cube--1 rotate-[-54] w-[32px] md:w-[50px] lg:w-[85px] h-auto" />
-                    <Block2 className="cube cube--2 rotate-[-75] w-[32px] md:w-[50px] lg:w-[85px] h-auto" />
-                    <Block3 className="cube cube--3 rotate-[45] w-[52px] md:w-[85px] lg:w-[138px] h-auto" />
-                    <Block4 className="cube cube--4 rotate-[-54] w-[32px] md:w-[50px] lg:w-[85px] h-auto" />
-                    <Block5 className="cube cube--5 rotate-[-60] w-[32px] md:w-[50px] lg:w-[85px] h-auto" />
-                    <Block6 className="cube cube--6 rotate-[45] w-[52px] md:w-[85px] lg:w-[138px] h-auto" />
-                    <Block7 className="cube cube--7 rotate-[-67] w-[32px] md:w-[50px] lg:w-[85px] h-auto" />
-                    <Block8 className="cube cube--8 rotate-[-75] w-[32px] md:w-[50px] lg:w-[85px] h-auto" />
+                <Background className="w-[350px] h-auto lg:w-[786px]" />
+                <div className="w-[350px] h-[250px] lg:w-[786px] lg:h-[548px] absolute top-0">
+                    <Block1 className="cube cube--1 rotate-[-54] w-[37px] lg:w-[85px] h-auto" />
+                    <Block2 className="cube cube--2 rotate-[-75] w-[37px] lg:w-[85px] h-auto" />
+                    <Block3 className="cube cube--3 rotate-[45] w-[60px] lg:w-[138px] h-auto" />
+                    <Block4 className="cube cube--4 rotate-[-54] w-[37px] lg:w-[85px] h-auto" />
+                    <Block5 className="cube cube--5 rotate-[-60] w-[37px] lg:w-[85px] h-auto" />
+                    <Block6 className="cube cube--6 rotate-[45] w-[60px] lg:w-[138px] h-auto" />
+                    <Block7 className="cube cube--7 rotate-[-67] w-[37px] lg:w-[85px] h-auto" />
+                    <Block8 className="cube cube--8 rotate-[-75] w-[37px] lg:w-[85px] h-auto" />
                 </div>
             </div>
             <div className="flex flex-col items-center mt-[260px] md:mt-0 lg:mt-0 md:w-[400px]">

@@ -77,7 +77,7 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
                     return (
                         <div
                             key={el.id}
-                            className="flex justify-between text-center lg:text-right px-5 lg:px-10 py-2 lg:py-5 h-[560px] lg:h-[600px] items-center lg:items-start"
+                            className="flex justify-between text-center lg:text-right px-5 lg:px-10 py-2 lg:py-5 h-[560px] lg:h-[600px] items-center"
                             style={{
                                 background: `url(${bg}) no-repeat center / cover`,
                                 borderRadius: "48px",
