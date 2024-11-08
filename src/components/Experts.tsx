@@ -18,7 +18,7 @@ export const Experts = () => {
       <div className="flex flex-col items-center">
         <DividerDots className="mb-10" />
         <p className="text-[48px] leading-normal">Наши эксперты</p>
-        <DividerSolid className="w-[130px]" />
+        <DividerSolid className="w-[200px]" />
         <p className="mt-8">
           Каждый из наших сотрудников является экспертом в своей области с
           опытом <b>более 5 лет</b>
@@ -27,11 +27,12 @@ export const Experts = () => {
 
       <div
         className="h-[500px] mt-8 pl-32 flex justify-center items-center"
-        style={{ backgroundImage: `url(${bg})` }}
+        style={{ background: `url(${bg}) no-repeat center` }}
       >
         <div className="flex flex-wrap w-[768px] gap-8">
           {experts.map((el, idx) => (
             <div
+              key={idx}
               className="w-[350px] h-[200px] cursor-pointer flex relative"
               onMouseEnter={() => onHoverAvatar(idx)}
               onMouseLeave={onMouseLeave}

@@ -2,7 +2,9 @@ import { socialMediaLinks } from "./constants";
 
 export const Contacts = () => {
   return (
-    <section className="flex justify-between mt-20">
+    <section
+      className="flex justify-between pt-20"
+    >
       <div className="basis-[40%]">
         <p className="text-[32px]">Контакты</p>
         <div className=" mt-8">
@@ -15,11 +17,19 @@ export const Contacts = () => {
           {socialMediaLinks.map((item) => {
             const Logo = item.logo;
             return (
-              <div className="flex-1 rounded-[10px] bg-gradient-to-r from-golden2 to-golden3 grow shadow-[8px_8px_8px_rgba(156,137,77,0.25)] transition-shadow duration-300 ease-in-out">
-                <div className="rounded-[10px] m-[1px] bg-white hover:shadow-[inset_4px_4px_8px_rgba(156,137,77,0.25)]">
+              <div
+                key={item.title}
+                className="flex-1 rounded-[10px] bg-gradient-to-r from-golden2 to-golden3 grow shadow-[8px_8px_8px_rgba(156,137,77,0.25)] transition-shadow duration-300 ease-in-out"
+              >
+                <div
+                  className="rounded-[10px] m-[1px] hover:shadow-[inset_4px_4px_8px_rgba(156,137,77,0.25)]"
+                  style={{
+                    background: `var(--background)`,
+                  }}
+                >
                   <a
                     href={item.link}
-                    className="p-2 m-[1px] hover:shadow-[0px_4px_10px_0px_#C0A570] text-center text-xl leading-5 rounded-[10px] cursor-pointer flex flex-row gap-4 justify-between"
+                    className="p-2 m-[1px] hover:shadow-[0px_4px_10px_0px_#C0A570] text-center text-xl leading-5 rounded-[10px] cursor-pointer flex flex-row gap-4 items-center justify-between"
                   >
                     <div className="bg-gradient-to-r from-golden2 to-golden3 bg-clip-text text-transparent">
                       {item.title}

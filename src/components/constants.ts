@@ -7,7 +7,7 @@ import Telegram from '../common/assets/Telegram.svg'
 const menuItems = ['Наши продукты', 'Контент', 'Сотрудничество']
 
 const slogan1 = 'Команда друзей'
-const slogan2 = 'меняющая мир'
+const slogan2 = 'меняющих мир'
 
 const socialMediaText = 'Делаем мир лучше - вместе'
 
