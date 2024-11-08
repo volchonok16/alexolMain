@@ -29,7 +29,7 @@ const HomeView = () => {
       <SocialMediaBlock />
       <PageTitle />
       <section style={{ background: `url(${bg}) repeat-y top / auto 37%` }}>
-        <Features />
+        <Features theme={theme} />
         <Steps theme={theme} />
       </section>
       <Experts />

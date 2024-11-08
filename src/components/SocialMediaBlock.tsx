@@ -17,19 +17,33 @@ import Background from "../common/assets/Background.svg";
 export const SocialMediaBlock = () => {
   return (
     <div className="flex flex-row justify-between items-center relative">
-      <Background className="absolute top-0 right-0 width" />
-      <div className="flex flex-col">
-        <div className="text-5xl leading-[46px] mb-4 text-nowrap">
+      <div className="absolute sm:top-2 top-0 right-0">
+        <Background className="w-[350px] h-auto lg:w-[786px] md:w-[550px]" />
+        <div className="w-[250px] h-[144px] lg:w-[786px] md:w-[500px] lg:h-[548px] md:h-[400px] absolute top-0">
+          <Block1 className="cube cube--1 rotate-[-54] w-[32px] lg:w-[85px] h-auto" />
+          <Block2 className="cube cube--2 rotate-[-75] w-[32px] lg:w-[85px] h-auto" />
+          <Block3 className="cube cube--3 rotate-[45] w-[52px] lg:w-[138px] h-auto" />
+          <Block4 className="cube cube--4 rotate-[-54] w-[32px] lg:w-[85px] h-auto" />
+          <Block5 className="cube cube--5 rotate-[-60] w-[32px] lg:w-[85px] h-auto" />
+          <Block6 className="cube cube--6 rotate-[45] w-[52px] lg:w-[138px] h-auto" />
+          <Block7 className="cube cube--7 rotate-[-67] w-[32px] lg:w-[85px] h-auto" />
+          <Block8 className="cube cube--8 rotate-[-75] w-[32px] lg:w-[85px] h-auto" />
+        </div>
+      </div>
+      <div className="flex flex-col items-center mt-[260px] lg:mt-0">
+        <div className="text-2xl lg:text-5xl leading-[23px] lg:leading-[46px] mb-4 mt-2 lg:mt-20 text-nowrap">
           {slogan1}
         </div>
-        <div className="text-5xl leading-[46px] ps-[107px] mb-9 text-nowrap">
+        <div className="text-2xl lg:text-5xl leading-[23px] lg:leading-[46px] ps-[90px] lg:ps-[107px] mb-5 lg:mb-9 text-nowrap">
           {slogan2}
         </div>
-        <div className="w-[139px] h-[4px] bg-gradient-to-r from-golden2 to-golden3 self-center mb-10" />
-        <div className="text-xl self-center mb-12">{socialMediaText}</div>
+        <div className="w-[139px] h-[4px] bg-gradient-to-r from-golden2 to-golden3 self-center mb-5 lg:mb-10" />
+        <div className="text-base lg:text-xl self-center mb-5 lg:mb-12">
+          {socialMediaText}
+        </div>
         <div
           id="Контент"
-          className="w-[400px] flex flex-row flex-wrap items-center justify-center gap-7 self-center"
+          className="lg:w-[400px] flex flex-row flex-wrap items-center justify-center gap-7 self-center"
         >
           {socialMediaLinks.map((item) => {
             const Logo = item.logo;
@@ -46,7 +60,7 @@ export const SocialMediaBlock = () => {
                 >
                   <a
                     href={item.link}
-                    className="p-2 m-[1px] text-center text-xl leading-5 rounded-[10px] cursor-pointer flex items-center flex-row gap-4 justify-between hover:shadow-[0px_4px_10px_0px_#C0A570]"
+                    className="p-2 m-[1px] text-center text-lg lg:text-xl leading-[17px] lg:leading-5 rounded-[10px] cursor-pointer flex items-center flex-row gap-4 justify-between hover:shadow-[0px_4px_10px_0px_#C0A570]"
                   >
                     <div className="bg-gradient-to-r from-golden2 to-golden3 bg-clip-text text-transparent">
                       {item.title}
@@ -59,16 +73,16 @@ export const SocialMediaBlock = () => {
           })}
         </div>
       </div>
-      <div className="w-[786px] h-[548px] relative">
-        <Block1 className="cube cube--1 rotate-[-54]" />
-        <Block2 className="cube cube--2 rotate-[-75]" />
-        <Block3 className="cube cube--3 rotate-[45]" />
-        <Block4 className="cube cube--4 rotate-[-54]" />
-        <Block5 className="cube cube--5 rotate-[-60]" />
-        <Block6 className="cube cube--6 rotate-[45]" />
-        <Block7 className="cube cube--7 rotate-[-67]" />
-        <Block8 className="cube cube--8 rotate-[-75]" />
-      </div>
+      {/* <div className="w-[250px] h-[144px] lg:w-[786px] lg:h-[548px] relative">
+        <Block1 className="cube cube--1 rotate-[-54] w-[32px] lg:w-[85px] h-auto" />
+        <Block2 className="cube cube--2 rotate-[-75] w-[32px] lg:w-[85px] h-auto" />
+        <Block3 className="cube cube--3 rotate-[45] w-[52px] lg:w-[138px] h-auto" />
+        <Block4 className="cube cube--4 rotate-[-54] w-[32px] lg:w-[85px] h-auto" />
+        <Block5 className="cube cube--5 rotate-[-60] w-[32px] lg:w-[85px] h-auto" />
+        <Block6 className="cube cube--6 rotate-[45] w-[52px] lg:w-[138px] h-auto" />
+        <Block7 className="cube cube--7 rotate-[-67] w-[32px] lg:w-[85px] h-auto" />
+        <Block8 className="cube cube--8 rotate-[-75] w-[32px] lg:w-[85px] h-auto" />
+      </div> */}
     </div>
   );
 };

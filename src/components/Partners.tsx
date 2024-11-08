@@ -27,7 +27,7 @@ interface IProps {
 
 export const Partners: React.FC<IProps> = ({ theme }) => {
   return (
-    <section id="Сотрудничество" className="mt-10">
+    <section id="Сотрудничество" className="mt-5 lg:mt-10">
       <Carousel
         responsive={{
           desktop: {
@@ -77,28 +77,41 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
           return (
             <div
               key={el.id}
-              className="flex justify-between text-right px-10 py-5"
+              className="flex justify-between text-center lg:text-right px-5 lg:px-10 py-2 lg:py-5 h-[560px] items-center lg:items-start"
               style={{
                 background: `url(${bg}) no-repeat center / cover`,
                 borderRadius: "48px",
                 backgroundBlendMode: "overlay",
                 backgroundSize: "100% 100%",
-                height: "560px",
               }}
             >
-              <div>
+              <div className="hidden lg:block">
                 <img className="w-[600px]" src={el.img} />
               </div>
-              <div className="flex flex-col items-end w-[500px]">
-                <div className="flex flex-col items-end">
-                  <p className="text-[48px] leading-normal">Наши партнеры</p>
+              <div className="flex flex-col items-center lg:items-end w-[500px]">
+                <div className="flex flex-col items-center lg:items-end">
+                  <p className="text-[24px] lg:text-[48px] leading-normal">
+                    Наши партнеры
+                  </p>
                   <DividerSolid className="w-[130px]" />
                 </div>
-                <img src={logoForTheme} />
-                <p className="text-[26px] font-medium">{el.title}</p>
-                <p className="text-[24px] font-normal mt-5">{el.desc}</p>
-                <p className="text-[24px] cursor-pointer mt-5">{el.mail}</p>
-                <div className="flex justify-end items-center gap-4 mt-5">
+                <img
+                  src={logoForTheme} className="w-[50%] lg:w-[80%] h-auto"
+                />
+                <p className="text-[16px] lg:text-[26px] font-medium">
+                  {el.title}
+                </p>
+                <div className="block lg:hidden">
+                  <img className="w-[300px] lg:w-[600px] h-auto" src={el.img} />
+                </div>
+
+                <p className="text-[12px] lg:text-[24px] font-normal mt-2 lg:mt-5">
+                  {el.desc}
+                </p>
+                <p className="text-[12px] lg:text-[24px] cursor-pointer mt-2 lg:mt-5">
+                  {el.mail}
+                </p>
+                <div className="flex flex-col lg:flex-row lg:justify-end items-center gap-4 mt-2 lg:mt-5">
                   <Link to={el.site} target="_blank">
                     <button
                       className="py-2 px-4 bg-gradient-to-r rounded-lg text-white"
@@ -110,25 +123,27 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
                       Узнать подробнее
                     </button>
                   </Link>
-                  <Link to={el.socials.vk} target="_blank">
-                    <VkLogo className="cursor-pointer" />
-                  </Link>
-                  {el.socials.wa && (
-                    <Link to={el.socials.wa} target="_blank">
-                      <WhatsAppLogo className="cursor-pointer" />
+                  <div className="flex gap-4"> 
+                    <Link to={el.socials.vk} target="_blank">
+                      <VkLogo className="cursor-pointer" />
                     </Link>
-                  )}
-                  {el.socials.viber && (
-                    <Link to={el.socials.viber} target="_blank">
-                      <ViberLogo className="cursor-pointer" />
+                    {el.socials.wa && (
+                      <Link to={el.socials.wa} target="_blank">
+                        <WhatsAppLogo className="cursor-pointer" />
+                      </Link>
+                    )}
+                    {el.socials.viber && (
+                      <Link to={el.socials.viber} target="_blank">
+                        <ViberLogo className="cursor-pointer" />
+                      </Link>
+                    )}
+                    <Link to={el.socials.inst} target="_blank">
+                      <InstLogo className="cursor-pointer" />
                     </Link>
-                  )}
-                  <Link to={el.socials.inst} target="_blank">
-                    <InstLogo className="cursor-pointer" />
-                  </Link>
-                  <Link to={el.socials.tg} target="_blank">
-                    <TgLogo className="cursor-pointer" />
-                  </Link>
+                    <Link to={el.socials.tg} target="_blank">
+                      <TgLogo className="cursor-pointer" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>

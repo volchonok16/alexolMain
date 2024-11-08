@@ -1,4 +1,5 @@
-.cube {
+@media (max-width: 1440px) {
+    .cube {
     position: absolute;
 
     &--1 {
@@ -50,6 +51,61 @@
         animation: rotate-cube2 10s ease-in-out infinite;
     }
 }
+}
+@media (max-width: 375px) {
+    .cube {
+        position: absolute;
+    
+        &--1 {
+            left: 12px;
+            top: 62px;
+    
+            animation: rotate-cube1 10s ease-in-out infinite;
+        }
+        &--2 {
+            left: 20px;
+            top: 160px;
+    
+            animation: rotate-cube2 10s ease-in-out infinite;
+        }
+        &--3 {
+            left: 92px;
+            top: 14px;
+    
+            animation: rotate-cube3 10s ease-in-out infinite;
+        }
+        &--4 {
+            left: 100px;
+            top: 120px;
+    
+            animation: rotate-cube1 10s ease-in-out infinite;
+        }
+        &--5 {
+            left: 180px;
+            top: 40px;
+    
+            animation: rotate-cube2 10s ease-in-out infinite;
+        }
+        &--6 {
+            left: 184px;
+            top: 140px;
+    
+            animation: rotate-cube3 10s ease-in-out infinite;
+        }
+        &--7 {
+            left: 260px;
+            top: 8px;
+    
+            animation: rotate-cube1 10s ease-in-out infinite;
+        }
+        &--8 {
+            left: 248px;
+            top: 68px;
+    
+            animation: rotate-cube2 10s ease-in-out infinite;
+        }
+    }
+    }
 
 @keyframes rotate-cube1 {
     0% {

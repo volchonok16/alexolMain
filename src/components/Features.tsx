@@ -2,33 +2,70 @@ import img1 from "../assets/features/img-1.png";
 import img2 from "../assets/features/img-2.png";
 import img3 from "../assets/features/img-3.png";
 import img4 from "../assets/features/img-4.png";
+import imgSm1 from "../assets/features/img-sm-1.png";
+import imgSm2 from "../assets/features/img-sm-2.png";
+import imgSm3 from "../assets/features/img-sm-3.png";
+import imgSm4 from "../assets/features/img-sm-4.png";
 
-// import bg from "../assets/features/bg.png";
+interface IProps {
+  theme: string;
+}
 
-export const Features = () => {
+export const Features: React.FC<IProps> = ({ theme }) => {
+  const textColor = theme === "dark-theme" ? "text-white" : "text-dark-gray";
+
   return (
-    <section id="Наши продукты">
-      <div className="flex justify-between mt-10">
-        <div className="max-w-[780px]">
-          <p className="text-[32px]">Развитие медиа</p>
-          <p className="text-[20px] mt-5">
+    <section id="Наши продукты" className={`text-white lg:${textColor}`}>
+      <div className="flex lg:justify-between mt-10 ">
+        <div
+          className="group w-[355px] h-auto lg:w-[780px] absolute lg:static flex-col text-center lg:text-left shadow-[8px_8px_16px_0px_rgba(8, 12, 0)]"
+          style={{ zIndex: 10 }}
+        >
+          <p className="text-[30px] lg:text-[32px] mt-[60px] lg:mt-0 opacity-100 transition-opacity duration-300 group-hover:opacity-0 lg:group-hover:opacity-100">
+            Развитие медиа
+          </p>
+          <p className="text-[12px] lg:text-[20px] mt-5 opacity-0 lg:opacity-100 absolute lg:static right-[20px] left-[10px] top-[20px] transition-opacity duration-300 group-hover:opacity-100">
             Alexol также активно работает над созданием медийного контента,
             ориентированного на профессионалов из различных индустрий. Мы
             стремимся делиться знаниями, вдохновлять на новые свершения и быть в
             центре информационной повестки.
           </p>
         </div>
-        <div className="w-[460px] h-[250px] relative">
-          <img className="drop-shadow-xl w-full h-full" src={img1} alt="" />
+        <div className="w-[355px] h-auto lg:w-[460px] lg:h-[250px] relative ">
+          <img
+            className="drop-shadow-xl w-full h-full hidden lg:block"
+            src={img1}
+            alt=""
+          />
+          <img
+            className="drop-shadow-xl w-full h-full block lg:hidden"
+            src={imgSm1}
+            alt=""
+          />
         </div>
       </div>
-      <div className="flex justify-between mt-10">
-        <div className="w-[460px] h-[250px] relative">
-          <img className="drop-shadow-xl w-full h-full" src={img2} alt="" />
+
+      <div className="flex lg:justify-between mt-10">
+        <div className="w-[355px] h-auto lg:w-[460px] lg:h-[250px] relative">
+          <img
+            className="drop-shadow-xl w-full h-full hidden lg:block"
+            src={img2}
+            alt=""
+          />
+          <img
+            className="drop-shadow-xl w-full h-full block lg:hidden"
+            src={imgSm2}
+            alt=""
+          />
         </div>
-        <div className="max-w-[780px]">
-          <p className="text-[32px] text-right">Развитие площадок</p>
-          <p className="text-[20px] mt-5 text-right">
+        <div
+          className="group w-[355px] h-auto lg:w-[780px] absolute lg:static flex-col text-center lg:text-right"
+          style={{ zIndex: 10 }}
+        >
+          <p className="text-[30px] lg:text-[32px] mt-[90px] lg:mt-0 opacity-100 transition-opacity duration-300 group-hover:opacity-0 lg:group-hover:opacity-100">
+            Развитие площадок
+          </p>
+          <p className="text-[12px] lg:text-[20px] mt-5 opacity-0 lg:opacity-100 absolute lg:static right-[20px] left-[10px] top-[6px] transition-opacity duration-300 group-hover:opacity-100">
             В планах компании — запуск сети современных коворкинговых
             пространств в столице и не только, которые будут не просто рабочими
             местами, а настоящими центрами силы. Эти пространства станут местом
@@ -39,10 +76,15 @@ export const Features = () => {
           </p>
         </div>
       </div>
-      <div className="flex justify-between mt-10">
-        <div className="max-w-[780px]">
-          <p className="text-[32px]">Новое приложение</p>
-          <p className="text-[20px] mt-5">
+      <div className="flex lg:justify-between mt-10">
+        <div
+          className="group w-[355px] h-auto lg:w-[780px] absolute lg:static flex-col text-center lg:text-left"
+          style={{ zIndex: 10 }}
+        >
+          <p className="text-[30px] lg:text-[32px] mt-[80px] lg:mt-0 opacity-100 transition-opacity duration-300 group-hover:opacity-0 lg:group-hover:opacity-100">
+            Новое приложение
+          </p>
+          <p className="text-[12px] lg:text-[20px] mt-5 opacity-0 lg:opacity-100 absolute lg:static right-[20px] left-[10px] top-[0px] transition-opacity duration-300 group-hover:opacity-100">
             Мы работаем над созданием уникального приложения, над которым
             трудятся не только IT-специалисты, но и эксперты в области
             психологии и маркетинга. Наша цель — создать продукт, который будет
@@ -52,17 +94,40 @@ export const Features = () => {
             и быть в курсе всех новостей!
           </p>
         </div>
-        <div className="w-[460px] h-[250px] relative">
-          <img className="drop-shadow-xl w-full h-full" src={img3} alt="" />
+        <div className="w-[355px] h-auto lg:w-[460px] lg:h-[250px] relative">
+          <img
+            className="drop-shadow-xl w-full h-full hidden lg:block"
+            src={img3}
+            alt=""
+          />
+          <img
+            className="drop-shadow-xl w-full h-full block lg:hidden"
+            src={imgSm3}
+            alt=""
+          />
         </div>
       </div>
-      <div className="flex justify-between mt-10">
-        <div className="w-[460px] h-[250px] relative">
-          <img className="drop-shadow-xl w-full h-full" src={img4} alt="" />
+      <div className="flex lg:justify-between mt-10">
+        <div className="w-[355px] h-auto lg:w-[460px] lg:h-[250px] relative">
+          <img
+            className="drop-shadow-xl w-full h-full hidden lg:block"
+            src={img4}
+            alt=""
+          />
+          <img
+            className="drop-shadow-xl w-full h-full block lg:hidden"
+            src={imgSm4}
+            alt=""
+          />
         </div>
-        <div className="max-w-[780px]">
-          <p className="text-[32px] text-right">Мерч</p>
-          <p className="text-[20px] mt-5 text-right">
+        <div
+          className="group w-[355px] h-auto lg:w-[780px] absolute lg:static flex-col text-center lg:text-right"
+          style={{ zIndex: 10 }}
+        >
+          <p className="text-[30px] lg:text-[32px] mt-[70px] lg:mt-0 opacity-100 transition-opacity duration-300 group-hover:opacity-0 lg:group-hover:opacity-100">
+            Мерч
+          </p>
+          <p className="text-[12px] lg:text-[20px] mt-5 opacity-0 lg:opacity-100 absolute lg:static right-[20px] left-[10px] top-[10px] transition-opacity duration-300 group-hover:opacity-100">
             Развиваем мерч с уникальным стилем и вдохновляющими цитатами! Наши
             эксклюзивные аксессуары и одежда сочетают качество и мудрость
             великих умов, помогая вам выразить свою индивидуальность и поднять
