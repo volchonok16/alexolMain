@@ -3,11 +3,11 @@ import HomeView from "./views/HomeView.tsx";
 
 function App() {
 
-  return (
-    <>
-      <HomeView />
-    </>
-  )
+    return (
+        <>
+            <HomeView />
+        </>
+    )
 }
 
 export default App
