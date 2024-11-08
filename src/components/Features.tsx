@@ -12,11 +12,14 @@ interface IProps {
 }
 
 export const Features: React.FC<IProps> = ({ theme }) => {
-  const textColor = theme === "dark-theme" ? "text-white" : "text-dark-gray";
-
   return (
-    <section id="Наши продукты" className={`text-white lg:${textColor}`}>
-      <div className="flex lg:justify-between mt-10 ">
+    <section
+      id="Наши продукты"
+      className={`text-white  lg:${
+        theme === "dark-theme" ? "text-white" : "text-dark-gray"
+      }`}
+    >
+      <div className="flex md:justify-center lg:justify-between mt-10 ">
         <div
           className="group w-[355px] h-auto lg:w-[780px] absolute lg:static flex-col text-center lg:text-left shadow-[8px_8px_16px_0px_rgba(8, 12, 0)]"
           style={{ zIndex: 10 }}
@@ -45,7 +48,7 @@ export const Features: React.FC<IProps> = ({ theme }) => {
         </div>
       </div>
 
-      <div className="flex lg:justify-between mt-10">
+      <div className="flex md:justify-center lg:justify-between mt-10">
         <div className="w-[355px] h-auto lg:w-[460px] lg:h-[250px] relative">
           <img
             className="drop-shadow-xl w-full h-full hidden lg:block"
@@ -76,7 +79,7 @@ export const Features: React.FC<IProps> = ({ theme }) => {
           </p>
         </div>
       </div>
-      <div className="flex lg:justify-between mt-10">
+      <div className="flex md:justify-center lg:justify-between mt-10">
         <div
           className="group w-[355px] h-auto lg:w-[780px] absolute lg:static flex-col text-center lg:text-left"
           style={{ zIndex: 10 }}
@@ -107,7 +110,7 @@ export const Features: React.FC<IProps> = ({ theme }) => {
           />
         </div>
       </div>
-      <div className="flex lg:justify-between mt-10">
+      <div className="flex md:justify-center lg:justify-between mt-10">
         <div className="w-[355px] h-auto lg:w-[460px] lg:h-[250px] relative">
           <img
             className="drop-shadow-xl w-full h-full hidden lg:block"

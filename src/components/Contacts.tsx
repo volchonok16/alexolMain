@@ -3,8 +3,8 @@ import { DividerSolid } from "@/widgets/DividerSolid";
 
 export const Contacts = () => {
   return (
-    <section className="flex flex-col lg:flex-row items-center gap-[25px] lg:gap-0 lg:justify-between pt-10 lg:pt-20">
-      <div className="lg:basis-[40%]">
+    <section className="flex flex-col md:flex-row lg:flex-row items-center gap-[25px] md:gap-0 lg:gap-0 md:justify-between lg:justify-between pt-10 lg:pt-20">
+      <div className="md:basis-[50%] lg:basis-[40%]">
         <p className="text-[24px] lg:text-[32px]">Контакты</p>
         <DividerSolid className="block lg:hidden w-[80px]" />
         <div className=" mt-4">
@@ -15,7 +15,7 @@ export const Contacts = () => {
         <p className="text-[16px] lg:text-[20px] mt-5 font-normal">
           alexolcorp@gmail.com
         </p>
-        <div className="mt-10 lg:w-[400px] flex flex-row flex-wrap items-center justify-center gap-7 self-center">
+        <div className="mt-10 md:w-[300px] lg:w-[400px] flex flex-row flex-wrap items-center justify-center gap-7 self-center">
           {socialMediaLinks.map((item) => {
             const Logo = item.logo;
             return (
@@ -45,7 +45,7 @@ export const Contacts = () => {
         </div>
       </div>
       <iframe
-        className="lg:basis-[45%] w-[340px] lg:w-[600px] h-[200px] lg:h-[450px]"
+        className="md:basis-[50%] lg:basis-[45%] w-[340px] md:w-[500px] lg:w-[600px] h-[200px] md:h-[450px] lg:h-[450px]"
         src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d562.1384628248043!2d37.47379414788874!3d55.696744050780374!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1z0Y_QvdC60L7QstGB0LrQvtCz0L4gMSDQvNC-0YHQutCy0LA!5e0!3m2!1sru!2sru!4v1728413170852!5m2!1sru!2sru"
         loading="lazy"
       ></iframe>

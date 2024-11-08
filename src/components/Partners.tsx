@@ -33,7 +33,7 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
           desktop: {
             breakpoint: {
               max: 3000,
-              min: 1024,
+              min: 1023,
             },
             items: 1,
             partialVisibilityGutter: 40,
@@ -48,7 +48,7 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
           },
           tablet: {
             breakpoint: {
-              max: 1024,
+              max: 1023,
               min: 464,
             },
             items: 2,
@@ -77,7 +77,7 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
           return (
             <div
               key={el.id}
-              className="flex justify-between text-center lg:text-right px-5 lg:px-10 py-2 lg:py-5 h-[560px] items-center lg:items-start"
+              className="flex justify-between text-center lg:text-right px-5 lg:px-10 py-2 lg:py-5 h-[560px] lg:h-[600px] items-center lg:items-start"
               style={{
                 background: `url(${bg}) no-repeat center / cover`,
                 borderRadius: "48px",
