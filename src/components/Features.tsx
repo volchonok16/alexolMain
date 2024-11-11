@@ -12,12 +12,12 @@ interface IProps {
 }
 
 export const Features: React.FC<IProps> = ({ theme }) => {
+    const textColor = theme === "dark-theme" ? "lg:text-white" : "lg:text-dark-gray";
+    
     return (
         <section
             id="Наши продукты"
-            className={`text-white  lg:${
-                theme === "dark-theme" ? "text-white" : "text-dark-gray"
-            }`}
+            className={`text-white ${textColor}`}
         >
             <div className="flex justify-center lg:justify-between mt-10 ">
                 <div

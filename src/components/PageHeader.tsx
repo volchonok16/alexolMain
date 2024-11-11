@@ -47,7 +47,7 @@ export const PageHeader: React.FC<IProps> = ({ theme, setTheme }) => {
                     transform: `rotate(${rotateToggle}deg)`,
                     filter: `var(--filterStyle)`,
                 }}
-                className="w-[40px] h-auto lg:w-[50px] absolute right-0 top-0"
+                className="w-[40px] h-auto lg:w-[50px] absolute right-0 top-0 cursor-pointer"
                 onClick={onChangeThemeHandler}
             />
         </div>

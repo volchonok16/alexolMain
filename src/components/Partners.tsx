@@ -79,10 +79,9 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
                             key={el.id}
                             className="flex justify-between text-center lg:text-right px-5 lg:px-10 py-2 lg:py-5 h-[560px] lg:h-[600px] items-center"
                             style={{
-                                background: `url(${bg}) no-repeat center / cover`,
+                                background: `url(${bg}) no-repeat center / 100% 100%`,
                                 borderRadius: "48px",
                                 backgroundBlendMode: "overlay",
-                                backgroundSize: "100% 100%",
                             }}
                         >
                             <div className="hidden lg:block">
