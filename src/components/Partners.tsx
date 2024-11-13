@@ -95,7 +95,7 @@ export const Partners: React.FC<IProps> = ({ theme }) => {
                                     <DividerSolid className="w-[130px]" />
                                 </div>
                                 <img
-                                    src={logoForTheme} className="w-[50%] lg:w-[80%] h-auto"
+                                    src={logoForTheme} className="w-[45%] lg:w-[70%] h-auto py-[5px]"
                                 />
                                 <p className="text-[16px] lg:text-[26px] font-medium">
                                     {el.title}
