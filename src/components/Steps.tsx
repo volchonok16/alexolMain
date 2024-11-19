@@ -17,69 +17,76 @@ interface IProps {
 }
 
 export const Steps: React.FC<IProps> = ({ theme }) => {
-  const bg = theme === "dark-theme" ? bgDark : bgLight;
+    const bg = theme === "dark-theme" ? bgDark : bgLight;
 
-  return (
-    <>
-      <div className="flex flex-col items-center mt-12">
-        <DividerDots className="mb-10" />
-        <p className="text-[48px] leading-normal">Наш путь</p>
-        <DividerSolid className="w-[100px]" />
-      </div>
-      <section
-        className="w-full max-w-[1440px] h-[920px] mt-12 pt-12"
-        style={{
-          background: `url(${bg})`,
-        }}
-      >
-        <div className="flex justify-around items-center">
-          <div className="flex flex-col items-center">
-            <img src={smm} alt="" />
-            <p className="mt-4 text-[20px] font-medium">Развитие SMM</p>
-          </div>
-          <ArrowSvg className="rotate-[-90deg]" />
-          <div className="flex flex-col items-center">
-            <img src={media} alt="" />
-            <p className="mt-4 text-[20px] font-medium">Развитие медиа</p>
-          </div>
-          <ArrowSvg className="rotate-[-90deg]" />
-          <div className="flex flex-col items-center">
-            <img src={partnership} alt="" />
-            <p className="mt-4 text-[20px] font-medium">Поиск партнеров</p>
-          </div>
-        </div>
+    return (
+        <>
+            <div className="flex flex-col items-center mt-10 lg:mt-24">
+                <DividerDots className="mb-5 lg:mb-10" />
+                <p className="text-[24px] lg:text-[48px] lg:leading-normal">Наш путь</p>
+                <DividerSolid className="w-[100px]" />
+            </div>
+            <section
+                className="w-full h-[570px] lg:h-[920px] mt-5 lg:mt-12 py-5 grid grid-cols-[1fr_0.35fr_1fr] lg:grid-cols-[1fr_0.3fr_1fr_0.3fr_1fr] justify-items-center items-center"
+                style={{
+                    background: `url(${bg})`,
+                }}
+            >
+                <div className="flex flex-col items-center ">
+                    <img src={smm} alt="" className="w-[140px] lg:w-[331px] h-auto" />
+                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
+            Развитие SMM
+                    </p>
+                </div>
+                <ArrowSvg className="rotate-[-90deg] h-[40px] lg:h-[80px] " />
+                <div className="flex flex-col items-center">
+                    <img src={media} alt="" className="w-[140px] lg:w-[331px] h-auto " />
+                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
+            Развитие медиа
+                    </p>
+                </div>
 
-        <div className="flex justify-around items-center my-16">
-          <div className="w-[332px]"></div>
-          <div className="w-[81px]"></div>
-          <div className="w-[332px]"></div>
-          <div className="w-[81px]"></div>
-          <div className="w-[332px] flex justify-center">
-            <ArrowSvg />
-          </div>
-        </div>
+                <ArrowSvg className="lg:rotate-[-90deg] h-[40px] lg:h-[80px] col-start-3 row-start-2 lg:col-auto lg:row-auto" />
+                <div className="flex flex-col items-center col-start-3 row-start-3 lg:col-auto lg:row-auto">
+                    <img
+                        src={partnership}
+                        alt=""
+                        className="w-[140px] lg:w-[331px] h-auto"
+                    />
+                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
+            Поиск партнеров
+                    </p>
+                </div>
 
-        <div className="flex justify-around items-center">
-          <div className="flex flex-col items-center">
-            <img src={landing} alt="" />
-            <p className="mt-4 text-[20px] font-medium">Развитие бренда</p>
-          </div>
-          <ArrowSvg className="rotate-90" />
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <ArrowSvg className="rotate-90 lg:rotate-0 h-[40px] lg:h-[80px] col-start-2 row-start-3 lg:col-auto lg:row-auto" />
 
-          <div className="flex flex-col items-center">
-            <img src={web} alt="" />
-            <p className="mt-4 text-[20px] font-medium">
-              Разработка приложения
-            </p>
-          </div>
-          <ArrowSvg className="rotate-90" />
+                <div className="flex flex-col items-center col-start-3 row-start-5 lg:col-auto lg:row-auto">
+                    <img src={landing} alt="" className="w-[140px] lg:w-[331px] h-auto" />
+                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
+            Развитие бренда
+                    </p>
+                </div>
+                <ArrowSvg className="rotate-[-90deg] lg:rotate-90 h-[40px] lg:h-[80px] col-start-2 row-start-5 lg:col-auto lg:row-auto" />
 
-          <div className="flex flex-col items-center">
-            <img src={brand} alt="" />
-            <p className="mt-4 text-[20px] font-medium">Создание лендинга</p>
-          </div>
-        </div>
-      </section>
-    </>
-  );
+                <div className="flex flex-col items-center col-start-1 row-start-5 lg:col-auto lg:row-auto w-[140px] lg:w-[331px] h-auto">
+                    <img src={web} alt="" className="" />
+                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
+            Разработка приложения
+                    </p>
+                </div>
+                <ArrowSvg className="lg:rotate-90 h-[40px] lg:h-[80px] col-start-1 row-start-4 lg:col-auto lg:row-auto" />
+
+                <div className="flex flex-col items-center col-start-1 row-start-3 lg:col-auto lg:row-auto">
+                    <img src={brand} alt="" className="w-[140px] lg:w-[331px] h-auto" />
+                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
+            Создание лендинга
+                    </p>
+                </div>
+            </section>
+        </>
+    );
 };
