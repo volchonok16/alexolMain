@@ -12,13 +12,41 @@ interface IProps {
 }
 
 export const Features: React.FC<IProps> = ({ theme }) => {
-    const textColor = theme === "dark-theme" ? "lg:text-white" : "lg:text-dark-gray";
-    
+    const textColor =
+    theme === "dark-theme" ? "lg:text-white" : "lg:text-dark-gray";
+
     return (
-        <section
-            id="Наши продукты"
-            className={`text-white ${textColor}`}
-        >
+        <section id="Наши продукты" className={`text-white ${textColor}`}>
+            <div className="grid grid-cols-6 grid-rows-2 gap-10">
+                <div className="content-center col-span-2">
+                    <p className="text-[46px]">Направления роста и развития</p>
+                </div>
+                <div className=" relative h-[414px] content-center col-span-2 drop-shadow-xl bg-white justify-items-center rounded-[20px]">
+                    <div className=" absolute top-[20px] left-[20px] w-[80px] bg-gradient-to-r from-golden2 to-golden3 text-white text-[48px] rounded-[10px] text-center content-center">
+            1
+                    </div>
+                    <div className="text-[36px] font-medium ">IT-сфера</div>
+                </div>
+                <div className=" relative h-[414px] content-center col-span-2 drop-shadow-xl bg-white justify-items-center rounded-[20px]">
+                    <div className=" absolute top-[20px] left-[20px] w-[80px] bg-gradient-to-r from-golden2 to-golden3 text-white text-[48px] rounded-[10px] text-center content-center">
+            2
+                    </div>
+                    <div className="text-[36px] font-medium ">Мерч</div>
+                </div>
+                <div className=" relative h-[414px] content-center col-span-3 drop-shadow-xl bg-white justify-items-center rounded-[20px]">
+                    <div className=" absolute top-[20px] left-[20px] w-[80px] bg-gradient-to-r from-golden2 to-golden3 text-white text-[48px] rounded-[10px] text-center content-center">
+            3
+                    </div>
+                    <div className="text-[36px] font-medium ">Коворкинги</div>
+                </div>
+                <div className=" relative h-[414px] content-center col-span-3 drop-shadow-xl bg-white justify-items-center rounded-[20px]">
+                    <div className=" absolute top-[20px] left-[20px] w-[80px] bg-gradient-to-r from-golden2 to-golden3 text-white text-[48px] rounded-[10px] text-center content-center">
+            4
+                    </div>
+                    <div className="text-[36px] font-medium ">Социальные медиа</div>
+                </div>
+          
+            </div>
             <div className="flex justify-center lg:justify-between mt-10 ">
                 <div
                     className="group w-[355px] h-auto lg:w-[780px] absolute lg:static flex-col text-center lg:text-left shadow-[8px_8px_16px_0px_rgba(8, 12, 0)]"
