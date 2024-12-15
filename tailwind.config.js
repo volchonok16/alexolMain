@@ -10,7 +10,9 @@ export default {
                 'golden': '#C0A570',
                 'golden2': '#97794D',
                 'golden3': '#E3CB8F',
-                'dark-gray': '#3D3D3D'
+                'dark-gray': '#3D3D3D',
+                'gray1': '#1D2228',
+                'gray2':'#313944'
             },
             backgroundImage: {
                 'home-image': "url('/src/assets/home/faculty_home.png')",
