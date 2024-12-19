@@ -12,7 +12,8 @@ export default {
                 'golden3': '#E3CB8F',
                 'dark-gray': '#3D3D3D',
                 'gray1': '#1D2228',
-                'gray2':'#313944'
+                'gray2':'#313944',
+                'black1':'#0A0A0A'
             },
             backgroundImage: {
                 'home-image': "url('/src/assets/home/faculty_home.png')",
@@ -22,7 +23,7 @@ export default {
             fontFamily: {
                 'IMB Plex Sans': ['IMB Plex Sans', 'Candara', 'Segoe', 'Segoe UI', 'Optima', 'Arial', 'sans-serif'],
                 'clash-display': ['ClashGrotesk-Regular', 'sans-serif'],
-                'alexol': ['GothamPro', 'sans-serif']
+                'alexol': ['Montserrat', 'serif']
             },
             spacing: {
                 '26': '6.5rem',

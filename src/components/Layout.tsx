@@ -9,7 +9,7 @@ const Layout: FC<LayoutProps> = (props) => {
 
     return (
         <div
-            className="w-100 h-100"
+            className="w-100 h-100 font-alexol"
             style={{
                 backgroundColor: `var(--background)`,
                 color: `var(--color-text)`,

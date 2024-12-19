@@ -41,7 +41,7 @@ const Direction: React.FC<IDirProps> = ({
                 <>
                     <div
                         id={id}
-                        className={`relative h-[125px] lg:h-[414px] content-center drop-shadow-xl ${bg} justify-items-center rounded-[20px] ${col} ${textColor} z-0`}
+                        className={`relative cursor-pointer h-[125px] lg:h-[414px] content-center drop-shadow-xl ${bg} justify-items-center rounded-[20px] ${col} ${textColor} z-0`}
                         onClick={openPopup}
                     >
                         <div className="absolute top-[8px] lg:top-[20px] left-[8px] lg:left-[20px] h-[-20px] lg:h-auto w-[22px] lg:w-[80px] bg-gradient-to-r from-golden2 to-golden3 text-white text-[14px] lg:text-[48px] rounded-[5px] lg:rounded-[10px] text-center content-center">

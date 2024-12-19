@@ -15,7 +15,7 @@ const Popup: React.FC<IPopupProps> = ({closePopup,id, bullet, text, number, them
         : "bg-white";
 
     return (
-        <div className="fixed w-[95vw] h-[1000px] z-40 bg-black bg-opacity-50">
+        <div className="fixed left-0  w-[100vw] h-[100vh] z-40 bg-black bg-opacity-50">
             <div
                 className={`absolute flex top-[20%]  gap-[20px]  justify-start z-50 flex-col items-start rounded-lg shadow-lg  py-[20px] px-[13px] ${bg} ${textColor}`}
             >

@@ -8,11 +8,11 @@
 
 @layer base {
   @font-face {
-    font-family: "Gotham Pro";
+    font-family: "Montserrat", serif;
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url(/fonts/GothamPro.ttf) format("ttf");
+    src: url(/fonts/Montserrat-Black.ttf) format("ttf");
   }
 }
 
@@ -67,7 +67,7 @@
 }
 
 :root {
-  font-family: "Gotham Pro";
+  font-family: "Montserrat", serif;
 }
 
 #root {
