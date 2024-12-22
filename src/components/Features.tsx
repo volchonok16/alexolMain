@@ -5,6 +5,7 @@ interface IProps {
   theme: string;
 }
 
+
 export const Features: React.FC<IProps> = ({ theme }) => {
     const textColor = theme === "dark-theme" ? "text-white" : "text-dark-gray";
     const bg = theme==='dark-theme' ? 'bg-black1' : 'bg-white';
@@ -43,8 +44,8 @@ export const Features: React.FC<IProps> = ({ theme }) => {
     };
 
     return (
-        <section id="Наши продукты" className={`${textColor} ${bg}`}>
-            <div className="grid grid-cols-6 grid-rows-3 lg:grid-rows-2 gap-10">
+        <section id="Наши продукты" className={`${textColor} ${bg} mx-4`}>
+            <div className="  grid grid-cols-6 grid-rows-3 lg:grid-rows-2 gap-[40px]">
                 <div className="content-center col-span-6 lg:col-span-2">
                     <p className=" text-center lg:text-start text-[22px] lg:text-[46px]">
             Направления роста и развития
@@ -52,6 +53,7 @@ export const Features: React.FC<IProps> = ({ theme }) => {
                 </div>
                 {directions.map((el) => (
                     <Direction
+                        key={el.id}
                         id={el.id}
                         number={el.number}
                         bullet={el.bullet}
@@ -90,13 +92,13 @@ const directions = [
         number: "3",
         bullet: "Коворкинг",
         text: "Удобные офисы для работы, пространства для общения, обучения и вдохновения.  Вы сможете учиться совместно с единомышленниками, находить друзей и производить креативные идеи для ваших бизнесов. Конечно, всем нужен отдых, поэтому в наших коворкинг зонах можно будет поиграть в настольные игры и вкусно перекусить. Особенности наших пространств помогут  как погрузиться в рабочий процесс, так и отвлечься и отдохнуть — вместе за успехом!",
-        col: "col-span-3",
+        col: "col-span-3 ",
     },
     {
         id: "sm",
         number: "4",
         bullet: "Социальные медиа",
         text: "Мы разрабатываем медиаконтент в социальных сетях, на сайтах и видеохостингах. Уникальная информация помогает нашим клиентам погрузиться в мир IT, посмотреть интервью с лидерами мнений и узнать много нового и интересного!",
-        col: "col-span-3",
+        col: "col-span-3 ",
     },
 ];

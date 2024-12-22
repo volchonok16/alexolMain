@@ -21,9 +21,7 @@ export default {
                 'banner-background': "url('/src/assets/landing/banner_bg.png')",
             },
             fontFamily: {
-                'IMB Plex Sans': ['IMB Plex Sans', 'Candara', 'Segoe', 'Segoe UI', 'Optima', 'Arial', 'sans-serif'],
-                'clash-display': ['ClashGrotesk-Regular', 'sans-serif'],
-                'alexol': ['Montserrat', 'serif']
+                'alexol': ['Montserrat', 'sans-serif']
             },
             spacing: {
                 '26': '6.5rem',
