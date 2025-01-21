@@ -1,3 +1,4 @@
+import { DividerDots } from "@/widgets/DividerDots";
 import { DividerSolid } from "@/widgets/DividerSolid";
 import { useState } from "react";
 
@@ -205,7 +206,9 @@ export const Experts: React.FC<IProps> = ({ theme }) => {
                     )}
                 </div>
             </div>
-            
+            <div className="flex justify-center">
+                <DividerDots/>
+            </div>
         </section>
     );
 };
