@@ -1,9 +1,8 @@
-import { Experts } from "@/components/Experts";
+import { Experts } from "@/components/Partners";
 import { Features } from "@/components/Features";
 import Layout from "@/components/Layout";
 import { PageHeader } from "@/components/PageHeader";
 import { PageTitle } from "@/components/PageTItle";
-import { Partners } from "@/components/Partners";
 import { Steps } from "@/components/Steps";
 import { SocialMediaBlock } from "@/components/SocialMediaBlock";
 import "react-toastify/dist/ReactToastify.css";
@@ -32,7 +31,6 @@ const HomeView = () => {
                 <Steps theme={theme} />
             </section>
             <Experts theme={theme} />
-            <Partners theme={theme} />
             <Contacts />
         </Layout>
     );
