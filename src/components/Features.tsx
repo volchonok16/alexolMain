@@ -45,7 +45,7 @@ export const Features: React.FC<IProps> = ({ theme }) => {
 
     return (
         <section id="Наши продукты" className={`${textColor} ${bg}`}>
-            <div className="  grid grid-cols-6 grid-rows-3 lg:grid-rows-2 gap-[40px]">
+            <div className="grid grid-cols-6 grid-rows-3 lg:grid-rows-2 gap-[40px]">
                 <div className="content-center col-span-6 lg:col-span-2">
                     <p className=" text-center lg:text-start text-[22px] lg:text-[46px]">
             Направления роста и развития

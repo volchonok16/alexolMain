@@ -33,6 +33,10 @@ export default {
             },
             screens: {
                 'laptop': '1149px',
+            },
+            animation:{
+                'slide-in-blurred-top': 'slide-in-blurred-top 0.6s cubic-bezier(0.230, 1.000, 0.320, 1.000)',
+                'split-in-vertical': 'slit-in-vertical 0.45s ease-out both'
             }
         },
     },

@@ -59,7 +59,7 @@ export const Experts: React.FC<IProps> = ({ theme }) => {
                         <p className="text-[12px] lg:text-[14px]">Обучение IT</p>
                     </div>
                     {isPartnerOpen["1"] && (
-                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between">
+                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between animate-slide-in-blurred-top">
                             <div className="flex flex-col gap-[15px] max-w-[475px]">
                                 <img className="h-[26px] w-[124px]" src={skyPath}></img>
                                 <div className="flex flex-col gap-[12px]">
@@ -116,7 +116,7 @@ export const Experts: React.FC<IProps> = ({ theme }) => {
                         <p className="text-[12px] lg:text-[14px]">IT карьера</p>
                     </div>
                     {isPartnerOpen["2"] && (
-                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between">
+                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between animate-slide-in-blurred-top">
                             <div className="flex flex-col gap-[15px] max-w-[475px]">
                                 <img className="h-[26px] w-[114px]" src={incubPath}></img>
                                 <div className="flex flex-col gap-[12px]">
@@ -167,7 +167,7 @@ export const Experts: React.FC<IProps> = ({ theme }) => {
                         <p className="text-[14px]">Психология</p>
                     </div>
                     {isPartnerOpen["3"] && (
-                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between">
+                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between animate-slide-in-blurred-top">
                             <div className="flex flex-col gap-[15px] max-w-[475px]">
                                 <img className="h-[33px] w-[135px]" src={pranaPath}></img>
                                 <div className="flex flex-col gap-[12px]">
