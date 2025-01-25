@@ -21,7 +21,8 @@ export default {
                 'banner-background': "url('/src/assets/landing/banner_bg.png')",
             },
             fontFamily: {
-                'alexol': ['Montserrat', 'sans-serif']
+                sans: ['Montserrat', 'sans-serif'],
+               
             },
             spacing: {
                 '26': '6.5rem',
@@ -36,7 +37,7 @@ export default {
             },
             animation:{
                 'slide-in-blurred-top': 'slide-in-blurred-top 0.6s cubic-bezier(0.230, 1.000, 0.320, 1.000)',
-                'split-in-vertical': 'slit-in-vertical 0.45s ease-out both'
+                'slide-in-left': 'slide-in-left 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both'
             }
         },
     },

@@ -1,7 +1,6 @@
 import VK from '../common/assets/VK.svg'
 import Youtube from '../common/assets/Youtube.svg'
 import Insta from '../common/assets/Instagram.svg'
-import Rutube from '../common/assets/Rutube.svg'
 import Telegram from '../common/assets/Telegram.svg'
 
 const menuItems = ['Наши продукты', 'Контент', 'Сотрудничество']
@@ -26,11 +25,6 @@ const socialMediaLinks = [
         title: 'Instagram',
         link: 'https://www.instagram.com/alexolcorp',
         logo: Insta,
-    },
-    {
-        title: 'Rutube',
-        link: 'https://rutube.ru/channel/10596522',
-        logo: Rutube,
     },
     {
         title: 'Telegram',

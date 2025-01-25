@@ -65,7 +65,7 @@ const Direction: React.FC<IDirProps> = ({
                         {number}
                     </div>
                     {isPopupOpen ? (
-                        <div className=" justify-start p-5 gap-y-5 mt-8">
+                        <div className=" justify-start p-5 gap-y-5 mt-8 animate-slide-in-left">
                             <div className="text-[18px] lg:text-[24px] font-medium ">
                                 {bullet}
                             </div>
