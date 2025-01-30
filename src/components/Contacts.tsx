@@ -2,58 +2,61 @@ import { FormEvent, useState } from "react";
 import { socialMediaLinks } from "./constants";
 
 interface FormData {
-  name: string | undefined;
-  phone: string | undefined;
   email: string | undefined;
-  que: string | undefined;
+  phone: string | undefined;
+  name: string | undefined;
+  message: string | undefined;
 }
 
 export const Contacts = () => {
-    const [message, setMessage] = useState("");
+
+
     const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
     const [email, setEmail] = useState("");
-    const [que, setQue] = useState("");
+    const [message, setMessage] = useState("");
+    const [error, setError] = useState("");
 
     const resetFormData = () => {
         setName("");
         setPhone("");
         setEmail("");
-        setQue("");
+        setMessage("");
     };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
 
         const formData: FormData = {
-            name,
-            phone,
             email,
-            que,
+            phone,
+            name,
+            message,
         };
 
         try {
-            const res = await fetch("", {
+            const res = await fetch("http://pallink.fun:12370/feedback/", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(formData),
+                mode:'no-cors',
             });
 
             if (res.ok) {
-                setMessage("Спасибо, с вами свяжутся ASAP");
+                setError("Спасибо, с вами свяжутся ASAP");
                 resetFormData();
             } else {
-                setMessage("Что то пошло не так :(");
+                setError("Что то пошло не так :(");
             }
         } catch (err) {
-            setMessage(`Ошибка при отправке - ${err}`);
+            setError(`Ошибка при отправке - ${err}`);
         }
     };
     return (
         <section className="flex flex-col md:flex-row lg:flex-row gap-[15px] md:gap-0 lg:gap-0 md:justify-between lg:justify-between pt-10 lg:pt-20">
-            {message &&<p>{message}</p>}
+            {error && <p>{error}</p>}
             <div>
                 <form
                     onSubmit={handleSubmit}
@@ -70,8 +73,8 @@ export const Contacts = () => {
                     ></input>
                     <input
                         className="rounded-[10px] border-[1px] border-golden h-[44px] py-[10px] px-[20px]"
-                        placeholder="Телефон"
-                        type="phone"
+                        placeholder="+7(999)-999-99-99"
+                        type="tel"
                         id="phone"
                         value={phone}
                         onChange={(e)=>setPhone(e.target.value)}
@@ -90,9 +93,9 @@ export const Contacts = () => {
                         className="rounded-[10px] border-[1px] border-golden h-[74px] py-[10px] px-[20px]"
                         placeholder="Введите свой вопрос"
                         type="textarea"
-                        id="que"
-                        value={que}
-                        onChange={(e)=>setQue(e.target.value)}
+                        id="message"
+                        value={message}
+                        onChange={(e)=>setMessage(e.target.value)}
                     ></input>
                     <div className="">
                         <button type="submit" className="w-[415px] bg-gradient-to-r from-golden2 to-golden3 rounded-[20px] h-[44px]">
