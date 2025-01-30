@@ -1,21 +1,120 @@
+import { FormEvent, useState } from "react";
 import { socialMediaLinks } from "./constants";
-import { DividerSolid } from "@/widgets/DividerSolid";
+
+interface FormData {
+  name: string | undefined;
+  phone: string | undefined;
+  email: string | undefined;
+  que: string | undefined;
+}
 
 export const Contacts = () => {
+    const [message, setMessage] = useState("");
+    const [name, setName] = useState("");
+    const [phone, setPhone] = useState("");
+    const [email, setEmail] = useState("");
+    const [que, setQue] = useState("");
+
+    const resetFormData = () => {
+        setName("");
+        setPhone("");
+        setEmail("");
+        setQue("");
+    };
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+
+        const formData: FormData = {
+            name,
+            phone,
+            email,
+            que,
+        };
+
+        try {
+            const res = await fetch("", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(formData),
+            });
+
+            if (res.ok) {
+                setMessage("Спасибо, с вами свяжутся ASAP");
+                resetFormData();
+            } else {
+                setMessage("Что то пошло не так :(");
+            }
+        } catch (err) {
+            setMessage(`Ошибка при отправке - ${err}`);
+        }
+    };
     return (
-        <section className="flex flex-col md:flex-row lg:flex-row items-center gap-[25px] md:gap-0 lg:gap-0 md:justify-between lg:justify-between pt-10 lg:pt-20">
-            <div className="md:basis-[50%] lg:basis-[40%]">
-                <p className="text-[24px] lg:text-[32px]">Контакты</p>
-                <DividerSolid className="block lg:hidden w-[80px]" />
+        <section className="flex flex-col md:flex-row lg:flex-row gap-[15px] md:gap-0 lg:gap-0 md:justify-between lg:justify-between pt-10 lg:pt-20">
+            {message &&<p>{message}</p>}
+            <div>
+                <form
+                    onSubmit={handleSubmit}
+                    className="flex flex-col gap-6 max-w-[415px]"
+                >
+                    <input
+                        className="rounded-[10px] border-[1px] border-golden h-[44px] py-[10px] px-[20px]"
+                        placeholder="Имя"
+                        type="text"
+                        id="name"
+                        value={name}
+                        onChange={(e)=>setName(e.target.value)}
+                        required
+                    ></input>
+                    <input
+                        className="rounded-[10px] border-[1px] border-golden h-[44px] py-[10px] px-[20px]"
+                        placeholder="Телефон"
+                        type="phone"
+                        id="phone"
+                        value={phone}
+                        onChange={(e)=>setPhone(e.target.value)}
+                        required
+                    ></input>
+                    <input
+                        className="rounded-[10px] border-[1px] border-golden h-[44px] py-[10px] px-[20px]"
+                        placeholder="Почта"
+                        type="email"
+                        id="email"
+                        value={email}
+                        onChange={(e)=>setEmail(e.target.value)}
+                        required
+                    ></input>
+                    <input
+                        className="rounded-[10px] border-[1px] border-golden h-[74px] py-[10px] px-[20px]"
+                        placeholder="Введите свой вопрос"
+                        type="textarea"
+                        id="que"
+                        value={que}
+                        onChange={(e)=>setQue(e.target.value)}
+                    ></input>
+                    <div className="">
+                        <button type="submit" className="w-[415px] bg-gradient-to-r from-golden2 to-golden3 rounded-[20px] h-[44px]">
+              Связаться
+                        </button>
+                        <p className="text-[16px] opacity-60 pt-[5px]">
+              Нажимая на кнопку, вы соглашаетесь с политикой конфиденциальности
+              сайта
+                        </p>
+                    </div>
+                </form>
+            </div>
+            <div className="shadow-2xl px-[140px] py-[65px]">
                 <div className=" mt-4">
-                    <p className="text-[20px] lg:text-[28px]">Адрес</p>
-                    <p className="text-[16px] lg:text-[20px] mt-3">Россия., Москва.</p>
-                    <p>Янковского 1 корпус 1</p>
+                    <p className="text-[20px] lg:text-[28px] font-semibold">
+            Остались вопросы?
+                    </p>
+                    <p className="text-[16px] lg:text-[20px] mt-3">
+            Заполните форму и мы с вами свяжемся!
+                    </p>
                 </div>
-                <p className="text-[16px] lg:text-[20px] mt-5 font-normal">
-          alexolcorp@gmail.com
-                </p>
-                <div className="mt-10 md:w-[300px] lg:w-[400px] flex flex-row flex-wrap items-center justify-center gap-7 self-center">
+                <div className="mt-10 md:w-[300px] lg:w-[400px] flex flex-row flex-wrap items-center justify-center gap-6 self-center">
                     {socialMediaLinks.map((item) => {
                         const Logo = item.logo;
                         return (
@@ -33,9 +132,7 @@ export const Contacts = () => {
                                         href={item.link}
                                         className="p-2 m-[1px] hover:shadow-[0px_4px_10px_0px_#C0A570] text-center text-lg lg:text-xl leading-[17px] lg:leading-5 rounded-[10px] cursor-pointer flex flex-row gap-4 items-center justify-between"
                                     >
-                                        <div className="bg-gradient-to-r from-golden2 to-golden3 bg-clip-text text-transparent">
-                                            {item.title}
-                                        </div>
+                                        <div className="">{item.title}</div>
                                         <Logo />
                                     </a>
                                 </div>
@@ -44,11 +141,6 @@ export const Contacts = () => {
                     })}
                 </div>
             </div>
-            <iframe
-                className="md:basis-[50%] lg:basis-[45%] w-[340px] md:w-[500px] lg:w-[600px] h-[200px] md:h-[450px] lg:h-[450px]"
-                src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d562.1384628248043!2d37.47379414788874!3d55.696744050780374!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1z0Y_QvdC60L7QstGB0LrQvtCz0L4gMSDQvNC-0YHQutCy0LA!5e0!3m2!1sru!2sru!4v1728413170852!5m2!1sru!2sru"
-                loading="lazy"
-            ></iframe>
         </section>
     );
 };
