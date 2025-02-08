@@ -2,15 +2,13 @@ import { FormEvent, useState } from "react";
 import { socialMediaLinks } from "./constants";
 
 interface FormData {
-  email: string | undefined;
-  phone: string | undefined;
-  name: string | undefined;
-  message: string | undefined;
+    email: string | undefined;
+    phone: string | undefined;
+    name: string | undefined;
+    message: string | undefined;
 }
 
 export const Contacts = () => {
-
-
     const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
     const [email, setEmail] = useState("");
@@ -41,7 +39,7 @@ export const Contacts = () => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(formData),
-                mode:'no-cors',
+                mode: "no-cors",
             });
 
             if (res.ok) {
@@ -68,7 +66,7 @@ export const Contacts = () => {
                         type="text"
                         id="name"
                         value={name}
-                        onChange={(e)=>setName(e.target.value)}
+                        onChange={(e) => setName(e.target.value)}
                         required
                     ></input>
                     <input
@@ -77,7 +75,7 @@ export const Contacts = () => {
                         type="tel"
                         id="phone"
                         value={phone}
-                        onChange={(e)=>setPhone(e.target.value)}
+                        onChange={(e) => setPhone(e.target.value)}
                         required
                     ></input>
                     <input
@@ -86,7 +84,7 @@ export const Contacts = () => {
                         type="email"
                         id="email"
                         value={email}
-                        onChange={(e)=>setEmail(e.target.value)}
+                        onChange={(e) => setEmail(e.target.value)}
                         required
                     ></input>
                     <input
@@ -95,15 +93,18 @@ export const Contacts = () => {
                         type="textarea"
                         id="message"
                         value={message}
-                        onChange={(e)=>setMessage(e.target.value)}
+                        onChange={(e) => setMessage(e.target.value)}
                     ></input>
                     <div className="">
-                        <button type="submit" className="w-[415px] bg-gradient-to-r from-golden2 to-golden3 rounded-[20px] h-[44px]">
-              Связаться
+                        <button
+                            type="submit"
+                            className="text-white w-[415px] bg-gradient-to-r from-golden2 to-golden3 hover:to-[#e2c783] hover:from-[#cc994d] rounded-[20px] h-[44px]"
+                        >
+                            Связаться
                         </button>
                         <p className="text-[16px] opacity-60 pt-[5px]">
-              Нажимая на кнопку, вы соглашаетесь с политикой конфиденциальности
-              сайта
+                            Нажимая на кнопку, вы соглашаетесь с политикой
+                            конфиденциальности сайта
                         </p>
                     </div>
                 </form>
@@ -111,10 +112,10 @@ export const Contacts = () => {
             <div className="shadow-2xl px-[140px] py-[65px]">
                 <div className=" mt-4">
                     <p className="text-[20px] lg:text-[28px] font-semibold">
-            Остались вопросы?
+                        Остались вопросы?
                     </p>
                     <p className="text-[16px] lg:text-[20px] mt-3">
-            Заполните форму и мы с вами свяжемся!
+                        Заполните форму и мы с вами свяжемся!
                     </p>
                 </div>
                 <div className="mt-10 md:w-[300px] lg:w-[400px] flex flex-row flex-wrap items-center justify-center gap-6 self-center">
@@ -135,7 +136,9 @@ export const Contacts = () => {
                                         href={item.link}
                                         className="p-2 m-[1px] hover:shadow-[0px_4px_10px_0px_#C0A570] text-center text-lg lg:text-xl leading-[17px] lg:leading-5 rounded-[10px] cursor-pointer flex flex-row gap-4 items-center justify-between"
                                     >
-                                        <div className="">{item.title}</div>
+                                        <div className="bg-gradient-to-r from-golden2 to-golden3 bg-clip-text text-transparent">
+                                            {item.title}
+                                        </div>
                                         <Logo />
                                     </a>
                                 </div>
