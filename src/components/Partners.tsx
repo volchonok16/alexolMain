@@ -1,205 +1,367 @@
-import Carousel from "react-multi-carousel";
-import "react-multi-carousel/lib/styles.css";
-
-import incubatorImg from "../assets/partners/it-inclubator.png";
-import incubatorLogoLight from "../assets/partners/it-inclubator-logo-lignt.png";
-import incubatorLogoDark from "../assets/partners/it-inclubator-logo-dark.png";
-import skyproImg from "../assets/partners/sky-pro.png";
-import skyProLogoLight from "../assets/partners/sky-pro-logo-light.png";
-import skyProLogoDark from "../assets/partners/sky-pro-logo-dark.png";
-import pranaImg from "../assets/partners/prana.png";
-import pranaLogoLight from "../assets/partners/prana-logo-light.png";
-import pranaLogoDark from "../assets/partners/prana-logo-dark.png";
-import bgLight from "../assets/partners/bg-light.png";
-import bgDark from "../assets/partners/bg-dark.png";
+import { DividerDots } from "@/widgets/DividerDots";
 import { DividerSolid } from "@/widgets/DividerSolid";
-
-import VkLogo from "../assets/vk.svg";
-import WhatsAppLogo from "../assets/whatsapp.svg";
-import ViberLogo from "../assets/viber.svg";
-import InstLogo from "../assets/inst.svg";
-import TgLogo from "../assets/tg.svg";
-import { Link } from "react-router-dom";
+import { useState } from "react";
 
 interface IProps {
-  theme: string;
+    theme: string;
 }
 
-export const Partners: React.FC<IProps> = ({ theme }) => {
+interface IState {
+    "1": boolean;
+    "2": boolean;
+    "3": boolean;
+}
+
+export const Experts: React.FC<IProps> = ({ theme }) => {
+    const [isPartnerOpen, setIsPartnerOpen] = useState<IState>({
+        "1": false,
+        "2": false,
+        "3": false,
+    });
+    const bg = theme === "dark-theme" ? "bg-black1" : "bg-white";
+    const bgBlock =
+        theme === "dark-theme"
+            ? "bg-gradient-to-r from-gray1 to-gray2"
+            : "bg-white";
+    const border = theme === "dark-theme" ? "border-white" : "border-black";
+    const skyPath =
+        theme === "dark-theme"
+            ? "/icons/skylogoblack.svg"
+            : "/icons/skylogo.svg";
+    const incubPath =
+        theme === "dark-theme"
+            ? "/icons/incublogoblack.svg"
+            : "/icons/incublogo.svg";
+    const pranaPath =
+        theme === "dark-theme"
+            ? "/icons/pranalogoblack.svg"
+            : "/icons/pranalogo.svg";
+    const starPath =
+        theme === "dark-theme"
+            ? "/icons/starwhite.svg"
+            : "/icons/starblack.svg";
+    const widthDevice = window.innerWidth;
+
+    const handlePartner1Open = () => {
+        setIsPartnerOpen((prevState) => ({
+            ...prevState,
+            1: !prevState[1],
+        }));
+    };
+    const handlePartner2Open = () => {
+        setIsPartnerOpen((prevState) => ({
+            ...prevState,
+            2: !prevState[2],
+        }));
+    };
+    const handlePartner3Open = () => {
+        setIsPartnerOpen((prevState) => ({
+            ...prevState,
+            3: !prevState[3],
+        }));
+    };
+
     return (
-        <section id="Сотрудничество" className="mt-5 lg:mt-10">
-            <Carousel
-                responsive={{
-                    desktop: {
-                        breakpoint: {
-                            max: 3000,
-                            min: 1023,
-                        },
-                        items: 1,
-                        partialVisibilityGutter: 40,
-                    },
-                    mobile: {
-                        breakpoint: {
-                            max: 464,
-                            min: 0,
-                        },
-                        items: 1,
-                        partialVisibilityGutter: 30,
-                    },
-                    tablet: {
-                        breakpoint: {
-                            max: 1023,
-                            min: 464,
-                        },
-                        items: 2,
-                        partialVisibilityGutter: 30,
-                    },
-                }}
-                rewind={false}
-                rtl={false}
-                arrows={false}
-                showDots={true}
-                slidesToSlide={1}
-                swipeable
-                autoPlay={true}
-                autoPlaySpeed={10000}
-                infinite={true}
-                customTransition="transform 0.5s ease-in-out"
-                transitionDuration={500}
-                className="drop-shadow-md "
-            >
-                {partnersInfo.map((el) => {
-                    const logoForTheme =
-            theme === "dark-theme" ? el.logoDark : el.logoLight;
-
-                    const bg = theme === "dark-theme" ? bgDark : bgLight;
-
-                    return (
-                        <div
-                            key={el.id}
-                            className="flex justify-between text-center lg:text-right px-5 lg:px-10 py-2 lg:py-5 h-[560px] lg:h-[600px] items-center"
-                            style={{
-                                background: `url(${bg}) no-repeat center / 100% 100%`,
-                                borderRadius: "48px",
-                                backgroundBlendMode: "overlay",
-                            }}
-                        >
-                            <div className="hidden lg:block">
-                                <img className="w-[600px]" src={el.img} />
-                            </div>
-                            <div className="flex flex-col items-center lg:items-end w-[500px]">
-                                <div className="flex flex-col items-center lg:items-end">
-                                    <p className="text-[24px] lg:text-[48px] leading-normal">
-                    Наши партнеры
-                                    </p>
-                                    <DividerSolid className="w-[130px]" />
-                                </div>
+        <section>
+            <div className="flex flex-col items-start">
+                <p className="text-[24px] lg:text-[48px] lg:leading-normal">
+                    Наши партнёры
+                </p>
+                <DividerSolid className="w-[200px]" />
+            </div>
+            <div className="flex gap-10 flex-col my-10">
+                <div
+                    className={`z-20 flex flex-col justify-center relative min-h-[130px] ${bg} ${border} border-[1px] pl-[15px] lg:pl-[120px] pr-[15px] py-[40px] cursor-pointer rounded-[20px]`}
+                    id="1"
+                    onClick={handlePartner1Open}
+                >
+                    <img
+                        src="/icons/skypro.svg"
+                        className=" absolute -left-[25px] top-[40px] h-[50px] w-[150px]"
+                        alt=""
+                    />
+                    <div className="flex flex-col pl-[110px] lg:pl-[0]">
+                        <h3 className="font-semibold text-[18px] lg:text-[24px]">
+                            SkyPro
+                        </h3>
+                        <p className="text-[12px] lg:text-[14px]">
+                            Обучение IT
+                        </p>
+                    </div>
+                    {isPartnerOpen["1"] && (
+                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between animate-slide-in-blurred-top">
+                            <div className="flex flex-col gap-[15px] max-w-[475px]">
                                 <img
-                                    src={logoForTheme} className="w-[45%] lg:w-[70%] h-auto py-[5px]"
-                                />
-                                <p className="text-[16px] lg:text-[26px] font-medium">
-                                    {el.title}
-                                </p>
-                                <div className="block lg:hidden">
-                                    <img className="w-[300px] lg:w-[600px] h-auto" src={el.img} />
+                                    className="h-[26px] w-[124px]"
+                                    src={skyPath}
+                                ></img>
+                                <div className="flex flex-col gap-[12px]">
+                                    <h4 className="font-medium text-[18px] lg:text-[24px]">
+                                        Обучение IT профессии с нуля с гарантией
+                                        новой работы
+                                    </h4>
+                                    <p className="text-[14px] lg:text-[18px]">
+                                        Цель SkyPro — не просто продавать курсы
+                                        людям, а обучать и устраивать на
+                                        реальную работу
+                                    </p>
+                                    <a
+                                        className="underline"
+                                        href="mailto:skypro@skyeng.ru"
+                                    >
+                                        skypro@skyeng.ru
+                                    </a>
                                 </div>
-
-                                <p className="text-[12px] lg:text-[24px] font-normal mt-2 lg:mt-5">
-                                    {el.desc}
-                                </p>
-                                <p className="text-[12px] lg:text-[24px] cursor-pointer mt-2 lg:mt-5">
-                                    {el.mail}
-                                </p>
-                                <div className="flex flex-col lg:flex-row lg:justify-end items-center gap-4 mt-2 lg:mt-5">
-                                    <Link to={el.site} target="_blank">
-                                        <button
-                                            className="py-2 px-4 bg-gradient-to-r rounded-lg text-white"
-                                            style={{
-                                                background:
-                          "linear-gradient(0.25turn, #97794D, #E3CB8F)",
-                                            }}
-                                        >
-                      Узнать подробнее
-                                        </button>
-                                    </Link>
-                                    <div className="flex gap-4"> 
-                                        <Link to={el.socials.vk} target="_blank">
-                                            <VkLogo className="cursor-pointer" />
-                                        </Link>
-                                        {el.socials.wa && (
-                                            <Link to={el.socials.wa} target="_blank">
-                                                <WhatsAppLogo className="cursor-pointer" />
-                                            </Link>
-                                        )}
-                                        {el.socials.viber && (
-                                            <Link to={el.socials.viber} target="_blank">
-                                                <ViberLogo className="cursor-pointer" />
-                                            </Link>
-                                        )}
-                                        <Link to={el.socials.inst} target="_blank">
-                                            <InstLogo className="cursor-pointer" />
-                                        </Link>
-                                        <Link to={el.socials.tg} target="_blank">
-                                            <TgLogo className="cursor-pointer" />
-                                        </Link>
-                                    </div>
+                                {widthDevice > 1024 && (
+                                    <button className=" max-w-[200px] px-[20px] py-[10px] bg-gradient-to-r from-golden2 to-golden3 rounded-[10px] text-white">
+                                        Узнать подробнее
+                                    </button>
+                                )}
+                            </div>
+                            <div
+                                className={`flex flex-wrap justify-center lg:grid grid-cols-6 grid-rows-2 my-[25px] py-[15px] px-[15px] lg:px-[35px] gap-[25px] lg:gap-x-[50px] lg:w-[612px] rounded-[20px] ${border} border-[1px]`}
+                            >
+                                <div className="w-[110px] lg:w-auto  lg:col-span-2 flex flex-row place-items-center gap-x-[12px]">
+                                    <img
+                                        className="w-[15px] lg:w-[24px] h-[15px] lg:h-[24px]"
+                                        src={starPath}
+                                        alt=""
+                                    />
+                                    <p className="text-[16px] lg:text-[20px]">
+                                        Каждый может
+                                    </p>
+                                </div>
+                                <div className="w-[110px] lg:w-auto  col-span-2 flex flex-row place-items-center gap-x-[12px]">
+                                    <img
+                                        className="w-[15px] lg:w-[24px] h-[15px] lg:h-[24px]"
+                                        src={starPath}
+                                        alt=""
+                                    />
+                                    <p className="text-[16px] lg:text-[20px]">
+                                        Никогда не поздно
+                                    </p>
+                                </div>
+                                <div className="w-[110px] lg:w-auto col-span-2 flex flex-row place-items-center gap-x-[12px]">
+                                    <img
+                                        className="w-[15px] lg:w-[24px] h-[15px] lg:h-[24px]"
+                                        src={starPath}
+                                        alt=""
+                                    />
+                                    <p className="text-[16px] lg:text-[20px]">
+                                        Учеба - это не больно
+                                    </p>
+                                </div>
+                                <div className="col-span-6 flex justify-center place-items-center">
+                                    <p className="text-[16px] lg:text-[20px] text-center">
+                                        Образование — это инвестиция в ваше
+                                        будущее
+                                    </p>
                                 </div>
                             </div>
+                            {widthDevice < 1024 && (
+                                <button className="self-center max-w-[200px] px-[20px] py-[10px] bg-gradient-to-r from-golden2 to-golden3 rounded-[10px] text-white">
+                                    Узнать подробнее
+                                </button>
+                            )}
                         </div>
-                    );
-                })}
-            </Carousel>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex gap-10 flex-col my-10">
+                <div
+                    className={`flex flex-col justify-center relative min-h-[130px] ${bg} ${border} border-[1px] pl-[15px] lg:pl-[120px] pr-[20px] py-[40px] cursor-pointer rounded-[20px]`}
+                    id="2"
+                    onClick={handlePartner2Open}
+                >
+                    <img
+                        src="/icons/incub.svg"
+                        className=" absolute -left-[25px] top-[40px] h-[50px] w-[150px]"
+                        alt=""
+                    />
+                    <div className="flex flex-col pl-[110px] lg:pl-[0]">
+                        <h3 className="font-semibold  text-[18px] lg:text-[24px]">
+                            IT-инкубатор
+                        </h3>
+                        <p className="text-[12px] lg:text-[14px]">IT карьера</p>
+                    </div>
+                    {isPartnerOpen["2"] && (
+                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between animate-slide-in-blurred-top">
+                            <div className="flex flex-col gap-[15px] max-w-[475px]">
+                                <img
+                                    className="h-[26px] w-[114px]"
+                                    src={incubPath}
+                                ></img>
+                                <div className="flex flex-col gap-[12px]">
+                                    <h4 className="font-medium text-[18px] lg:text-[24px]">
+                                        Образовательная экосистема для развития
+                                        карьеры в IT
+                                    </h4>
+                                    <p className="text-[14px] lg:text-[18px]">
+                                        Обучение, тренажеры, поддержка 1 на 1 и
+                                        дружное комьюнити созданное
+                                        разработчиками для разработчиков
+                                    </p>
+                                    <a
+                                        className="underline"
+                                        href="mailto:support+229319@it-incubator.eu"
+                                    >
+                                        support+229319@it-incubator.eu
+                                    </a>
+                                </div>
+                                {widthDevice > 1024 && (
+                                    <button className=" max-w-[200px] px-[20px] py-[10px] bg-gradient-to-r from-golden2 to-golden3 rounded-[10px] text-white">
+                                        Узнать подробнее
+                                    </button>
+                                )}
+                            </div>
+                            <div
+                                className={`flex flex-wrap justify-center lg:grid grid-cols-6 grid-rows-2 gap-x-[15px] max-w-[612px] items-center gap-[15px] my-[20px]`}
+                            >
+                                <div
+                                    className={`w-1/2 lg:w-auto col-span-2 flex flex-row place-items-center h-[70px] lg:h-[100px] justify-center gap-x-[15px] px-[15px] py-[33px] rounded-[20px] shadow-2xl ${bgBlock}`}
+                                >
+                                    <p className="text-center text-[14px] lg:text-[16px] leading-[17px] lg:px-10">
+                                        Гарантиия трудоустройства
+                                    </p>
+                                </div>
+                                <div
+                                    className={` lg:w-auto col-span-2 flex flex-row place-items-center  h-[70px] lg:h-[100px] justify-center gap-x-[15px] px-[15px] py-[33px] rounded-[20px] shadow-2xl ${bgBlock}`}
+                                >
+                                    <p className="text-[14px] lg:text-[16px] leading-[17px] text-center">
+                                        Стажировка
+                                    </p>
+                                </div>
+                                <div
+                                    className={`w-[220px] lg:w-auto col-span-2 flex flex-row place-items-center h-[70px] lg:h-[100px] justify-center gap-x-[15px] px-[15px] py-[33px] rounded-[20px] shadow-2xl ${bgBlock}`}
+                                >
+                                    <p className="text-[14px] lg:text-[16px] leading-[17px] text-center lg:px-10">
+                                        Активное комьюнити
+                                    </p>
+                                </div>
+                                <div className="col-span-6 flex justify-center place-items-center">
+                                    <p className="text-[18px] lg:text-[20px] lg:px-[160px] text-center">
+                                        IT-Incubator — это честое инженерное
+                                        IT-образование
+                                    </p>
+                                </div>
+                            </div>
+                            {widthDevice < 1024 && (
+                                <button className="self-center max-w-[200px] px-[20px] py-[10px] bg-gradient-to-r from-golden2 to-golden3 rounded-[10px] text-white">
+                                    Узнать подробнее
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="flex gap-10 flex-col my-10">
+                <div
+                    className={`flex flex-col justify-center relative min-h-[130px] ${bg} ${border} border-[1px]  pl-[15px] lg:pl-[120px] pr-[20px] py-[40px] cursor-pointer rounded-[20px]`}
+                    id="3"
+                    onClick={handlePartner3Open}
+                >
+                    <img
+                        src="/icons/prana.svg"
+                        className=" absolute -left-[25px] top-[40px] h-[50px] w-[150px]"
+                        alt=""
+                    />
+                    <div className="flex flex-col pl-[110px] lg:pl-[0]">
+                        <h3 className="font-semibold text-[24px]">PRANA</h3>
+                        <p className="text-[14px]">Психология</p>
+                    </div>
+                    {isPartnerOpen["3"] && (
+                        <div className="flex flex-col lg:flex-row pt-[40px] justify-between animate-slide-in-blurred-top">
+                            <div className="flex flex-col gap-[15px] max-w-[475px]">
+                                <img
+                                    className="h-[33px] w-[135px]"
+                                    src={pranaPath}
+                                ></img>
+                                <div className="flex flex-col gap-[12px]">
+                                    <h4 className="font-medium text-[18] lg:text-[24px]">
+                                        Центр психологии PRANA
+                                    </h4>
+                                    <p className="text-[14px] lg:text-[18px]">
+                                        Семейная, кризисная психологоя,
+                                        психосоматика, психоанализ, коучинг.
+                                        Быстрая помощь в решении проблемных
+                                        ситуаций. Различные виды консультаций.
+                                    </p>
+                                    <a
+                                        className="underline"
+                                        href="mailto:prana.vedic.center@gmail.com"
+                                    >
+                                        prana.vedic.center@gmail.com
+                                    </a>
+                                </div>
+                                {widthDevice > 1024 && (
+                                    <button className=" max-w-[200px] px-[20px] py-[10px] bg-gradient-to-r from-golden2 to-golden3 rounded-[10px] text-white">
+                                        Узнать подробнее
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-6 grid-rows-3 lg:grid-rows-2  gap-[15px] lg:w-[612px] my-[20px]">
+                                <div
+                                    className={`col-span-3 row-span-2 lg:col-span-2 lg:row-span-2 flex flex-col justify-center  place-items-center gap-[10px] lg:rounded-[15px] rounded-[5px] shadow-lg ${bgBlock}`}
+                                >
+                                    <img
+                                        className="w-[25] lg:w-[74px] h-[25px] lg:h-[74px]"
+                                        src="/icons/study.svg"
+                                        alt=""
+                                    />
+                                    <p className="text-[13px] lg:text-[20px]">
+                                        Образование
+                                    </p>
+                                </div>
+                                <div
+                                    className={`col-span-3 row-span-1 lg:col-span-2 flex flex-col justify-center place-items-center gap-x-[12px] rounded-[5px] lg:rounded-[15px] shadow-lg ${bgBlock}`}
+                                >
+                                    <img
+                                        className="w-[27px] lg:w-[41px] h-[16px] lg:h-[28px]"
+                                        src="/icons/experience.svg"
+                                        alt=""
+                                    />
+                                    <p className="text-[13px] lg:text-[20px]">
+                                        Опыт
+                                    </p>
+                                </div>
+                                <div
+                                    className={`col-span-3 row-span-1 lg:col-span-2 flex flex-col justify-center place-items-center gap-x-[12px] rounded-[5px] lg:rounded-[15px] shadow-lg ${bgBlock}`}
+                                >
+                                    <img
+                                        className="w-[25px] h-[25px]"
+                                        src="/icons/format.svg"
+                                        alt=""
+                                    />
+                                    <p className="text-[13px] lg:text-[20px]">
+                                        Формат работы
+                                    </p>
+                                </div>
+                                <div
+                                    className={`col-span-6 row-span-1 lg:col-span-4 flex flex-row justify-center place-items-center rounded-[5px] lg:rounded-[15px] shadow-lg gap-[10px] ${bgBlock}`}
+                                >
+                                    <img
+                                        className="w-[34px] lg:w-[55px] h-[27px] lg:h-[55px]"
+                                        src="/icons/time.svg"
+                                        alt=""
+                                    />
+                                    <p className="text-[13px] lg:text-[20px] text-center">
+                                        Скорость работы
+                                    </p>
+                                </div>
+                            </div>
+                            {widthDevice < 1024 && (
+                                <button className="self-center max-w-[200px] px-[20px] py-[10px] bg-gradient-to-r from-golden2 to-golden3 rounded-[10px] text-white">
+                                    Узнать подробнее
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="flex justify-center">
+                <DividerDots />
+            </div>
         </section>
     );
 };
-
-const partnersInfo = [
-    {
-        id: 1,
-        img: incubatorImg,
-        logoLight: incubatorLogoLight,
-        logoDark: incubatorLogoDark,
-        title: "Образовательная экосистема для развития карьеры в IT",
-        desc: "Обучение, тренажеры, поддержка 1 на 1 и дружное комьюнити созданное разработчиками для разработчиков",
-        mail: "support+229319@it-incubator.eu",
-        site: "https://it-incubator.io/",
-        socials: {
-            vk: "https://vk.com/it.incubator?roistat_visit=244395",
-            wa: "https://api.whatsapp.com/send/?phone=375445657493&text&type=phone_number&app_absent=0&roistat_visit=245016",
-            viber: "viber://chat?number=%2B375291341548",
-            inst: "https://www.instagram.com/it.incubator?roistat_visit=245016",
-            tg: "https://t.me/ITIncubatorSandbox?roistat_visit=245016",
-        },
-    },
-    {
-        id: 2,
-        img: skyproImg,
-        logoLight: skyProLogoLight,
-        logoDark: skyProLogoDark,
-        title: "Обучение IT-профессиям с нуля с гарантией новой работы",
-        desc: "Цель Skypro — не просто продавать курсы людям, а обучать и устраивать на реальную работу",
-        mail: "skypro@skyeng.ru",
-        site: "https://sky.pro/",
-        socials: {
-            vk: "https://vk.com/skypro.university?roistat_visit=3751984",
-            wa: "https://wa.me/74951378599",
-            inst: "https://instagram.com",
-            tg: "https://t.me/skyprouniversity?roistat_visit=3751984",
-        },
-    },
-    {
-        id: 2,
-        img: pranaImg,
-        logoLight: pranaLogoLight,
-        logoDark: pranaLogoDark,
-        title: "Центр психологии PRANA",
-        desc: "Семейная, кризисная психология, психосоматика, психоанализ, коучинг. Быстрая помощь в решении проблемных ситуаций.Различные виды консультаций.",
-        mail: "prana.vedic.center@gmail.com",
-        site: "https://prana-psychology.ru/",
-        socials: {
-            vk: "https://vk.com/prana_vedic_center",
-            inst: "https://instagram.com/prana_vedic_centr?igshid=MzRlODBiNWFlZA==",
-            tg: "https://tg.me",
-        },
-    },
-];

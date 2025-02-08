@@ -1,23 +1,16 @@
-import bgLight from "../assets/steps/steps-bg-light.png";
-import bgDark from "../assets/steps/steps-bg-dark.png";
-
-import smm from "../assets/steps/smm.png";
-import media from "../assets/steps/media.png";
-import partnership from "../assets/steps/partnership.png";
-import landing from "../assets/steps/landing.png";
-import web from "../assets/steps/web.png";
-import brand from "../assets/steps/brand.png";
-
-import ArrowSvg from "../assets/steps/arrow.svg";
 import { DividerSolid } from "@/widgets/DividerSolid";
 import { DividerDots } from "@/widgets/DividerDots";
+
 
 interface IProps {
   theme: string;
 }
 
 export const Steps: React.FC<IProps> = ({ theme }) => {
-    const bg = theme === "dark-theme" ? bgDark : bgLight;
+    const bg = theme === "dark-theme" ? 'bg-gradient-to-r from-gray1 to-gray2' : 'bg-white' ;
+    const border = theme === 'dark-theme' ? 'border-white' : 'border-black';
+    const logo = theme === 'dark-theme' ? '/icons/logo_white.svg' : '/icons/logo.svg'
+    const widthUser=innerWidth;
 
     return (
         <>
@@ -26,67 +19,54 @@ export const Steps: React.FC<IProps> = ({ theme }) => {
                 <p className="text-[24px] lg:text-[48px] lg:leading-normal">Наш путь</p>
                 <DividerSolid className="w-[100px]" />
             </div>
-            <section
-                className="w-full h-[570px] lg:h-[920px] mt-5 lg:mt-12 py-5 grid grid-cols-[1fr_0.35fr_1fr] lg:grid-cols-[1fr_0.3fr_1fr_0.3fr_1fr] justify-items-center items-center"
-                style={{
-                    background: `url(${bg})`,
-                }}
-            >
-                <div className="flex flex-col items-center ">
-                    <img src={smm} alt="" className="w-[140px] lg:w-[331px] h-auto" />
-                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
-            Развитие SMM
-                    </p>
+            <section id="Наш путь" className="mx-4">
+                <div className="flex flex-row items-center justify-between flex-wrap gap-[40px] mt-[40px]">
+                    <div className={`${bg} flex flex-col items-center justify-center lg:w-[415px] p-[7px] lg:h-[260px] gap-[6px] lg:gap-[20px] rounded-[20px] border-[1px] ${border} `}>
+                        <img className="w-[20px] lg:w-[70px] h-[20px] lg:h-[70px]" src='/icons/media.svg' alt="" />
+                        <div className=" flex flex-col gap-[6px] lg:gap-[15px] items-center px-[35px] lg:px-[60px]">
+                            <h3 className="font-semibold text-[18px] lg:text-[24px]">Развитие медиа</h3>
+                            <p className="text-center text-[14px]">Создаем качественный контент, который интересен нашей аудитории</p>
+                        </div>
+                    </div>
+                    <div className={`${bg} flex flex-col items-center justify-center lg:w-[415px] p-[7px] lg:h-[260px] gap-[6px] lg:gap-[20px] rounded-[20px] border-[1px] ${border} `}>
+                        <img className="w-[20px] lg:w-[70px] h-[20px] lg:h-[70px]" src='/icons/partners.svg' alt="" />
+                        <div className=" flex flex-col gap-[6px] lg:gap-[15px] items-center px-[35px] lg:px-[60px]">
+                            <h3 className="font-semibold text-[18px] lg:text-[24px]">Поиск партнёров</h3>
+                            <p className="text-center text-[14px]">Объединяем усилия с ведущими компаниями в своей сфере</p>
+                        </div>
+                    </div>
+                    <div className={`${bg} flex flex-col items-center justify-center lg:w-[415px] p-[7px] lg:h-[260px] gap-[6px] lg:gap-[20px] rounded-[20px] border-[1px] ${border} `}>
+                        <img className="w-[20px] lg:w-[70px] h-[20px] lg:h-[70px]" src='/icons/app.svg' alt="" />
+                        <div className=" flex flex-col gap-[6px] lg:gap-[15px] items-center px-[35px] lg:px-[40px]">
+                            <h3 className="font-semibold text-[18px] lg:text-[24px]">Разработка приложений</h3>
+                            <p className="text-center text-[14px]">Создаем инновационное приложение, которое упростит жизнь пользователей</p>
+                        </div>
+                    </div>
+                    <div className={`${bg} flex flex-col items-center justify-center lg:w-[415px] p-[7px] lg:h-[260px] gap-[6px] lg:gap-[20px] rounded-[20px] border-[1px] ${border} `}>
+                        <img className="w-[20px] lg:w-[70px] h-[20px] lg:h-[70px]" src='/icons/merch.svg' alt="" />
+                        <div className=" flex flex-col gap-[6px] lg:gap-[15px] items-center px-[35px] lg:px-[60px]">
+                            <h3 className="font-semibold text-[18px] lg:text-[24px]">Создание мерча</h3>
+                            <p className="text-center text-[14px]">Выпускаем продукцию, отражающую ценности бренда</p>
+                        </div>
+                    </div>
+                    <div className={`${bg} flex flex-col items-center justify-center lg:w-[415px] p-[7px] lg:h-[260px] gap-[6px] lg:gap-[20px] rounded-[20px] border-[1px] ${border} `}>
+                        <img className="w-[20px] lg:w-[70px] h-[20px] lg:h-[70px]" src='/icons/lending.svg' alt="" />
+                        <div className=" flex flex-col gap-[6px] lg:gap-[15px] items-center px-[35px] lg:px-[60px]">
+                            <h3 className="font-semibold text-[18px] lg:text-[24px]">Создание лендинга</h3>
+                            <p className="text-center text-[14px]">Разрабатываем привлекательный сайт, который расскажет о нашей компании</p>
+                        </div>
+                    </div>
+                    
+                    
+                    {widthUser>1024 && <div className={`flex flex-col items-center w-[415px] gap-[20px]`}>
+                        <img className="w-[295px] h-[90px]" src={logo} alt="" />
+                    </div>} 
                 </div>
-                <ArrowSvg className="rotate-[-90deg] h-[40px] lg:h-[80px] " />
-                <div className="flex flex-col items-center">
-                    <img src={media} alt="" className="w-[140px] lg:w-[331px] h-auto " />
-                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
-            Развитие медиа
-                    </p>
-                </div>
-
-                <ArrowSvg className="lg:rotate-[-90deg] h-[40px] lg:h-[80px] col-start-3 row-start-2 lg:col-auto lg:row-auto" />
-                <div className="flex flex-col items-center col-start-3 row-start-3 lg:col-auto lg:row-auto">
-                    <img
-                        src={partnership}
-                        alt=""
-                        className="w-[140px] lg:w-[331px] h-auto"
-                    />
-                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
-            Поиск партнеров
-                    </p>
-                </div>
-
-                <div></div>
-                <div></div>
-                <div></div>
-                <div></div>
-                <ArrowSvg className="rotate-90 lg:rotate-0 h-[40px] lg:h-[80px] col-start-2 row-start-3 lg:col-auto lg:row-auto" />
-
-                <div className="flex flex-col items-center col-start-3 row-start-5 lg:col-auto lg:row-auto">
-                    <img src={landing} alt="" className="w-[140px] lg:w-[331px] h-auto" />
-                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
-            Развитие бренда
-                    </p>
-                </div>
-                <ArrowSvg className="rotate-[-90deg] lg:rotate-90 h-[40px] lg:h-[80px] col-start-2 row-start-5 lg:col-auto lg:row-auto" />
-
-                <div className="flex flex-col items-center col-start-1 row-start-5 lg:col-auto lg:row-auto w-[140px] lg:w-[331px] h-auto">
-                    <img src={web} alt="" className="" />
-                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
-            Разработка приложения
-                    </p>
-                </div>
-                <ArrowSvg className="lg:rotate-90 h-[40px] lg:h-[80px] col-start-1 row-start-4 lg:col-auto lg:row-auto" />
-
-                <div className="flex flex-col items-center col-start-1 row-start-3 lg:col-auto lg:row-auto">
-                    <img src={brand} alt="" className="w-[140px] lg:w-[331px] h-auto" />
-                    <p className="mt-4 text-[10px] lg:text-[20px] font-medium">
-            Создание лендинга
-                    </p>
+                <div className="mt-10 flex justify-center">
+                    <DividerDots className=" hidden lg:flex lg:mb-10" />
                 </div>
             </section>
         </>
     );
 };
+

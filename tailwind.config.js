@@ -10,7 +10,10 @@ export default {
                 'golden': '#C0A570',
                 'golden2': '#97794D',
                 'golden3': '#E3CB8F',
-                'dark-gray': '#3D3D3D'
+                'dark-gray': '#3D3D3D',
+                'gray1': '#1D2228',
+                'gray2':'#313944',
+                'black1':'#0A0A0A'
             },
             backgroundImage: {
                 'home-image': "url('/src/assets/home/faculty_home.png')",
@@ -18,9 +21,8 @@ export default {
                 'banner-background': "url('/src/assets/landing/banner_bg.png')",
             },
             fontFamily: {
-                'IMB Plex Sans': ['IMB Plex Sans', 'Candara', 'Segoe', 'Segoe UI', 'Optima', 'Arial', 'sans-serif'],
-                'clash-display': ['ClashGrotesk-Regular', 'sans-serif'],
-                'alexol': ['GothamPro', 'sans-serif']
+                sans: ['Montserrat', 'sans-serif'],
+               
             },
             spacing: {
                 '26': '6.5rem',
@@ -32,6 +34,10 @@ export default {
             },
             screens: {
                 'laptop': '1149px',
+            },
+            animation:{
+                'slide-in-blurred-top': 'slide-in-blurred-top 0.6s cubic-bezier(0.230, 1.000, 0.320, 1.000)',
+                'slide-in-left': 'slide-in-left 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both'
             }
         },
     },
