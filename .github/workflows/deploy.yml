@@ -32,4 +32,5 @@ jobs:
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   source: "dist/**"
                   target: "/var/www/alexol.io/html"
+                  rm: true
                   strip_components: 1
