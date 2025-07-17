@@ -19,7 +19,7 @@ export const PageTitle = () => {
             />
 
             <p className="mx-auto text-[24px] leading-[23px] lg:text-[48px] lg:w-[520px] lg:leading-10 mt-[40px] lg:mt-[100px]">
-        1
+        Alexol — это больше, чем просто стартап.
             </p>
             <DividerSolid className="mx-auto mt-5 lg:mt-10 w-[100px] lg:w-[270px]" />
 
