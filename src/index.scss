@@ -1,33 +1,10 @@
+@use "./components/cubeAnimation.scss";
+@use "./theme.scss";
+@use "./fonts/stylesheet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import "./components/cubeAnimation.scss";
-@import "./theme.scss";
-@import "./fonts/stylesheet.css";
-
-@layer base {
-  @font-face {
-    font-family: 'Montserrat';
-    font-style: normal;
-    font-weight: 400;
-    src: url('../fonts/Montserrat-Regular.ttf') format('truetype');
-  }
-  
-  @font-face {
-    font-family: 'Montserrat';
-    font-style: normal;
-    font-weight: 600;
-    src: url('../fonts/Montserrat-SemiBold.ttf') format('truetype');
-  }
-  
-  @font-face {
-    font-family: 'Montserrat';
-    font-style:normal;
-    font-weight: 500;
-    src: url('../fonts/Montserrat-Medium.ttf') format('truetype');
-  }
-}
 
 //анимация при смене темы
 @-webkit-keyframes fade-in-right {
