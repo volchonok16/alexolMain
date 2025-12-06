@@ -1,0 +1,49 @@
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(10, 227, 255, 0.1);
+  border-radius: 0.75rem;
+  transition: all 0.3s;
+  overflow: hidden;
+
+  &:hover {
+    border-color: $color-primary;
+  }
+
+  &__header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(10, 227, 255, 0.1);
+  }
+
+  &__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  &__description {
+    color: $color-text-muted;
+    font-size: 0.875rem;
+  }
+
+  &__content {
+    padding: 1.5rem;
+  }
+
+  &__footer {
+    padding: 1.5rem;
+    border-top: 1px solid rgba(10, 227, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  &--interactive {
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 30px rgba(10, 227, 255, 0.2);
+    }
+  }
+}

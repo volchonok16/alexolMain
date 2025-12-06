@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@theme {
+  /* Цветовая палитра согласно ТЗ */
+  --color-background: #0A0C10;
+  --color-background-secondary: #0C0F16;
+  --color-accent-primary: #0AE3FF;
+  --color-accent-secondary: #1B91F7;
+  --color-accent-tertiary: #7BF7FF;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #A8B0C0;
+  --color-card-bg: rgba(255, 255, 255, 0.03);
+  --color-card-border: rgba(10, 227, 255, 0.15);
+  
+  /* Shadows */
+  --shadow-glow: 0 0 40px rgba(10, 227, 255, 0.3);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+h1 {
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+p {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Glassmorphism эффект */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(10, 227, 255, 0.15);
+}
+
+/* Неоновое свечение */
+.neon-glow {
+  box-shadow: 0 0 20px rgba(10, 227, 255, 0.4),
+              0 0 40px rgba(10, 227, 255, 0.2);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-tertiary);
+}
+
+/* Анимации */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes scroll-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+  
+  h2 {
+    font-size: 1.75rem;
+  }
+  
+  h3 {
+    font-size: 1.5rem;
+  }
+}
