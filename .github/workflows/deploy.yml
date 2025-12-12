@@ -2,7 +2,7 @@ name: Deploy Vite App to Ubuntu Server
 
 on:
     push:
-        branches: [master]
+        branches: [newDesign]
 
 jobs:
     deploy:
