@@ -1,42 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { News } from '@/api/news';
+import { useNews } from './hooks/useNews';
 import { ArticleModal } from './components/ArticleModal';
 import './DashboardPage.scss';
 
-interface Article {
-  id: number;
-  title: string;
-  content: string;
-  image: string;
-  date: string;
-}
-
 export const DashboardPage = () => {
-  const [articles, setArticles] = useState<Article[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [editingArticle, setEditingArticle] = useState<News | null>(null);
+  const { articles, isLoading, error, deleteNews, createNews, updateNews } = useNews();
 
-  useEffect(() => {
-    const saved = localStorage.getItem('articles');
-    if (saved) {
-      setArticles(JSON.parse(saved));
-    }
-  }, []);
-
-  const saveArticles = (newArticles: Article[]) => {
-    setArticles(newArticles);
-    localStorage.setItem('articles', JSON.stringify(newArticles));
-  };
-
-
+  if (isLoading) return <div className="dashboard"><div className="dashboard__content"><div className="dashboard__container">Загрузка...</div></div></div>;
+  if (error) return <div className="dashboard"><div className="dashboard__content"><div className="dashboard__container">Ошибка загрузки</div></div></div>;
 
   const handleDelete = (id: number) => {
     if (confirm('Удалить статью?')) {
-      saveArticles(articles.filter(a => a.id !== id));
+      deleteNews(id);
     }
   };
 
-  const handleEdit = (article: Article) => {
+  const handleEdit = (article: News) => {
     setEditingArticle(article);
     setIsModalOpen(true);
   };
@@ -46,12 +29,11 @@ export const DashboardPage = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = (article: Article) => {
+  const handleSave = (article: { title: string; text: string; photo: string | File }) => {
     if (editingArticle) {
-      saveArticles(articles.map(a => a.id === article.id ? article : a));
+      updateNews({ id: editingArticle.id, data: article });
     } else {
-      const newArticle = { ...article, id: Math.max(0, ...articles.map(a => a.id)) + 1 };
-      saveArticles([...articles, newArticle]);
+      createNews(article);
     }
     setIsModalOpen(false);
   };
@@ -64,45 +46,45 @@ export const DashboardPage = () => {
         </header>
 
         <div className="dashboard__container">
-        <div className="dashboard__actions">
-          <button onClick={handleAdd} className="dashboard__add">
-            <Plus />
-            Добавить статью
-          </button>
-        </div>
+          <div className="dashboard__actions">
+            <button onClick={handleAdd} className="dashboard__add">
+              <Plus />
+              Добавить статью
+            </button>
+          </div>
 
-        <div className="dashboard__table">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Заголовок</th>
-                <th>Дата</th>
-                <th>Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              {articles.map(article => (
-                <tr key={article.id}>
-                  <td>{article.id}</td>
-                  <td>{article.title}</td>
-                  <td>{new Date(article.date).toLocaleDateString('ru-RU')}</td>
-                  <td>
-                    <div className="dashboard__row-actions">
-                      <button onClick={() => handleEdit(article)} className="dashboard__edit">
-                        <Edit2 />
-                      </button>
-                      <button onClick={() => handleDelete(article.id)} className="dashboard__delete">
-                        <Trash2 />
-                      </button>
-                    </div>
-                  </td>
+          <div className="dashboard__table">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Заголовок</th>
+                  <th>Дата</th>
+                  <th>Действия</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {articles?.map(article => (
+                  <tr key={article.id}>
+                    <td>{article.id}</td>
+                    <td>{article.title}</td>
+                    <td>{article.createdAt ? new Date(article.createdAt).toLocaleDateString('ru-RU') : '-'}</td>
+                    <td>
+                      <div className="dashboard__row-actions">
+                        <button onClick={() => handleEdit(article)} className="dashboard__edit">
+                          <Edit2 />
+                        </button>
+                        <button onClick={() => handleDelete(article.id)} className="dashboard__delete">
+                          <Trash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
         {isModalOpen && (
           <ArticleModal

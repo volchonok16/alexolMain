@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { authApi } from '@/api/auth';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -10,21 +12,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('admin_auth') === 'true';
+    return !!localStorage.getItem('admin_token');
   });
 
-  const login = (username: string, password: string) => {
-    if (username === 'admin' && password === 'admin123') {
+  const loginMutation = useMutation({
+    mutationFn: authApi.login,
+    onSuccess: (data) => {
+      localStorage.setItem('admin_token', data.token);
       setIsAuthenticated(true);
-      localStorage.setItem('admin_auth', 'true');
+    },
+  });
+
+  const login = async (username: string, password: string) => {
+    try {
+      await loginMutation.mutateAsync({ login: username, password });
       return true;
+    } catch {
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('admin_auth');
+    localStorage.removeItem('admin_token');
   };
 
   return (

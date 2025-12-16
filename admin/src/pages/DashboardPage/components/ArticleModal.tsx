@@ -1,38 +1,33 @@
 import { useState } from 'react';
 
 interface Article {
-  id: number;
+  id?: number;
   title: string;
-  content: string;
-  image: string;
-  date: string;
+  text: string;
+  photo: string;
 }
 
 interface ArticleModalProps {
   article: Article | null;
   onClose: () => void;
-  onSave: (article: Article) => void;
+  onSave: (article: { title: string; text: string; photo: string | File }) => void;
 }
 
 export const ArticleModal = ({ article, onClose, onSave }: ArticleModalProps) => {
-  const [formData, setFormData] = useState<Article>(
-    article || {
-      id: 0,
-      title: '',
-      content: '',
-      image: '',
-      date: new Date().toISOString().split('T')[0],
-    }
-  );
-  const [imagePreview, setImagePreview] = useState<string>(article?.image || '');
+  const [formData, setFormData] = useState<{ title: string; text: string; photo: string | File }>({
+    title: article?.title || '',
+    text: article?.text || '',
+    photo: article?.photo || '',
+  });
+  const [imagePreview, setImagePreview] = useState<string>(article?.photo || '');
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setFormData({ ...formData, photo: file });
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
-        setFormData({ ...formData, image: reader.result as string });
       };
       reader.readAsDataURL(file);
     }
@@ -75,8 +70,8 @@ export const ArticleModal = ({ article, onClose, onSave }: ArticleModalProps) =>
           <div className="modal__field">
             <label>Текст</label>
             <textarea
-              value={formData.content}
-              onChange={e => setFormData({ ...formData, content: e.target.value })}
+              value={formData.text}
+              onChange={e => setFormData({ ...formData, text: e.target.value })}
               rows={8}
               required
             />
