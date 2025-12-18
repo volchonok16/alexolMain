@@ -18,6 +18,7 @@ jobs:
                   node-version: "22"
 
             - name: Install dependencies and build
+              working-directory: ./frontend
               run: |
                   npm install
                   npm run build
@@ -30,7 +31,7 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
-                  source: "dist/**"
+                  source: "frontend/dist/**"
                   target: "/var/www/alexol.io/html"
                   overwrite: true
-                  strip_components: 1
+                  strip_components: 2
