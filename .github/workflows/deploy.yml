@@ -1,4 +1,4 @@
-name: Deploy Frontend and Backend to Ubuntu Server
+name: Deploy Frontend, Admin and Backend to Ubuntu Server
 
 on:
     push:
@@ -47,6 +47,48 @@ jobs:
                   overwrite: true
                   strip_components: 2
 
+    deploy-admin:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Install dependencies and build admin
+              working-directory: ./admin
+              run: |
+                  npm install
+                  npm run build
+                  ls -la dist/
+
+            - name: Prepare server directory
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/admin/html
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/admin/html
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/admin/html
+
+            - name: Deploy admin to server
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "admin/dist/**"
+                  target: "/var/www/alexol.io/admin/html"
+                  overwrite: true
+                  strip_components: 2
+
     deploy-backend:
         runs-on: ubuntu-latest
         steps:
@@ -90,6 +132,6 @@ jobs:
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
                       cd /var/www/alexol.io/back
-                      docker-compose down
-                      docker-compose up -d --build
-                      docker-compose ps
+                      echo "${{ secrets.PWD }}" | sudo -S docker-compose down
+                      echo "${{ secrets.PWD }}" | sudo -S docker-compose up -d --build
+                      echo "${{ secrets.PWD }}" | sudo -S docker-compose ps

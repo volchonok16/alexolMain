@@ -58,6 +58,11 @@ npm run dev
 1. Сборка проекта в `frontend/dist/`
 2. Загрузка на сервер в `/var/www/alexol.io/html`
 
+### Admin Panel
+
+1. Сборка проекта в `admin/dist/`
+2. Загрузка на сервер в `/var/www/alexol.io/admin/html`
+
 ### Backend
 
 1. Копирование кода в `/var/www/alexol.io/back`
@@ -68,11 +73,21 @@ npm run dev
 - Backend API: `8547`
 - PostgreSQL: `7432`
 
+### Структура на сервере
+
+```
+/var/www/alexol.io/
+├── html/           # Frontend (основной сайт)
+├── admin/
+│   └── html/       # Admin Panel
+└── back/           # Backend + Docker Compose
+```
+
 ### Первоначальная настройка сервера
 
 1. Убедитесь, что на сервере установлены Docker и Docker Compose
-2. Создайте директорию `/var/www/alexol.io/back` (создаётся автоматически при деплое)
-3. Файл `.env` создаётся автоматически из секрета `ENV_BE` при деплое
+2. Директории создаются автоматически при деплое
+3. Файл `.env` для бэкенда создаётся автоматически из секрета `ENV_BE`
 
 ### Настройка GitHub Secrets
 
