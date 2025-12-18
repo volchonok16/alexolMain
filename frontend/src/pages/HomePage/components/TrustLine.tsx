@@ -1,23 +1,28 @@
+import { useTranslation } from '@/shared/utils/translations';
+
 export const TrustLine = () => {
+  const { t } = useTranslation();
   const clients = [
-    "ТЕХНОКОРП",
-    "ФИНТЕХ PRO",
-    "МЕДСИСТЕМЫ",
-    "ЛОГИСТИК+",
-    "ПРОИЗВОДСТВО 24",
-    "РИТЕЙЛ GROUP",
-    "ЭНЕРГОПРОМ",
-    "АВТОМАТИКА",
+    'BonusBlock',
+    'Portal to Bitcoin',
+    'Elys Network',
+    'Xion',
+    'KiteAi',
+    'Agoric',
+    'OneWish',
+    'Notamedia',
+    'TheoriqAI',
+    'Dubs',
+    'Beggars',
+    'Metropolis',
   ];
 
   return (
     <section className="trust-line">
       <div className="trust-line__header">
-        <p className="trust-line__title">
-          Нам доверяют лидеры отраслей
-        </p>
+        <p className="trust-line__title">{t('trustLine.title')}</p>
       </div>
-      
+
       <div className="trust-line__wrapper">
         <div className="trust-line__scroll">
           {[...clients, ...clients, ...clients].map((client, index) => (
@@ -26,7 +31,7 @@ export const TrustLine = () => {
             </div>
           ))}
         </div>
-        
+
         <div className="trust-line__gradient trust-line__gradient--left" />
         <div className="trust-line__gradient trust-line__gradient--right" />
       </div>

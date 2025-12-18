@@ -1,20 +1,13 @@
-import { InputHTMLAttributes } from "react";
-import "./Input.scss";
+import { InputHTMLAttributes } from 'react';
+import './Input.scss';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
 }
 
-export const Input = ({
-  label,
-  error,
-  className = "",
-  ...props
-}: InputProps) => {
-  const inputClasses = ["input", error && "input--error", className]
-    .filter(Boolean)
-    .join(" ");
+export const Input = ({ label, error, className = '', ...props }: InputProps) => {
+  const inputClasses = ['input', error && 'input--error', className].filter(Boolean).join(' ');
 
   if (label || error) {
     return (

@@ -1,40 +1,43 @@
 {
-  "name": "alexol-outsource",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite --host",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "lint:fix": "eslint . --ext ts,tsx --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
-    "type-check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@tanstack/react-query": "^5.28.0",
-    "axios": "^1.6.7",
-    "framer-motion": "^12.23.25",
-    "lucide-react": "^0.344.0",
-    "path": "^0.12.7",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.51.0",
-    "react-router-dom": "^6.22.0"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
-    "@vitejs/plugin-react": "^4.2.1",
-    "eslint": "^8.57.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.5",
-    "prettier": "^3.2.5",
-    "sass": "^1.71.1",
-    "typescript": "^5.4.2",
-    "vite": "^5.1.6"
-  }
+    "name": "alexol-outsource",
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite --host",
+        "build": "tsc && vite build",
+        "preview": "vite preview",
+        "lint": "eslint 'src/**/*.{ts,tsx}'",
+        "lint:fix": "eslint src/**/*.{ts,tsx} --fix",
+        "format": "prettier --write src/**/*.{ts,tsx,js,jsx,css,md,json}",
+        "format:check": "prettier --check 'src/**/*.{ts,tsx,js,jsx,css,md,json}'",
+        "type-check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@eslint/js": "^9.39.2",
+        "@tanstack/react-query": "^5.28.0",
+        "axios": "^1.6.7",
+        "framer-motion": "^12.23.25",
+        "lucide-react": "^0.344.0",
+        "path": "^0.12.7",
+        "prettier-eslint": "^16.4.2",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "react-hook-form": "^7.51.0",
+        "react-router-dom": "^6.22.0",
+        "typescript-eslint": "^8.50.0"
+    },
+    "devDependencies": {
+        "@types/react": "^18.3.1",
+        "@types/react-dom": "^18.3.0",
+        "@typescript-eslint/eslint-plugin": "^6.21.0",
+        "@typescript-eslint/parser": "^6.21.0",
+        "@vitejs/plugin-react": "^4.2.1",
+        "eslint": "^8.57.1",
+        "eslint-plugin-react-hooks": "^4.6.2",
+        "eslint-plugin-react-refresh": "^0.4.26",
+        "prettier": "^3.2.5",
+        "sass": "^1.71.1",
+        "typescript": "^5.4.2",
+        "vite": "^5.1.6"
+    }
 }

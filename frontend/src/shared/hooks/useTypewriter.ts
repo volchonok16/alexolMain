@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
 export const useTypewriter = (text: string, speed: number = 50) => {
-  const [displayText, setDisplayText] = useState("");
+  const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export const useTypewriter = (text: string, speed: number = 50) => {
       return () => clearTimeout(timeout);
     } else {
       if (displayText === text) return;
-      
+
       const timeout = setTimeout(() => {
         setDisplayText(text.slice(0, displayText.length + 1));
       }, speed);

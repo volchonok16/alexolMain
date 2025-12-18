@@ -1,7 +1,10 @@
-import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { motion } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
+import { useTranslation } from '@/shared/utils/translations';
 
 export const About = () => {
+  const { t } = useTranslation();
+
   return (
     <section className="about">
       <div className="about__container">
@@ -13,18 +16,13 @@ export const About = () => {
             transition={{ duration: 0.8 }}
           >
             <h2 className="about__title">
-              Мы превращаем сложные задачи в{" "}
-              <span className="about__highlight">
-                работающие технологические решения
-              </span>
+              {t('about.title')} <span className="about__highlight">{t('about.titleHighlight')}</span>
             </h2>
-            
-            <p className="about__description">
-              Мы — команда инженеров, аналитиков и проектных менеджеров, которые берут на себя полный цикл разработки. Помогаем компаниям внедрять инновации, снижать операционные затраты и запускать цифровые продукты быстрее.
-            </p>
-            
+
+            <p className="about__description">{t('about.description')}</p>
+
             <button className="about__button">
-              <span>Подробнее о нас</span>
+              <span>{t('about.button')}</span>
               <ArrowRight />
             </button>
           </motion.div>
@@ -36,10 +34,10 @@ export const About = () => {
             transition={{ duration: 0.8 }}
             className="about__metrics"
           >
-            <MetricCard number="7+" label="лет опыта" delay={0} />
-            <MetricCard number="150+" label="реализованных проектов" delay={0.1} />
-            <MetricCard number="12" label="отраслей" delay={0.2} />
-            <MetricCard number="40+" label="senior-специалистов" delay={0.3} />
+            <MetricCard number="7+" label={t('about.metrics.years')} delay={0} />
+            <MetricCard number="150+" label={t('about.metrics.projects')} delay={0.1} />
+            <MetricCard number="12" label={t('about.metrics.industries')} delay={0.2} />
+            <MetricCard number="40+" label={t('about.metrics.specialists')} delay={0.3} />
           </motion.div>
         </div>
       </div>

@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
-import { LucideIcon } from "lucide-react";
-import "./IconCard.scss";
+import { ReactNode } from 'react';
+import { LucideIcon } from 'lucide-react';
+import './IconCard.scss';
 
 interface IconCardProps {
   icon: LucideIcon;

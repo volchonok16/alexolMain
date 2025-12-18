@@ -1,27 +1,16 @@
-import { ButtonHTMLAttributes, ReactNode } from "react";
-import "./Button.scss";
+import { ButtonHTMLAttributes, ReactNode } from 'react';
+import './Button.scss';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost";
-  size?: "small" | "medium" | "large";
+  variant?: 'primary' | 'secondary' | 'ghost';
+  size?: 'small' | 'medium' | 'large';
   children: ReactNode;
 }
 
-export const Button = ({
-  variant = "primary",
-  size = "medium",
-  children,
-  className = "",
-  ...props
-}: ButtonProps) => {
-  const classes = [
-    "button",
-    `button--${variant}`,
-    size !== "medium" && `button--${size}`,
-    className,
-  ]
+export const Button = ({ variant = 'primary', size = 'medium', children, className = '', ...props }: ButtonProps) => {
+  const classes = ['button', `button--${variant}`, size !== 'medium' && `button--${size}`, className]
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
 
   return (
     <button className={classes} {...props}>

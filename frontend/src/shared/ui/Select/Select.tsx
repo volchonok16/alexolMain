@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { ChevronDown } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import "./Select.scss";
+import { useState, useRef, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import './Select.scss';
 
 interface SelectOption {
   value: string;
@@ -15,7 +15,7 @@ interface SelectProps {
   placeholder?: string;
 }
 
-export const Select = ({ options, value, onChange, placeholder = "Выберите..." }: SelectProps) => {
+export const Select = ({ options, value, onChange, placeholder = 'Выберите...' }: SelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
 
@@ -28,8 +28,8 @@ export const Select = ({ options, value, onChange, placeholder = "Выберит
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleSelect = (optionValue: string) => {
@@ -40,11 +40,11 @@ export const Select = ({ options, value, onChange, placeholder = "Выберит
   return (
     <div className="select" ref={selectRef}>
       <div
-        className={`select__trigger ${isOpen ? "select__trigger--open" : ""} ${!selectedOption ? "select__trigger--placeholder" : ""}`}
+        className={`select__trigger ${isOpen ? 'select__trigger--open' : ''} ${!selectedOption ? 'select__trigger--placeholder' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <span>{selectedOption?.label || placeholder}</span>
-        <ChevronDown className={`select__icon ${isOpen ? "select__icon--open" : ""}`} size={20} />
+        <ChevronDown className={`select__icon ${isOpen ? 'select__icon--open' : ''}`} size={20} />
       </div>
 
       <AnimatePresence>
@@ -59,7 +59,7 @@ export const Select = ({ options, value, onChange, placeholder = "Выберит
             {options.map(option => (
               <div
                 key={option.value}
-                className={`select__option ${option.value === value ? "select__option--selected" : ""}`}
+                className={`select__option ${option.value === value ? 'select__option--selected' : ''}`}
                 onClick={() => handleSelect(option.value)}
               >
                 {option.label}

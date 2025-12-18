@@ -1,32 +1,25 @@
-import { motion } from "framer-motion";
-import { TrendingDown, Users, Eye, Shield, Zap, TrendingUp } from "lucide-react";
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { TrendingDown, Users, Eye, Shield, Zap, TrendingUp, LucideIcon } from 'lucide-react';
+import { ConsultationModal } from './modals';
+import { useTranslation } from '@/shared/utils/translations';
+
+interface Benefit {
+  icon: LucideIcon;
+  key: string;
+}
 
 export const WhyDigital = () => {
-  const benefits = [
-    {
-      icon: TrendingDown,
-      title: "Автоматизация снижает операционные затраты",
-    },
-    {
-      icon: Users,
-      title: "Упрощение клиентского пути",
-    },
-    {
-      icon: Eye,
-      title: "Контроль и прозрачность процессов",
-    },
-    {
-      icon: Shield,
-      title: "Снижение зависимости от человеческого фактора",
-    },
-    {
-      icon: Zap,
-      title: "Быстрая адаптация к рынку",
-    },
-    {
-      icon: TrendingUp,
-      title: "Повышение эффективности сотрудников",
-    },
+  const { t } = useTranslation();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const benefits: Benefit[] = [
+    { icon: TrendingDown, key: 'automation' },
+    { icon: Users, key: 'simplification' },
+    { icon: Eye, key: 'transparency' },
+    { icon: Shield, key: 'reliability' },
+    { icon: Zap, key: 'adaptation' },
+    { icon: TrendingUp, key: 'efficiency' },
   ];
 
   return (
@@ -45,10 +38,7 @@ export const WhyDigital = () => {
           className="why-digital__header"
         >
           <h2 className="why-digital__title">
-            Технологии — это не расход.{" "}
-            <span className="why-digital__highlight">
-              Это рост, масштаб и контроль.
-            </span>
+            {t('whyDigital.title')} <span className="why-digital__highlight">{t('whyDigital.titleHighlight')}</span>
           </h2>
         </motion.div>
 
@@ -64,18 +54,21 @@ export const WhyDigital = () => {
           viewport={{ once: true }}
           className="why-digital__cta"
         >
-          <button className="why-digital__button">
-            Получить консультацию
+          <button onClick={() => setIsModalOpen(true)} className="why-digital__button">
+            {t('whyDigital.button')}
           </button>
         </motion.div>
       </div>
+
+      <ConsultationModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </section>
   );
 };
 
-const BenefitCard = ({ benefit, index }: { benefit: any; index: number }) => {
+const BenefitCard = ({ benefit, index }: { benefit: Benefit; index: number }) => {
+  const { t } = useTranslation();
   const Icon = benefit.icon;
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -88,7 +81,7 @@ const BenefitCard = ({ benefit, index }: { benefit: any; index: number }) => {
         <div className="benefit-card__icon">
           <Icon />
         </div>
-        <p className="benefit-card__title">{benefit.title}</p>
+        <p className="benefit-card__title">{t(`whyDigital.benefits.${benefit.key}`)}</p>
       </div>
     </motion.div>
   );

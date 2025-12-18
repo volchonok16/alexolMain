@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo } from "react";
+import { useEffect, useRef, memo } from 'react';
 
 interface InteractiveGridProps {
   mousePos: { x: number; y: number };
@@ -12,7 +12,7 @@ export const InteractiveGrid = memo(({ mousePos }: InteractiveGridProps) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const resize = () => {
@@ -21,12 +21,12 @@ export const InteractiveGrid = memo(({ mousePos }: InteractiveGridProps) => {
     };
 
     resize();
-    window.addEventListener("resize", resize);
+    window.addEventListener('resize', resize);
 
     const gridSize = 80;
     const glowRadius = 150;
     const glowRadiusSq = glowRadius * glowRadius;
-    const isLight = document.documentElement.getAttribute("data-theme") === "light";
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -39,23 +39,23 @@ export const InteractiveGrid = memo(({ mousePos }: InteractiveGridProps) => {
       for (let x = 0; x <= canvas.width; x += gridSize) {
         for (let y = 0; y <= canvas.height; y += gridSize) {
           const inGlowArea = x >= startX && x <= endX && y >= startY && y <= endY;
-          
+
           let intensity = 0;
           if (inGlowArea) {
             const dx = mousePos.x - x;
             const dy = mousePos.y - y;
             const distanceSq = dx * dx + dy * dy;
-            
+
             if (distanceSq < glowRadiusSq) {
               intensity = Math.max(0, 1 - Math.sqrt(distanceSq) / glowRadius);
             }
           }
-          
+
           const baseOpacity = isLight ? 0.15 : 0.08;
           const opacity = baseOpacity + intensity * 0.3;
           const lineWidth = 1 + intensity * 2;
 
-          const color = isLight ? "8, 145, 178" : "10, 227, 255";
+          const color = isLight ? '8, 145, 178' : '10, 227, 255';
           ctx.strokeStyle = `rgba(${color}, ${opacity})`;
           ctx.lineWidth = lineWidth;
 
@@ -74,7 +74,7 @@ export const InteractiveGrid = memo(({ mousePos }: InteractiveGridProps) => {
           }
 
           if (intensity > 0.3) {
-            const color = isLight ? "8, 145, 178" : "10, 227, 255";
+            const color = isLight ? '8, 145, 178' : '10, 227, 255';
             ctx.fillStyle = `rgba(${color}, ${intensity * 0.5})`;
             ctx.beginPath();
             ctx.arc(x, y, 3, 0, Math.PI * 2);
@@ -89,17 +89,12 @@ export const InteractiveGrid = memo(({ mousePos }: InteractiveGridProps) => {
     draw();
 
     return () => {
-      window.removeEventListener("resize", resize);
+      window.removeEventListener('resize', resize);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, [mousePos]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="hero__interactive-grid"
-    />
-  );
+  return <canvas ref={canvasRef} className="hero__interactive-grid" />;
 });

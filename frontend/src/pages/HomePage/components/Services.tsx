@@ -1,38 +1,22 @@
-import { motion } from "framer-motion";
-import { Code, Users, Palette, Brain, Wrench, Building2 } from "lucide-react";
+import { motion } from 'framer-motion';
+import { Code, Users, Palette, Brain, Wrench, Building2, LucideIcon } from 'lucide-react';
+import { useTranslation } from '../../../shared/utils/translations';
+
+interface Service {
+  icon: LucideIcon;
+  key: string;
+}
 
 export const Services = () => {
-  const services = [
-    {
-      icon: Code,
-      title: "Заказная разработка ПО",
-      description: "Web, Mobile, Desktop, API, интеграции, enterprise-решения.",
-    },
-    {
-      icon: Users,
-      title: "Аутсорс / аутстафф",
-      description: "Усиливаем команды senior-разработчиками, берём сложные модули.",
-    },
-    {
-      icon: Palette,
-      title: "UI/UX дизайн",
-      description: "Дизайн-системы, интерфейсы, продуктовая аналитика.",
-    },
-    {
-      icon: Brain,
-      title: "AI/ML интеграции",
-      description: "Чат-боты, автоматизация процессов, предиктивная аналитика.",
-    },
-    {
-      icon: Wrench,
-      title: "Техподдержка и сопровождение",
-      description: "SLA, развитие, оптимизация.",
-    },
-    {
-      icon: Building2,
-      title: "Архитектурный консалтинг",
-      description: "Проектирование систем, аудит, техническая стратегия.",
-    },
+  const { t } = useTranslation();
+
+  const services: Service[] = [
+    { icon: Code, key: 'development' },
+    { icon: Users, key: 'outsourcing' },
+    { icon: Palette, key: 'design' },
+    { icon: Brain, key: 'ai' },
+    { icon: Wrench, key: 'support' },
+    { icon: Building2, key: 'consulting' },
   ];
 
   return (
@@ -45,13 +29,13 @@ export const Services = () => {
           transition={{ duration: 0.8 }}
           className="services__header"
         >
-          <h2 className="services__title">Наши компетенции</h2>
+          <h2 className="services__title">{t('services.title')}</h2>
           <div className="services__divider" />
         </motion.div>
 
         <div className="services__grid">
           {services.map((service, index) => (
-            <ServiceCard key={index} service={service} index={index} />
+            <ServiceCard key={service.key} service={service} index={index} />
           ))}
         </div>
       </div>
@@ -59,9 +43,10 @@ export const Services = () => {
   );
 };
 
-const ServiceCard = ({ service, index }: { service: any; index: number }) => {
+const ServiceCard = ({ service, index }: { service: Service; index: number }) => {
+  const { t } = useTranslation();
   const Icon = service.icon;
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -71,14 +56,14 @@ const ServiceCard = ({ service, index }: { service: any; index: number }) => {
       className="service-card"
     >
       <div className="service-card__glow" />
-      
+
       <div className="service-card__content">
         <div className="service-card__icon">
           <Icon />
         </div>
-        
-        <h3 className="service-card__title">{service.title}</h3>
-        <p className="service-card__description">{service.description}</p>
+
+        <h3 className="service-card__title">{t(`services.items.${service.key}.title`)}</h3>
+        <p className="service-card__description">{t(`services.items.${service.key}.description`)}</p>
       </div>
     </motion.div>
   );

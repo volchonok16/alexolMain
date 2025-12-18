@@ -1,20 +1,22 @@
-import { motion } from "framer-motion";
-import { Mail, Phone, MapPin, Clock } from "lucide-react";
-import { useState } from "react";
+import { motion } from 'framer-motion';
+import { Mail, Phone, MapPin, Clock, LucideIcon } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from '../../../shared/utils/translations';
 
 export const Contact = () => {
+  const { t, getOptions } = useTranslation();
   const [formData, setFormData] = useState({
-    name: "",
-    company: "",
-    email: "",
-    phone: "",
-    budget: "",
-    message: "",
+    name: '',
+    company: '',
+    email: '',
+    phone: '',
+    budget: '',
+    message: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    console.log('Form submitted:', formData);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -34,10 +36,8 @@ export const Contact = () => {
           transition={{ duration: 0.8 }}
           className="contact__header"
         >
-          <h2 className="contact__title">Свяжитесь с нами</h2>
-          <p className="contact__description">
-            Обсудим ваш проект и подберём оптимальное решение
-          </p>
+          <h2 className="contact__title">{t('contact.title')}</h2>
+          <p className="contact__description">{t('contact.description')}</p>
         </motion.div>
 
         <div className="contact__grid">
@@ -49,13 +49,9 @@ export const Contact = () => {
             className="contact__form-wrapper"
           >
             <div className="contact__form">
-              <div className="contact__notice">
-                <p>💡 Нужна консультация? CTO подключится в течение 24 часов</p>
-              </div>
-
               <form onSubmit={handleSubmit} className="contact__form-fields">
                 <div className="contact__field">
-                  <label className="contact__label">Ваше имя *</label>
+                  <label className="contact__label">{t('contact.name')} *</label>
                   <input
                     type="text"
                     name="name"
@@ -63,25 +59,25 @@ export const Contact = () => {
                     onChange={handleChange}
                     required
                     className="contact__input"
-                    placeholder="Иван Иванов"
+                    placeholder={t('contact.namePlaceholder')}
                   />
                 </div>
 
                 <div className="contact__field">
-                  <label className="contact__label">Компания</label>
+                  <label className="contact__label">{t('contact.company')}</label>
                   <input
                     type="text"
                     name="company"
                     value={formData.company}
                     onChange={handleChange}
                     className="contact__input"
-                    placeholder="ООО Технологии"
+                    placeholder={t('contact.companyPlaceholder')}
                   />
                 </div>
 
                 <div className="contact__field-group">
                   <div className="contact__field">
-                    <label className="contact__label">Email *</label>
+                    <label className="contact__label">{t('contact.email')} *</label>
                     <input
                       type="email"
                       name="email"
@@ -89,41 +85,35 @@ export const Contact = () => {
                       onChange={handleChange}
                       required
                       className="contact__input"
-                      placeholder="email@example.com"
+                      placeholder={t('contact.emailPlaceholder')}
                     />
                   </div>
 
                   <div className="contact__field">
-                    <label className="contact__label">Телефон</label>
+                    <label className="contact__label">{t('contact.phone')}</label>
                     <input
                       type="tel"
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
                       className="contact__input"
-                      placeholder="+7 (999) 123-45-67"
+                      placeholder={t('contact.phonePlaceholder')}
                     />
                   </div>
                 </div>
 
                 <div className="contact__field">
-                  <label className="contact__label">Бюджет проекта</label>
-                  <select
-                    name="budget"
-                    value={formData.budget}
-                    onChange={handleChange}
-                    className="contact__select"
-                  >
-                    <option value="">Выберите диапазон</option>
-                    <option value="500k-1m">500 тыс. - 1 млн ₽</option>
-                    <option value="1m-3m">1 - 3 млн ₽</option>
-                    <option value="3m-5m">3 - 5 млн ₽</option>
-                    <option value="5m+">От 5 млн ₽</option>
+                  <label className="contact__label">{t('contact.budget')}</label>
+                  <select name="budget" value={formData.budget} onChange={handleChange} className="contact__select">
+                    <option value="">{t('contact.budgetPlaceholder')}</option>
+                    {getOptions('projectModal.budgetOptions').map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div className="contact__field">
-                  <label className="contact__label">Описание задачи *</label>
+                  <label className="contact__label">{t('contact.message')} *</label>
                   <textarea
                     name="message"
                     value={formData.message}
@@ -131,12 +121,12 @@ export const Contact = () => {
                     required
                     rows={4}
                     className="contact__textarea"
-                    placeholder="Расскажите о вашем проекте..."
+                    placeholder={t('contact.messagePlaceholder')}
                   />
                 </div>
 
                 <button type="submit" className="contact__submit">
-                  Отправить заявку
+                  {t('contact.submit')}
                 </button>
               </form>
             </div>
@@ -150,24 +140,20 @@ export const Contact = () => {
             className="contact__info"
           >
             <div className="contact__info-card">
-              <h3 className="contact__info-title">Контактная информация</h3>
-              
+              <h3 className="contact__info-title">{t('contact.infoTitle')}</h3>
+
               <div className="contact__info-items">
-                <ContactItem icon={Mail} label="Email" value="hello@techcompany.ru" />
-                <ContactItem icon={Phone} label="Телефон" value="+7 (495) 123-45-67" />
-                <ContactItem icon={MapPin} label="Адрес" value="Москва, ул. Технологическая, 1" />
-                <ContactItem icon={Clock} label="Режим работы" value="Пн-Пт: 10:00 - 19:00" />
+                <ContactItem icon={Mail} label={t('contact.labels.email')} value="hello@techcompany.ru" />
+                <ContactItem icon={Phone} label={t('contact.labels.phone')} value="+7 (495) 123-45-67" />
+                <ContactItem icon={MapPin} label={t('contact.labels.address')} value={t('contact.values.address')} />
+                <ContactItem icon={Clock} label={t('contact.labels.schedule')} value={t('contact.values.schedule')} />
               </div>
             </div>
 
             <div className="contact__meeting">
-              <h3 className="contact__meeting-title">Назначить встречу</h3>
-              <p className="contact__meeting-text">
-                Проведём онлайн-встречу, обсудим задачи и предложим решение
-              </p>
-              <button className="contact__meeting-button">
-                Выбрать время
-              </button>
+              <h3 className="contact__meeting-title">{t('contact.meetingTitle')}</h3>
+              <p className="contact__meeting-text">{t('contact.meetingText')}</p>
+              <button className="contact__meeting-button">{t('contact.meetingButton')}</button>
             </div>
           </motion.div>
         </div>
@@ -176,7 +162,7 @@ export const Contact = () => {
   );
 };
 
-const ContactItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => {
+const ContactItem = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => {
   return (
     <div className="contact-item">
       <div className="contact-item__icon">

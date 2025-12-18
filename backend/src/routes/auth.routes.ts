@@ -6,35 +6,6 @@ const controller = new AuthController();
 
 /**
  * @swagger
- * /api/auth/register:
- *   post:
- *     summary: Регистрация нового пользователя
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - name
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               name:
- *                 type: string
- *     responses:
- *       201:
- *         description: Успешная регистрация
- */
-authRouter.post('/register', controller.register);
-
-/**
- * @swagger
  * /api/auth/login:
  *   post:
  *     summary: Вход в систему
@@ -46,10 +17,10 @@ authRouter.post('/register', controller.register);
  *           schema:
  *             type: object
  *             required:
- *               - email
+ *               - login
  *               - password
  *             properties:
- *               email:
+ *               login:
  *                 type: string
  *               password:
  *                 type: string

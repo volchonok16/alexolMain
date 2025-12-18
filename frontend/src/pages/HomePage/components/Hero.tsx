@@ -1,9 +1,11 @@
-import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
-import { useState, useCallback, useRef, useMemo } from "react";
-import { TechModule } from "./TechModule";
-import { InteractiveGrid } from "./InteractiveGrid";
-import { useTypewriter } from "@/shared/hooks/useTypewriter";
+import { motion } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { TechModule } from './TechModule';
+import { InteractiveGrid } from './InteractiveGrid';
+import { useLanguage } from '../../../shared/contexts';
+import { useTranslation } from '../../../shared/utils/translations';
+import { useTypewriter } from '../../../shared/hooks/useTypewriter';
 
 interface Module {
   id: string;
@@ -17,92 +19,70 @@ interface Module {
   cta: string;
 }
 
-const modules: Module[] = [
-  {
-    id: "ai",
-    name: "AI",
-    icon: "🤖",
-    x: 20,
-    y: 30,
-    connections: ["python", "cloud", "data"],
-    title: "AI & Data Science",
-    description: "Превращаем данные в ваше преимущество",
-    cta: "Узнать о наших AI-решениях",
-  },
-  {
-    id: "python",
-    name: "Python",
-    icon: "🐍",
-    x: 70,
-    y: 20,
-    connections: ["ai", "data", "web"],
-    title: "Python Development",
-    description: "Мощные backend-решения на Python",
-    cta: "Обсудить Python-проект",
-  },
-  {
-    id: "cloud",
-    name: "Cloud",
-    icon: "☁️",
-    x: 80,
-    y: 60,
-    connections: ["ai", "security", "mobile"],
-    title: "Cloud Infrastructure",
-    description: "Масштабируемая облачная архитектура",
-    cta: "Перейти в облако",
-  },
-  {
-    id: "mobile",
-    name: "Mobile",
-    icon: "📱",
-    x: 15,
-    y: 70,
-    connections: ["web", "cloud"],
-    title: "Mobile Development",
-    description: "Нативные и кроссплатформенные приложения",
-    cta: "Создать мобильное приложение",
-  },
-  {
-    id: "web",
-    name: "Web",
-    icon: "🌐",
-    x: 85,
-    y: 40,
-    connections: ["python", "mobile", "security"],
-    title: "Web Development",
-    description: "Современные веб-приложения и сервисы",
-    cta: "Разработать веб-решение",
-  },
-  {
-    id: "security",
-    name: "Security",
-    icon: "🔒",
-    x: 40,
-    y: 80,
-    connections: ["cloud", "web"],
-    title: "Cybersecurity",
-    description: "Защита данных и инфраструктуры",
-    cta: "Обеспечить безопасность",
-  },
-  {
-    id: "data",
-    name: "Data",
-    icon: "📊",
-    x: 60,
-    y: 35,
-    connections: ["ai", "python"],
-    title: "Data Analytics",
-    description: "Аналитика и визуализация данных",
-    cta: "Анализировать данные",
-  },
-];
+const getModules = (t: (path: string) => string): Module[] => {
+  const isFullHD = window.innerWidth >= 1920;
+
+  const moduleData = [
+    { id: 'web', name: 'Web', icon: '🌐', x: isFullHD ? 75 : 75, y: 20, connections: ['backend', 'frontend'] },
+    { id: 'enterprise', name: 'Enterprise', icon: '🏢', x: 85, y: 45, connections: ['backend', 'frontend'] },
+    { id: 'ecommerce', name: 'E-commerce', icon: '🛒', x: 90, y: 70, connections: ['backend', 'frontend'] },
+    {
+      id: 'mobile',
+      name: 'Mobile',
+      icon: '📱',
+      x: isFullHD ? 15 : 70,
+      y: isFullHD ? 70 : 85,
+      connections: ['backend', 'frontend'],
+    },
+    { id: 'ai', name: 'AI/ML', icon: '🤖', x: isFullHD ? 10 : 60, y: isFullHD ? 30 : 15, connections: ['backend'] },
+    { id: 'cloud', name: 'Cloud', icon: '☁️', x: 85, y: 15, connections: ['backend'] },
+    {
+      id: 'frontend',
+      name: 'Frontend',
+      icon: '⚛️',
+      x: isFullHD ? 22 : 65,
+      y: isFullHD ? 50 : 55,
+      connections: ['web', 'enterprise', 'ecommerce', 'mobile'],
+    },
+    {
+      id: 'backend',
+      name: 'Backend',
+      icon: '⚙️',
+      x: 78,
+      y: 60,
+      connections: ['web', 'enterprise', 'ecommerce', 'mobile', 'ai', 'cloud'],
+    },
+  ];
+
+  return moduleData.map(m => ({
+    ...m,
+    title: t(`hero.modules.${m.id}.title`),
+    description: t(`hero.modules.${m.id}.description`),
+    cta: t(`hero.modules.${m.id}.cta`),
+  }));
+};
 
 export const Hero = () => {
+  const { language } = useLanguage();
+  const { t } = useTranslation();
+  const [modules, setModules] = useState<Module[]>(getModules(t));
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const [activeModule, setActiveModule] = useState<Module | null>(null);
-  const [emailInput, setEmailInput] = useState("");
+  const [emailInput, setEmailInput] = useState('');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const lastUpdateRef = useRef(0);
+
+  useEffect(() => {
+    setModules(getModules(t));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  useEffect(() => {
+    const handleResize = () => setModules(getModules(t));
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
     const now = Date.now();
@@ -116,16 +96,16 @@ export const Hero = () => {
     });
   }, []);
 
-  const defaultTitle = "Создаем цифровые решения будущего";
-  const defaultDescription = "Мы разрабатываем ПО под ключ, усиливаем команды и создаём архитектуру, готовую к масштабированию";
-  const defaultCta = "Обсудить проект";
+  const defaultTitle = t('hero.title');
+  const defaultDescription = t('hero.description');
+  const defaultCta = t('hero.cta');
 
   const currentTitleText = useMemo(() => {
     if (activeModule) {
       return `${activeModule.name} → ${activeModule.description}`;
     }
     return defaultTitle;
-  }, [activeModule]);
+  }, [activeModule, defaultTitle]);
 
   const displayTitle = useTypewriter(currentTitleText, 30);
   const currentCta = activeModule?.cta || defaultCta;
@@ -135,7 +115,7 @@ export const Hero = () => {
   };
 
   const getConnectedModules = (moduleId: string) => {
-    const module = modules.find((m) => m.id === moduleId);
+    const module = modules.find(m => m.id === moduleId);
     return module?.connections || [];
   };
 
@@ -158,10 +138,10 @@ export const Hero = () => {
                 transition={{ delay: i * 0.1 }}
                 className="hero__code-line"
               >
-                {i === 0 && "def createSolutionFor(business):"}
-                {i === 1 && "    analyze_requirements()"}
-                {i === 2 && "    design_architecture()"}
-                {i === 3 && "    implement_solution()"}
+                {i === 0 && 'def createSolutionFor(business):'}
+                {i === 1 && '    analyze_requirements()'}
+                {i === 2 && '    design_architecture()'}
+                {i === 3 && '    implement_solution()'}
                 {i > 3 && `    # Step ${i}...`}
               </motion.div>
             ))}
@@ -170,9 +150,9 @@ export const Hero = () => {
 
         <svg className="hero__connections">
           {hoveredModule &&
-            getConnectedModules(hoveredModule).map((connId) => {
-              const from = modules.find((m) => m.id === hoveredModule);
-              const to = modules.find((m) => m.id === connId);
+            getConnectedModules(hoveredModule).map(connId => {
+              const from = modules.find(m => m.id === hoveredModule);
+              const to = modules.find(m => m.id === connId);
               if (!from || !to) return null;
 
               return (
@@ -194,17 +174,13 @@ export const Hero = () => {
         </svg>
 
         <div className="hero__modules">
-          {modules.map((module) => (
+          {modules.map(module => (
             <TechModule
               key={module.id}
               module={module}
               isHovered={hoveredModule === module.id}
               isActive={activeModule?.id === module.id}
-              isConnected={
-                hoveredModule
-                  ? getConnectedModules(hoveredModule).includes(module.id)
-                  : false
-              }
+              isConnected={hoveredModule ? getConnectedModules(hoveredModule).includes(module.id) : false}
               onHover={setHoveredModule}
               onClick={handleModuleClick}
             />
@@ -239,9 +215,9 @@ export const Hero = () => {
             <div className="hero__email-wrapper">
               <input
                 type="email"
-                placeholder="Ваш email"
+                placeholder={t('hero.emailPlaceholder')}
                 value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
+                onChange={e => setEmailInput(e.target.value)}
                 className="hero__email-input"
               />
             </div>

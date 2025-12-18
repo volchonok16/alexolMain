@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion } from 'framer-motion';
 
 interface Module {
   id: string;
@@ -21,33 +21,24 @@ interface TechModuleProps {
   onClick: (module: Module) => void;
 }
 
-export const TechModule = ({
-  module,
-  isHovered,
-  isActive,
-  isConnected,
-  onHover,
-  onClick,
-}: TechModuleProps) => {
+export const TechModule = ({ module, isHovered, isActive, isConnected, onHover, onClick }: TechModuleProps) => {
   return (
     <motion.div
-      className={`tech-module ${isActive ? "tech-module--active" : ""} ${
-        isConnected ? "tech-module--connected" : ""
-      }`}
+      className={`tech-module ${isActive ? 'tech-module--active' : ''} ${isConnected ? 'tech-module--connected' : ''}`}
       style={{
         left: `${module.x}%`,
         top: `${module.y}%`,
       }}
       animate={{
         scale: isHovered || isActive ? 1.3 : 1,
-        x: isActive ? "-50%" : "-50%",
-        y: isActive ? "-50%" : "-50%",
+        x: isActive ? '-50%' : '-50%',
+        y: isActive ? '-50%' : '-50%',
       }}
       whileHover={{ scale: 1.2 }}
       onHoverStart={() => onHover(module.id)}
       onHoverEnd={() => onHover(null)}
       onClick={() => onClick(module)}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
       <div className="tech-module__icon">{module.icon}</div>
       <div className="tech-module__name">{module.name}</div>

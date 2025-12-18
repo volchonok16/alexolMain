@@ -1,34 +1,51 @@
-import { motion } from "framer-motion";
-import { Calendar, ArrowRight } from "lucide-react";
-import { ImageWithFallback } from "@/shared/ui";
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Calendar, ArrowRight } from 'lucide-react';
+import { ImageWithFallback, ErrorState } from '@/shared/ui';
+import { useNews } from '../hooks/useNews';
+import { useTranslation } from '@/shared/utils/translations';
 
 export const News = () => {
-  const articles = [
-    {
-      id: 1,
-      category: "Аналитика",
-      title: "Микросервисная архитектура: когда она действительно нужна",
-      excerpt: "Разбираем реальные сценарии применения микросервисов и их альтернативы",
-      date: "1 декабря 2025",
-      image: "https://images.unsplash.com/photo-1626908013943-df94de54984c?w=400",
-    },
-    {
-      id: 2,
-      category: "IT-тренды",
-      title: "AI в продакшн: от эксперимента к реальной пользе",
-      excerpt: "Как правильно внедрять машинное обучение в бизнес-процессы",
-      date: "25 ноября 2025",
-      image: "https://images.unsplash.com/photo-1531498860502-7c67cf02f657?w=400",
-    },
-    {
-      id: 3,
-      category: "Кейсы",
-      title: "Как мы оптимизировали систему и сократили время отклика на 300%",
-      excerpt: "История проекта по рефакторингу высоконагруженной системы",
-      date: "18 ноября 2025",
-      image: "https://images.unsplash.com/photo-1726138388546-30955e45aaec?w=400",
-    },
-  ];
+  const { t } = useTranslation();
+  const { news, isLoading, error } = useNews();
+
+  if (isLoading) {
+    return (
+      <section className="news">
+        <div className="news__container">
+          <div className="news__header">
+            <h2 className="news__title">{t('news.loading')}</h2>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="news">
+        <div className="news__container">
+          <ErrorState
+            title={t('news.error')}
+            description={t('news.errorDescription')}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  if (!news || news.length === 0) {
+    return (
+      <section className="news">
+        <div className="news__container">
+          <div className="news__header">
+            <h2 className="news__title">{t('news.title')}</h2>
+            <p className="news__description">{t('news.empty')}</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="news">
@@ -40,14 +57,12 @@ export const News = () => {
           transition={{ duration: 0.8 }}
           className="news__header"
         >
-          <h2 className="news__title">Новости и статьи</h2>
-          <p className="news__description">
-            Делимся опытом и инсайтами из мира разработки
-          </p>
+          <h2 className="news__title">{t('news.title')}</h2>
+          <p className="news__description">{t('news.description')}</p>
         </motion.div>
 
         <div className="news__grid">
-          {articles.map((article, index) => (
+          {news.map((article, index) => (
             <ArticleCard key={article.id} article={article} index={index} />
           ))}
         </div>
@@ -58,10 +73,10 @@ export const News = () => {
           viewport={{ once: true }}
           className="news__cta"
         >
-          <button className="news__button">
-            <span>Все статьи</span>
+          <Link to="/news" className="news__button">
+            <span>{t('news.allArticles')}</span>
             <ArrowRight />
-          </button>
+          </Link>
         </motion.div>
       </div>
     </section>
@@ -78,15 +93,9 @@ const ArticleCard = ({ article, index }: { article: any; index: number }) => {
       className="article-card"
     >
       <div className="article-card__image">
-        <ImageWithFallback
-          src={article.image}
-          alt={article.title}
-          className="article-card__img"
-        />
+        <ImageWithFallback src={article.image} alt={article.title} className="article-card__img" />
         <div className="article-card__overlay" />
-        <div className="article-card__category">
-          {article.category}
-        </div>
+        <div className="article-card__category">{article.category}</div>
       </div>
 
       <div className="article-card__content">
@@ -94,14 +103,10 @@ const ArticleCard = ({ article, index }: { article: any; index: number }) => {
           <Calendar />
           <span>{article.date}</span>
         </div>
-        
-        <h3 className="article-card__title">
-          {article.title}
-        </h3>
-        
-        <p className="article-card__excerpt">
-          {article.excerpt}
-        </p>
+
+        <h3 className="article-card__title">{article.title}</h3>
+
+        <p className="article-card__excerpt">{article.excerpt}</p>
       </div>
     </motion.article>
   );

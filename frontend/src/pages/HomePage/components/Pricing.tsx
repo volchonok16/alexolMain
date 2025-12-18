@@ -1,16 +1,27 @@
-import { motion } from "framer-motion";
-import { Layers, Network, Monitor, Palette, Link2, Clock, BarChart3, Headphones } from "lucide-react";
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Layers, Network, Monitor, Palette, Link2, Clock, BarChart3, Headphones, LucideIcon } from 'lucide-react';
+import { PricingModal } from './modals/PricingModal';
+import { useTranslation } from '@/shared/utils/translations';
+
+interface Factor {
+  icon: LucideIcon;
+  key: string;
+}
 
 export const Pricing = () => {
-  const factors = [
-    { icon: Layers, label: "Объём функционала" },
-    { icon: Network, label: "Сложность архитектуры" },
-    { icon: Monitor, label: "Количество платформ" },
-    { icon: Palette, label: "Дизайн" },
-    { icon: Link2, label: "Интеграции" },
-    { icon: Clock, label: "Требуемые сроки" },
-    { icon: BarChart3, label: "Нагрузка и масштаб" },
-    { icon: Headphones, label: "Поддержка" },
+  const { t } = useTranslation();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const factors: Factor[] = [
+    { icon: Layers, key: 'functionality' },
+    { icon: Network, key: 'architecture' },
+    { icon: Monitor, key: 'platforms' },
+    { icon: Palette, key: 'design' },
+    { icon: Link2, key: 'integrations' },
+    { icon: Clock, key: 'timeline' },
+    { icon: BarChart3, key: 'scale' },
+    { icon: Headphones, key: 'support' },
   ];
 
   return (
@@ -23,15 +34,13 @@ export const Pricing = () => {
           transition={{ duration: 0.8 }}
           className="pricing__header"
         >
-          <h2 className="pricing__title">Из чего формируется стоимость проекта</h2>
-          <p className="pricing__description">
-            Мы предлагаем честную оценку проекта с обоснованием
-          </p>
+          <h2 className="pricing__title">{t('pricing.title')}</h2>
+          <p className="pricing__description">{t('pricing.description')}</p>
         </motion.div>
 
         <div className="pricing__grid">
           {factors.map((factor, index) => (
-            <FactorCard key={index} factor={factor} index={index} />
+            <FactorCard key={factor.key} factor={factor} index={index} />
           ))}
         </div>
 
@@ -42,25 +51,26 @@ export const Pricing = () => {
           className="pricing__summary"
         >
           <div className="pricing__summary-content">
-            <p className="pricing__summary-text">
-              Каждый проект уникален. Мы не работаем по шаблонам — мы проектируем архитектуру под конкретные задачи вашего бизнеса.
-            </p>
+            <p className="pricing__summary-text">{t('pricing.summary')}</p>
             <div className="pricing__threshold">
-              <p>Минимальный порог сотрудничества — от 500 тыс. ₽</p>
+              <p>{t('pricing.threshold')}</p>
             </div>
-            <button className="pricing__button">
-              Получить расчёт
+            <button onClick={() => setIsModalOpen(true)} className="pricing__button">
+              {t('pricing.button')}
             </button>
           </div>
         </motion.div>
       </div>
+
+      <PricingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </section>
   );
 };
 
-const FactorCard = ({ factor, index }: { factor: any; index: number }) => {
+const FactorCard = ({ factor, index }: { factor: Factor; index: number }) => {
+  const { t } = useTranslation();
   const Icon = factor.icon;
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -72,7 +82,7 @@ const FactorCard = ({ factor, index }: { factor: any; index: number }) => {
       <div className="factor-card__icon">
         <Icon />
       </div>
-      <p className="factor-card__label">{factor.label}</p>
+      <p className="factor-card__label">{t(`pricing.factors.${factor.key}`)}</p>
     </motion.div>
   );
 };

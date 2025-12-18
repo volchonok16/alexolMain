@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Modal, Select } from "@/shared/ui";
-import "./ProjectModal.scss";
+import { useState } from 'react';
+import { Modal, Select } from '@/shared/ui';
+import { useTranslation } from '@/shared/utils/translations';
+import './ProjectModal.scss';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -8,17 +9,18 @@ interface ProjectModalProps {
 }
 
 export const ProjectModal = ({ isOpen, onClose }: ProjectModalProps) => {
+  const { t, getOptions } = useTranslation();
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    budget: "",
-    message: "",
+    name: '',
+    email: '',
+    phone: '',
+    budget: '',
+    message: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    console.log('Form submitted:', formData);
     onClose();
   };
 
@@ -30,10 +32,12 @@ export const ProjectModal = ({ isOpen, onClose }: ProjectModalProps) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Обсудить проект">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('projectModal.title')}>
       <form onSubmit={handleSubmit} className="project-modal__form">
         <div className="project-modal__field">
-          <label className="project-modal__label">Ваше имя *</label>
+          <label className="project-modal__label">
+            {t('projectModal.name')} {t('projectModal.required')}
+          </label>
           <input
             type="text"
             name="name"
@@ -41,12 +45,14 @@ export const ProjectModal = ({ isOpen, onClose }: ProjectModalProps) => {
             onChange={handleChange}
             required
             className="project-modal__input"
-            placeholder="Иван Иванов"
+            placeholder={t('projectModal.namePlaceholder')}
           />
         </div>
 
         <div className="project-modal__field">
-          <label className="project-modal__label">Email *</label>
+          <label className="project-modal__label">
+            {t('projectModal.email')} {t('projectModal.required')}
+          </label>
           <input
             type="email"
             name="email"
@@ -54,39 +60,36 @@ export const ProjectModal = ({ isOpen, onClose }: ProjectModalProps) => {
             onChange={handleChange}
             required
             className="project-modal__input"
-            placeholder="email@example.com"
+            placeholder={t('projectModal.emailPlaceholder')}
           />
         </div>
 
         <div className="project-modal__field">
-          <label className="project-modal__label">Телефон</label>
+          <label className="project-modal__label">{t('projectModal.phone')}</label>
           <input
             type="tel"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
             className="project-modal__input"
-            placeholder="+7 (999) 123-45-67"
+            placeholder={t('projectModal.phonePlaceholder')}
           />
         </div>
 
         <div className="project-modal__field">
-          <label className="project-modal__label">Бюджет проекта</label>
+          <label className="project-modal__label">{t('projectModal.budget')}</label>
           <Select
-            options={[
-              { value: "500k-1m", label: "500 тыс. - 1 млн ₽" },
-              { value: "1m-3m", label: "1 - 3 млн ₽" },
-              { value: "3m-5m", label: "3 - 5 млн ₽" },
-              { value: "5m+", label: "От 5 млн ₽" },
-            ]}
+            options={getOptions('projectModal.budgetOptions')}
             value={formData.budget}
-            onChange={(value) => setFormData({ ...formData, budget: value })}
-            placeholder="Выберите диапазон"
+            onChange={value => setFormData({ ...formData, budget: value })}
+            placeholder={t('projectModal.budgetPlaceholder')}
           />
         </div>
 
         <div className="project-modal__field">
-          <label className="project-modal__label">Описание задачи *</label>
+          <label className="project-modal__label">
+            {t('projectModal.message')} {t('projectModal.required')}
+          </label>
           <textarea
             name="message"
             value={formData.message}
@@ -94,12 +97,12 @@ export const ProjectModal = ({ isOpen, onClose }: ProjectModalProps) => {
             required
             rows={4}
             className="project-modal__textarea"
-            placeholder="Расскажите о вашем проекте..."
+            placeholder={t('projectModal.messagePlaceholder')}
           />
         </div>
 
         <button type="submit" className="project-modal__submit">
-          Отправить заявку
+          {t('projectModal.submit')}
         </button>
       </form>
     </Modal>
