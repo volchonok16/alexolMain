@@ -100,6 +100,24 @@ npm run dev
 - `SERVER_SSH_PORT` - порт SSH (по умолчанию 22)
 - `PWD` - пароль sudo для пользователя
 
+**Frontend:**
+- `FRONT_ENV` - содержимое .env файла для фронтенда
+
+Пример содержимого `FRONT_ENV`:
+```env
+VITE_API_URL=https://api.alexol.io/api
+VITE_ENV=production
+```
+
+**Admin:**
+- `ADMIN_ENV` - содержимое .env файла для админ-панели
+
+Пример содержимого `ADMIN_ENV`:
+```env
+VITE_API_URL=https://api.alexol.io/api
+VITE_ENV=production
+```
+
 **Backend:**
 - `ENV_BE` - содержимое .env файла для бэкенда
 

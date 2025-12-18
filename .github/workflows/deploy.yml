@@ -16,6 +16,11 @@ jobs:
               with:
                   node-version: "22"
 
+            - name: Create .env file from secret
+              working-directory: ./frontend
+              run: |
+                  echo "${{ secrets.FRONT_ENV }}" > .env
+
             - name: Install dependencies and build frontend
               working-directory: ./frontend
               run: |
@@ -57,6 +62,11 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: "22"
+
+            - name: Create .env file from secret
+              working-directory: ./admin
+              run: |
+                  echo "${{ secrets.ADMIN_ENV }}" > .env
 
             - name: Install dependencies and build admin
               working-directory: ./admin
