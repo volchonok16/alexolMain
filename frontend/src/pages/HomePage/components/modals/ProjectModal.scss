@@ -1,0 +1,83 @@
+.project-modal {
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  &__label {
+    font-size: 0.875rem;
+    color: #A8B0C0;
+
+    [data-theme="light"] & {
+      color: #64748B;
+    }
+  }
+
+  &__input,
+  &__select,
+  &__textarea {
+    padding: 0.75rem 1rem;
+    background: #0A0C10;
+    border: 1px solid rgba(10, 227, 255, 0.2);
+    border-radius: 0.5rem;
+    color: white;
+    transition: border-color 0.3s;
+
+    &:focus {
+      outline: none;
+      border-color: #0AE3FF;
+    }
+
+    &::placeholder {
+      color: #A8B0C0;
+    }
+
+    [data-theme="light"] & {
+      background: #FFFFFF;
+      border: 1px solid rgba(8, 145, 178, 0.3);
+      color: #0F172A;
+
+      &:focus {
+        border-color: #0891B2;
+      }
+
+      &::placeholder {
+        color: #64748B;
+      }
+    }
+  }
+
+  &__textarea {
+    resize: none;
+  }
+
+  &__submit {
+    width: 100%;
+    padding: 1rem 2rem;
+    background: linear-gradient(to right, #0AE3FF, #1B91F7);
+    border-radius: 0.5rem;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s;
+
+    &:hover {
+      box-shadow: 0 0 30px rgba(10, 227, 255, 0.5);
+    }
+
+    [data-theme="light"] & {
+      background: linear-gradient(to right, #0891B2, #0369A1);
+
+      &:hover {
+        box-shadow: 0 0 30px rgba(8, 145, 178, 0.5);
+      }
+    }
+  }
+}

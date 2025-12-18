@@ -1,0 +1,11 @@
+.home-page {
+  min-height: 100vh;
+
+  &__section {
+    padding: 6rem 1.5rem;
+
+    &--dark {
+      background-color: rgba(12, 15, 22, 0.3);
+    }
+  }
+}

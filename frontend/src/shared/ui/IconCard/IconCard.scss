@@ -1,0 +1,32 @@
+.icon-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+
+  &__icon-wrapper {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(to bottom right, rgba(10, 227, 255, 0.2), rgba(27, 145, 247, 0.2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: $color-primary;
+  }
+
+  &__content {
+    flex: 1;
+  }
+
+  &__label {
+    color: $color-text-muted;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+
+  &__value {
+    color: $color-text;
+    font-weight: 500;
+  }
+}

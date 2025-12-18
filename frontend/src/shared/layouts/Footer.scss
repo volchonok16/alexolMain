@@ -1,0 +1,248 @@
+.footer {
+  border-top: 1px solid rgba(10, 227, 255, 0.1);
+  background: rgba(12, 15, 22, 0.5);
+  padding: 4rem 1.5rem;
+
+  [data-theme="light"] & {
+    border-top: 1px solid rgba(8, 145, 178, 0.2);
+    background: rgba(241, 245, 249, 0.8);
+  }
+
+  &__container {
+    max-width: 80rem;
+    margin: 0 auto;
+  }
+
+  &__grid {
+    display: grid;
+    gap: 3rem;
+    margin-bottom: 3rem;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (min-width: 1024px) {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  &__brand {
+    @media (min-width: 1024px) {
+      grid-column: span 1;
+    }
+  }
+
+  &__logo {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+
+    svg {
+      height: 40px;
+      width: auto;
+
+      .alexol-primary {
+        fill: var(--color-text);
+      }
+
+      .alexol-accent {
+        fill: var(--color-primary);
+      }
+    }
+  }
+
+  &__description {
+    color: #A8B0C0;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+
+    [data-theme="light"] & {
+      color: #64748B;
+    }
+  }
+
+  &__social {
+    display: flex;
+    gap: 1rem;
+  }
+
+  &__social-link {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(10, 227, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #A8B0C0;
+    transition: all 0.3s;
+
+    &:hover {
+      border-color: #0AE3FF;
+      background: rgba(10, 227, 255, 0.1);
+      color: #0AE3FF;
+    }
+
+    svg {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+
+    [data-theme="light"] & {
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(8, 145, 178, 0.2);
+      color: #64748B;
+
+      &:hover {
+        border-color: #0891B2;
+        background: rgba(8, 145, 178, 0.1);
+        color: #0891B2;
+      }
+    }
+  }
+
+  &__column {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__title {
+    margin-bottom: 1rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  &__links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__link {
+    color: #A8B0C0;
+    text-decoration: none;
+    transition: color 0.3s;
+
+    &:hover {
+      color: #0AE3FF;
+    }
+
+    [data-theme="light"] & {
+      color: #64748B;
+
+      &:hover {
+        color: #0891B2;
+      }
+    }
+  }
+
+  &__contacts {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__contact {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #A8B0C0;
+
+    [data-theme="light"] & {
+      color: #64748B;
+    }
+
+    &--address {
+      align-items: flex-start;
+
+      .footer__contact-icon {
+        margin-top: 0.25rem;
+        flex-shrink: 0;
+      }
+    }
+  }
+
+  &__contact-icon {
+    width: 1rem;
+    height: 1rem;
+    color: #0AE3FF;
+    flex-shrink: 0;
+
+    [data-theme="light"] & {
+      color: #0891B2;
+    }
+  }
+
+  &__contact-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.3s;
+
+    &:hover {
+      color: #0AE3FF;
+    }
+
+    [data-theme="light"] & {
+      &:hover {
+        color: #0891B2;
+      }
+    }
+  }
+
+  &__bottom {
+    padding-top: 2rem;
+    border-top: 1px solid rgba(10, 227, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    color: #A8B0C0;
+    font-size: 0.875rem;
+
+    [data-theme="light"] & {
+      border-top: 1px solid rgba(8, 145, 178, 0.2);
+      color: #64748B;
+    }
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      justify-content: space-between;
+    }
+  }
+
+  &__copyright {
+    margin: 0;
+  }
+
+  &__legal {
+    display: flex;
+    gap: 1.5rem;
+  }
+
+  &__legal-link {
+    color: #A8B0C0;
+    text-decoration: none;
+    transition: color 0.3s;
+
+    &:hover {
+      color: #0AE3FF;
+    }
+
+    [data-theme="light"] & {
+      color: #64748B;
+
+      &:hover {
+        color: #0891B2;
+      }
+    }
+  }
+}
