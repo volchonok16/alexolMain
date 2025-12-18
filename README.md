@@ -51,20 +51,54 @@ npm run dev
 
 ## Деплой
 
-Деплой фронтенда происходит автоматически при пуше в ветку `newDesign` через GitHub Actions.
+Автоматический деплой происходит при пуше в ветку `master` через GitHub Actions.
 
-Workflow:
-1. Установка зависимостей в папке `frontend/`
-2. Сборка проекта (`npm run build`)
-3. Загрузка `frontend/dist/` на сервер через SSH
+### Frontend
+
+1. Сборка проекта в `frontend/dist/`
+2. Загрузка на сервер в `/var/www/alexol.io/html`
+
+### Backend
+
+1. Копирование кода в `/var/www/alexol.io/back`
+2. Запуск через Docker Compose
+3. Применение миграций базы данных
+
+**Порты:**
+- Backend API: `8547`
+- PostgreSQL: `7432`
+
+### Первоначальная настройка сервера
+
+1. Убедитесь, что на сервере установлены Docker и Docker Compose
+2. Создайте директорию `/var/www/alexol.io/back` (создаётся автоматически при деплое)
+3. Файл `.env` создаётся автоматически из секрета `ENV_BE` при деплое
 
 ### Настройка GitHub Secrets
 
 Для работы автоматического деплоя необходимы следующие секреты:
+
+**Серверные:**
 - `SERVER_IP` - IP адрес сервера
 - `SERVER_USER` - пользователь для SSH
 - `SERVER_SSH_KEY` - приватный SSH ключ
 - `SERVER_SSH_PORT` - порт SSH (по умолчанию 22)
+
+**Backend:**
+- `ENV_BE` - содержимое .env файла для бэкенда
+
+Пример содержимого `ENV_BE`:
+```env
+POSTGRES_USER=alexol_user
+POSTGRES_PASSWORD=your_secure_password
+POSTGRES_DB=alexol_db
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=postgresql://alexol_user:your_secure_password@postgres:5432/alexol_db
+JWT_SECRET=your_very_secure_jwt_secret_min_32_chars
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=https://alexol.io
+```
 
 ## Технологии
 
@@ -77,8 +111,10 @@ Workflow:
 - React Query
 
 ### Backend
-- Node.js
-- Express
-- Prisma
+- Node.js + Express
+- TypeScript
+- Prisma ORM
 - PostgreSQL
+- Docker & Docker Compose
+- JWT Authentication
 

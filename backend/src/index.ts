@@ -24,6 +24,11 @@ app.use('/uploads', express.static('uploads'));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/news', newsRouter);
