@@ -31,9 +31,9 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      sudo mkdir -p /var/www/alexol.io/html
-                      sudo chown -R $USER:$USER /var/www/alexol.io/html
-                      sudo chmod -R 755 /var/www/alexol.io/html
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/html
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/html
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/html
 
             - name: Deploy frontend to server
               uses: appleboy/scp-action@v1
@@ -65,9 +65,9 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      sudo mkdir -p /var/www/alexol.io/back
-                      sudo chown -R $USER:$USER /var/www/alexol.io/back
-                      sudo chmod -R 755 /var/www/alexol.io/back
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/back
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/back
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/back
 
             - name: Deploy backend to server
               uses: appleboy/scp-action@v1

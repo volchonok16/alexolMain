@@ -83,6 +83,7 @@ npm run dev
 - `SERVER_USER` - пользователь для SSH
 - `SERVER_SSH_KEY` - приватный SSH ключ
 - `SERVER_SSH_PORT` - порт SSH (по умолчанию 22)
+- `PWD` - пароль sudo для пользователя
 
 **Backend:**
 - `ENV_BE` - содержимое .env файла для бэкенда
