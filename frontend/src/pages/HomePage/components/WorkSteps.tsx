@@ -1,5 +1,16 @@
 import { motion } from 'framer-motion';
-import { MessageSquare, FileSearch, FileSignature, FileText, Palette, Code, Bug, Rocket, Wrench, LucideIcon } from 'lucide-react';
+import {
+  MessageSquare,
+  FileSearch,
+  FileSignature,
+  FileText,
+  Palette,
+  Code,
+  Bug,
+  Rocket,
+  Wrench,
+  LucideIcon,
+} from 'lucide-react';
 import { useTranslation } from '@/shared/utils/translations';
 
 interface Step {
@@ -9,7 +20,7 @@ interface Step {
 
 export const WorkSteps = () => {
   const { t } = useTranslation();
-  
+
   const steps: Step[] = [
     { icon: MessageSquare, key: 'consultation' },
     { icon: FileSearch, key: 'estimation' },
@@ -75,7 +86,9 @@ const StepCard = ({ step, index }: { step: Step; index: number }) => {
           <Icon />
         </div>
         <div className="step-card__info">
-          <div className="step-card__number">{t('workSteps.step')} {index + 1}</div>
+          <div className="step-card__number">
+            {t('workSteps.step')} {index + 1}
+          </div>
           <h4 className="step-card__title">{t(`workSteps.steps.${step.key}.title`)}</h4>
           <p className="step-card__description">{t(`workSteps.steps.${step.key}.description`)}</p>
         </div>
@@ -99,7 +112,9 @@ const StepTimeline = ({ step, index }: { step: Step; index: number }) => {
     >
       <div className="step-timeline__content">
         <div className="step-timeline__card">
-          <div className="step-timeline__number">{t('workSteps.step')} {index + 1}</div>
+          <div className="step-timeline__number">
+            {t('workSteps.step')} {index + 1}
+          </div>
           <h4 className="step-timeline__title">{t(`workSteps.steps.${step.key}.title`)}</h4>
           <p className="step-timeline__description">{t(`workSteps.steps.${step.key}.description`)}</p>
         </div>

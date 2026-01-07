@@ -13,7 +13,10 @@ const translations = {
     discussProject: { ru: 'Обсудить проект', en: 'Discuss Project' },
   },
   hero: {
-    title: { ru: 'Разработка программного обеспечения любой сложности', en: 'Custom Software Development of Any Complexity' },
+    title: {
+      ru: 'Разработка программного обеспечения любой сложности',
+      en: 'Custom Software Development of Any Complexity',
+    },
     description: {
       ru: 'Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения',
       en: 'Professional development of Web, Mobile, Enterprise solutions. Full cycle from analysis to implementation',
@@ -64,7 +67,10 @@ const translations = {
     },
   },
   trustLine: {
-    title: { ru: 'Реализованные проекты для компаний различных отраслей', en: 'Completed projects for companies across industries' },
+    title: {
+      ru: 'Реализованные проекты для компаний различных отраслей',
+      en: 'Completed projects for companies across industries',
+    },
   },
   about: {
     title: { ru: 'Превращаем бизнес-задачи в', en: 'We transform business challenges into' },
@@ -86,33 +92,54 @@ const translations = {
     items: {
       development: {
         title: { ru: 'Разработка ПО на заказ', en: 'Custom Software Development' },
-        description: { ru: 'Создание корпоративных систем, веб и мобильных приложений под ключ с учетом специфики вашего бизнеса.', en: 'Turnkey development of enterprise systems, web and mobile applications tailored to your business needs.' },
+        description: {
+          ru: 'Создание корпоративных систем, веб и мобильных приложений под ключ с учетом специфики вашего бизнеса.',
+          en: 'Turnkey development of enterprise systems, web and mobile applications tailored to your business needs.',
+        },
       },
       outsourcing: {
         title: { ru: 'Аутсорсинг разработки', en: 'Development Outsourcing' },
-        description: { ru: 'Передача разработки на аутсорс. Выделенные команды разработчиков для усиления вашего IT-отдела.', en: 'Outsourcing development. Dedicated development teams to strengthen your IT department.' },
+        description: {
+          ru: 'Передача разработки на аутсорс. Выделенные команды разработчиков для усиления вашего IT-отдела.',
+          en: 'Outsourcing development. Dedicated development teams to strengthen your IT department.',
+        },
       },
       design: {
         title: { ru: 'Проектирование интерфейсов', en: 'Interface Design' },
-        description: { ru: 'Разработка UI/UX дизайна, создание дизайн-систем и прототипирование пользовательских интерфейсов.', en: 'UI/UX design development, design systems creation and user interface prototyping.' },
+        description: {
+          ru: 'Разработка UI/UX дизайна, создание дизайн-систем и прототипирование пользовательских интерфейсов.',
+          en: 'UI/UX design development, design systems creation and user interface prototyping.',
+        },
       },
       ai: {
         title: { ru: 'Внедрение AI/ML решений', en: 'AI/ML Solutions Implementation' },
-        description: { ru: 'Интеграция искусственного интеллекта и машинного обучения для автоматизации бизнес-процессов.', en: 'Integration of artificial intelligence and machine learning to automate business processes.' },
+        description: {
+          ru: 'Интеграция искусственного интеллекта и машинного обучения для автоматизации бизнес-процессов.',
+          en: 'Integration of artificial intelligence and machine learning to automate business processes.',
+        },
       },
       support: {
         title: { ru: 'Техническая поддержка', en: 'Technical Support' },
-        description: { ru: 'Сопровождение программного обеспечения, устранение инцидентов, развитие и модернизация систем.', en: 'Software maintenance, incident resolution, system development and modernization.' },
+        description: {
+          ru: 'Сопровождение программного обеспечения, устранение инцидентов, развитие и модернизация систем.',
+          en: 'Software maintenance, incident resolution, system development and modernization.',
+        },
       },
       consulting: {
         title: { ru: 'IT-консалтинг', en: 'IT Consulting' },
-        description: { ru: 'Технический аудит, проектирование архитектуры, разработка стратегии цифровой трансформации.', en: 'Technical audit, architecture design, digital transformation strategy development.' },
+        description: {
+          ru: 'Технический аудит, проектирование архитектуры, разработка стратегии цифровой трансформации.',
+          en: 'Technical audit, architecture design, digital transformation strategy development.',
+        },
       },
     },
   },
   portfolio: {
     title: { ru: 'Решения и портфолио', en: 'Solutions & Portfolio' },
-    description: { ru: 'Представлены некоторые из наших работ. Большинство проектов под NDA', en: 'Some of our work is presented. Most projects are under NDA' },
+    description: {
+      ru: 'Представлены некоторые из наших работ. Большинство проектов под NDA',
+      en: 'Some of our work is presented. Most projects are under NDA',
+    },
     filters: {
       all: { ru: 'Все', en: 'All' },
     },
@@ -170,17 +197,38 @@ const translations = {
     titleHighlight: { ru: 'это инвестиции в развитие бизнеса', en: 'an investment in business growth' },
     button: { ru: 'Запросить консультацию', en: 'Request Consultation' },
     benefits: {
-      automation: { ru: 'Автоматизация процессов и снижение операционных издержек', en: 'Process automation and operational cost reduction' },
-      simplification: { ru: 'Оптимизация бизнес-процессов и клиентского опыта', en: 'Business process and customer experience optimization' },
-      transparency: { ru: 'Полный контроль и прозрачность операционной деятельности', en: 'Complete control and operational transparency' },
-      reliability: { ru: 'Минимизация рисков и повышение надежности систем', en: 'Risk minimization and system reliability improvement' },
-      adaptation: { ru: 'Гибкость и быстрая адаптация к изменениям рынка', en: 'Flexibility and rapid market adaptation' },
-      efficiency: { ru: 'Масштабирование бизнеса без пропорционального роста затрат', en: 'Business scaling without proportional cost growth' },
+      automation: {
+        ru: 'Автоматизация процессов и снижение операционных издержек',
+        en: 'Process automation and operational cost reduction',
+      },
+      simplification: {
+        ru: 'Оптимизация бизнес-процессов и клиентского опыта',
+        en: 'Business process and customer experience optimization',
+      },
+      transparency: {
+        ru: 'Полный контроль и прозрачность операционной деятельности',
+        en: 'Complete control and operational transparency',
+      },
+      reliability: {
+        ru: 'Минимизация рисков и повышение надежности систем',
+        en: 'Risk minimization and system reliability improvement',
+      },
+      adaptation: {
+        ru: 'Гибкость и быстрая адаптация к изменениям рынка',
+        en: 'Flexibility and rapid market adaptation',
+      },
+      efficiency: {
+        ru: 'Масштабирование бизнеса без пропорционального роста затрат',
+        en: 'Business scaling without proportional cost growth',
+      },
     },
   },
   pricing: {
     title: { ru: 'Формирование стоимости проекта', en: 'Project Cost Formation' },
-    description: { ru: 'Прозрачная оценка с детальным обоснованием каждого этапа работ', en: 'Transparent estimation with detailed justification of each work stage' },
+    description: {
+      ru: 'Прозрачная оценка с детальным обоснованием каждого этапа работ',
+      en: 'Transparent estimation with detailed justification of each work stage',
+    },
     factors: {
       functionality: { ru: 'Объём функционала', en: 'Functionality scope' },
       architecture: { ru: 'Сложность архитектуры', en: 'Architecture complexity' },
@@ -191,7 +239,10 @@ const translations = {
       scale: { ru: 'Нагрузка и масштаб', en: 'Load and scale' },
       support: { ru: 'Поддержка', en: 'Support' },
     },
-    summary: { ru: 'Индивидуальный подход к каждому проекту. Разрабатываем архитектуру и решения под конкретные бизнес-задачи заказчика.', en: 'Individual approach to each project. We develop architecture and solutions for specific customer business tasks.' },
+    summary: {
+      ru: 'Индивидуальный подход к каждому проекту. Разрабатываем архитектуру и решения под конкретные бизнес-задачи заказчика.',
+      en: 'Individual approach to each project. We develop architecture and solutions for specific customer business tasks.',
+    },
     threshold: { ru: 'Минимальный бюджет проекта — от 500 тыс. ₽', en: 'Minimum project budget — from $5,000' },
     button: { ru: 'Запросить коммерческое предложение', en: 'Request Commercial Offer' },
   },
@@ -276,17 +327,29 @@ const translations = {
   },
   news: {
     title: { ru: 'Новости компании', en: 'Company News' },
-    description: { ru: 'Актуальная информация о реализованных проектах и технологических решениях', en: 'Current information about completed projects and technological solutions' },
+    description: {
+      ru: 'Актуальная информация о реализованных проектах и технологических решениях',
+      en: 'Current information about completed projects and technological solutions',
+    },
     loading: { ru: 'Загрузка...', en: 'Loading...' },
     error: { ru: 'Не удалось загрузить новости', en: 'Failed to load news' },
-    errorDescription: { ru: 'Попробуйте обновить страницу или вернитесь позже', en: 'Try refreshing the page or come back later' },
+    errorDescription: {
+      ru: 'Попробуйте обновить страницу или вернитесь позже',
+      en: 'Try refreshing the page or come back later',
+    },
     empty: { ru: 'Скоро здесь появятся новые материалы', en: 'New content coming soon' },
     allArticles: { ru: 'Все статьи', en: 'All Articles' },
   },
   contact: {
     title: { ru: 'Начать сотрудничество', en: 'Start Cooperation' },
-    description: { ru: 'Оставьте заявку, и мы свяжемся с вами для обсуждения проекта', en: 'Submit a request and we will contact you to discuss the project' },
-    notice: { ru: '💼 Ответим на вашу заявку в течение 24 часов в рабочие дни', en: '💼 We will respond to your request within 24 hours on business days' },
+    description: {
+      ru: 'Оставьте заявку, и мы свяжемся с вами для обсуждения проекта',
+      en: 'Submit a request and we will contact you to discuss the project',
+    },
+    notice: {
+      ru: '💼 Ответим на вашу заявку в течение 24 часов в рабочие дни',
+      en: '💼 We will respond to your request within 24 hours on business days',
+    },
     name: { ru: 'Ваше имя', en: 'Your name' },
     namePlaceholder: { ru: 'Иван Иванов', en: 'John Doe' },
     company: { ru: 'Компания', en: 'Company' },
@@ -302,21 +365,25 @@ const translations = {
     submit: { ru: 'Отправить заявку', en: 'Submit Request' },
     infoTitle: { ru: 'Контактная информация', en: 'Contact Information' },
     meetingTitle: { ru: 'Назначить встречу', en: 'Schedule a Meeting' },
-    meetingText: { ru: 'Проведём онлайн-встречу, обсудим задачи и предложим решение', en: "We'll hold an online meeting, discuss tasks and propose a solution" },
+    meetingText: {
+      ru: 'Проведём онлайн-встречу, обсудим задачи и предложим решение',
+      en: "We'll hold an online meeting, discuss tasks and propose a solution",
+    },
     meetingButton: { ru: 'Выбрать время', en: 'Choose Time' },
     labels: {
       email: { ru: 'Email', en: 'Email' },
       phone: { ru: 'Телефон', en: 'Phone' },
-      address: { ru: 'Адрес', en: 'Address' },
       schedule: { ru: 'Режим работы', en: 'Working Hours' },
     },
     values: {
-      address: { ru: 'Москва, ул. Технологическая, 1', en: 'Moscow, Technologicheskaya St., 1' },
-      schedule: { ru: 'Пн-Пт: 10:00 - 19:00', en: 'Mon-Fri: 10:00 - 19:00' },
+      schedule: { ru: 'Пн-Вс: 08:00 - 22:00', en: 'Mon-Sun: 08:00 - 22:00' },
     },
   },
   footer: {
-    description: { ru: 'Профессиональная разработка программного обеспечения на заказ. Реализуем проекты любой сложности с гарантией качества и соблюдением сроков.', en: 'Professional custom software development. We implement projects of any complexity with quality guarantee and deadline compliance.' },
+    description: {
+      ru: 'Профессиональная разработка программного обеспечения на заказ. Реализуем проекты любой сложности с гарантией качества и соблюдением сроков.',
+      en: 'Professional custom software development. We implement projects of any complexity with quality guarantee and deadline compliance.',
+    },
     services: { ru: 'Услуги', en: 'Services' },
     solutions: { ru: 'Решения', en: 'Solutions' },
     contacts: { ru: 'Контакты', en: 'Contacts' },

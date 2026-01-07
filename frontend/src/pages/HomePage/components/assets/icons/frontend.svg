@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
+  <defs>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2ff" />
+      <stop offset="50%" stop-color="#00aaff" />
+      <stop offset="100%" stop-color="#2d5af8" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.80"/>
+      <stop offset="100%" stop-color="#00f2ff" stop-opacity="0.20"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feComposite in="blur" in2="SourceGraphic" operator="over" />
+    </filter>
+  </defs>
+  <g filter="url(#glow)">
+    <path d="M40 160 V80 L120 40 H200" stroke="url(#neonGrad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M360 40 H432 L472 80 V120" stroke="url(#neonGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.80" />
+    <path d="M472 352 V432 L392 472 H312" stroke="url(#neonGrad)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M152 472 H80 L40 432 V392" stroke="url(#neonGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.80" />
+    <path d="M165 170 L105 256 L165 342" stroke="url(#neonGrad)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M347 170 L407 256 L347 342" stroke="url(#neonGrad)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M280 150 L232 362" stroke="url(#neonGrad)" stroke-width="18" stroke-linecap="round" stroke-opacity="0.90" />
+    <circle cx="120" cy="40" r="6" fill="#00f2ff" />
+    <circle cx="40" cy="80" r="6" fill="#00f2ff" />
+    <circle cx="392" cy="472" r="6" fill="#2d5af8" />
+    <circle cx="472" cy="432" r="6" fill="#2d5af8" />
+    <rect x="40" y="200" width="8" height="112" rx="4" fill="url(#neonGrad)" opacity="0.50" />
+    <rect x="464" y="200" width="8" height="112" rx="4" fill="url(#neonGrad)" opacity="0.50" />
+    <path d="M230 40 L250 40 L240 50 Z" fill="#00f2ff" />
+    <path d="M282 472 L262 472 L272 462 Z" fill="#2d5af8" />
+  </g>
+</svg>

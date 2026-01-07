@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { authRouter } from './routes/auth.routes.js';
 import { userRouter } from './routes/user.routes.js';
 import { newsRouter } from './routes/news.routes.js';
+import { contactRouter } from './routes/contact.routes.js';
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/news', newsRouter);
+app.use('/api/contact', contactRouter);
 
 app.use(errorHandler);
 

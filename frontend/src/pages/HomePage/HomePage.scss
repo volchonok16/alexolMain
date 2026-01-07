@@ -355,6 +355,10 @@
   &__scroll {
     display: flex;
     animation: scroll-left 30s linear infinite;
+
+    @media (max-width: 768px) {
+      animation: scroll-left 5s linear infinite;
+    }
   }
 
   &__item {
@@ -2009,8 +2013,8 @@
 .tech-module {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2073,20 +2077,23 @@
   }
 
   &__icon {
-    font-size: 2rem;
+    width: 3rem;
+    height: 3rem;
     margin-bottom: 0.25rem;
-    filter: drop-shadow(0 0 8px rgba(10, 227, 255, 0.5));
   }
 
   &__name {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: white;
     font-weight: 500;
-    text-shadow: 0 0 10px rgba(10, 227, 255, 0.6);
+    text-align: center;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     [data-theme="light"] & {
       color: #0F172A;
-      text-shadow: 0 0 10px rgba(8, 145, 178, 0.4);
     }
   }
 

@@ -3,6 +3,16 @@ import { ArrowUpRight } from 'lucide-react';
 import { ImageWithFallback } from '@/shared/ui';
 import { useState } from 'react';
 import { useTranslation } from '@/shared/utils/translations';
+import project1 from './assets/project1.png';
+import project2 from './assets/project2.png';
+import project3 from './assets/project3.png';
+import project4 from './assets/project4.png';
+import project5 from './assets/project5.png';
+import project6 from './assets/project6.png';
+import project7 from './assets/voenasledie.png';
+import project8 from './assets/onewish.png';
+import project9 from './assets/gameClub.png';
+import project10 from './assets/autoParse.png';
 
 interface Project {
   id: number;
@@ -29,7 +39,7 @@ export const Portfolio = () => {
       title: 'Portal to Bitcoin',
       descriptionKey: 'portfolio.projects.portalToBitcoin.description',
       resultKey: 'portfolio.projects.portalToBitcoin.result',
-      image: 'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400',
+      image: project1,
       link: 'https://quests.portaltobitcoin.com/',
     },
     {
@@ -38,7 +48,7 @@ export const Portfolio = () => {
       title: 'Elys Network',
       descriptionKey: 'portfolio.projects.elysNetwork.description',
       resultKey: 'portfolio.projects.elysNetwork.result',
-      image: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=400',
+      image: project2,
       link: 'https://elys.bonusblock.io/',
     },
     {
@@ -47,7 +57,7 @@ export const Portfolio = () => {
       title: 'Xion',
       descriptionKey: 'portfolio.projects.xion.description',
       resultKey: 'portfolio.projects.xion.result',
-      image: 'https://images.unsplash.com/photo-1642104704074-907c0698cbd9?w=400',
+      image: project3,
       link: 'https://xion.bonusblock.io/',
     },
     {
@@ -56,7 +66,7 @@ export const Portfolio = () => {
       title: 'BonusBlock',
       descriptionKey: 'portfolio.projects.bonusBlock.description',
       resultKey: 'portfolio.projects.bonusBlock.result',
-      image: 'https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=400',
+      image: project4,
       link: 'https://app.bonusblock.io/',
     },
     {
@@ -65,7 +75,7 @@ export const Portfolio = () => {
       title: 'KiteAi',
       descriptionKey: 'portfolio.projects.kiteAi.description',
       resultKey: 'portfolio.projects.kiteAi.result',
-      image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400',
+      image: project5,
       link: 'https://testnet.gokite.ai/',
     },
     {
@@ -74,7 +84,7 @@ export const Portfolio = () => {
       title: 'Agoric',
       descriptionKey: 'portfolio.projects.agoric.description',
       resultKey: 'portfolio.projects.agoric.result',
-      image: 'https://images.unsplash.com/photo-1639322537228-f710d846310a?w=400',
+      image: project6,
       link: 'https://agoric.bonusblock.io/',
     },
     {
@@ -84,7 +94,7 @@ export const Portfolio = () => {
       titleKey: 'portfolio.projects.workwear.title',
       descriptionKey: 'portfolio.projects.workwear.description',
       resultKey: 'portfolio.projects.workwear.result',
-      image: 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=400',
+      image: project7,
     },
     {
       id: 8,
@@ -93,7 +103,7 @@ export const Portfolio = () => {
       titleKey: 'portfolio.projects.oneWish.title',
       descriptionKey: 'portfolio.projects.oneWish.description',
       resultKey: 'portfolio.projects.oneWish.result',
-      image: 'https://images.unsplash.com/photo-1566206091558-7f218b696731?w=400',
+      image: project8,
     },
     {
       id: 9,
@@ -102,7 +112,7 @@ export const Portfolio = () => {
       titleKey: 'portfolio.projects.computerClub.title',
       descriptionKey: 'portfolio.projects.computerClub.description',
       resultKey: 'portfolio.projects.computerClub.result',
-      image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400',
+      image: project9,
     },
     {
       id: 10,
@@ -111,7 +121,7 @@ export const Portfolio = () => {
       titleKey: 'portfolio.projects.telegramBot.title',
       descriptionKey: 'portfolio.projects.telegramBot.description',
       resultKey: 'portfolio.projects.telegramBot.result',
-      image: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400',
+      image: project10,
     },
   ];
 

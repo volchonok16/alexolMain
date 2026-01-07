@@ -12,7 +12,7 @@ interface Factor {
 export const Pricing = () => {
   const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const factors: Factor[] = [
     { icon: Layers, key: 'functionality' },
     { icon: Network, key: 'architecture' },

@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin, Github, Linkedin, Twitter, LucideIcon } from 'lucide-react';
+import { Mail, Phone, Clock, Github, Linkedin, Twitter, LucideIcon } from 'lucide-react';
 import './Footer.scss';
 import { useTranslation } from '../utils/translations';
 
@@ -75,26 +75,24 @@ export const Footer = () => {
             <ul className="footer__contacts">
               <li className="footer__contact">
                 <Mail className="footer__contact-icon" />
-                <a href="mailto:hello@techcompany.ru" className="footer__contact-link">
-                  hello@techcompany.ru
+                <a href="mailto:support@alexol.io" className="footer__contact-link">
+                  support@alexol.io
                 </a>
               </li>
               <li className="footer__contact">
                 <Phone className="footer__contact-icon" />
-                <a href="tel:+74951234567" className="footer__contact-link">
-                  +7 (495) 123-45-67
+                <a href="tel:+79850901434" className="footer__contact-link">
+                  +7 (985) 090-14-34
                 </a>
-              </li>
-              <li className="footer__contact footer__contact--address">
-                <MapPin className="footer__contact-icon" />
-                <span>Москва, ул. Технологическая, 1</span>
               </li>
             </ul>
           </div>
         </div>
 
         <div className="footer__bottom">
-          <p className="footer__copyright">© {currentYear} Alexol. {t('footer.copyright')}</p>
+          <p className="footer__copyright">
+            © {currentYear} Alexol. {t('footer.copyright')}
+          </p>
           <div className="footer__legal">
             <a href="#" className="footer__legal-link">
               {t('footer.privacy')}

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Modal } from '@/shared/ui';
 import { useTranslation } from '@/shared/utils/translations';
+import { useConsultationModal } from '../../hooks/useConsultationModal';
 import './ConsultationModal.scss';
 
 interface ConsultationModalProps {
@@ -10,25 +11,14 @@ interface ConsultationModalProps {
 
 export const ConsultationModal = ({ isOpen, onClose }: ConsultationModalProps) => {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    message: '',
-  });
+  const { formData, handleChange, handleSubmit, isSuccess, resetForm } = useConsultationModal();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Consultation form submitted:', formData);
-    onClose();
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  useEffect(() => {
+    if (isSuccess) {
+      resetForm();
+      onClose();
+    }
+  }, [isSuccess]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('consultationModal.title')}>

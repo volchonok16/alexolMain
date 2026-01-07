@@ -1,35 +1,31 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Modal, Select } from '@/shared/ui';
 import { useTranslation } from '@/shared/utils/translations';
+import { useProjectModal } from '../../hooks/useProjectModal';
 import './ProjectModal.scss';
 
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialEmail?: string;
 }
 
-export const ProjectModal = ({ isOpen, onClose }: ProjectModalProps) => {
+export const ProjectModal = ({ isOpen, onClose, initialEmail }: ProjectModalProps) => {
   const { t, getOptions } = useTranslation();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    budget: '',
-    message: '',
-  });
+  const { formData, handleChange, handleSubmit, isSuccess, resetForm, prefillEmail } = useProjectModal();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Form submitted:', formData);
-    onClose();
-  };
+  useEffect(() => {
+    if (isOpen && initialEmail && formData.email !== initialEmail) {
+      prefillEmail(initialEmail);
+    }
+  }, [isOpen, initialEmail]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  useEffect(() => {
+    if (isSuccess) {
+      resetForm();
+      onClose();
+    }
+  }, [isSuccess]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('projectModal.title')}>
@@ -81,7 +77,7 @@ export const ProjectModal = ({ isOpen, onClose }: ProjectModalProps) => {
           <Select
             options={getOptions('projectModal.budgetOptions')}
             value={formData.budget}
-            onChange={value => setFormData({ ...formData, budget: value })}
+            onChange={value => handleChange({ target: { name: 'budget', value } })}
             placeholder={t('projectModal.budgetPlaceholder')}
           />
         </div>

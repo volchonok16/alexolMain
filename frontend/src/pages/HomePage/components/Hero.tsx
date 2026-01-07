@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { TechModule } from './TechModule';
 import { InteractiveGrid } from './InteractiveGrid';
+import { ProjectModal } from './modals';
 import { useLanguage } from '../../../shared/contexts';
 import { useTranslation } from '../../../shared/utils/translations';
 import { useTypewriter } from '../../../shared/hooks/useTypewriter';
@@ -70,6 +71,7 @@ export const Hero = () => {
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [emailInput, setEmailInput] = useState('');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const lastUpdateRef = useRef(0);
 
   useEffect(() => {
@@ -222,13 +224,15 @@ export const Hero = () => {
               />
             </div>
 
-            <button className="hero__button hero__button--primary">
+            <button onClick={() => setIsModalOpen(true)} className="hero__button hero__button--primary">
               {currentCta}
               <ArrowRight />
             </button>
           </motion.div>
         </div>
       </div>
+
+      <ProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} initialEmail={emailInput} />
     </section>
   );
 };

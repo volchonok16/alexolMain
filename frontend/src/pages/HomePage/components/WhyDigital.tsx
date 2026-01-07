@@ -12,7 +12,7 @@ interface Benefit {
 export const WhyDigital = () => {
   const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const benefits: Benefit[] = [
     { icon: TrendingDown, key: 'automation' },
     { icon: Users, key: 'simplification' },

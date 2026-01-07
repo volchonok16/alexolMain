@@ -25,10 +25,7 @@ export const News = () => {
     return (
       <section className="news">
         <div className="news__container">
-          <ErrorState
-            title={t('news.error')}
-            description={t('news.errorDescription')}
-          />
+          <ErrorState title={t('news.error')} description={t('news.errorDescription')} />
         </div>
       </section>
     );

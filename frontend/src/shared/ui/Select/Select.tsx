@@ -19,7 +19,7 @@ export const Select = ({ options, value, onChange, placeholder = 'Выберит
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
 
-  const selectedOption = options.find(opt => opt.value === value);
+  const selectedOption = options.find(opt => opt.label === value);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -32,8 +32,8 @@ export const Select = ({ options, value, onChange, placeholder = 'Выберит
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (optionValue: string) => {
-    onChange(optionValue);
+  const handleSelect = (option: SelectOption) => {
+    onChange(option.label);
     setIsOpen(false);
   };
 
@@ -60,7 +60,7 @@ export const Select = ({ options, value, onChange, placeholder = 'Выберит
               <div
                 key={option.value}
                 className={`select__option ${option.value === value ? 'select__option--selected' : ''}`}
-                onClick={() => handleSelect(option.value)}
+                onClick={() => handleSelect(option)}
               >
                 {option.label}
               </div>

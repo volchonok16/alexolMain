@@ -124,7 +124,7 @@ export const Header = () => {
                     {item.label}
                   </a>
                 ))}
-                
+
                 <div className="header__mobile-controls">
                   <button onClick={toggleLanguage} className="header__lang-toggle">
                     <span className="header__lang-flag">
@@ -154,12 +154,12 @@ export const Header = () => {
                     </span>
                     <span className="header__lang-code">{language.toUpperCase()}</span>
                   </button>
-                  
+
                   <button onClick={toggleTheme} className="header__theme-toggle">
                     {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                   </button>
                 </div>
-                
+
                 <button onClick={() => setIsModalOpen(true)} className="header__mobile-button">
                   {t('header.discussProject')}
                 </button>

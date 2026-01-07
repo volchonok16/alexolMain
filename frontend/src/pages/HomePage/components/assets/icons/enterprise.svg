@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="faceLeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="faceRightGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.30" />
+      <stop offset="100%" stop-color="#0891b2" stop-opacity="0.10" />
+    </linearGradient>
+    <pattern id="digitalGrid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#22d3ee" stroke-width="1" stroke-opacity="0.15"/>
+    </pattern>
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.50" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <g transform="translate(0, 20)">
+    <path d="M256 160 L156 110 L156 420 L256 470 Z" fill="url(#faceLeftGrad)" />
+    <path d="M256 160 L356 110 L356 420 L256 470 Z" fill="url(#faceRightGrad)" />
+    <path d="M256 160 L156 110 L256 60 L356 110 Z" fill="url(#roofGrad)" />
+    <g clip-path="url(#buildingClip)">
+      <path d="M256 160 L156 110 L156 420 L256 470 Z" fill="url(#digitalGrid)" />
+      <path d="M256 160 L356 110 L356 420 L256 470 Z" fill="url(#digitalGrid)" />
+    </g>
+    <g filter="url(#neonGlow)" stroke="#06b6d4" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M256 60 L156 110 L156 420 L256 470 L356 420 L356 110 Z" />
+      <path d="M256 60 L256 470" stroke-width="3" />
+      <path d="M256 160 L156 110 M256 160 L356 110" />
+      <path d="M156 150 L256 200 L356 150" stroke-opacity="0.50" />
+      <path d="M156 230 L256 280 L356 230" stroke-opacity="0.50" />
+      <path d="M156 310 L256 360 L356 310" stroke-opacity="0.50" />
+      <path d="M156 390 L256 440 L356 390" stroke-opacity="0.50" />
+    </g>
+    <g fill="#00ffff" filter="url(#neonGlow)">
+      <rect x="180" y="200" width="10" height="15" transform="skewY(26.50)" opacity="0.80" />
+      <rect x="210" y="280" width="10" height="15" transform="skewY(26.50)" opacity="0.60" />
+      <rect x="320" y="160" width="10" height="15" transform="skewY(-26.50)" opacity="0.90" />
+      <rect x="290" y="340" width="10" height="15" transform="skewY(-26.50)" opacity="0.70" />
+    </g>
+    <path d="M100 440 L256 490 L412 440 L256 390 Z" fill="none" stroke="#2E64FE" stroke-width="1.50" stroke-dasharray="10,5" opacity="0.60" filter="url(#neonGlow)" />
+  </g>
+</svg>

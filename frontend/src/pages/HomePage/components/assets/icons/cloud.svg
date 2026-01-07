@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="neonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FFFF" />
+      <stop offset="50%" stop-color="#00AAFF" />
+      <stop offset="100%" stop-color="#0055FF" />
+    </linearGradient>
+    <pattern id="techGrid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#00FFFF" fill-opacity="0.20" />
+    </pattern>
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values=" 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7" result="glow" />
+      <feMerge>
+        <feMergeNode in="glow" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 150 360 H 362 A 64 64 0 0 0 415 256 A 96 96 0 0 0 256 110 A 96 96 0 0 0 97 256 A 64 64 0 0 0 150 360 Z" fill="url(#techGrid)" stroke="none" opacity="0.40" />
+    <g filter="url(#neonGlow)" stroke="url(#neonGradient)" stroke-width="12">
+      <path d="M 150 360 H 362 A 64 64 0 0 0 415 256 A 96 96 0 0 0 256 110 A 96 96 0 0 0 97 256 A 64 64 0 0 0 150 360 Z" />
+      <path d="M 196 200 H 316" stroke-width="10" />
+      <path d="M 196 250 H 316" stroke-width="10" />
+      <path d="M 196 300 H 316" stroke-width="10" />
+    </g>
+    <g filter="url(#neonGlow)" stroke="#00FFFF" stroke-width="6">
+      <path d="M 130 360 L 130 390 L 100 420" />
+      <circle cx="100" cy="420" r="5" fill="#00FFFF" stroke="none" />
+      <path d="M 382 360 L 382 390 L 412 420" />
+      <circle cx="412" cy="420" r="5" fill="#00FFFF" stroke="none" />
+      <line x1="256" y1="80" x2="256" y2="110" />
+      <circle cx="256" cy="70" r="4" fill="#0055FF" stroke="none" />
+    </g>
+    <g fill="#00FFFF" stroke="none" filter="url(#neonGlow)">
+      <circle cx="216" cy="200" r="4" />
+      <circle cx="216" cy="250" r="4" />
+      <circle cx="216" cy="300" r="4" />
+      <circle cx="296" cy="200" r="3" opacity="0.60" />
+      <circle cx="306" cy="250" r="3" opacity="0.60" />
+      <circle cx="296" cy="300" r="3" opacity="0.60" />
+    </g>
+  </g>
+</svg>

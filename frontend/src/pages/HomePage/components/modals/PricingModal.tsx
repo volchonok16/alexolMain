@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Modal, Select } from '@/shared/ui';
 import { useTranslation } from '@/shared/utils/translations';
+import { usePricingModal } from '../../hooks/usePricingModal';
 import './PricingModal.scss';
 
 interface PricingModalProps {
@@ -8,39 +9,20 @@ interface PricingModalProps {
   onClose: () => void;
 }
 
-type AppType = 'landing' | 'corporate' | 'ecommerce' | 'crm' | 'mobile' | 'desktop' | 'api' | 'ai';
-
 export const PricingModal = ({ isOpen, onClose }: PricingModalProps) => {
   const { t, getOptions } = useTranslation();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    appType: 'landing' as AppType,
-    complexity: 5,
-  });
+  const { formData, calculatedPrice, handleChange, handleSubmit, isSuccess, resetForm } = usePricingModal();
 
-  const estimatedPrice = useMemo(() => {
-    if (!formData.appType) return 0;
-
-    const pricing: Record<AppType, { base: number; perUnit: number; label: string }> = {
-      landing: { base: 75000, perUnit: 25000, label: 'страниц' },
-      corporate: { base: 150000, perUnit: 40000, label: 'разделов' },
-      ecommerce: { base: 400000, perUnit: 75000, label: 'функций' },
-      crm: { base: 500000, perUnit: 100000, label: 'модулей' },
-      mobile: { base: 300000, perUnit: 60000, label: 'экранов' },
-      desktop: { base: 350000, perUnit: 75000, label: 'модулей' },
-      api: { base: 200000, perUnit: 50000, label: 'эндпоинтов' },
-      ai: { base: 600000, perUnit: 125000, label: 'моделей' },
-    };
-
-    const config = pricing[formData.appType];
-    return config.base + formData.complexity * config.perUnit;
-  }, [formData.appType, formData.complexity]);
+  useEffect(() => {
+    if (isSuccess) {
+      resetForm();
+      onClose();
+    }
+  }, [isSuccess]);
 
   const getComplexityLabel = () => {
     if (!formData.appType) return 'единиц';
-    const labels: Record<AppType, string> = {
+    const labels: Record<string, string> = {
       landing: 'страниц',
       corporate: 'разделов',
       ecommerce: 'функций (каталог, корзина, оплата и т.д.)',
@@ -50,21 +32,7 @@ export const PricingModal = ({ isOpen, onClose }: PricingModalProps) => {
       api: 'эндпоинтов',
       ai: 'моделей/интеграций',
     };
-    return labels[formData.appType];
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Pricing form submitted:', { ...formData, estimatedPrice });
-    onClose();
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.type === 'range' ? parseInt(e.target.value) : e.target.value;
-    setFormData({
-      ...formData,
-      [e.target.name]: value,
-    });
+    return labels[formData.appType] || 'единиц';
   };
 
   const formatPrice = (price: number) => {
@@ -121,7 +89,7 @@ export const PricingModal = ({ isOpen, onClose }: PricingModalProps) => {
           <Select
             options={getOptions('pricingModal.appTypes')}
             value={formData.appType}
-            onChange={value => setFormData({ ...formData, appType: value as AppType })}
+            onChange={value => handleChange({ target: { name: 'appType', value } })}
             placeholder={t('pricingModal.appTypePlaceholder')}
           />
         </div>
@@ -129,19 +97,19 @@ export const PricingModal = ({ isOpen, onClose }: PricingModalProps) => {
         {formData.appType && (
           <div className="pricing-modal__field">
             <label className="pricing-modal__label">
-              {t('pricingModal.complexity')} {getComplexityLabel()}: {formData.complexity}
+              {t('pricingModal.complexity')} {getComplexityLabel()}: {formData.pageCount}
             </label>
             <input
               type="range"
               name="complexity"
               min="1"
               max="20"
-              value={formData.complexity}
+              value={formData.pageCount}
               onChange={handleChange}
               className="pricing-modal__slider"
             />
             <div className="pricing-modal__value">
-              {formData.complexity} {getComplexityLabel()}
+              {formData.pageCount} {getComplexityLabel()}
             </div>
           </div>
         )}
@@ -149,7 +117,7 @@ export const PricingModal = ({ isOpen, onClose }: PricingModalProps) => {
         {formData.appType && (
           <div className="pricing-modal__estimate">
             <div className="pricing-modal__estimate-label">{t('pricingModal.estimate')}</div>
-            <div className="pricing-modal__estimate-price">{formatPrice(estimatedPrice)}</div>
+            <div className="pricing-modal__estimate-price">{formatPrice(calculatedPrice)}</div>
           </div>
         )}
 

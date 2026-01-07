@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
 import { useTranslation } from '@/shared/utils/translations';
 
 export const About = () => {
@@ -20,11 +19,6 @@ export const About = () => {
             </h2>
 
             <p className="about__description">{t('about.description')}</p>
-
-            <button className="about__button">
-              <span>{t('about.button')}</span>
-              <ArrowRight />
-            </button>
           </motion.div>
 
           <motion.div

@@ -1,30 +1,11 @@
 import { motion } from 'framer-motion';
-import { Mail, Phone, MapPin, Clock, LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { Mail, Phone, Clock, LucideIcon } from 'lucide-react';
+import { useContactForm } from '../hooks/useContactForm';
 import { useTranslation } from '../../../shared/utils/translations';
 
 export const Contact = () => {
   const { t, getOptions } = useTranslation();
-  const [formData, setFormData] = useState({
-    name: '',
-    company: '',
-    email: '',
-    phone: '',
-    budget: '',
-    message: '',
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Form submitted:', formData);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const { formData, handleChange, handleSubmit } = useContactForm();
 
   return (
     <section className="contact">
@@ -107,7 +88,9 @@ export const Contact = () => {
                   <select name="budget" value={formData.budget} onChange={handleChange} className="contact__select">
                     <option value="">{t('contact.budgetPlaceholder')}</option>
                     {getOptions('projectModal.budgetOptions').map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -143,9 +126,8 @@ export const Contact = () => {
               <h3 className="contact__info-title">{t('contact.infoTitle')}</h3>
 
               <div className="contact__info-items">
-                <ContactItem icon={Mail} label={t('contact.labels.email')} value="hello@techcompany.ru" />
-                <ContactItem icon={Phone} label={t('contact.labels.phone')} value="+7 (495) 123-45-67" />
-                <ContactItem icon={MapPin} label={t('contact.labels.address')} value={t('contact.values.address')} />
+                <ContactItem icon={Mail} label={t('contact.labels.email')} value="support@alexol.io" />
+                <ContactItem icon={Phone} label={t('contact.labels.phone')} value="+7 (985) 090-14-34" />
                 <ContactItem icon={Clock} label={t('contact.labels.schedule')} value={t('contact.values.schedule')} />
               </div>
             </div>
