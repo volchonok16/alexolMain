@@ -1,4 +1,4 @@
-import { Mail, Phone, Clock, Github, Linkedin, Twitter, LucideIcon } from 'lucide-react';
+import { Mail, Phone, Github, Linkedin, Twitter, LucideIcon } from 'lucide-react';
 import './Footer.scss';
 import { useTranslation } from '../utils/translations';
 
