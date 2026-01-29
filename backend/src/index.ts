@@ -15,7 +15,7 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: [config.corsOrigin, 'http://localhost:5174', 'http://localhost:3000', 'http://192.168.0.45:5173'],
+  origin: config.corsOrigins,
   credentials: true
 }));
 app.use(express.json({ limit: '30mb' }));

@@ -11,8 +11,13 @@ export class UserService {
     return userWithoutPassword;
   }
 
-  async findAll() {
-    const users = await this.userRepo.findAll();
-    return users.map(({ password, ...user }) => user);
+  async findAll(page: number = 1, limit: number = 20) {
+    const { users, pagination } = await this.userRepo.findAll(page, limit);
+    const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+    
+    return {
+      users: usersWithoutPasswords,
+      pagination
+    };
   }
 }

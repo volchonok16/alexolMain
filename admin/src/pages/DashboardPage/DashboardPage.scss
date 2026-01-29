@@ -20,6 +20,42 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    margin-bottom: 1.5rem;
+  }
+
+  &__tabs {
+    display: flex;
+    gap: 1rem;
+  }
+
+  &__tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(10, 227, 255, 0.2);
+    border-radius: 0.5rem;
+    color: #A8B0C0;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.875rem;
+    font-weight: 500;
+
+    &:hover {
+      border-color: rgba(10, 227, 255, 0.4);
+      background: rgba(10, 227, 255, 0.1);
+    }
+
+    &--active {
+      background: linear-gradient(to right, rgba(10, 227, 255, 0.2), rgba(27, 145, 247, 0.2));
+      border-color: #0AE3FF;
+      color: #0AE3FF;
+      
+      &:hover {
+        box-shadow: 0 0 20px rgba(10, 227, 255, 0.3);
+      }
+    }
   }
 
 

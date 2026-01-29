@@ -16,8 +16,11 @@ export class UserController {
 
   getAll = async (req: AuthRequest, res: Response) => {
     try {
-      const users = await this.service.findAll();
-      res.json({ data: users });
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      const result = await this.service.findAll(page, limit);
+      res.json({ data: result });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

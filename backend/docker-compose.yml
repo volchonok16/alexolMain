@@ -35,7 +35,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-alexol_user}:${POSTGRES_PASSWORD:-change_this_password}@postgres:5432/${POSTGRES_DB:-alexol_db}
       JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_to_something_secure}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      CORS_ORIGIN: ${CORS_ORIGIN:-https://alexol.io}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://alexol.io,https://admin.alexol.io}
     depends_on:
       postgres:
         condition: service_healthy
