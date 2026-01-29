@@ -1,7 +1,9 @@
-FROM node:20-alpine
+FROM node:20-slim
 
-# Устанавливаем OpenSSL для Prisma
-RUN apk add --no-cache openssl libc6-compat
+# Устанавливаем OpenSSL и wget для Prisma и healthcheck
+RUN apt-get update -y && \
+    apt-get install -y openssl wget && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -28,5 +30,5 @@ RUN npm prune --production
 EXPOSE 3000
 
 # Запускаем приложение
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["bash", "-c", "npx prisma migrate deploy && node dist/index.js"]
 
