@@ -4,8 +4,17 @@ dotenv.config();
 
 // Parse CORS_ORIGIN as array if it contains commas
 const parseCorsOrigin = (origin: string | undefined): string[] => {
-  if (!origin) return ['http://localhost:5173'];
-  return origin.split(',').map(url => url.trim());
+  const defaultOrigins = [
+    'http://localhost:3000', // Swagger UI
+    'http://localhost:5173', // Frontend dev
+    'http://localhost:5174', // Admin dev
+  ];
+  
+  if (!origin) return defaultOrigins;
+  
+  const customOrigins = origin.split(',').map(url => url.trim());
+  // Merge custom origins with default localhost origins for development
+  return [...new Set([...customOrigins, ...defaultOrigins])];
 };
 
 export const config = {

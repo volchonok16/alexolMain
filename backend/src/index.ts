@@ -15,7 +15,17 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: config.corsOrigins,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman, Swagger UI)
+    if (!origin) return callback(null, true);
+    
+    if (config.corsOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '30mb' }));
