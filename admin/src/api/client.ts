@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const isDev = import.meta.env.DEV;
-const baseURL = isDev ? 'http://localhost:3000/api' : `${window.location.origin}/api`;
+const baseURL = isDev 
+  ? 'http://localhost:3000/api' 
+  : (import.meta.env.VITE_API_URL || 'https://api.alexol.io/api');
 
 export const apiClient = axios.create({
   baseURL,
@@ -9,6 +11,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use(config => {
