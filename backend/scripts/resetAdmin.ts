@@ -7,9 +7,9 @@ async function resetAdmin() {
   await prisma.user.deleteMany();
   console.log('🗑️  Deleted all users');
 
-  const login = 'admin';
-  const password = 'admin123';
-  const name = 'Administrator';
+  const login = 'alex';
+  const password = 'Triu546r!)';
+  const name = 'Alex Administrator';
 
   const hashedPassword = await bcrypt.hash(password, 10);
 

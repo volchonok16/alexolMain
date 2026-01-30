@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth.routes.js';
 import { userRouter } from './routes/user.routes.js';
 import { newsRouter } from './routes/news.routes.js';
 import { contactRouter } from './routes/contact.routes.js';
+import { initAdmin } from './utils/initAdmin.js';
 
 const app = express();
 
@@ -47,6 +48,10 @@ app.use('/api/contact', contactRouter);
 
 app.use(errorHandler);
 
-app.listen(config.port, () => {
+// Запуск сервера с автоматической инициализацией админа
+app.listen(config.port, async () => {
   console.log(`🚀 Server running on port ${config.port}`);
+  
+  // Инициализация админа при первом запуске
+  await initAdmin();
 });
