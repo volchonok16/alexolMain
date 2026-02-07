@@ -33,7 +33,7 @@ export const NewsModal = ({ articleId, onClose }: NewsModalProps) => {
             </div>
 
             <div className="news-modal__content">
-              <p>{article.excerpt}</p>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{article.text}</p>
             </div>
           </>
         ) : (
