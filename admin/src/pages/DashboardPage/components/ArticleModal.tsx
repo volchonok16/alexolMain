@@ -14,10 +14,15 @@ interface ArticleModalProps {
   onSave: (article: { title: string; text: string; photo: string | File }) => void;
 }
 
+// Helper to remove hashtags from text (for cleaner editing)
+const removeHashtags = (text: string): string => {
+  return text.replace(/#[а-яёa-z0-9_]+/gi, '').replace(/\s+/g, ' ').trim();
+};
+
 export const ArticleModal = ({ article, onClose, onSave }: ArticleModalProps) => {
   const [formData, setFormData] = useState<{ title: string; text: string; photo: string | File }>({
     title: article?.title || '',
-    text: article?.text || '',
+    text: article ? removeHashtags(article.text) : '',
     photo: article?.photo || '',
   });
   const [imagePreview, setImagePreview] = useState<string>(
