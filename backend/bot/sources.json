@@ -1,0 +1,17 @@
+{
+  "rss_feeds": [
+    { "url": "https://habr.com/ru/rss/best/daily/", "name": "Habr", "enabled": true },
+    { "url": "https://habr.com/ru/rss/news/", "name": "Habr News", "enabled": true },
+    { "url": "https://www.opennet.ru/opennews/opennews_all_utf.rss", "name": "OpenNet", "enabled": true },
+    { "url": "https://3dnews.ru/news/rss/", "name": "3DNews", "enabled": true },
+    { "url": "https://www.computerra.ru/feed/", "name": "Computerra", "enabled": true },
+    { "url": "https://tproger.ru/feed", "name": "Tproger", "enabled": true },
+    { "url": "https://www.ixbt.com/export/news.rss", "name": "iXBT", "enabled": true }
+  ],
+  "telegram_channels": [
+    { "username": "habr_com", "name": "Habr", "enabled": true },
+    { "username": "tproger_official", "name": "Типичный программист", "enabled": true },
+    { "username": "thecode_media", "name": "Код", "enabled": true }
+  ]
+}
+

@@ -1,0 +1,92 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# VK API настройки
+VK_ACCESS_TOKEN = os.getenv("VK_ACCESS_TOKEN")
+VK_GROUP_ID = os.getenv("VK_GROUP_ID")  # ID группы (без минуса) или страницы
+
+# Instagram настройки (опционально, на свой риск!)
+INSTAGRAM_USERNAME = os.getenv("INSTAGRAM_USERNAME")
+INSTAGRAM_PASSWORD = os.getenv("INSTAGRAM_PASSWORD")
+
+TELEGRAM_API_ID = os.getenv("TELEGRAM_API_ID")
+TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH")
+TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE")
+
+TDATA_PATH = os.getenv("TDATA_PATH", "tdata")
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-r1-distill-qwen-32b")
+
+# Backend news integration (optional)
+# Example:
+# BACKEND_API_URL=https://api.alexol.io/api
+# BACKEND_ADMIN_LOGIN=alex
+# BACKEND_ADMIN_PASSWORD=...
+BACKEND_API_URL = os.getenv("BACKEND_API_URL")
+BACKEND_ADMIN_LOGIN = os.getenv("BACKEND_ADMIN_LOGIN")
+BACKEND_ADMIN_PASSWORD = os.getenv("BACKEND_ADMIN_PASSWORD")
+
+NEWS_MAX_AGE_HOURS = int(os.getenv("NEWS_MAX_AGE_HOURS", "24"))
+CLEANUP_DAYS = 3
+
+IMAGE_SEARCH_KEYWORDS = [
+    "technology",
+    "coding",
+    "programming",
+    "artificial intelligence",
+    "cybersecurity",
+    "data science",
+    "cloud computing",
+    "software development",
+]
+
+IT_KEYWORDS = [
+    "технология",
+    "технологии",
+    "технологический",
+    "программирование",
+    "разработка",
+    "разработчик",
+    "искусственный интеллект",
+    "ai",
+    "машинное обучение",
+    "кибербезопасность",
+    "безопасность",
+    "облако",
+    "cloud",
+    "сервер",
+    "приложение",
+    "приложения",
+    "app",
+    "стартап",
+    "инновации",
+    "инновационный",
+    "гаджет",
+    "устройство",
+    "девайс",
+    "процессор",
+    "чип",
+    "микросхема",
+    "интернет",
+    "сеть",
+    "сети",
+    "данные",
+    "big data",
+    "аналитика",
+    "код",
+    "алгоритм",
+    "программное обеспечение",
+]
+
+POST_HOUR = int(os.getenv("POST_HOUR", "10"))
+TIMEZONE = os.getenv("TIMEZONE", "Europe/Moscow")
+
+MAX_POST_LENGTH = 3000
+

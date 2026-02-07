@@ -1,0 +1,31 @@
+{
+  "custom_emojis": {
+    "fire": {
+      "id": "5368324170671202286",
+      "placeholder": "[FIRE]",
+      "fallback": "🔥"
+    },
+    "rocket": {
+      "id": "5373141891321699086",
+      "placeholder": "[ROCKET]",
+      "fallback": "🚀"
+    },
+    "lightning": {
+      "id": "5372981976454401925",
+      "placeholder": "[LIGHTNING]",
+      "fallback": "⚡"
+    },
+    "star": {
+      "id": "5368324170671202286",
+      "placeholder": "[STAR]",
+      "fallback": "⭐"
+    },
+    "check": {
+      "id": "5368324170671202286",
+      "placeholder": "[CHECK]",
+      "fallback": "✅"
+    }
+  },
+  "instructions": "Замени ID на ID ваших корпоративных эмодзи. Получить ID можно отправив эмодзи боту @GetCustomEmojiBot"
+}
+
