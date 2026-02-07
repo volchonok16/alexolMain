@@ -52,6 +52,26 @@ services:
       retries: 3
       start_period: 40s
 
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: alexol_bot
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - TZ=${TIMEZONE:-Europe/Moscow}
+      - TDATA_PATH=/app/tdata
+    networks:
+      - alexol_network
+    volumes:
+      - ./bot/data:/app/data
+      - ./bot/tdata:/app/tdata
+
 volumes:
   postgres_data:
     driver: local

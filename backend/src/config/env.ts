@@ -39,6 +39,7 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET!,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   corsOrigins: parseCorsOrigin(process.env.CORS_ORIGIN),
+  publicApiUrl: process.env.PUBLIC_API_URL,
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
   telegramChatId: process.env.TELEGRAM_CHAT_ID!,
 };

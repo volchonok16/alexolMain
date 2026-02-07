@@ -17,7 +17,8 @@ export class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
       
-      res.json({ user: result.user });
+      // Also return token for clients that use Authorization header (e.g. admin panel).
+      res.json({ user: result.user, token: result.token });
     } catch (error: any) {
       res.status(401).json({ error: error.message });
     }
