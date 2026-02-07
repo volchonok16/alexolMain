@@ -11,7 +11,9 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  // Admin uses Bearer token (localStorage) -> no cross-site cookies needed.
+  // Keeping this false also avoids CORS "wildcard origin + credentials" issues.
+  withCredentials: false,
 });
 
 apiClient.interceptors.request.use(config => {
