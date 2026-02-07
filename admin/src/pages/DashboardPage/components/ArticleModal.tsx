@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { resolveApiAssetUrl } from '@/api/client';
 
 interface Article {
   id?: number;
@@ -19,7 +20,9 @@ export const ArticleModal = ({ article, onClose, onSave }: ArticleModalProps) =>
     text: article?.text || '',
     photo: article?.photo || '',
   });
-  const [imagePreview, setImagePreview] = useState<string>(article?.photo || '');
+  const [imagePreview, setImagePreview] = useState<string>(
+    article?.photo ? resolveApiAssetUrl(article.photo) : ''
+  );
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
