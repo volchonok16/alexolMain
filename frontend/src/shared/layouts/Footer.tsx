@@ -1,10 +1,13 @@
-import { Mail, Phone, Github, Linkedin, Twitter, LucideIcon } from 'lucide-react';
+import { Mail, Phone, MessageCircle, Send, LucideIcon } from 'lucide-react';
+import { useState } from 'react';
+import { OfferModal } from '../ui';
 import './Footer.scss';
 import { useTranslation } from '../utils/translations';
 
 export const Footer = () => {
   const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
 
   return (
     <footer className="footer">
@@ -42,9 +45,8 @@ export const Footer = () => {
             </div>
             <p className="footer__description">{t('footer.description')}</p>
             <div className="footer__social">
-              <SocialLink icon={Github} href="#" />
-              <SocialLink icon={Linkedin} href="#" />
-              <SocialLink icon={Twitter} href="#" />
+              <SocialLink icon={MessageCircle} href="https://wa.me/79095175557" />
+              <SocialLink icon={Send} href="https://t.me/alexolcorp" />
             </div>
           </div>
 
@@ -81,8 +83,8 @@ export const Footer = () => {
               </li>
               <li className="footer__contact">
                 <Phone className="footer__contact-icon" />
-                <a href="tel:+79850901434" className="footer__contact-link">
-                  +7 (985) 090-14-34
+                <a href="tel:+79095175557" className="footer__contact-link">
+                  +7 (909) 517-55-57
                 </a>
               </li>
             </ul>
@@ -94,15 +96,14 @@ export const Footer = () => {
             © {currentYear} Alexol. {t('footer.copyright')}
           </p>
           <div className="footer__legal">
-            <a href="#" className="footer__legal-link">
-              {t('footer.privacy')}
-            </a>
-            <a href="#" className="footer__legal-link">
-              {t('footer.terms')}
-            </a>
+            <button onClick={() => setIsOfferModalOpen(true)} className="footer__legal-link">
+              {t('footer.offer')}
+            </button>
           </div>
         </div>
       </div>
+
+      <OfferModal isOpen={isOfferModalOpen} onClose={() => setIsOfferModalOpen(false)} />
     </footer>
   );
 };
@@ -119,7 +120,7 @@ const FooterLink = ({ label, href }: { label: string; href: string }) => {
 
 const SocialLink = ({ icon: Icon, href }: { icon: LucideIcon; href: string }) => {
   return (
-    <a href={href} className="footer__social-link">
+    <a href={href} className="footer__social-link" target="_blank" rel="noopener noreferrer">
       <Icon />
     </a>
   );

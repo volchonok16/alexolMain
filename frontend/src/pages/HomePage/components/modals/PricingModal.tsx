@@ -88,8 +88,11 @@ export const PricingModal = ({ isOpen, onClose }: PricingModalProps) => {
           <label className="pricing-modal__label">{t('pricingModal.appType')} *</label>
           <Select
             options={getOptions('pricingModal.appTypes')}
-            value={formData.appType}
-            onChange={value => handleChange({ target: { name: 'appType', value } })}
+            value={getOptions('pricingModal.appTypes').find(opt => opt.value === formData.appType)?.label || ''}
+            onChange={value => {
+              const option = getOptions('pricingModal.appTypes').find(opt => opt.label === value);
+              handleChange({ target: { name: 'appType', value: option?.value || value } });
+            }}
             placeholder={t('pricingModal.appTypePlaceholder')}
           />
         </div>
@@ -101,7 +104,7 @@ export const PricingModal = ({ isOpen, onClose }: PricingModalProps) => {
             </label>
             <input
               type="range"
-              name="complexity"
+              name="pageCount"
               min="1"
               max="20"
               value={formData.pageCount}

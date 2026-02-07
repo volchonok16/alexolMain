@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0A0C10"/>
+  <g transform="translate(600, 315)">
+    <path
+      fill="#0AE3FF"
+      d="M0,-120 L89.57,-60 L89.57,60 L0,120 L-89.57,60 L-89.57,-60 Z M0,-90 L-71.57,-45 L-71.57,45 L0,90 L71.57,45 L71.57,-45 Z"
+    />
+    <circle fill="#FFFFFF" cx="0" cy="0" r="24" />
+  </g>
+  <text x="600" y="450" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Alexol</text>
+  <text x="600" y="500" font-family="Arial, sans-serif" font-size="24" fill="#A8B0C0" text-anchor="middle">Разработка программного обеспечения</text>
+</svg>

@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+const isDev = import.meta.env.DEV;
+const baseURL = isDev 
+  ? 'http://localhost:3000/api' 
+  : (import.meta.env.VITE_API_URL || 'https://api.alexol.io/api');
+
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

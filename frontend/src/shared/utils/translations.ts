@@ -388,8 +388,7 @@ const translations = {
     solutions: { ru: 'Решения', en: 'Solutions' },
     contacts: { ru: 'Контакты', en: 'Contacts' },
     copyright: { ru: 'Все права защищены.', en: 'All rights reserved.' },
-    privacy: { ru: 'Политика конфиденциальности', en: 'Privacy Policy' },
-    terms: { ru: 'Условия использования', en: 'Terms of Use' },
+    offer: { ru: 'Публичная оферта', en: 'Public Offer' },
     links: {
       development: { ru: 'Разработка ПО', en: 'Software Development' },
       outsourcing: { ru: 'Аутсорс/Аутстафф', en: 'Outsourcing/Outstaffing' },

@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Phone, Clock, LucideIcon } from 'lucide-react';
 import { useContactForm } from '../hooks/useContactForm';
+import { MeetingModal } from './modals';
 import { useTranslation } from '../../../shared/utils/translations';
+import { Select } from '../../../shared/ui/Select/Select';
 
 export const Contact = () => {
   const { t, getOptions } = useTranslation();
   const { formData, handleChange, handleSubmit } = useContactForm();
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
   return (
     <section className="contact">
@@ -85,14 +89,12 @@ export const Contact = () => {
 
                 <div className="contact__field">
                   <label className="contact__label">{t('contact.budget')}</label>
-                  <select name="budget" value={formData.budget} onChange={handleChange} className="contact__select">
-                    <option value="">{t('contact.budgetPlaceholder')}</option>
-                    {getOptions('projectModal.budgetOptions').map(opt => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    options={getOptions('projectModal.budgetOptions')}
+                    value={formData.budget}
+                    onChange={value => handleChange({ target: { name: 'budget', value } } as any)}
+                    placeholder={t('contact.budgetPlaceholder')}
+                  />
                 </div>
 
                 <div className="contact__field">
@@ -126,8 +128,8 @@ export const Contact = () => {
               <h3 className="contact__info-title">{t('contact.infoTitle')}</h3>
 
               <div className="contact__info-items">
-                <ContactItem icon={Mail} label={t('contact.labels.email')} value="support@alexol.io" />
-                <ContactItem icon={Phone} label={t('contact.labels.phone')} value="+7 (985) 090-14-34" />
+                <ContactItem icon={Mail} label={t('contact.labels.email')} value="support@alexol.io" href="mailto:support@alexol.io" />
+                <ContactItem icon={Phone} label={t('contact.labels.phone')} value="+7 (909) 517-55-57" href="tel:+79095175557" />
                 <ContactItem icon={Clock} label={t('contact.labels.schedule')} value={t('contact.values.schedule')} />
               </div>
             </div>
@@ -135,16 +137,20 @@ export const Contact = () => {
             <div className="contact__meeting">
               <h3 className="contact__meeting-title">{t('contact.meetingTitle')}</h3>
               <p className="contact__meeting-text">{t('contact.meetingText')}</p>
-              <button className="contact__meeting-button">{t('contact.meetingButton')}</button>
+              <button onClick={() => setIsMeetingModalOpen(true)} className="contact__meeting-button">
+                {t('contact.meetingButton')}
+              </button>
             </div>
           </motion.div>
         </div>
       </div>
+
+      <MeetingModal isOpen={isMeetingModalOpen} onClose={() => setIsMeetingModalOpen(false)} />
     </section>
   );
 };
 
-const ContactItem = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => {
+const ContactItem = ({ icon: Icon, label, value, href }: { icon: LucideIcon; label: string; value: string; href?: string }) => {
   return (
     <div className="contact-item">
       <div className="contact-item__icon">
@@ -152,7 +158,13 @@ const ContactItem = ({ icon: Icon, label, value }: { icon: LucideIcon; label: st
       </div>
       <div className="contact-item__content">
         <div className="contact-item__label">{label}</div>
-        <div className="contact-item__value">{value}</div>
+        {href ? (
+          <a href={href} className="contact-item__value contact-item__value--link">
+            {value}
+          </a>
+        ) : (
+          <div className="contact-item__value">{value}</div>
+        )}
       </div>
     </div>
   );
