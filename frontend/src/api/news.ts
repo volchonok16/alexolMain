@@ -19,13 +19,17 @@ export interface NewsArticle {
   image: string;
 }
 
-// Remove hashtags from text for display
-const removeHashtags = (text: string): string => {
-  return text.replace(/#[а-яёa-z0-9_]+/gi, '').trim();
+// Remove hashtags and HTML tags from text for display
+const cleanText = (text: string): string => {
+  return text
+    .replace(/<[^>]+>/g, '') // Remove HTML tags
+    .replace(/#[а-яёa-z0-9_]+/gi, '') // Remove hashtags
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .trim();
 };
 
 const mapNewsArticle = (item: NewsApiResponse): NewsArticle => {
-  const textWithoutTags = removeHashtags(item.text);
+  const textWithoutTags = cleanText(item.text);
   
   // Resolve image URL
   let imageUrl = item.photo;
