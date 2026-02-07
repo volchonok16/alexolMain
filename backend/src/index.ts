@@ -15,19 +15,28 @@ import { initAdmin } from './utils/initAdmin.js';
 const app = express();
 
 app.use(helmet());
+
+// CORS configuration - must be before other middleware
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, Postman, Swagger UI)
     if (!origin) return callback(null, true);
     
+    // Log for debugging
+    console.log(`[CORS] Incoming request from origin: ${origin}`);
+    console.log(`[CORS] Allowed origins:`, config.corsOrigins);
+    
     if (config.corsOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}`);
+      console.warn(`[CORS] ❌ Blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['set-cookie']
 }));
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));
