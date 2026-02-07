@@ -17,7 +17,7 @@ const app = express();
 app.use(helmet());
 
 // CORS configuration - must be before other middleware
-app.use(cors({
+const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, Postman, Swagger UI)
     if (!origin) return callback(null, true);
@@ -36,8 +36,13 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['set-cookie']
-}));
+  exposedHeaders: ['set-cookie'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+// Explicitly handle preflight to avoid falling into errorHandler.
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));
 app.use(cookieParser());
