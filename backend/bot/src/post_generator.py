@@ -544,14 +544,10 @@ class PostGenerator:
                 backend_success = False
             else:
                 news_title = (title or "IT новости").strip()
-                # Strip HTML tags for clean text in admin/frontend
-                import re
-                news_text_clean = re.sub(r'<[^>]+>', '', text or '')
-                news_text_clean = news_text_clean.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
-                news_text_clean = news_text_clean.strip()
+                news_text = (text or "").strip()
                 try:
                     print("\n📰 Публикация новости в админ-панель (backend)...")
-                    backend_success = await self.backend_news.create_news(news_title, news_text_clean, image)
+                    backend_success = await self.backend_news.create_news(news_title, news_text, image)
                     print(f"   📊 Результат публикации новости: {'✅ успешно' if backend_success else '❌ ошибка'}")
                 except Exception as e:
                     print(f"   ❌ Ошибка публикации новости в backend: {e}")
