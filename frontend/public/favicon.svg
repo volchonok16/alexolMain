@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .icon-fill { fill: #0AE3FF; }
+      .icon-center { fill: #FFFFFF; }
+    }
+    @media (prefers-color-scheme: light) {
+      .icon-fill { fill: #0891B2; }
+      .icon-center { fill: #0F172A; }
+    }
+  </style>
+  <path
+    class="icon-fill"
+    d="M40,0 L74.64,20 L74.64,60 L40,80 L5.36,60 L5.36,20 Z M40,15 L18.35,27.50 L18.35,52.50 L40,65 L61.65,52.50 L61.65,27.50 Z"
+  />
+  <circle class="icon-center" cx="40" cy="40" r="8" />
+</svg>

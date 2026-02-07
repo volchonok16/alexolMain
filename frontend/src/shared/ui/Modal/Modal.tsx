@@ -46,7 +46,7 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
                 <X size={20} />
               </button>
             </div>
-            {children}
+            <div className="modal__body">{children}</div>
           </motion.div>
         </div>
       )}
