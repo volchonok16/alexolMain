@@ -46,7 +46,8 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));
 app.use(cookieParser());
-app.use('/uploads', express.static('uploads'));
+// Static files (uploads) need CORS too - use wildcard for images (no credentials)
+app.use('/uploads', cors({ origin: '*' }), express.static('uploads'));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
