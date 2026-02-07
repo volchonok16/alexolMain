@@ -58,6 +58,9 @@ services:
       dockerfile: Dockerfile
     container_name: alexol_bot
     restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
     env_file:
       - .env
     environment:
