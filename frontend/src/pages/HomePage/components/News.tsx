@@ -4,6 +4,7 @@ import { Calendar, ArrowRight } from 'lucide-react';
 import { ImageWithFallback, ErrorState } from '@/shared/ui';
 import { useNews } from '../hooks/useNews';
 import { useTranslation } from '@/shared/utils/translations';
+import { motionConfig } from '@/shared/hooks/useMotionConfig';
 
 export const News = () => {
   const { t } = useTranslation();
@@ -48,10 +49,10 @@ export const News = () => {
     <section className="news">
       <div className="news__container">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="news__header"
         >
           <h2 className="news__title">{t('news.title')}</h2>
@@ -65,9 +66,10 @@ export const News = () => {
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="news__cta"
         >
           <Link to="/news" className="news__button">
@@ -83,10 +85,10 @@ export const News = () => {
 const ArticleCard = ({ article, index }: { article: any; index: number }) => {
   return (
     <motion.article
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
+      initial={motionConfig.initial}
+      whileInView={motionConfig.animate}
+      viewport={motionConfig.viewport}
+      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
       className="article-card"
     >
       <div className="article-card__image">

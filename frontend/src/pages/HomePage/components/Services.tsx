@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Code, Users, Palette, Brain, Wrench, Building2, LucideIcon } from 'lucide-react';
 import { useTranslation } from '../../../shared/utils/translations';
+import { motionConfig } from '@/shared/hooks/useMotionConfig';
 
 interface Service {
   icon: LucideIcon;
@@ -23,10 +24,10 @@ export const Services = () => {
     <section className="services">
       <div className="services__container">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="services__header"
         >
           <h2 className="services__title">{t('services.title')}</h2>
@@ -49,10 +50,10 @@ const ServiceCard = ({ service, index }: { service: Service; index: number }) =>
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
+      initial={motionConfig.initial}
+      whileInView={motionConfig.animate}
+      viewport={motionConfig.viewport}
+      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
       className="service-card"
     >
       <div className="service-card__glow" />

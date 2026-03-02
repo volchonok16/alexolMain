@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Layers, Network, Monitor, Palette, Link2, Clock, BarChart3, Headphones, LucideIcon } from 'lucide-react';
 import { PricingModal } from './modals/PricingModal';
 import { useTranslation } from '@/shared/utils/translations';
+import { motionConfig } from '@/shared/hooks/useMotionConfig';
 
 interface Factor {
   icon: LucideIcon;
@@ -28,10 +29,10 @@ export const Pricing = () => {
     <section className="pricing">
       <div className="pricing__container">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="pricing__header"
         >
           <h2 className="pricing__title">{t('pricing.title')}</h2>
@@ -45,9 +46,10 @@ export const Pricing = () => {
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="pricing__summary"
         >
           <div className="pricing__summary-content">
@@ -73,10 +75,10 @@ const FactorCard = ({ factor, index }: { factor: Factor; index: number }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5, delay: index * 0.05 }}
+      initial={motionConfig.initial}
+      whileInView={motionConfig.animate}
+      viewport={motionConfig.viewport}
+      transition={{ ...motionConfig.transition, delay: index * 0.05 }}
       className="factor-card"
     >
       <div className="factor-card__icon">

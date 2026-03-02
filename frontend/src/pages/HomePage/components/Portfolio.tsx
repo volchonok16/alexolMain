@@ -3,6 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { ImageWithFallback } from '@/shared/ui';
 import { useState } from 'react';
 import { useTranslation } from '@/shared/utils/translations';
+import { motionConfig } from '@/shared/hooks/useMotionConfig';
 import project1 from './assets/project1.png';
 import project2 from './assets/project2.png';
 import project3 from './assets/project3.png';
@@ -133,10 +134,10 @@ export const Portfolio = () => {
     <section className="portfolio">
       <div className="portfolio__container">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="portfolio__header"
         >
           <h2 className="portfolio__title">{t('portfolio.title')}</h2>
@@ -163,9 +164,10 @@ export const Portfolio = () => {
 
         {filteredProjects.length > 6 && (
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={motionConfig.initial}
+            whileInView={motionConfig.animate}
+            viewport={motionConfig.viewport}
+            transition={motionConfig.transition}
             className="portfolio__cta"
           >
             <button onClick={() => setShowAll(!showAll)} className="portfolio__button">
@@ -188,10 +190,10 @@ const ProjectCard = ({ project, index }: { project: Project; index: number }) =>
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
+      initial={motionConfig.initial}
+      whileInView={motionConfig.animate}
+      viewport={motionConfig.viewport}
+      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
       className="project-card"
       onClick={handleClick}
       style={{ cursor: project.link ? 'pointer' : 'default' }}

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { bgLayer } from '../../main';
 
 type Theme = 'dark' | 'light';
 
@@ -18,6 +19,16 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     localStorage.setItem('theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
+
+    const src = theme === 'light'
+      ? new URL('../assets/bgWhite.png', import.meta.url).href
+      : new URL('../assets/bgBlack.png', import.meta.url).href;
+
+    bgLayer.classList.remove('bg-layer--loaded');
+    bgLayer.style.backgroundImage = `url(${src})`;
+    const img = new Image();
+    img.onload = () => bgLayer.classList.add('bg-layer--loaded');
+    img.src = src;
   }, [theme]);
 
   const toggleTheme = () => {

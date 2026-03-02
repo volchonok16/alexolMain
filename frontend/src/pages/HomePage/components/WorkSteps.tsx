@@ -12,6 +12,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from '@/shared/utils/translations';
+import { motionConfig, motionConfigX } from '@/shared/hooks/useMotionConfig';
 
 interface Step {
   icon: LucideIcon;
@@ -37,10 +38,10 @@ export const WorkSteps = () => {
     <section className="work-steps">
       <div className="work-steps__container">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="work-steps__header"
         >
           <h2 className="work-steps__title">{t('workSteps.title')}</h2>
@@ -75,10 +76,10 @@ const StepCard = ({ step, index }: { step: Step; index: number }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
+      initial={motionConfig.initial}
+      whileInView={motionConfig.animate}
+      viewport={motionConfig.viewport}
+      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
       className="step-card"
     >
       <div className="step-card__content">
@@ -104,10 +105,10 @@ const StepTimeline = ({ step, index }: { step: Step; index: number }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: isEven ? -50 : 50 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.8 }}
+      initial={motionConfigX(isEven ? 'left' : 'right').initial}
+      whileInView={motionConfigX(isEven ? 'left' : 'right').animate}
+      viewport={motionConfigX(isEven ? 'left' : 'right').viewport}
+      transition={motionConfigX(isEven ? 'left' : 'right').transition}
       className={`step-timeline ${isEven ? 'step-timeline--left' : 'step-timeline--right'}`}
     >
       <div className="step-timeline__content">

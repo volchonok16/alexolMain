@@ -24,12 +24,12 @@
     height: 24rem;
     border-radius: 50%;
     filter: blur(120px);
-    animation: pulse 3s ease-in-out infinite;
 
     @media (max-width: 1023px) {
       width: 16rem;
       height: 16rem;
       filter: blur(80px);
+      animation: none;
     }
 
     &--primary {
@@ -55,7 +55,6 @@
       right: 25%;
       background-color: #1B91F7;
       opacity: 0.15;
-      animation-delay: 1.5s;
 
       @media (max-width: 1023px) {
         bottom: 15%;

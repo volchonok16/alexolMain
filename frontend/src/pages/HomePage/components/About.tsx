@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/shared/utils/translations';
+import { motionConfig, motionConfigX } from '@/shared/hooks/useMotionConfig';
 
 export const About = () => {
   const { t } = useTranslation();
@@ -9,10 +10,10 @@ export const About = () => {
       <div className="about__container">
         <div className="about__grid">
           <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
+            initial={motionConfigX('left').initial}
+            whileInView={motionConfigX('left').animate}
+            viewport={motionConfigX('left').viewport}
+            transition={motionConfigX('left').transition}
           >
             <h2 className="about__title">
               {t('about.title')} <span className="about__highlight">{t('about.titleHighlight')}</span>
@@ -22,10 +23,10 @@ export const About = () => {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
+            initial={motionConfigX('right').initial}
+            whileInView={motionConfigX('right').animate}
+            viewport={motionConfigX('right').viewport}
+            transition={motionConfigX('right').transition}
             className="about__metrics"
           >
             <MetricCard number="7+" label={t('about.metrics.years')} delay={0} />
@@ -42,10 +43,10 @@ export const About = () => {
 const MetricCard = ({ number, label, delay }: { number: string; label: string; delay: number }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay }}
+      initial={motionConfig.initial}
+      whileInView={motionConfig.animate}
+      viewport={motionConfig.viewport}
+      transition={{ ...motionConfig.transition, delay }}
       className="metric-card"
     >
       <div className="metric-card__number">{number}</div>

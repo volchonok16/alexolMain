@@ -20,6 +20,8 @@ interface Module {
   cta: string;
 }
 
+const isMobile = () => window.innerWidth < 1024;
+
 const getModules = (t: (path: string) => string): Module[] => {
   const isFullHD = window.innerWidth >= 1920;
 
@@ -73,6 +75,7 @@ export const Hero = () => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const lastUpdateRef = useRef(0);
+  const mobile = isMobile();
 
   useEffect(() => {
     setModules(getModules(t));
@@ -87,8 +90,9 @@ export const Hero = () => {
   }, [language]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    if (mobile) return;
     const now = Date.now();
-    if (now - lastUpdateRef.current < 16) return;
+    if (now - lastUpdateRef.current < 50) return;
 
     lastUpdateRef.current = now;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -96,7 +100,7 @@ export const Hero = () => {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     });
-  }, []);
+  }, [mobile]);
 
   const defaultTitle = t('hero.title');
   const defaultDescription = t('hero.description');
@@ -109,7 +113,7 @@ export const Hero = () => {
     return defaultTitle;
   }, [activeModule, defaultTitle]);
 
-  const displayTitle = useTypewriter(currentTitleText, 30);
+  const displayTitle = mobile ? currentTitleText : useTypewriter(currentTitleText, 30);
   const currentCta = activeModule?.cta || defaultCta;
 
   const handleModuleClick = (module: Module) => {
@@ -121,8 +125,6 @@ export const Hero = () => {
     return module?.connections || [];
   };
 
-  const codeLines = Math.min(Math.floor(emailInput.length / 3), 10);
-
   return (
     <section className="hero" onMouseMove={handleMouseMove}>
       <div className="hero__background">
@@ -130,71 +132,55 @@ export const Hero = () => {
         <div className="hero__gradient hero__gradient--primary" />
         <div className="hero__gradient hero__gradient--secondary" />
 
-        {emailInput && (
-          <div className="hero__code">
-            {Array.from({ length: codeLines }).map((_, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 0.3, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="hero__code-line"
-              >
-                {i === 0 && 'def createSolutionFor(business):'}
-                {i === 1 && '    analyze_requirements()'}
-                {i === 2 && '    design_architecture()'}
-                {i === 3 && '    implement_solution()'}
-                {i > 3 && `    # Step ${i}...`}
-              </motion.div>
+        {!mobile && (
+          <svg className="hero__connections">
+            {hoveredModule &&
+              getConnectedModules(hoveredModule).map(connId => {
+                const from = modules.find(m => m.id === hoveredModule);
+                const to = modules.find(m => m.id === connId);
+                if (!from || !to) return null;
+
+                return (
+                  <motion.line
+                    key={`${hoveredModule}-${connId}`}
+                    x1={`${from.x}%`}
+                    y1={`${from.y}%`}
+                    x2={`${to.x}%`}
+                    y2={`${to.y}%`}
+                    stroke="var(--color-primary)"
+                    strokeWidth="2"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 0.6 }}
+                    exit={{ pathLength: 0, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  />
+                );
+              })}
+          </svg>
+        )}
+
+        {!mobile && (
+          <div className="hero__modules">
+            {modules.map(module => (
+              <TechModule
+                key={module.id}
+                module={module}
+                isHovered={hoveredModule === module.id}
+                isActive={activeModule?.id === module.id}
+                isConnected={hoveredModule ? getConnectedModules(hoveredModule).includes(module.id) : false}
+                onHover={setHoveredModule}
+                onClick={handleModuleClick}
+              />
             ))}
           </div>
         )}
-
-        <svg className="hero__connections">
-          {hoveredModule &&
-            getConnectedModules(hoveredModule).map(connId => {
-              const from = modules.find(m => m.id === hoveredModule);
-              const to = modules.find(m => m.id === connId);
-              if (!from || !to) return null;
-
-              return (
-                <motion.line
-                  key={`${hoveredModule}-${connId}`}
-                  x1={`${from.x}%`}
-                  y1={`${from.y}%`}
-                  x2={`${to.x}%`}
-                  y2={`${to.y}%`}
-                  stroke="var(--color-primary)"
-                  strokeWidth="2"
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: 0.6 }}
-                  exit={{ pathLength: 0, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                />
-              );
-            })}
-        </svg>
-
-        <div className="hero__modules">
-          {modules.map(module => (
-            <TechModule
-              key={module.id}
-              module={module}
-              isHovered={hoveredModule === module.id}
-              isActive={activeModule?.id === module.id}
-              isConnected={hoveredModule ? getConnectedModules(hoveredModule).includes(module.id) : false}
-              onHover={setHoveredModule}
-              onClick={handleModuleClick}
-            />
-          ))}
-        </div>
       </div>
 
       <div className="hero__content">
         <div className="hero__inner">
           <h1 className="hero__title">
             {displayTitle}
-            <span className="hero__cursor">|</span>
+            {!mobile && <span className="hero__cursor">|</span>}
           </h1>
 
           {!activeModule && (

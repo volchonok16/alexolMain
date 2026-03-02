@@ -5,6 +5,7 @@ import { useContactForm } from '../hooks/useContactForm';
 import { MeetingModal } from './modals';
 import { useTranslation } from '../../../shared/utils/translations';
 import { Select } from '../../../shared/ui/Select/Select';
+import { motionConfig, motionConfigX } from '@/shared/hooks/useMotionConfig';
 
 export const Contact = () => {
   const { t, getOptions } = useTranslation();
@@ -15,10 +16,10 @@ export const Contact = () => {
     <section className="contact">
       <div className="contact__container">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="contact__header"
         >
           <h2 className="contact__title">{t('contact.title')}</h2>
@@ -27,10 +28,10 @@ export const Contact = () => {
 
         <div className="contact__grid">
           <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
+            initial={motionConfigX('left').initial}
+            whileInView={motionConfigX('left').animate}
+            viewport={motionConfigX('left').viewport}
+            transition={motionConfigX('left').transition}
             className="contact__form-wrapper"
           >
             <div className="contact__form">
@@ -118,10 +119,10 @@ export const Contact = () => {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
+            initial={motionConfigX('right').initial}
+            whileInView={motionConfigX('right').animate}
+            viewport={motionConfigX('right').viewport}
+            transition={motionConfigX('right').transition}
             className="contact__info"
           >
             <div className="contact__info-card">

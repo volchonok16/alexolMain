@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { TrendingDown, Users, Eye, Shield, Zap, TrendingUp, LucideIcon } from 'lucide-react';
 import { ConsultationModal } from './modals';
 import { useTranslation } from '@/shared/utils/translations';
+import { motionConfig } from '@/shared/hooks/useMotionConfig';
 
 interface Benefit {
   icon: LucideIcon;
@@ -31,10 +32,10 @@ export const WhyDigital = () => {
 
       <div className="why-digital__container">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="why-digital__header"
         >
           <h2 className="why-digital__title">
@@ -49,9 +50,10 @@ export const WhyDigital = () => {
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          initial={motionConfig.initial}
+          whileInView={motionConfig.animate}
+          viewport={motionConfig.viewport}
+          transition={motionConfig.transition}
           className="why-digital__cta"
         >
           <button onClick={() => setIsModalOpen(true)} className="why-digital__button">
@@ -71,10 +73,10 @@ const BenefitCard = ({ benefit, index }: { benefit: Benefit; index: number }) =>
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
+      initial={motionConfig.initial}
+      whileInView={motionConfig.animate}
+      viewport={motionConfig.viewport}
+      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
       className="benefit-card"
     >
       <div className="benefit-card__content">
