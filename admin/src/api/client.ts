@@ -1,12 +1,22 @@
 import axios from 'axios';
 
 const isDev = import.meta.env.DEV;
-const baseURL = isDev 
+export const apiBaseURL = isDev
   ? 'http://localhost:3000/api' 
   : (import.meta.env.VITE_API_URL || 'https://api.alexol.io/api');
 
+// Used to build absolute URLs for assets like `/uploads/...`
+export const apiOrigin = apiBaseURL.replace(/\/api\/?$/, '');
+
+export function resolveApiAssetUrl(pathOrUrl: string): string {
+  if (!pathOrUrl) return pathOrUrl;
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  if (pathOrUrl.startsWith('/')) return `${apiOrigin}${pathOrUrl}`;
+  return `${apiOrigin}/${pathOrUrl}`;
+}
+
 export const apiClient = axios.create({
-  baseURL,
+  baseURL: apiBaseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

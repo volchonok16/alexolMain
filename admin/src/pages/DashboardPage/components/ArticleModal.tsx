@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { resolveApiAssetUrl } from '@/api/client';
 
 interface Article {
   id?: number;
@@ -13,13 +14,24 @@ interface ArticleModalProps {
   onSave: (article: { title: string; text: string; photo: string | File }) => void;
 }
 
+// Helper to remove hashtags and HTML tags from text (for cleaner editing)
+const cleanText = (text: string): string => {
+  return text
+    .replace(/<[^>]+>/g, '') // Remove HTML tags like <b>, <i>, etc.
+    .replace(/#[а-яёa-z0-9_]+/gi, '') // Remove hashtags
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .trim();
+};
+
 export const ArticleModal = ({ article, onClose, onSave }: ArticleModalProps) => {
   const [formData, setFormData] = useState<{ title: string; text: string; photo: string | File }>({
     title: article?.title || '',
-    text: article?.text || '',
+    text: article ? cleanText(article.text) : '',
     photo: article?.photo || '',
   });
-  const [imagePreview, setImagePreview] = useState<string>(article?.photo || '');
+  const [imagePreview, setImagePreview] = useState<string>(
+    article?.photo ? resolveApiAssetUrl(article.photo) : ''
+  );
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
