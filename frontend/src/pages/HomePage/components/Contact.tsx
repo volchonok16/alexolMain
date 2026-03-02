@@ -93,7 +93,7 @@ export const Contact = () => {
                   <Select
                     options={getOptions('projectModal.budgetOptions')}
                     value={formData.budget}
-                    onChange={value => handleChange({ target: { name: 'budget', value } } as any)}
+                    onChange={value => handleChange({ target: { name: 'budget', value } } as React.ChangeEvent<HTMLSelectElement>)}
                     placeholder={t('contact.budgetPlaceholder')}
                   />
                 </div>
@@ -129,8 +129,18 @@ export const Contact = () => {
               <h3 className="contact__info-title">{t('contact.infoTitle')}</h3>
 
               <div className="contact__info-items">
-                <ContactItem icon={Mail} label={t('contact.labels.email')} value="support@alexol.io" href="mailto:support@alexol.io" />
-                <ContactItem icon={Phone} label={t('contact.labels.phone')} value="+7 (909) 517-55-57" href="tel:+79095175557" />
+                <ContactItem
+                  icon={Mail}
+                  label={t('contact.labels.email')}
+                  value="support@alexol.io"
+                  href="mailto:support@alexol.io"
+                />
+                <ContactItem
+                  icon={Phone}
+                  label={t('contact.labels.phone')}
+                  value="+7 (909) 517-55-57"
+                  href="tel:+79095175557"
+                />
                 <ContactItem icon={Clock} label={t('contact.labels.schedule')} value={t('contact.values.schedule')} />
               </div>
             </div>
@@ -151,7 +161,17 @@ export const Contact = () => {
   );
 };
 
-const ContactItem = ({ icon: Icon, label, value, href }: { icon: LucideIcon; label: string; value: string; href?: string }) => {
+const ContactItem = ({
+  icon: Icon,
+  label,
+  value,
+  href,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  href?: string;
+}) => {
   return (
     <div className="contact-item">
       <div className="contact-item__icon">

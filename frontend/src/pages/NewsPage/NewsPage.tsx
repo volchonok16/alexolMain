@@ -7,8 +7,6 @@ import { useNews } from '../HomePage/hooks/useNews';
 import { NewsModal } from './components/NewsModal';
 import './NewsPage.scss';
 
-const PAGE_SIZE = 6;
-
 export const NewsPage = () => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
