@@ -243,7 +243,7 @@ const translations = {
       ru: 'Индивидуальный подход к каждому проекту. Разрабатываем архитектуру и решения под конкретные бизнес-задачи заказчика.',
       en: 'Individual approach to each project. We develop architecture and solutions for specific customer business tasks.',
     },
-    threshold: { ru: 'Минимальный бюджет проекта — от 500 тыс. ₽', en: 'Minimum project budget — from $5,000' },
+    threshold: { ru: 'Минимальный бюджет проекта — от 50 тыс. ₽', en: 'Minimum project budget — from $500' },
     button: { ru: 'Запросить коммерческое предложение', en: 'Request Commercial Offer' },
   },
   pricingModal: {
@@ -409,6 +409,8 @@ const translations = {
     budget: { ru: 'Бюджет проекта', en: 'Project Budget' },
     budgetPlaceholder: { ru: 'Выберите диапазон', en: 'Select range' },
     budgetOptions: {
+      option0: { ru: '50 - 200 тыс. ₽', en: '$500 - $2K' },
+      option05: { ru: '200 - 500 тыс. ₽', en: '$2K - $5K' },
       option1: { ru: '500 тыс. - 1 млн ₽', en: '$5K - $10K' },
       option2: { ru: '1 - 3 млн ₽', en: '$10K - $30K' },
       option3: { ru: '3 - 5 млн ₽', en: '$30K - $50K' },

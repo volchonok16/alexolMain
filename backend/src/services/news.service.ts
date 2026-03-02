@@ -9,8 +9,8 @@ export class NewsService {
     return this.newsRepo.create({ title: data.title, text: data.text, photo: photoUrl });
   }
 
-  async findAll() {
-    return this.newsRepo.findAll();
+  async findAll(page: number, limit: number) {
+    return this.newsRepo.findAll(page, limit);
   }
 
   async findById(id: string) {

@@ -5,8 +5,16 @@ export class NewsRepository {
     return prisma.news.create({ data });
   }
 
-  async findAll() {
-    return prisma.news.findMany({ orderBy: { creationDate: 'desc' } });
+  async findAll(page: number, limit: number) {
+    const [data, total] = await prisma.$transaction([
+      prisma.news.findMany({
+        orderBy: { creationDate: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.news.count(),
+    ]);
+    return { data, total };
   }
 
   async findById(id: string) {

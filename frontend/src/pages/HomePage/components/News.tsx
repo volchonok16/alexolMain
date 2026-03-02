@@ -8,7 +8,7 @@ import { motionConfig } from '@/shared/hooks/useMotionConfig';
 
 export const News = () => {
   const { t } = useTranslation();
-  const { news, isLoading, error } = useNews();
+  const { news, isLoading, error } = useNews(1);
 
   if (isLoading) {
     return (

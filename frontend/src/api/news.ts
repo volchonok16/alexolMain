@@ -51,9 +51,11 @@ const mapNewsArticle = (item: NewsApiResponse): NewsArticle => {
 };
 
 export const newsApi = {
-  getNews: async (): Promise<NewsArticle[]> => {
-    const { data } = await apiClient.get<{ data: NewsApiResponse[] }>('/news');
-    return data.data.map(mapNewsArticle);
+  getNews: async (page: number, limit: number): Promise<{ data: NewsArticle[]; total: number }> => {
+    const { data } = await apiClient.get<{ data: NewsApiResponse[]; total: number }>('/news', {
+      params: { page, limit },
+    });
+    return { data: data.data.map(mapNewsArticle), total: data.total };
   },
 
   getNewsById: async (id: string): Promise<NewsArticle> => {

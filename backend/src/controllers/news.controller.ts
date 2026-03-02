@@ -21,8 +21,10 @@ export class NewsController {
 
   getAll = async (req: AuthRequest, res: Response) => {
     try {
-      const news = await this.service.findAll();
-      res.json({ data: news });
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.max(1, parseInt(req.query.limit as string) || 10);
+      const result = await this.service.findAll(page, limit);
+      res.json({ data: result.data, total: result.total, page, limit });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

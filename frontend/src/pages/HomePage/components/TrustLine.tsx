@@ -10,7 +10,6 @@ export const TrustLine = () => {
     'KiteAi',
     'Agoric',
     'OneWish',
-    'Notamedia',
     'TheoriqAI',
     'Dubs',
     'Beggars',
