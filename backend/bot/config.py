@@ -5,6 +5,13 @@ load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
+# Куда слать заявки / обращения (не новости).
+# Приоритет: TELEGRAM_REQUESTS_CHAT_ID -> TELEGRAM_CHAT_ID -> TELEGRAM_CHANNEL_ID
+TELEGRAM_REQUESTS_CHAT_ID = (
+    os.getenv("TELEGRAM_REQUESTS_CHAT_ID")
+    or os.getenv("TELEGRAM_CHAT_ID")
+    or TELEGRAM_CHANNEL_ID
+)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # VK API настройки

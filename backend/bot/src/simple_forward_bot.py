@@ -39,7 +39,7 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
     await context.bot.send_message(
-        chat_id=config.TELEGRAM_CHANNEL_ID,
+        chat_id=config.TELEGRAM_REQUESTS_CHAT_ID,
         text=payload,
         parse_mode="HTML",
         disable_web_page_preview=True,
@@ -51,8 +51,8 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 def run_forward_bot() -> None:
     if not config.TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
-    if not config.TELEGRAM_CHANNEL_ID:
-        raise RuntimeError("TELEGRAM_CHANNEL_ID is not set")
+    if not config.TELEGRAM_REQUESTS_CHAT_ID:
+        raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
 
     application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 

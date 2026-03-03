@@ -171,7 +171,7 @@ async def handle_description(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text = format_request_message(req, user_mention=user_mention)
 
     await context.bot.send_message(
-        chat_id=config.TELEGRAM_CHANNEL_ID,
+        chat_id=config.TELEGRAM_REQUESTS_CHAT_ID,
         text=text,
         parse_mode="HTML",
         disable_web_page_preview=True,
@@ -194,8 +194,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 def run_requests_bot() -> None:
     if not config.TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
-    if not config.TELEGRAM_CHANNEL_ID:
-        raise RuntimeError("TELEGRAM_CHANNEL_ID is not set")
+    if not config.TELEGRAM_REQUESTS_CHAT_ID:
+        raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
 
     application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
