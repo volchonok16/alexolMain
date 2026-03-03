@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from src.post_generator import PostGenerator
 from src.telegram_bot import TelegramPublisher
@@ -56,6 +57,28 @@ def schedule_next_post():
     print(f"📅 Следующий пост запланирован на: {next_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
 
+async def publish_lead_post():
+    """Публикация промо-поста о поиске новых проектов."""
+    global generator
+    if not generator:
+        generator = PostGenerator()
+    await generator.generate_lead_and_publish()
+
+
+def schedule_lead_posts():
+    """Планируем промо-посты раз в 3 дня."""
+    global scheduler
+
+    scheduler.add_job(
+        publish_lead_post,
+        IntervalTrigger(days=3),
+        id="lead_generator",
+        name="Посты о поиске новых проектов",
+        replace_existing=True,
+    )
+    print("📅 Промо-посты о поиске проектов будут публиковаться каждые 3 дня")
+
+
 async def run_bot():
     global scheduler, generator
 
@@ -76,6 +99,7 @@ async def run_bot():
 
     scheduler.start()
     schedule_next_post()
+    schedule_lead_posts()
 
     try:
         while True:

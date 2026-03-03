@@ -652,3 +652,38 @@ class PostGenerator:
             status = "✅" if post["published"] else "⏳"
             print(f"  {status} {post['original_title'][:40]}... ({post['source_name']})")
 
+    async def generate_lead_and_publish(self) -> bool:
+        """Генерирует AI-пост о том, что Alexol ищет новые проекты, и публикует его в Telegram."""
+        print("\n" + "=" * 50)
+        print("🚀 Генерация промо-поста о поиске новых проектов")
+        print("=" * 50)
+
+        text = await self.ai_client.generate_lead_post()
+        if not text:
+            print("❌ Не удалось сгенерировать промо-пост")
+            return False
+
+        print(f"   📝 Исходный текст промо-поста: {len(text)} символов")
+        print(f"   📋 Первые 200 символов: {text[:200]}...")
+
+        processed_text, parse_mode = self.emoji_handler.prepare_for_telegram(text)
+
+        if not processed_text or len(processed_text.strip()) == 0:
+            print("   ⚠️ После обработки текст пустой, используем оригинальный")
+            processed_text = text
+            parse_mode = None
+
+        image = await self.image_handler.get_random_tech_image()
+
+        try:
+            print("📤 Публикация промо-поста в Telegram...")
+            success = await self.telegram.publish_post(processed_text, image, parse_mode)
+            print(f"   📊 Результат публикации промо-поста: {'✅ успешно' if success else '❌ ошибка'}")
+            return success
+        except Exception as e:
+            print(f"   ❌ Ошибка при публикации промо-поста: {e}")
+            import traceback
+
+            print(f"   Traceback: {traceback.format_exc()}")
+            return False
+
