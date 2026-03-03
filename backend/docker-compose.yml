@@ -52,11 +52,11 @@ services:
       retries: 3
       start_period: 40s
 
-  bot:
+  bot_news:
     build:
       context: ./bot
       dockerfile: Dockerfile
-    container_name: alexol_bot
+    container_name: alexol_bot_news
     restart: unless-stopped
     depends_on:
       backend:
@@ -66,6 +66,30 @@ services:
     environment:
       - TZ=${TIMEZONE:-Europe/Moscow}
       - TDATA_PATH=/app/tdata
+    command: ["python", "main.py", "--mode", "bot"]
+    networks:
+      - alexol_network
+    volumes:
+      - ./bot/data:/app/data
+      - ./bot/tdata:/app/tdata
+
+  bot_requests:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: alexol_bot_requests
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - TZ=${TIMEZONE:-Europe/Moscow}
+      - TDATA_PATH=/app/tdata
+    # Для этого сервиса используем режим приёма заявок (forward).
+    # Команда может быть переопределена, но по умолчанию берётся из Dockerfile.
+    command: ["python", "main.py", "--mode", "forward"]
     networks:
       - alexol_network
     volumes:
