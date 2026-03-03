@@ -25,14 +25,34 @@ export class ContactService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: this.chatId,
-        message_thread_id: 9454,
         text: message,
         parse_mode: 'HTML',
       }),
     });
 
+    const responseText = await response.text();
+    let responseJson: any;
+    try {
+      responseJson = JSON.parse(responseText);
+    } catch {
+      responseJson = null;
+    }
+
     if (!response.ok) {
-      throw new Error('Failed to send message to Telegram');
+      console.error('[Telegram] Failed to send message', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseJson || responseText,
+      });
+
+      const description =
+        responseJson && typeof responseJson.description === 'string'
+          ? responseJson.description
+          : undefined;
+
+      throw new Error(
+        description ? `Telegram error: ${description}` : 'Failed to send message to Telegram'
+      );
     }
 
     return { success: true };
