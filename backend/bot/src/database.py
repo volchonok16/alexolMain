@@ -187,7 +187,7 @@ def is_link_exists(link: str) -> bool:
 
 
 def save_generated_post(
-    parsed_post_id: int,
+    parsed_post_id: Optional[int],
     generated_text: str,
     image_path: Optional[str] = None,
 ) -> int:

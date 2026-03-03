@@ -683,6 +683,34 @@ class PostGenerator:
             print("📤 Публикация промо-поста в Telegram...")
             success = await self.telegram.publish_post(processed_text, image, parse_mode)
             print(f"   📊 Результат публикации промо-поста: {'✅ успешно' if success else '❌ ошибка'}")
+
+            if success:
+                # Сохраняем промо-пост в БД как сгенерированный (без привязки к parsed_post_id).
+                generated_id = db.save_generated_post(
+                    parsed_post_id=None,
+                    generated_text=text,
+                    image_path=None,
+                )
+                db.mark_post_published(generated_id)
+                print(f"   ✅ Промо-пост сохранён в БД и помечен как опубликованный (ID: {generated_id})")
+
+                # Дополнительно отправляем в backend как новость, чтобы он появился на сайте.
+                if self.backend_news and image:
+                    try:
+                        news_title = "Alexol открыт к новым проектам"
+                        news_text = processed_text.strip()
+                        print("\n📰 Публикация промо-поста в админ-панель (backend)...")
+                        backend_success = await self.backend_news.create_news(news_title, news_text, image)
+                        print(
+                            f"   📊 Результат публикации промо-новости: "
+                            f"{'✅ успешно' if backend_success else '❌ ошибка'}"
+                        )
+                    except Exception as be:
+                        print(f"   ❌ Ошибка публикации промо-новости в backend: {be}")
+                        import traceback
+
+                        print(f"   Traceback: {traceback.format_exc()}")
+
             return success
         except Exception as e:
             print(f"   ❌ Ошибка при публикации промо-поста: {e}")
