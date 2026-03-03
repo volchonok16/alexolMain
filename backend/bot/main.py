@@ -8,6 +8,7 @@ from apscheduler.triggers.date import DateTrigger
 
 from src.post_generator import PostGenerator
 from src.telegram_bot import TelegramPublisher
+from src.project_requests_bot import run_requests_bot
 
 import config
 import pytz
@@ -150,9 +151,10 @@ def main():
     parser = argparse.ArgumentParser(description="IT News Bot для Telegram")
     parser.add_argument(
         "--mode",
-        choices=["bot", "once", "preview", "test", "stats", "fetch"],
+        choices=["bot", "once", "preview", "test", "stats", "fetch", "requests"],
         default="bot",
-        help="Режим: bot, once, preview, test, stats (статистика), fetch (загрузить контент)",
+        help="Режим: bot, once, preview, test, stats (статистика), fetch (загрузить контент), "
+        "requests (приём заявок на проекты)",
     )
 
     args = parser.parse_args()
@@ -169,6 +171,8 @@ def main():
         asyncio.run(show_stats())
     elif args.mode == "fetch":
         asyncio.run(fetch_content())
+    elif args.mode == "requests":
+        run_requests_bot()
 
 
 if __name__ == "__main__":
