@@ -4,7 +4,7 @@ import { Calendar, ArrowRight } from 'lucide-react';
 import { ImageWithFallback, ErrorState } from '@/shared/ui';
 import { useNews } from '../hooks/useNews';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig } from '@/shared/hooks/useMotionConfig';
+import { motionConfig, motionDelay } from '@/shared/hooks/useMotionConfig';
 import type { NewsArticle } from '@/api/news';
 
 export const News = () => {
@@ -89,7 +89,7 @@ const ArticleCard = ({ article, index }: { article: NewsArticle; index: number }
       initial={motionConfig.initial}
       whileInView={motionConfig.animate}
       viewport={motionConfig.viewport}
-      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
+      transition={motionDelay(index * 0.1)}
       className="article-card"
     >
       <div className="article-card__image">

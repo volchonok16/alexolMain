@@ -12,7 +12,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig, motionConfigX } from '@/shared/hooks/useMotionConfig';
+import { motionConfig, motionConfigX, motionDelay } from '@/shared/hooks/useMotionConfig';
 
 interface Step {
   icon: LucideIcon;
@@ -79,7 +79,7 @@ const StepCard = ({ step, index }: { step: Step; index: number }) => {
       initial={motionConfig.initial}
       whileInView={motionConfig.animate}
       viewport={motionConfig.viewport}
-      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
+      transition={motionDelay(index * 0.1)}
       className="step-card"
     >
       <div className="step-card__content">

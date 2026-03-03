@@ -2,7 +2,7 @@ import type { Transition } from 'framer-motion';
 
 const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
 
-const mobileTransition: Transition = { duration: 0.4, ease: 'linear' };
+const mobileTransition: Transition = { duration: 0.5, ease: 'easeOut' };
 const desktopTransition: Transition = { duration: 0.8 };
 
 export const motionConfig = isMobile
@@ -33,3 +33,6 @@ export const motionConfigX = (direction: 'left' | 'right') =>
         transition: desktopTransition,
         viewport: { once: true },
       };
+
+export const motionDelay = (delay: number): Transition =>
+  isMobile ? mobileTransition : { ...desktopTransition, delay };
