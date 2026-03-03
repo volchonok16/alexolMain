@@ -673,7 +673,11 @@ class PostGenerator:
             processed_text = text
             parse_mode = None
 
-        image = await self.image_handler.get_random_tech_image()
+        # Сначала пробуем использовать фирменные баннеры (светлый/тёмный),
+        # если они есть в образе; если нет —fallback к случайному tech-бэкграунду.
+        image = await self.image_handler.get_brand_banner()
+        if not image:
+            image = await self.image_handler.get_random_tech_image()
 
         try:
             print("📤 Публикация промо-поста в Telegram...")

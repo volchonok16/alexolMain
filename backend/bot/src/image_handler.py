@@ -3,6 +3,7 @@ import random
 import urllib.parse
 import asyncio
 from typing import Optional
+import os
 
 import config
 
@@ -13,6 +14,12 @@ class ImageHandler:
         self.pexels_key = None
         self.picsum_base = "https://picsum.photos"
         self.loremflickr_base = "https://loremflickr.com"
+        # Локальные брендовые баннеры для промо-постов (светлый/тёмный варианты).
+        # Путь указан относительно корня приложения в контейнере (/app).
+        self.brand_banners = [
+            os.path.join("assets", "alexol-banner-light.png"),
+            os.path.join("assets", "alexol-banner-dark.png"),
+        ]
 
     async def download_image(self, url: str) -> Optional[bytes]:
         try:
@@ -119,6 +126,33 @@ class ImageHandler:
             return await self.get_loremflickr_image(keyword, width, height)
         except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
             return None
+
+    async def get_brand_banner(self) -> Optional[bytes]:
+        """Возвращает один из брендовых баннеров (светлый/тёмный), если файлы есть в образе."""
+        try:
+            # Перемешиваем порядок, чтобы баннеры чередовались.
+            candidates = self.brand_banners[:]
+            random.shuffle(candidates)
+
+            for path in candidates:
+                full_path = os.path.join(os.getcwd(), path)
+                if not os.path.exists(full_path):
+                    continue
+
+                try:
+                    with open(full_path, "rb") as f:
+                        data = f.read()
+                    if data and self.validate_image(data):
+                        print(f"   ✅ Использован брендовый баннер: {path}")
+                        return data
+                except Exception as e:
+                    print(f"   ⚠️ Ошибка чтения брендового баннера {path}: {type(e).__name__}")
+
+        except Exception as e:
+            print(f"   ⚠️ Ошибка при выборе брендового баннера: {type(e).__name__}")
+
+        # Если по какой-то причине не нашли/не прочитали — вернём None, вызывающий код сам подберёт fallback.
+        return None
 
     def _generate_query_variants(self, query: str) -> list[str]:
         variants = [query]
