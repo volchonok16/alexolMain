@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig, motionConfigX } from '@/shared/hooks/useMotionConfig';
+import { motionConfig, motionConfigX, motionDelay } from '@/shared/hooks/useMotionConfig';
 
 export const About = () => {
   const { t } = useTranslation();
@@ -46,7 +46,7 @@ const MetricCard = ({ number, label, delay }: { number: string; label: string; d
       initial={motionConfig.initial}
       whileInView={motionConfig.animate}
       viewport={motionConfig.viewport}
-      transition={{ ...motionConfig.transition, delay }}
+      transition={motionDelay(delay)}
       className="metric-card"
     >
       <div className="metric-card__number">{number}</div>

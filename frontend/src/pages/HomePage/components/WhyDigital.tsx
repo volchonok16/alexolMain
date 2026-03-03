@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { TrendingDown, Users, Eye, Shield, Zap, TrendingUp, LucideIcon } from 'lucide-react';
 import { ConsultationModal } from './modals';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig } from '@/shared/hooks/useMotionConfig';
+import { motionConfig, motionDelay } from '@/shared/hooks/useMotionConfig';
 
 interface Benefit {
   icon: LucideIcon;
@@ -76,7 +76,7 @@ const BenefitCard = ({ benefit, index }: { benefit: Benefit; index: number }) =>
       initial={motionConfig.initial}
       whileInView={motionConfig.animate}
       viewport={motionConfig.viewport}
-      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
+      transition={motionDelay(index * 0.1)}
       className="benefit-card"
     >
       <div className="benefit-card__content">

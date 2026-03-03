@@ -3,7 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { ImageWithFallback } from '@/shared/ui';
 import { useState } from 'react';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig } from '@/shared/hooks/useMotionConfig';
+import { motionConfig, motionDelay } from '@/shared/hooks/useMotionConfig';
 import project1 from './assets/project1.png';
 import project2 from './assets/project2.png';
 import project3 from './assets/project3.png';
@@ -193,7 +193,7 @@ const ProjectCard = ({ project, index }: { project: Project; index: number }) =>
       initial={motionConfig.initial}
       whileInView={motionConfig.animate}
       viewport={motionConfig.viewport}
-      transition={{ ...motionConfig.transition, delay: index * 0.1 }}
+      transition={motionDelay(index * 0.1)}
       className="project-card"
       onClick={handleClick}
       style={{ cursor: project.link ? 'pointer' : 'default' }}
