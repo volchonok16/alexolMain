@@ -25,7 +25,6 @@ export class ContactService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: this.chatId,
-        message_thread_id: 9454,
         text: message,
         parse_mode: 'HTML',
       }),
