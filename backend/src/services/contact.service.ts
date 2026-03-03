@@ -30,8 +30,29 @@ export class ContactService {
       }),
     });
 
+    const responseText = await response.text();
+    let responseJson: any;
+    try {
+      responseJson = JSON.parse(responseText);
+    } catch {
+      responseJson = null;
+    }
+
     if (!response.ok) {
-      throw new Error('Failed to send message to Telegram');
+      console.error('[Telegram] Failed to send message', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseJson || responseText,
+      });
+
+      const description =
+        responseJson && typeof responseJson.description === 'string'
+          ? responseJson.description
+          : undefined;
+
+      throw new Error(
+        description ? `Telegram error: ${description}` : 'Failed to send message to Telegram'
+      );
     }
 
     return { success: true };
