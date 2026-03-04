@@ -4,11 +4,12 @@ import { Calendar, ArrowRight } from 'lucide-react';
 import { ImageWithFallback, ErrorState } from '@/shared/ui';
 import { useNews } from '../hooks/useNews';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig, motionDelay } from '@/shared/hooks/useMotionConfig';
+import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
 import type { NewsArticle } from '@/api/news';
 
 export const News = () => {
   const { t } = useTranslation();
+  const { motionConfig } = useMotionConfig();
   const { news, isLoading, error } = useNews(1);
 
   if (isLoading) {
@@ -84,6 +85,7 @@ export const News = () => {
 };
 
 const ArticleCard = ({ article, index }: { article: NewsArticle; index: number }) => {
+  const { motionConfig, motionDelay } = useMotionConfig();
   return (
     <motion.article
       initial={motionConfig.initial}

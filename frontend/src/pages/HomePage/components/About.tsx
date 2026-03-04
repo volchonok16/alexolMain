@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig, motionConfigX, motionDelay } from '@/shared/hooks/useMotionConfig';
+import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
 
 export const About = () => {
   const { t } = useTranslation();
+  const { motionConfig, motionConfigX, motionDelay } = useMotionConfig();
 
   return (
     <section className="about">
@@ -41,6 +42,7 @@ export const About = () => {
 };
 
 const MetricCard = ({ number, label, delay }: { number: string; label: string; delay: number }) => {
+  const { motionConfig, motionDelay } = useMotionConfig();
   return (
     <motion.div
       initial={motionConfig.initial}

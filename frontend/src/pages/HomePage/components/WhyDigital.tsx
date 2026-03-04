@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { TrendingDown, Users, Eye, Shield, Zap, TrendingUp, LucideIcon } from 'lucide-react';
 import { ConsultationModal } from './modals';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig, motionDelay } from '@/shared/hooks/useMotionConfig';
+import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
 
 interface Benefit {
   icon: LucideIcon;
@@ -12,6 +12,7 @@ interface Benefit {
 
 export const WhyDigital = () => {
   const { t } = useTranslation();
+  const { motionConfig } = useMotionConfig();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const benefits: Benefit[] = [
@@ -69,6 +70,7 @@ export const WhyDigital = () => {
 
 const BenefitCard = ({ benefit, index }: { benefit: Benefit; index: number }) => {
   const { t } = useTranslation();
+  const { motionConfig, motionDelay } = useMotionConfig();
   const Icon = benefit.icon;
 
   return (

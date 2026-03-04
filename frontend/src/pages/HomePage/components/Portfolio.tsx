@@ -3,7 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { ImageWithFallback } from '@/shared/ui';
 import { useState } from 'react';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig, motionDelay } from '@/shared/hooks/useMotionConfig';
+import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
 import project1 from './assets/project1.png';
 import project2 from './assets/project2.png';
 import project3 from './assets/project3.png';
@@ -28,6 +28,7 @@ interface Project {
 
 export const Portfolio = () => {
   const { t } = useTranslation();
+  const { motionConfig } = useMotionConfig();
   const [activeCategory, setActiveCategory] = useState('All');
   const [showAll, setShowAll] = useState(false);
 
@@ -182,6 +183,7 @@ export const Portfolio = () => {
 
 const ProjectCard = ({ project, index }: { project: Project; index: number }) => {
   const { t } = useTranslation();
+  const { motionConfig, motionDelay } = useMotionConfig();
   const handleClick = () => {
     if (project.link) {
       window.open(project.link, '_blank', 'noopener,noreferrer');

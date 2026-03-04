@@ -12,7 +12,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig, motionConfigX, motionDelay } from '@/shared/hooks/useMotionConfig';
+import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
 
 interface Step {
   icon: LucideIcon;
@@ -21,6 +21,7 @@ interface Step {
 
 export const WorkSteps = () => {
   const { t } = useTranslation();
+  const { motionConfig } = useMotionConfig();
 
   const steps: Step[] = [
     { icon: MessageSquare, key: 'consultation' },
@@ -72,6 +73,7 @@ export const WorkSteps = () => {
 
 const StepCard = ({ step, index }: { step: Step; index: number }) => {
   const { t } = useTranslation();
+  const { motionConfig, motionDelay } = useMotionConfig();
   const Icon = step.icon;
 
   return (
@@ -100,6 +102,7 @@ const StepCard = ({ step, index }: { step: Step; index: number }) => {
 
 const StepTimeline = ({ step, index }: { step: Step; index: number }) => {
   const { t } = useTranslation();
+  const { motionConfigX } = useMotionConfig();
   const Icon = step.icon;
   const isEven = index % 2 === 0;
 

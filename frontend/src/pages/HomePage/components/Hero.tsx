@@ -7,6 +7,7 @@ import { ProjectModal } from './modals';
 import { useLanguage } from '../../../shared/contexts';
 import { useTranslation } from '../../../shared/utils/translations';
 import { useTypewriter } from '../../../shared/hooks/useTypewriter';
+import { useIsMobile } from '../../../shared/hooks/useIsMobile';
 
 interface Module {
   id: string;
@@ -19,8 +20,6 @@ interface Module {
   description: string;
   cta: string;
 }
-
-const isMobile = () => window.innerWidth < 1024;
 
 const getModules = (t: (path: string) => string): Module[] => {
   const isFullHD = window.innerWidth >= 1920;
@@ -68,6 +67,7 @@ const getModules = (t: (path: string) => string): Module[] => {
 export const Hero = () => {
   const { language } = useLanguage();
   const { t } = useTranslation();
+  const mobile = useIsMobile();
   const [modules, setModules] = useState<Module[]>(getModules(t));
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const [activeModule, setActiveModule] = useState<Module | null>(null);
@@ -75,7 +75,6 @@ export const Hero = () => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const lastUpdateRef = useRef(0);
-  const mobile = isMobile();
 
   useEffect(() => {
     setModules(getModules(t));
@@ -113,7 +112,9 @@ export const Hero = () => {
     return defaultTitle;
   }, [activeModule, defaultTitle]);
 
-  const displayTitle = mobile ? currentTitleText : useTypewriter(currentTitleText, 30);
+  const typewriterText = useTypewriter(currentTitleText, 30);
+  const displayTitle = typewriterText;
+  const showCursor = typewriterText.length < currentTitleText.length || !mobile;
   const currentCta = activeModule?.cta || defaultCta;
 
   const handleModuleClick = (module: Module) => {
@@ -180,12 +181,12 @@ export const Hero = () => {
         <div className="hero__inner">
           <h1 className="hero__title">
             {displayTitle}
-            {!mobile && <span className="hero__cursor">|</span>}
+            {showCursor && <span className="hero__cursor">|</span>}
           </h1>
 
           {!activeModule && (
             <motion.p
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
               className="hero__description"
@@ -195,7 +196,7 @@ export const Hero = () => {
           )}
 
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
             className="hero__actions"

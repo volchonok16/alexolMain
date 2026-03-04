@@ -24,7 +24,7 @@ export const TrustLine = () => {
 
       <div className="trust-line__wrapper">
         <div className="trust-line__scroll">
-          {[...clients, ...clients, ...clients].map((client, index) => (
+          {[...clients, ...clients].map((client, index) => (
             <div key={index} className="trust-line__item">
               <span className="trust-line__client">{client}</span>
             </div>

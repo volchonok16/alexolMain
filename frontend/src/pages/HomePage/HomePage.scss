@@ -9,7 +9,7 @@
   padding: 5rem 1.5rem;
 
   [data-theme="light"] & {
-    background: linear-gradient(135deg, #F8FAFC 0%, #E0F2FE 50%, #F8FAFC 100%);
+    background: transparent;
   }
 
   &__background {
@@ -173,7 +173,8 @@
     }
 
     [data-theme="light"] & {
-      color: #0F172A;
+      color: white;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     }
   }
 
@@ -2155,7 +2156,7 @@
   }
 
   100% {
-    transform: translateX(-33.333%);
+    transform: translateX(-50%);
   }
 }
 

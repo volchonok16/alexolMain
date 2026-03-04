@@ -5,10 +5,11 @@ import { useContactForm } from '../hooks/useContactForm';
 import { MeetingModal } from './modals';
 import { useTranslation } from '../../../shared/utils/translations';
 import { Select } from '../../../shared/ui/Select/Select';
-import { motionConfig, motionConfigX } from '@/shared/hooks/useMotionConfig';
+import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
 
 export const Contact = () => {
   const { t, getOptions } = useTranslation();
+  const { motionConfig, motionConfigX } = useMotionConfig();
   const { formData, handleChange, handleSubmit } = useContactForm();
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Layers, Network, Monitor, Palette, Link2, Clock, BarChart3, Headphones, LucideIcon } from 'lucide-react';
 import { PricingModal } from './modals/PricingModal';
 import { useTranslation } from '@/shared/utils/translations';
-import { motionConfig, motionDelay } from '@/shared/hooks/useMotionConfig';
+import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
 
 interface Factor {
   icon: LucideIcon;
@@ -12,6 +12,7 @@ interface Factor {
 
 export const Pricing = () => {
   const { t } = useTranslation();
+  const { motionConfig } = useMotionConfig();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const factors: Factor[] = [
@@ -71,6 +72,7 @@ export const Pricing = () => {
 
 const FactorCard = ({ factor, index }: { factor: Factor; index: number }) => {
   const { t } = useTranslation();
+  const { motionConfig, motionDelay } = useMotionConfig();
   const Icon = factor.icon;
 
   return (
