@@ -15,7 +15,7 @@ export const useTypewriter = (text: string, speed: number = 50) => {
       timeout = setTimeout(() => erase(current.slice(0, -1)), speed / 2);
     };
 
-    const type = (current: string, index: number) => {
+    const type = (_current: string, index: number) => {
       if (index >= text.length) return;
       setDisplayText(text.slice(0, index + 1));
       timeout = setTimeout(() => type(text.slice(0, index + 1), index + 1), speed);

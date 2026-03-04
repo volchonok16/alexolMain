@@ -4,7 +4,7 @@ import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
 
 export const About = () => {
   const { t } = useTranslation();
-  const { motionConfig, motionConfigX, motionDelay } = useMotionConfig();
+  const { motionConfigX } = useMotionConfig();
 
   return (
     <section className="about">
