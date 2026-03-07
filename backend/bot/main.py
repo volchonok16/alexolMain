@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 from src.post_generator import PostGenerator
 from src.telegram_bot import TelegramPublisher
@@ -66,12 +67,13 @@ async def publish_lead_post():
 
 
 def schedule_lead_posts():
-    """Планируем промо-посты раз в 3 дня."""
+    """Планируем промо-посты по чётным дням месяца."""
     global scheduler
 
     scheduler.add_job(
         publish_lead_post,
-        IntervalTrigger(days=3),
+        # Каждый чётный день месяца в config.POST_HOUR:00
+        CronTrigger(day="2-31/2", hour=config.POST_HOUR, minute=0),
         id="lead_generator",
         name="Посты о поиске новых проектов",
         replace_existing=True,
