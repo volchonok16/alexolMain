@@ -5,39 +5,97 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>Alexol</title>
-    <meta name="title" content="Alexol - Разработка ПО на заказ" />
-    <meta
-      name="description"
-      content="Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов."
-    />
-    <meta
-      name="keywords"
-      content="разработка ПО, веб-разработка, мобильные приложения, enterprise решения, аутсорсинг разработки, UI/UX дизайн, AI/ML интеграции"
-    />
+    <title>Alexol — Разработка ПО на заказ</title>
+    <meta name="title" content="Alexol — Разработка ПО на заказ" />
+    <meta name="description" content="Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов." />
+    <meta name="keywords" content="разработка ПО на заказ, веб-разработка, мобильные приложения, enterprise решения, аутсорсинг разработки, UI/UX дизайн, AI/ML интеграции, alexol, алексол" />
+    <meta name="author" content="Alexol" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 
+    <!-- Geo -->
+    <meta name="geo.region" content="RU" />
+    <meta name="geo.placename" content="Москва" />
+
+    <!-- Canonical & hreflang -->
+    <link rel="canonical" href="https://alexol.io/" />
+    <link rel="alternate" hreflang="ru" href="https://alexol.io/" />
+    <link rel="alternate" hreflang="en" href="https://alexol.io/" />
+    <link rel="alternate" hreflang="x-default" href="https://alexol.io/" />
+
+    <!-- Preconnect -->
+    <link rel="preconnect" href="https://api.alexol.io" />
+    <link rel="dns-prefetch" href="https://api.alexol.io" />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://alexol.io/" />
-    <meta property="og:title" content="Alexol - Разработка программного обеспечения на заказ" />
-    <meta
-      property="og:description"
-      content="Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов."
-    />
+    <meta property="og:title" content="Alexol — Разработка ПО на заказ" />
+    <meta property="og:description" content="Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов." />
     <meta property="og:image" content="https://alexol.io/og-image.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:site_name" content="Alexol" />
 
+    <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:url" content="https://alexol.io/" />
-    <meta property="twitter:title" content="Alexol - Разработка программного обеспечения на заказ" />
-    <meta
-      property="twitter:description"
-      content="Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов."
-    />
+    <meta property="twitter:title" content="Alexol — Разработка ПО на заказ" />
+    <meta property="twitter:description" content="Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов." />
     <meta property="twitter:image" content="https://alexol.io/og-image.svg" />
 
-    <meta name="robots" content="index, follow" />
-    <meta name="language" content="Russian" />
-    <meta name="author" content="Alexol" />
-    <link rel="canonical" href="https://alexol.io/" />
+    <!-- JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://alexol.io/#organization",
+          "name": "Alexol",
+          "alternateName": ["Алексол", "Alexol.io"],
+          "url": "https://alexol.io",
+          "logo": "https://alexol.io/favicon.svg",
+          "image": "https://alexol.io/og-image.svg",
+          "description": "Профессиональная разработка Web, Mobile, Enterprise решений",
+          "foundingDate": "2017",
+          "numberOfEmployees": { "@type": "QuantitativeValue", "value": 40 },
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Москва",
+            "addressCountry": "RU"
+          },
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "email": "support@alexol.io",
+            "telephone": "+7-909-517-55-57",
+            "contactType": "customer service",
+            "availableLanguage": ["Russian", "English"]
+          },
+          "sameAs": [
+            "https://t.me/alexolcorp"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://alexol.io/#website",
+          "url": "https://alexol.io",
+          "name": "Alexol",
+          "publisher": { "@id": "https://alexol.io/#organization" },
+          "inLanguage": ["ru", "en"]
+        },
+        {
+          "@type": "ProfessionalService",
+          "@id": "https://alexol.io/#service",
+          "name": "Alexol — Разработка ПО на заказ",
+          "provider": { "@id": "https://alexol.io/#organization" },
+          "serviceType": ["Разработка ПО", "Веб-разработка", "Мобильные приложения", "UI/UX дизайн", "AI/ML интеграции"],
+          "areaServed": ["RU", "Worldwide"]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

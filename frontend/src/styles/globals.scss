@@ -24,7 +24,7 @@ html {
   --color-secondary: #0369A1;
   --color-accent: #06B6D4;
   --color-text: #0F172A;
-  --color-text-muted: #64748B;
+  --color-text-muted: #475569;
   --color-bg: #F8FAFC;
   --color-bg-secondary: #F1F5F9;
 }
@@ -134,4 +134,10 @@ button {
 [data-framer-appear-id],
 .framer-motion-appear {
   will-change: opacity, transform;
+}
+
+// Keep compositor layer after animation ends
+[style*="opacity"][style*="transform"] {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
