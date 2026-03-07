@@ -1,7 +1,6 @@
-import { motion } from 'framer-motion';
 import { Code, Users, Palette, Brain, Wrench, Building2, LucideIcon } from 'lucide-react';
 import { useTranslation } from '../../../shared/utils/translations';
-import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
+import { Reveal } from '@/shared/ui/Reveal';
 
 interface Service {
   icon: LucideIcon;
@@ -10,7 +9,6 @@ interface Service {
 
 export const Services = () => {
   const { t } = useTranslation();
-  const { motionConfig } = useMotionConfig();
 
   const services: Service[] = [
     { icon: Code, key: 'development' },
@@ -24,16 +22,10 @@ export const Services = () => {
   return (
     <section className="services">
       <div className="services__container">
-        <motion.div
-          initial={motionConfig.initial}
-          whileInView={motionConfig.animate}
-          viewport={motionConfig.viewport}
-          transition={motionConfig.transition}
-          className="services__header"
-        >
+        <Reveal className="services__header">
           <h2 className="services__title">{t('services.title')}</h2>
           <div className="services__divider" />
-        </motion.div>
+        </Reveal>
 
         <div className="services__grid">
           {services.map((service, index) => (
@@ -47,27 +39,18 @@ export const Services = () => {
 
 const ServiceCard = ({ service, index }: { service: Service; index: number }) => {
   const { t } = useTranslation();
-  const { motionConfig, motionDelay } = useMotionConfig();
   const Icon = service.icon;
 
   return (
-    <motion.div
-      initial={motionConfig.initial}
-      whileInView={motionConfig.animate}
-      viewport={motionConfig.viewport}
-      transition={motionDelay(index * 0.1)}
-      className="service-card"
-    >
+    <Reveal delay={index * 0.1} className="service-card">
       <div className="service-card__glow" />
-
       <div className="service-card__content">
         <div className="service-card__icon">
           <Icon />
         </div>
-
         <h3 className="service-card__title">{t(`services.items.${service.key}.title`)}</h3>
         <p className="service-card__description">{t(`services.items.${service.key}.description`)}</p>
       </div>
-    </motion.div>
+    </Reveal>
   );
 };

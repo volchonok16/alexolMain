@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { TrendingDown, Users, Eye, Shield, Zap, TrendingUp, LucideIcon } from 'lucide-react';
 import { ConsultationModal } from './modals';
 import { useTranslation } from '@/shared/utils/translations';
-import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
+import { Reveal } from '@/shared/ui/Reveal';
 
 interface Benefit {
   icon: LucideIcon;
@@ -12,7 +11,6 @@ interface Benefit {
 
 export const WhyDigital = () => {
   const { t } = useTranslation();
-  const { motionConfig } = useMotionConfig();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const benefits: Benefit[] = [
@@ -32,17 +30,11 @@ export const WhyDigital = () => {
       </div>
 
       <div className="why-digital__container">
-        <motion.div
-          initial={motionConfig.initial}
-          whileInView={motionConfig.animate}
-          viewport={motionConfig.viewport}
-          transition={motionConfig.transition}
-          className="why-digital__header"
-        >
+        <Reveal className="why-digital__header">
           <h2 className="why-digital__title">
             {t('whyDigital.title')} <span className="why-digital__highlight">{t('whyDigital.titleHighlight')}</span>
           </h2>
-        </motion.div>
+        </Reveal>
 
         <div className="why-digital__grid">
           {benefits.map((benefit, index) => (
@@ -50,17 +42,11 @@ export const WhyDigital = () => {
           ))}
         </div>
 
-        <motion.div
-          initial={motionConfig.initial}
-          whileInView={motionConfig.animate}
-          viewport={motionConfig.viewport}
-          transition={motionConfig.transition}
-          className="why-digital__cta"
-        >
+        <Reveal className="why-digital__cta">
           <button onClick={() => setIsModalOpen(true)} className="why-digital__button">
             {t('whyDigital.button')}
           </button>
-        </motion.div>
+        </Reveal>
       </div>
 
       <ConsultationModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
@@ -70,23 +56,16 @@ export const WhyDigital = () => {
 
 const BenefitCard = ({ benefit, index }: { benefit: Benefit; index: number }) => {
   const { t } = useTranslation();
-  const { motionConfig, motionDelay } = useMotionConfig();
   const Icon = benefit.icon;
 
   return (
-    <motion.div
-      initial={motionConfig.initial}
-      whileInView={motionConfig.animate}
-      viewport={motionConfig.viewport}
-      transition={motionDelay(index * 0.1)}
-      className="benefit-card"
-    >
+    <Reveal delay={index * 0.1} className="benefit-card">
       <div className="benefit-card__content">
         <div className="benefit-card__icon">
           <Icon />
         </div>
         <p className="benefit-card__title">{t(`whyDigital.benefits.${benefit.key}`)}</p>
       </div>
-    </motion.div>
+    </Reveal>
   );
 };

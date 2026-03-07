@@ -136,8 +136,20 @@ button {
   will-change: opacity, transform;
 }
 
-// Keep compositor layer after animation ends
-[style*="opacity"][style*="transform"] {
-  backface-visibility: hidden;
+// Fix iOS Safari repaint after animation
+[data-projection-id],
+.metric-card,
+.service-card,
+.project-card,
+.benefit-card,
+.factor-card,
+.step-card,
+.article-card,
+.step-timeline,
+.about__grid > *,
+.contact__grid > * {
   -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }

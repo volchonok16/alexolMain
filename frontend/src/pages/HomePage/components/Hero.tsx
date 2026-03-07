@@ -6,8 +6,8 @@ import { InteractiveGrid } from './InteractiveGrid';
 import { ProjectModal } from './modals';
 import { useLanguage } from '../../../shared/contexts';
 import { useTranslation } from '../../../shared/utils/translations';
-import { useTypewriter } from '../../../shared/hooks/useTypewriter';
 import { useIsMobile } from '../../../shared/hooks/useIsMobile';
+import { useTypewriter } from '../../../shared/hooks/useTypewriter';
 
 interface Module {
   id: string;
@@ -28,32 +28,11 @@ const getModules = (t: (path: string) => string): Module[] => {
     { id: 'web', name: 'Web', icon: '🌐', x: isFullHD ? 75 : 75, y: 20, connections: ['backend', 'frontend'] },
     { id: 'enterprise', name: 'Enterprise', icon: '🏢', x: 85, y: 45, connections: ['backend', 'frontend'] },
     { id: 'ecommerce', name: 'E-commerce', icon: '🛒', x: 90, y: 70, connections: ['backend', 'frontend'] },
-    {
-      id: 'mobile',
-      name: 'Mobile',
-      icon: '📱',
-      x: isFullHD ? 15 : 70,
-      y: isFullHD ? 70 : 85,
-      connections: ['backend', 'frontend'],
-    },
+    { id: 'mobile', name: 'Mobile', icon: '📱', x: isFullHD ? 15 : 70, y: isFullHD ? 70 : 85, connections: ['backend', 'frontend'] },
     { id: 'ai', name: 'AI/ML', icon: '🤖', x: isFullHD ? 10 : 60, y: isFullHD ? 30 : 15, connections: ['backend'] },
     { id: 'cloud', name: 'Cloud', icon: '☁️', x: 85, y: 15, connections: ['backend'] },
-    {
-      id: 'frontend',
-      name: 'Frontend',
-      icon: '⚛️',
-      x: isFullHD ? 22 : 65,
-      y: isFullHD ? 50 : 55,
-      connections: ['web', 'enterprise', 'ecommerce', 'mobile'],
-    },
-    {
-      id: 'backend',
-      name: 'Backend',
-      icon: '⚙️',
-      x: 78,
-      y: 60,
-      connections: ['web', 'enterprise', 'ecommerce', 'mobile', 'ai', 'cloud'],
-    },
+    { id: 'frontend', name: 'Frontend', icon: '⚛️', x: isFullHD ? 22 : 65, y: isFullHD ? 50 : 55, connections: ['web', 'enterprise', 'ecommerce', 'mobile'] },
+    { id: 'backend', name: 'Backend', icon: '⚙️', x: 78, y: 60, connections: ['web', 'enterprise', 'ecommerce', 'mobile', 'ai', 'cloud'] },
   ];
 
   return moduleData.map(m => ({
@@ -92,13 +71,9 @@ export const Hero = () => {
     if (mobile) return;
     const now = Date.now();
     if (now - lastUpdateRef.current < 50) return;
-
     lastUpdateRef.current = now;
     const rect = e.currentTarget.getBoundingClientRect();
-    setMousePos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   }, [mobile]);
 
   const defaultTitle = t('hero.title');
@@ -106,15 +81,12 @@ export const Hero = () => {
   const defaultCta = t('hero.cta');
 
   const currentTitleText = useMemo(() => {
-    if (activeModule) {
-      return `${activeModule.name} → ${activeModule.description}`;
-    }
+    if (activeModule) return `${activeModule.name} → ${activeModule.description}`;
     return defaultTitle;
   }, [activeModule, defaultTitle]);
 
-  const typewriterText = useTypewriter(currentTitleText, 30);
-  const displayTitle = typewriterText;
-  const showCursor = typewriterText.length < currentTitleText.length || !mobile;
+  const displayTitle = useTypewriter(currentTitleText);
+
   const currentCta = activeModule?.cta || defaultCta;
 
   const handleModuleClick = (module: Module) => {
@@ -140,7 +112,6 @@ export const Hero = () => {
                 const from = modules.find(m => m.id === hoveredModule);
                 const to = modules.find(m => m.id === connId);
                 if (!from || !to) return null;
-
                 return (
                   <motion.line
                     key={`${hoveredModule}-${connId}`}
@@ -179,28 +150,13 @@ export const Hero = () => {
 
       <div className="hero__content">
         <div className="hero__inner">
-          <h1 className="hero__title">
-            {displayTitle}
-            {showCursor && <span className="hero__cursor">|</span>}
-          </h1>
+          <h1 className="hero__title">{displayTitle}</h1>
 
           {!activeModule && (
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="hero__description"
-            >
-              {defaultDescription}
-            </motion.p>
+            <p className="hero__description">{defaultDescription}</p>
           )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="hero__actions"
-          >
+          <div className="hero__actions">
             <div className="hero__email-wrapper">
               <input
                 type="email"
@@ -210,12 +166,11 @@ export const Hero = () => {
                 className="hero__email-input"
               />
             </div>
-
             <button onClick={() => setIsModalOpen(true)} className="hero__button hero__button--primary">
               {currentCta}
               <ArrowRight />
             </button>
-          </motion.div>
+          </div>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
+import { useRef } from 'react';
 import {
   MessageSquare,
   FileSearch,
@@ -12,7 +13,8 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from '@/shared/utils/translations';
-import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
+import { Reveal } from '@/shared/ui/Reveal';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 
 interface Step {
   icon: LucideIcon;
@@ -21,7 +23,6 @@ interface Step {
 
 export const WorkSteps = () => {
   const { t } = useTranslation();
-  const { motionConfig } = useMotionConfig();
 
   const steps: Step[] = [
     { icon: MessageSquare, key: 'consultation' },
@@ -38,28 +39,19 @@ export const WorkSteps = () => {
   return (
     <section className="work-steps">
       <div className="work-steps__container">
-        <motion.div
-          initial={motionConfig.initial}
-          whileInView={motionConfig.animate}
-          viewport={motionConfig.viewport}
-          transition={motionConfig.transition}
-          className="work-steps__header"
-        >
+        <Reveal className="work-steps__header">
           <h2 className="work-steps__title">{t('workSteps.title')}</h2>
           <p className="work-steps__description">{t('workSteps.description')}</p>
-        </motion.div>
+        </Reveal>
 
-        {/* Мобильная версия - карточки */}
         <div className="work-steps__grid work-steps__grid--mobile">
           {steps.map((step, index) => (
             <StepCard key={index} step={step} index={index} />
           ))}
         </div>
 
-        {/* Десктоп версия - timeline */}
         <div className="work-steps__timeline">
           <div className="work-steps__line" />
-
           <div className="work-steps__timeline-items">
             {steps.map((step, index) => (
               <StepTimeline key={index} step={step} index={index} />
@@ -73,17 +65,10 @@ export const WorkSteps = () => {
 
 const StepCard = ({ step, index }: { step: Step; index: number }) => {
   const { t } = useTranslation();
-  const { motionConfig, motionDelay } = useMotionConfig();
   const Icon = step.icon;
 
   return (
-    <motion.div
-      initial={motionConfig.initial}
-      whileInView={motionConfig.animate}
-      viewport={motionConfig.viewport}
-      transition={motionDelay(index * 0.1)}
-      className="step-card"
-    >
+    <Reveal delay={index * 0.1} className="step-card">
       <div className="step-card__content">
         <div className="step-card__icon">
           <Icon />
@@ -96,22 +81,24 @@ const StepCard = ({ step, index }: { step: Step; index: number }) => {
           <p className="step-card__description">{t(`workSteps.steps.${step.key}.description`)}</p>
         </div>
       </div>
-    </motion.div>
+    </Reveal>
   );
 };
 
 const StepTimeline = ({ step, index }: { step: Step; index: number }) => {
   const { t } = useTranslation();
-  const { motionConfigX } = useMotionConfig();
+  const isTabletOrMobile = useIsMobile(1280);
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, amount: 0.1 });
   const Icon = step.icon;
   const isEven = index % 2 === 0;
 
   return (
     <motion.div
-      initial={motionConfigX(isEven ? 'left' : 'right').initial}
-      whileInView={motionConfigX(isEven ? 'left' : 'right').animate}
-      viewport={motionConfigX(isEven ? 'left' : 'right').viewport}
-      transition={motionConfigX(isEven ? 'left' : 'right').transition}
+      ref={ref}
+      initial={{ opacity: 0, x: isTabletOrMobile ? 0 : (isEven ? -30 : 30) }}
+      animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: isTabletOrMobile ? 0 : (isEven ? -30 : 30) }}
+      transition={{ duration: 0.8 }}
       className={`step-timeline ${isEven ? 'step-timeline--left' : 'step-timeline--right'}`}
     >
       <div className="step-timeline__content">

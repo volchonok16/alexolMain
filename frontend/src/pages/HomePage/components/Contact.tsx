@@ -1,40 +1,26 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Mail, Phone, Clock, LucideIcon } from 'lucide-react';
 import { useContactForm } from '../hooks/useContactForm';
 import { MeetingModal } from './modals';
 import { useTranslation } from '../../../shared/utils/translations';
 import { Select } from '../../../shared/ui/Select/Select';
-import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
+import { Reveal } from '@/shared/ui/Reveal';
 
 export const Contact = () => {
   const { t, getOptions } = useTranslation();
-  const { motionConfig, motionConfigX } = useMotionConfig();
   const { formData, handleChange, handleSubmit } = useContactForm();
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
   return (
     <section className="contact">
       <div className="contact__container">
-        <motion.div
-          initial={motionConfig.initial}
-          whileInView={motionConfig.animate}
-          viewport={motionConfig.viewport}
-          transition={motionConfig.transition}
-          className="contact__header"
-        >
+        <Reveal className="contact__header">
           <h2 className="contact__title">{t('contact.title')}</h2>
           <p className="contact__description">{t('contact.description')}</p>
-        </motion.div>
+        </Reveal>
 
         <div className="contact__grid">
-          <motion.div
-            initial={motionConfigX('left').initial}
-            whileInView={motionConfigX('left').animate}
-            viewport={motionConfigX('left').viewport}
-            transition={motionConfigX('left').transition}
-            className="contact__form-wrapper"
-          >
+          <Reveal className="contact__form-wrapper">
             <div className="contact__form">
               <form onSubmit={handleSubmit} className="contact__form-fields">
                 <div className="contact__field">
@@ -117,18 +103,11 @@ export const Contact = () => {
                 </button>
               </form>
             </div>
-          </motion.div>
+          </Reveal>
 
-          <motion.div
-            initial={motionConfigX('right').initial}
-            whileInView={motionConfigX('right').animate}
-            viewport={motionConfigX('right').viewport}
-            transition={motionConfigX('right').transition}
-            className="contact__info"
-          >
+          <Reveal delay={0.1} className="contact__info">
             <div className="contact__info-card">
               <h3 className="contact__info-title">{t('contact.infoTitle')}</h3>
-
               <div className="contact__info-items">
                 <ContactItem
                   icon={Mail}
@@ -153,7 +132,7 @@ export const Contact = () => {
                 {t('contact.meetingButton')}
               </button>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </div>
 
@@ -172,22 +151,20 @@ const ContactItem = ({
   label: string;
   value: string;
   href?: string;
-}) => {
-  return (
-    <div className="contact-item">
-      <div className="contact-item__icon">
-        <Icon />
-      </div>
-      <div className="contact-item__content">
-        <div className="contact-item__label">{label}</div>
-        {href ? (
-          <a href={href} className="contact-item__value contact-item__value--link">
-            {value}
-          </a>
-        ) : (
-          <div className="contact-item__value">{value}</div>
-        )}
-      </div>
+}) => (
+  <div className="contact-item">
+    <div className="contact-item__icon">
+      <Icon />
     </div>
-  );
-};
+    <div className="contact-item__content">
+      <div className="contact-item__label">{label}</div>
+      {href ? (
+        <a href={href} className="contact-item__value contact-item__value--link">
+          {value}
+        </a>
+      ) : (
+        <div className="contact-item__value">{value}</div>
+      )}
+    </div>
+  </div>
+);

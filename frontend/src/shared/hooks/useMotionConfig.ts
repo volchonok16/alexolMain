@@ -18,8 +18,8 @@ export const useMotionConfig = () => {
     },
 
     motionConfigX: (direction: 'left' | 'right') => ({
-      initial: { opacity: 0, x: isMobile ? 0 : (direction === 'left' ? -30 : 30), y: 0 },
-      animate: { opacity: 1, x: 0, y: 0 },
+      initial: { opacity: 0, x: isMobile ? 0 : (direction === 'left' ? -30 : 30) },
+      animate: { opacity: 1, x: 0 },
       transition: isMobile ? mobileTransition : desktopTransition,
       viewport,
     }),

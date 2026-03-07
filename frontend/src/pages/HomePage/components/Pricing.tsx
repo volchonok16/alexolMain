@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Layers, Network, Monitor, Palette, Link2, Clock, BarChart3, Headphones, LucideIcon } from 'lucide-react';
 import { PricingModal } from './modals/PricingModal';
 import { useTranslation } from '@/shared/utils/translations';
-import { useMotionConfig } from '@/shared/hooks/useMotionConfig';
+import { Reveal } from '@/shared/ui/Reveal';
 
 interface Factor {
   icon: LucideIcon;
@@ -12,7 +11,6 @@ interface Factor {
 
 export const Pricing = () => {
   const { t } = useTranslation();
-  const { motionConfig } = useMotionConfig();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const factors: Factor[] = [
@@ -29,16 +27,10 @@ export const Pricing = () => {
   return (
     <section className="pricing">
       <div className="pricing__container">
-        <motion.div
-          initial={motionConfig.initial}
-          whileInView={motionConfig.animate}
-          viewport={motionConfig.viewport}
-          transition={motionConfig.transition}
-          className="pricing__header"
-        >
+        <Reveal className="pricing__header">
           <h2 className="pricing__title">{t('pricing.title')}</h2>
           <p className="pricing__description">{t('pricing.description')}</p>
-        </motion.div>
+        </Reveal>
 
         <div className="pricing__grid">
           {factors.map((factor, index) => (
@@ -46,13 +38,7 @@ export const Pricing = () => {
           ))}
         </div>
 
-        <motion.div
-          initial={motionConfig.initial}
-          whileInView={motionConfig.animate}
-          viewport={motionConfig.viewport}
-          transition={motionConfig.transition}
-          className="pricing__summary"
-        >
+        <Reveal className="pricing__summary">
           <div className="pricing__summary-content">
             <p className="pricing__summary-text">{t('pricing.summary')}</p>
             <div className="pricing__threshold">
@@ -62,7 +48,7 @@ export const Pricing = () => {
               {t('pricing.button')}
             </button>
           </div>
-        </motion.div>
+        </Reveal>
       </div>
 
       <PricingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
@@ -72,21 +58,14 @@ export const Pricing = () => {
 
 const FactorCard = ({ factor, index }: { factor: Factor; index: number }) => {
   const { t } = useTranslation();
-  const { motionConfig, motionDelay } = useMotionConfig();
   const Icon = factor.icon;
 
   return (
-    <motion.div
-      initial={motionConfig.initial}
-      whileInView={motionConfig.animate}
-      viewport={motionConfig.viewport}
-      transition={motionDelay(index * 0.05)}
-      className="factor-card"
-    >
+    <Reveal delay={index * 0.05} className="factor-card">
       <div className="factor-card__icon">
         <Icon />
       </div>
       <p className="factor-card__label">{t(`pricing.factors.${factor.key}`)}</p>
-    </motion.div>
+    </Reveal>
   );
 };
