@@ -179,6 +179,11 @@ class PostGenerator:
                 db.mark_parsed_post_used(post["id"])
                 continue
 
+            if not post.get("image_url"):
+                print(f"⚠️ Пост без изображения, пропускаем: {post['original_title'][:50]}...")
+                db.mark_parsed_post_used(post["id"])
+                continue
+
             filtered.append(post)
 
         return filtered
@@ -435,62 +440,52 @@ class PostGenerator:
 
             print(f"✅ AI выбрал пост: {selected_post['original_title'][:60]}...")
             print(f"   📏 Длина текста: {len(rewritten_text)} символов")
-            break
 
-        print("🖼️ Генерация запроса для изображения на основе сгенерированного поста...")
-        image_query = await self.ai_client.generate_image_prompt(
-            selected_post["original_title"], selected_post["original_text"][:300], generated_text=rewritten_text
-        )
+            print("🖼️ Проверяем наличие исходного изображения для выбранного поста...")
+            image_url = selected_post.get("image_url")
 
-        if image_query:
-            print(f"   📝 Сгенерированный запрос: '{image_query}'")
-        else:
-            print("   ⚠️ Не удалось сгенерировать запрос, используем умный fallback")
-            full_text = (selected_post["original_title"] + " " + rewritten_text).lower()
+            if not image_url:
+                print("   ⚠️ У выбранного поста нет изображения (image_url пустой), пробуем другой пост...")
+                used_post_ids.add(selected_post["id"])
+                db.mark_parsed_post_used(selected_post["id"])
+                if attempt < max_attempts:
+                    print(f"   🔄 Попытка {attempt + 1}/{max_attempts} с другими постами...")
+                    continue
+                print("   ❌ Достигнут лимит попыток без поста с изображением")
+                return None, None, None, None
 
-            if any(word in full_text for word in ["gpu", "tpu", "чип", "процессор", "nvidia", "amd", "intel"]):
-                image_query = "computer processor chip"
-            elif any(word in full_text for word in ["ai", "нейросет", "chatgpt", "gpt", "искусственный интеллект"]):
-                image_query = "artificial intelligence"
-            elif any(word in full_text for word in ["wine", "windows", "linux", "unix", "операцион"]):
-                image_query = "computer software"
-            elif any(word in full_text for word in ["код", "программ", "python", "javascript", "разработ"]):
-                image_query = "programming code"
-            elif any(word in full_text for word in ["хакер", "атака", "безопасн", "защит", "уязвим"]):
-                image_query = "cybersecurity"
-            elif any(word in full_text for word in ["облак", "сервер", "aws", "azure", "дата-центр"]):
-                image_query = "server datacenter"
-            elif any(word in full_text for word in ["смартфон", "телефон", "iphone", "samsung", "гаджет"]):
-                image_query = "smartphone"
-            elif any(word in full_text for word in ["блокчейн", "крипто", "биткоин", "ethereum"]):
-                image_query = "blockchain"
-            elif any(word in full_text for word in ["робот", "дрон", "беспилотник"]):
-                image_query = "robot technology"
-            else:
-                image_query = "computer technology"
+            image_data = await self.image_handler.get_image_for_article(image_url)
 
-            print(f"   🎯 Подобрано по ключевым словам: '{image_query}'")
+            if not image_data or not self.image_handler.validate_image(image_data):
+                print("   ⚠️ Не удалось получить валидное изображение для поста, пробуем другой...")
+                used_post_ids.add(selected_post["id"])
+                db.mark_parsed_post_used(selected_post["id"])
+                if attempt < max_attempts:
+                    print(f"   🔄 Попытка {attempt + 1}/{max_attempts} с другими постами...")
+                    continue
+                print("   ❌ Достигнут лимит попыток без валидного изображения")
+                return None, None, None, None
 
-        image_data = await self.image_handler.get_image_for_article(selected_post.get("image_url"), image_query)
+            db.mark_parsed_post_used(selected_post["id"])
 
-        if not image_data or not self.image_handler.validate_image(image_data):
-            print("⚠️ Изображение не получено, используем случайное...")
-            image_data = await self.image_handler.get_random_tech_image()
+            generated_id = db.save_generated_post(
+                parsed_post_id=selected_post["id"],
+                generated_text=rewritten_text,
+                image_path=None,
+            )
 
-        db.mark_parsed_post_used(selected_post["id"])
+            return selected_post["original_title"], rewritten_text, image_data, generated_id
 
-        generated_id = db.save_generated_post(
-            parsed_post_id=selected_post["id"],
-            generated_text=rewritten_text,
-            image_path=None,
-        )
-
-        return selected_post["original_title"], rewritten_text, image_data, generated_id
+        return None, None, None, None
 
     async def generate_and_publish(self) -> bool:
         title, text, image, generated_id = await self.generate_post()
 
         if not text:
+            return False
+
+        if not image:
+            print("   ⚠️ Не удалось получить изображение для поста, публикация отменена")
             return False
 
         if generated_id:

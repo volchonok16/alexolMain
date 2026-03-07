@@ -199,54 +199,11 @@ class ImageHandler:
                     return image
                 else:
                     print("   ❌ Изображение из статьи не валидно или не загрузилось")
-
-            if search_query:
-                print(f"   🔍 Поиск изображения по запросу: '{search_query}'")
-                query_variants = self._generate_query_variants(search_query)
-                print(f"   📋 Варианты запросов ({len(query_variants)}): {query_variants}")
-
-                for variant in query_variants[:2]:
-                    try:
-                        image = await self.get_pixabay_image(variant)
-                        if image and self.validate_image(image):
-                            print(f"   ✅ Найдено через Pixabay: '{variant}'")
-                            return image
-                    except (asyncio.CancelledError, asyncio.TimeoutError):
-                        continue
-                    except Exception:
-                        continue
-
-                for variant in query_variants[:2]:
-                    try:
-                        image = await self.get_unsplash_image(variant)
-                        if image and self.validate_image(image):
-                            print(f"   ✅ Найдено через Unsplash: '{variant}'")
-                            return image
-                    except (asyncio.CancelledError, asyncio.TimeoutError):
-                        continue
-                    except Exception:
-                        continue
-
-                try:
-                    image = await self.get_loremflickr_image(search_query)
-                    if image and self.validate_image(image):
-                        print(f"   ✅ Найдено через LoremFlickr: '{search_query}'")
-                        return image
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
-                except Exception:
-                    pass
             else:
-                print("   ⚠️ Запрос для поиска не указан")
+                print("   ⚠️ У статьи нет исходного изображения (image_url отсутствует)")
 
-            print("   ⚠️ Не найдено по запросу, используем случайное IT-изображение")
-            fallback_keyword = random.choice(["technology", "computer chip", "programming", "server"])
-            print(f"   🎲 Fallback: '{fallback_keyword}'")
-            try:
-                return await self.get_unsplash_image(fallback_keyword)
-            except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
-                print("   ❌ Fallback также не сработал, возвращаем None")
-                return None
+            print("   ⚠️ Для этой статьи не найдено подходящее изображение, возвращаем None")
+            return None
         except asyncio.CancelledError:
             print("   ⚠️ Поиск изображения прерван")
             return None
