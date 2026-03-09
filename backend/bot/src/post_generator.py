@@ -533,6 +533,12 @@ class PostGenerator:
 
         processed_text, parse_mode = self.emoji_handler.prepare_for_telegram(text)
 
+        # Добавляем подпись с ссылкой на канал (если настроена).
+        if getattr(config, "SUBSCRIBE_FOOTER", ""):
+            footer = config.SUBSCRIBE_FOOTER.strip()
+            if footer:
+                processed_text = f"{processed_text.rstrip()}\n\n{footer}"
+
         print(f"   📝 Длина обработанного текста: {len(processed_text)} символов")
         if parse_mode:
             print("   🎨 Используются кастомные эмодзи (HTML)")
@@ -580,6 +586,10 @@ class PostGenerator:
             print("\n📤 Публикация в ВКонтакте...")
             try:
                 vk_text = self.emoji_handler.prepare_for_vk(text)
+                if getattr(config, "SUBSCRIBE_FOOTER", ""):
+                    footer = config.SUBSCRIBE_FOOTER.strip()
+                    if footer:
+                        vk_text = f"{vk_text.rstrip()}\n\n{footer}"
                 print(f"   📝 Текст для VK: {len(vk_text)} символов")
                 print(f"   📋 Первые 150 символов VK: {vk_text[:150]}...")
                 vk_success = await self.vk.publish_post(vk_text, image)
@@ -597,7 +607,12 @@ class PostGenerator:
         if self.instagram and self.instagram.enabled:
             print("\n📸 Публикация в Instagram...")
             try:
-                instagram_success = await self.instagram.publish_post(text, image)
+                insta_text = text
+                if getattr(config, "SUBSCRIBE_FOOTER", ""):
+                    footer = config.SUBSCRIBE_FOOTER.strip()
+                    if footer:
+                        insta_text = f"{insta_text.rstrip()}\n\n{footer}"
+                instagram_success = await self.instagram.publish_post(insta_text, image)
                 print(f"   📊 Результат публикации в Instagram: {'✅ успешно' if instagram_success else '❌ ошибка'}")
             except Exception as e:
                 print(f"   ❌ Исключение при публикации в Instagram: {e}")
