@@ -217,8 +217,18 @@ class PostGenerator:
         it_keywords_found = sum(1 for keyword in config.IT_KEYWORDS if keyword in full_text)
         score += it_keywords_found * 3
 
-        fintech_keywords_found = sum(1 for keyword in getattr(config, "FINTECH_KEYWORDS", []) if keyword in full_text)
-        score += fintech_keywords_found * 5
+        fintech_keywords_found = sum(
+            1 for keyword in getattr(config, "FINTECH_KEYWORDS", []) if keyword in full_text
+        )
+        score += fintech_keywords_found * 7
+
+        # Лёгкий перекос в сторону финтеха:
+        has_it = it_keywords_found > 0
+        has_fintech = fintech_keywords_found > 0
+        if has_fintech and not has_it:
+            score += 10  # чистый финтех — чуть выше
+        elif has_it and not has_fintech:
+            score -= 3  # чистый IT — совсем небольшой штраф
 
         if any(word in title for word in ["новый", "новое", "новые", "новинка", "революция", "прорыв", "инновация"]):
             score += 15
