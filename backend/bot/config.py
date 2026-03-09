@@ -154,9 +154,12 @@ TIMEZONE = os.getenv("TIMEZONE", "Europe/Moscow")
 
 MAX_POST_LENGTH = 3000
 
-# Необязательная подпись с ссылкой на канал,
-# которая будет добавляться в конец каждого поста.
-# Можно задать, например:
-# SUBSCRIBE_FOOTER="Alexol. Подписаться (https://t.me/your_channel_link)"
-SUBSCRIBE_FOOTER = os.getenv("SUBSCRIBE_FOOTER", "Alexol | Подписаться")
+# Подпись с ссылкой на канал, которая будет добавляться в конец каждого поста.
+# Если нужно переопределить, можно задать SUBSCRIBE_FOOTER в .env,
+# но по умолчанию используем фиксированное значение с ссылкой:
+# Alexol | Подписаться (https://t.me/+QofDQ2Ctq8o1Y2Ey)
+SUBSCRIBE_FOOTER = os.getenv(
+    "SUBSCRIBE_FOOTER",
+    "Alexol | Подписаться (https://t.me/+QofDQ2Ctq8o1Y2Ey)",
+)
 
