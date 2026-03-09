@@ -339,6 +339,7 @@ const translations = {
     },
     empty: { ru: 'Скоро здесь появятся новые материалы', en: 'New content coming soon' },
     allArticles: { ru: 'Все статьи', en: 'All Articles' },
+    reload: { ru: 'Обновить', en: 'Reload' },
   },
   contact: {
     title: { ru: 'Начать сотрудничество', en: 'Start Cooperation' },

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Menu, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ProjectModal } from '@/pages/HomePage/components/modals';
 import { useTheme, useLanguage } from '@/shared/contexts';
 import { useTranslation } from '@/shared/utils/translations';
@@ -13,6 +14,20 @@ export const Header = () => {
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    const id = href.replace('#', '');
+    if (location.pathname !== '/') {
+      navigate('/');
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const toggleLanguage = () => {
     setLanguage(language === 'ru' ? 'en' : 'ru');
   };
@@ -21,7 +36,6 @@ export const Header = () => {
     { label: t('header.nav.about'), href: '#about' },
     { label: t('header.nav.services'), href: '#services' },
     { label: t('header.nav.solutions'), href: '#portfolio' },
-    { label: t('header.nav.cases'), href: '#cases' },
     { label: t('header.nav.news'), href: '#news' },
     { label: t('header.nav.contact'), href: '#contact' },
   ];
@@ -62,7 +76,7 @@ export const Header = () => {
 
           <nav className="header__nav">
             {navItems.map(item => (
-              <a key={item.label} href={item.href} className="header__link">
+              <a key={item.label} href={item.href} className="header__link" onClick={e => handleNavClick(e, item.href)}>
                 {item.label}
               </a>
             ))}
@@ -120,7 +134,7 @@ export const Header = () => {
             >
               <nav className="header__mobile-nav">
                 {navItems.map(item => (
-                  <a key={item.label} href={item.href} onClick={() => setIsOpen(false)} className="header__mobile-link">
+                  <a key={item.label} href={item.href} onClick={e => { handleNavClick(e, item.href); setIsOpen(false); }} className="header__mobile-link">
                     {item.label}
                   </a>
                 ))}
