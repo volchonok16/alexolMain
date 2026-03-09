@@ -155,11 +155,11 @@ TIMEZONE = os.getenv("TIMEZONE", "Europe/Moscow")
 MAX_POST_LENGTH = 3000
 
 # Подпись с ссылкой на канал, которая будет добавляться в конец каждого поста.
-# Если нужно переопределить, можно задать SUBSCRIBE_FOOTER в .env,
-# но по умолчанию используем фиксированное значение с ссылкой:
-# Alexol | Подписаться (https://t.me/+QofDQ2Ctq8o1Y2Ey)
+# Формат по умолчанию — HTML-ссылка для Telegram:
+# <a href="https://t.me/+QofDQ2Ctq8o1Y2Ey">Alexol | Подписаться</a>
+# VK и Instagram получают тот же текст, но без HTML (в VK будет "Alexol | Подписаться (https://t.me/+QofDQ2Ctq8o1Y2Ey)").
 SUBSCRIBE_FOOTER = os.getenv(
     "SUBSCRIBE_FOOTER",
-    "Alexol | Подписаться (https://t.me/+QofDQ2Ctq8o1Y2Ey)",
+    '<a href="https://t.me/+QofDQ2Ctq8o1Y2Ey">Alexol | Подписаться</a>',
 )
 
