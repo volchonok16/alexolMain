@@ -160,6 +160,6 @@ MAX_POST_LENGTH = 3000
 # Alexol | Подписаться (https://t.me/+QofDQ2Ctq8o1Y2Ey)
 SUBSCRIBE_FOOTER = os.getenv(
     "SUBSCRIBE_FOOTER",
-    "Alexol(https://t.me/+QofDQ2Ctq8o1Y2Ey) |(https://t.me/+QofDQ2Ctq8o1Y2Ey) Подписаться:(https://t.me/+QofDQ2Ctq8o1Y2Ey)", parse_mode=ParseMode.MARKDOWN
+    "Alexol | Подписаться (https://t.me/+QofDQ2Ctq8o1Y2Ey)",
 )
 
