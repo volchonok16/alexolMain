@@ -39,6 +39,12 @@ class PostGenerator:
             except Exception as e:
                 print(f"⚠️ Не удалось инициализировать Backend news интеграцию: {e}")
 
+    def _append_footer(self, text: str) -> str:
+        footer = (getattr(config, "SUBSCRIBE_FOOTER", "") or "").strip()
+        if not footer:
+            return text
+        return f"{text.rstrip()}\n\n{footer}"
+
     async def fetch_new_content(self):
         print("📰 Загрузка новых материалов...")
 
@@ -532,12 +538,7 @@ class PostGenerator:
             return False
 
         processed_text, parse_mode = self.emoji_handler.prepare_for_telegram(text)
-
-        # Добавляем подпись с ссылкой на канал (если настроена).
-        if getattr(config, "SUBSCRIBE_FOOTER", ""):
-            footer = config.SUBSCRIBE_FOOTER.strip()
-            if footer:
-                processed_text = f"{processed_text.rstrip()}\n\n{footer}"
+        processed_text = self._append_footer(processed_text)
 
         print(f"   📝 Длина обработанного текста: {len(processed_text)} символов")
         if parse_mode:
@@ -569,7 +570,7 @@ class PostGenerator:
                 backend_success = False
             else:
                 news_title = (title or "IT новости").strip()
-                news_text = (text or "").strip()
+                news_text = self._append_footer((text or "").strip())
                 try:
                     print("\n📰 Публикация новости в админ-панель (backend)...")
                     backend_success = await self.backend_news.create_news(news_title, news_text, image)
@@ -586,10 +587,7 @@ class PostGenerator:
             print("\n📤 Публикация в ВКонтакте...")
             try:
                 vk_text = self.emoji_handler.prepare_for_vk(text)
-                if getattr(config, "SUBSCRIBE_FOOTER", ""):
-                    footer = config.SUBSCRIBE_FOOTER.strip()
-                    if footer:
-                        vk_text = f"{vk_text.rstrip()}\n\n{footer}"
+                vk_text = self._append_footer(vk_text)
                 print(f"   📝 Текст для VK: {len(vk_text)} символов")
                 print(f"   📋 Первые 150 символов VK: {vk_text[:150]}...")
                 vk_success = await self.vk.publish_post(vk_text, image)
@@ -607,11 +605,7 @@ class PostGenerator:
         if self.instagram and self.instagram.enabled:
             print("\n📸 Публикация в Instagram...")
             try:
-                insta_text = text
-                if getattr(config, "SUBSCRIBE_FOOTER", ""):
-                    footer = config.SUBSCRIBE_FOOTER.strip()
-                    if footer:
-                        insta_text = f"{insta_text.rstrip()}\n\n{footer}"
+                insta_text = self._append_footer(text)
                 instagram_success = await self.instagram.publish_post(insta_text, image)
                 print(f"   📊 Результат публикации в Instagram: {'✅ успешно' if instagram_success else '❌ ошибка'}")
             except Exception as e:
@@ -658,7 +652,7 @@ class PostGenerator:
             print("\n" + "=" * 50)
             print("ПРЕВЬЮ ПОСТА:")
             print("=" * 50)
-            print(text)
+            print(self._append_footer(text))
             print("=" * 50)
             if image:
                 print(f"📷 Изображение загружено ({len(image)} байт)")
