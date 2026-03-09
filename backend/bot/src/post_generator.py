@@ -161,6 +161,7 @@ class PostGenerator:
         for post in posts:
             title_lower = post["original_title"].lower()
             text_lower = post["original_text"].lower()
+            full_text = title_lower + " " + text_lower
 
             if any(keyword in title_lower or keyword in text_lower for keyword in war_keywords):
                 print(f"⚠️ Пост содержит тему о войне, пропускаем: {post['original_title'][:50]}...")
@@ -175,6 +176,16 @@ class PostGenerator:
             if any(keyword in title_lower or keyword in text_lower for keyword in prohibited_keywords):
                 print(
                     f"⚠️ Пост содержит запрещённую тему (вейпы/курение), пропускаем: {post['original_title'][:50]}..."
+                )
+                db.mark_parsed_post_used(post["id"])
+                continue
+
+            has_it = any(keyword in full_text for keyword in getattr(config, "IT_KEYWORDS", []))
+            has_fintech = any(keyword in full_text for keyword in getattr(config, "FINTECH_KEYWORDS", []))
+
+            if not (has_it or has_fintech):
+                print(
+                    f"⚠️ Пост не относится к тематикам финтех/IT, пропускаем: {post['original_title'][:50]}..."
                 )
                 db.mark_parsed_post_used(post["id"])
                 continue
@@ -205,6 +216,9 @@ class PostGenerator:
 
         it_keywords_found = sum(1 for keyword in config.IT_KEYWORDS if keyword in full_text)
         score += it_keywords_found * 3
+
+        fintech_keywords_found = sum(1 for keyword in getattr(config, "FINTECH_KEYWORDS", []) if keyword in full_text)
+        score += fintech_keywords_found * 5
 
         if any(word in title for word in ["новый", "новое", "новые", "новинка", "революция", "прорыв", "инновация"]):
             score += 15

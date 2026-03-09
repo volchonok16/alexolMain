@@ -145,7 +145,7 @@ class OpenRouterClient:
     async def rewrite_article(self, title: str, description: str, source: str) -> Optional[str]:
         emoji_list = self.emoji_handler.get_emoji_list_for_prompt()
 
-        prompt = f"""Ты — главный редактор IT-канала в Telegram. Напиши профессиональный, но живой пост.
+        prompt = f"""Ты — главный редактор Telegram-канала про финтех и IT. Напиши профессиональный, но живой пост.
 
 ИСХОДНИК:
 Заголовок: {title}
@@ -213,7 +213,7 @@ class OpenRouterClient:
 ---
 """
 
-        prompt = f"""Ты — главный редактор IT-канала в Telegram. Пиши профессионально, но живо и интересно.
+        prompt = f"""Ты — главный редактор Telegram-канала про финтех и IT. Пиши профессионально, но живо и интересно.
 
 Вот {len(posts)} новостей:
 {posts_text}
@@ -330,7 +330,7 @@ class OpenRouterClient:
     ) -> Optional[str]:
         context = generated_text[:800] if generated_text else description[:400]
 
-        prompt = f"""Проанализируй IT-новость и создай ТОЧНЫЙ запрос для поиска изображения.
+        prompt = f"""Проанализируй новость на тему финтеха или IT и создай ТОЧНЫЙ запрос для поиска изображения.
 
 ЗАГОЛОВОК: {title}
 
