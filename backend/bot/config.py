@@ -164,6 +164,12 @@ FINTECH_KEYWORDS = [
 ]
 
 POST_HOUR = int(os.getenv("POST_HOUR", "10"))
+# Второй пост новостей в день (например 20:00). Если не задан — один пост в POST_HOUR.
+POST_HOUR_EVENING = os.getenv("POST_HOUR_EVENING")
+if POST_HOUR_EVENING is not None and POST_HOUR_EVENING != "":
+    POST_HOUR_EVENING = int(POST_HOUR_EVENING)
+else:
+    POST_HOUR_EVENING = None
 TIMEZONE = os.getenv("TIMEZONE", "Europe/Moscow")
 
 MAX_POST_LENGTH = 3000

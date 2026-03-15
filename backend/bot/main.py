@@ -23,41 +23,35 @@ scheduler = None
 generator = None
 
 
-def get_next_post_time():
-    tz = pytz.timezone(config.TIMEZONE)
-    now = datetime.now(tz)
-    random_minute = random.randint(0, 59)
-
-    next_post = now.replace(hour=config.POST_HOUR, minute=random_minute, second=0, microsecond=0)
-
-    if next_post <= now:
-        next_post += timedelta(days=1)
-
-    return next_post
-
-
-async def publish_and_reschedule():
+async def publish_news_post():
+    """Одна публикация новостного поста (вызывается по расписанию)."""
     global scheduler, generator
-
     await generator.run_once()
 
-    schedule_next_post()
 
-
-def schedule_next_post():
+def schedule_news_posts():
+    """Планируем новостные посты: утром в POST_HOUR и вечером в POST_HOUR_EVENING (если задан)."""
     global scheduler
-
-    next_time = get_next_post_time()
+    tz = config.TIMEZONE
 
     scheduler.add_job(
-        publish_and_reschedule,
-        DateTrigger(run_date=next_time),
-        id="post_generator",
-        name="Генератор постов",
+        publish_news_post,
+        CronTrigger(hour=config.POST_HOUR, minute=0, timezone=tz),
+        id="post_generator_morning",
+        name="Новости (утро)",
         replace_existing=True,
     )
+    print(f"📅 Новости: ежедневно в {config.POST_HOUR:02d}:00 ({tz})")
 
-    print(f"📅 Следующий пост запланирован на: {next_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    if getattr(config, "POST_HOUR_EVENING", None) is not None:
+        scheduler.add_job(
+            publish_news_post,
+            CronTrigger(hour=config.POST_HOUR_EVENING, minute=0, timezone=tz),
+            id="post_generator_evening",
+            name="Новости (вечер)",
+            replace_existing=True,
+        )
+        print(f"📅 Новости: ежедневно в {config.POST_HOUR_EVENING:02d}:00 ({tz})")
 
 
 async def publish_lead_post():
@@ -93,8 +87,11 @@ async def run_bot():
     print("🤖 IT News Bot для Telegram")
     print("=" * 60)
     print(f"📢 Канал: {config.TELEGRAM_CHANNEL_ID}")
-    print(f"⏰ Публикация: ежедневно в {config.POST_HOUR:02d}:XX ({config.TIMEZONE})")
-    print("🎲 Минуты выбираются случайно (0-59)")
+    print(f"⏰ Публикация: ежедневно в {config.POST_HOUR:02d}:00 ({config.TIMEZONE})", end="")
+    if getattr(config, "POST_HOUR_EVENING", None) is not None:
+        print(f" и в {config.POST_HOUR_EVENING:02d}:00")
+    else:
+        print()
     print(f"🧠 AI модель: {config.OPENROUTER_MODEL}")
     print("=" * 60)
 
@@ -102,7 +99,7 @@ async def run_bot():
     await generator.run_once()
 
     scheduler.start()
-    schedule_next_post()
+    schedule_news_posts()
     schedule_lead_posts()
 
     try:
