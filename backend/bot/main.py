@@ -10,8 +10,8 @@ from apscheduler.triggers.cron import CronTrigger
 
 from src.post_generator import PostGenerator
 from src.telegram_bot import TelegramPublisher
-from src.project_requests_bot import run_requests_bot
-from src.simple_forward_bot import run_forward_bot
+from src.project_requests_bot import run_requests_bot, setup_requests_bot
+from src.simple_forward_bot import run_forward_bot, setup_forward_bot
 
 import config
 import pytz
@@ -174,6 +174,20 @@ async def fetch_content():
     print("✅ Контент загружен!")
 
 
+def run_requests_and_forward_bot() -> None:
+    if not config.TELEGRAM_BOT_TOKEN:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
+    if not config.TELEGRAM_REQUESTS_CHAT_ID:
+        raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
+
+    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+
+    setup_requests_bot(application)
+    setup_forward_bot(application)
+
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+
 def main():
     parser = argparse.ArgumentParser(description="IT News Bot для Telegram")
     parser.add_argument(
@@ -201,7 +215,8 @@ def main():
     elif args.mode == "fetch":
         asyncio.run(fetch_content())
     elif args.mode == "requests":
-        run_requests_bot()
+        # Используем объединённый бот: заявки + простая пересылка
+        run_requests_and_forward_bot()
     elif args.mode == "forward":
         run_forward_bot()
 

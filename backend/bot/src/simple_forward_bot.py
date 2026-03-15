@@ -54,6 +54,11 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text("Спасибо! Сообщение отправлено команде Alexol.")
 
 
+def setup_forward_bot(application: Application) -> None:
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_message))
+
+
 def run_forward_bot() -> None:
     if not config.TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
@@ -62,8 +67,7 @@ def run_forward_bot() -> None:
 
     application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_message))
+    setup_forward_bot(application)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
