@@ -7,6 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
+from telegram import Update
 from telegram.ext import Application
 
 from src.post_generator import PostGenerator
@@ -186,7 +187,8 @@ def run_requests_and_forward_bot() -> None:
     setup_requests_bot(application)
     setup_forward_bot(application)
 
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # Используем настройки по умолчанию; отдельный список allowed_updates не обязателен.
+    application.run_polling()
 
 
 def main():
