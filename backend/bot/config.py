@@ -43,6 +43,20 @@ BACKEND_ADMIN_PASSWORD = os.getenv("BACKEND_ADMIN_PASSWORD")
 NEWS_MAX_AGE_HOURS = int(os.getenv("NEWS_MAX_AGE_HOURS", "24"))
 CLEANUP_DAYS = 3
 
+# Ключевые слова для поиска картинок к промо-постам «мы ищем проекты»: бизнес, команда, работа над проектом.
+LEAD_IMAGE_KEYWORDS = [
+    "successful business team",
+    "business people working together",
+    "office team collaboration",
+    "startup team meeting",
+    "business handshake",
+    "professional team project",
+    "company office meeting",
+    "business presentation",
+    "team brainstorming",
+    "entrepreneurs working",
+]
+
 IMAGE_SEARCH_KEYWORDS = [
     "fintech",
     "digital banking",

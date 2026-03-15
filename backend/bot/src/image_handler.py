@@ -127,6 +127,25 @@ class ImageHandler:
         except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
             return None
 
+    async def get_lead_post_image(self, width: int = 1200, height: int = 800) -> Optional[bytes]:
+        """Картинка для промо-поста «мы ищем проекты»: успешные бизнесмены, команды, работа над проектом."""
+        keywords = getattr(config, "LEAD_IMAGE_KEYWORDS", None) or [
+            "business team collaboration",
+            "office team meeting",
+            "successful business handshake",
+        ]
+        try:
+            keyword = random.choice(keywords)
+            image = await self.get_unsplash_image(keyword, width, height)
+            if image:
+                return image
+            image = await self.get_loremflickr_image(keyword, width, height)
+            if image:
+                return image
+            return await self.get_random_tech_image(width, height)
+        except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+            return None
+
     async def get_brand_banner(self) -> Optional[bytes]:
         """Возвращает один из брендовых баннеров (светлый/тёмный), если файлы есть в образе."""
         try:
