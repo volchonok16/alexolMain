@@ -460,8 +460,13 @@ class PostGenerator:
             text_len = len(rewritten_text)
             if text_len > 1000:
                 print(f"⚠️ Текст слишком длинный ({text_len} символов, нужно до 1000)")
-                print("   Обрезаем до 950 символов...")
-                rewritten_text = rewritten_text[:947] + "..."
+                print("   ❌ Не обрезаем текст посередине — просим AI перегенерировать пост")
+                if attempt < max_attempts:
+                    used_post_ids.add(selected_post["id"])
+                    db.mark_parsed_post_used(selected_post["id"])
+                    print(f"   🔄 Попытка {attempt + 1}/{max_attempts} с другими постами...")
+                    continue
+                return None, None, None, None
             elif text_len < 500:
                 print(f"⚠️ Текст слишком короткий ({text_len} символов)")
                 if attempt < max_attempts:
