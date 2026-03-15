@@ -140,7 +140,7 @@ class OpenRouterClient:
                     return word
                 # Capitalized-only (Unlock) считаем "обычным" словом и вырезаем
                 return "" if word.islower() or (word[:1].isupper() and word[1:].islower()) else ""
-
+ 
             t = re.sub(r"\b[A-Za-z]{4,}\b", repl, t)
             # Дополнительно защищаем полное доменное имя alexol.io на случай,
             # если оно было частично затронуто другими заменами.
