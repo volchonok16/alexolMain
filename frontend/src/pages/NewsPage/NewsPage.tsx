@@ -7,6 +7,13 @@ import { useNews } from '../HomePage/hooks/useNews';
 import { NewsModal } from './components/NewsModal';
 import './NewsPage.scss';
 
+const getPaginationPages = (current: number, total: number): (number | '...')[] => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, '...', total];
+  if (current >= total - 3) return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  return [1, '...', current - 1, current, current + 1, '...', total];
+};
+
 export const NewsPage = () => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
@@ -123,15 +130,19 @@ export const NewsPage = () => {
               <ChevronLeft size={18} />
             </button>
 
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button
-                key={p}
-                className={`pagination__btn pagination__btn--page${p === page ? ' pagination__btn--active' : ''}`}
-                onClick={() => changePage(p)}
-              >
-                {p}
-              </button>
-            ))}
+            {getPaginationPages(page, totalPages).map((p, i) =>
+              p === '...' ? (
+                <span key={`dots-${i}`} className="pagination__dots">…</span>
+              ) : (
+                <button
+                  key={p}
+                  className={`pagination__btn${p === page ? ' pagination__btn--active' : ''}`}
+                  onClick={() => changePage(p as number)}
+                >
+                  {p}
+                </button>
+              )
+            )}
 
             <button
               className="pagination__btn"
