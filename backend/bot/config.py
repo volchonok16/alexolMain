@@ -43,7 +43,29 @@ BACKEND_ADMIN_PASSWORD = os.getenv("BACKEND_ADMIN_PASSWORD")
 NEWS_MAX_AGE_HOURS = int(os.getenv("NEWS_MAX_AGE_HOURS", "24"))
 CLEANUP_DAYS = 3
 
+# Ключевые слова для поиска картинок к промо-постам «мы ищем проекты»: бизнес, команда, работа над проектом.
+LEAD_IMAGE_KEYWORDS = [
+    "successful business team",
+    "business people working together",
+    "office team collaboration",
+    "startup team meeting",
+    "business handshake",
+    "professional team project",
+    "company office meeting",
+    "business presentation",
+    "team brainstorming",
+    "entrepreneurs working",
+]
+
 IMAGE_SEARCH_KEYWORDS = [
+    "fintech",
+    "digital banking",
+    "mobile banking app",
+    "payment terminal",
+    "online payments",
+    "stock market dashboard",
+    "cryptocurrency trading",
+    "blockchain network",
     "technology",
     "coding",
     "programming",
@@ -92,8 +114,72 @@ IT_KEYWORDS = [
     "программное обеспечение",
 ]
 
+FINTECH_KEYWORDS = [
+    "финтех",
+    "fintech",
+    "финансовые технологии",
+    "финансовый сервис",
+    "необанк",
+    "neobank",
+    "банк",
+    "банковский",
+    "банкинг",
+    "digital banking",
+    "онлайн-банк",
+    "платеж",
+    "платёж",
+    "платежи",
+    "перевод",
+    "переводы",
+    "эквайринг",
+    "эквайринговый",
+    "терминал оплаты",
+    "оплата картой",
+    "банковская карта",
+    "дебетовая карта",
+    "кредитная карта",
+    "кошелёк",
+    "кошелек",
+    "электронный кошелёк",
+    "электронный кошелек",
+    "wallet",
+    "p2p",
+    "инвестиции",
+    "инвестиционный",
+    "трейдинг",
+    "инвестплатформа",
+    "биржа",
+    "фондовый рынок",
+    "акции",
+    "облигации",
+    "криптовалюта",
+    "крипта",
+    "crypto",
+    "биткоин",
+    "bitcoin",
+    "ethereum",
+    "blockchain",
+    "defi",
+    "paytech",
+]
+
 POST_HOUR = int(os.getenv("POST_HOUR", "10"))
+# Второй пост новостей в день (например 20:00). Если не задан — один пост в POST_HOUR.
+POST_HOUR_EVENING = os.getenv("POST_HOUR_EVENING")
+if POST_HOUR_EVENING is not None and POST_HOUR_EVENING != "":
+    POST_HOUR_EVENING = int(POST_HOUR_EVENING)
+else:
+    POST_HOUR_EVENING = None
 TIMEZONE = os.getenv("TIMEZONE", "Europe/Moscow")
 
 MAX_POST_LENGTH = 3000
+
+# Подпись с ссылкой на канал, которая будет добавляться в конец каждого поста.
+# Формат по умолчанию — HTML-ссылка для Telegram:
+# <a href="https://t.me/+B3Ru2nZS8K82MDc6">Alexol | Подписаться</a>
+# VK и Instagram получают тот же текст, но без HTML (в VK будет "Alexol | Подписаться (https://t.me/+B3Ru2nZS8K82MDc6)").
+SUBSCRIBE_FOOTER = os.getenv(
+    "SUBSCRIBE_FOOTER",
+    '<a href="https://t.me/+B3Ru2nZS8K82MDc6">Alexol | Подписаться</a>',
+)
 

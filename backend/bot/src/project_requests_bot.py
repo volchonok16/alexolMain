@@ -191,14 +191,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-def run_requests_bot() -> None:
-    if not config.TELEGRAM_BOT_TOKEN:
-        raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
-    if not config.TELEGRAM_REQUESTS_CHAT_ID:
-        raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
-
-    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
-
+def setup_requests_bot(application: Application) -> None:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("project", project_entry)],
         states={
@@ -214,6 +207,17 @@ def run_requests_bot() -> None:
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(conv_handler)
+
+
+def run_requests_bot() -> None:
+    if not config.TELEGRAM_BOT_TOKEN:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
+    if not config.TELEGRAM_REQUESTS_CHAT_ID:
+        raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
+
+    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+
+    setup_requests_bot(application)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

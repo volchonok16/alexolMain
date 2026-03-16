@@ -7,11 +7,13 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
+from telegram import Update
+from telegram.ext import Application
 
 from src.post_generator import PostGenerator
 from src.telegram_bot import TelegramPublisher
-from src.project_requests_bot import run_requests_bot
-from src.simple_forward_bot import run_forward_bot
+from src.project_requests_bot import run_requests_bot, setup_requests_bot
+from src.simple_forward_bot import run_forward_bot, setup_forward_bot
 
 import config
 import pytz
@@ -21,41 +23,35 @@ scheduler = None
 generator = None
 
 
-def get_next_post_time():
-    tz = pytz.timezone(config.TIMEZONE)
-    now = datetime.now(tz)
-    random_minute = random.randint(0, 59)
-
-    next_post = now.replace(hour=config.POST_HOUR, minute=random_minute, second=0, microsecond=0)
-
-    if next_post <= now:
-        next_post += timedelta(days=1)
-
-    return next_post
-
-
-async def publish_and_reschedule():
+async def publish_news_post():
+    """Одна публикация новостного поста (вызывается по расписанию)."""
     global scheduler, generator
-
     await generator.run_once()
 
-    schedule_next_post()
 
-
-def schedule_next_post():
+def schedule_news_posts():
+    """Планируем новостные посты: утром в POST_HOUR и вечером в POST_HOUR_EVENING (если задан)."""
     global scheduler
-
-    next_time = get_next_post_time()
+    tz = config.TIMEZONE
 
     scheduler.add_job(
-        publish_and_reschedule,
-        DateTrigger(run_date=next_time),
-        id="post_generator",
-        name="Генератор постов",
+        publish_news_post,
+        CronTrigger(hour=config.POST_HOUR, minute=0, timezone=tz),
+        id="post_generator_morning",
+        name="Новости (утро)",
         replace_existing=True,
     )
+    print(f"📅 Новости: ежедневно в {config.POST_HOUR:02d}:00 ({tz})")
 
-    print(f"📅 Следующий пост запланирован на: {next_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    if getattr(config, "POST_HOUR_EVENING", None) is not None:
+        scheduler.add_job(
+            publish_news_post,
+            CronTrigger(hour=config.POST_HOUR_EVENING, minute=0, timezone=tz),
+            id="post_generator_evening",
+            name="Новости (вечер)",
+            replace_existing=True,
+        )
+        print(f"📅 Новости: ежедневно в {config.POST_HOUR_EVENING:02d}:00 ({tz})")
 
 
 async def publish_lead_post():
@@ -91,8 +87,11 @@ async def run_bot():
     print("🤖 IT News Bot для Telegram")
     print("=" * 60)
     print(f"📢 Канал: {config.TELEGRAM_CHANNEL_ID}")
-    print(f"⏰ Публикация: ежедневно в {config.POST_HOUR:02d}:XX ({config.TIMEZONE})")
-    print("🎲 Минуты выбираются случайно (0-59)")
+    print(f"⏰ Публикация: ежедневно в {config.POST_HOUR:02d}:00 ({config.TIMEZONE})", end="")
+    if getattr(config, "POST_HOUR_EVENING", None) is not None:
+        print(f" и в {config.POST_HOUR_EVENING:02d}:00")
+    else:
+        print()
     print(f"🧠 AI модель: {config.OPENROUTER_MODEL}")
     print("=" * 60)
 
@@ -100,7 +99,7 @@ async def run_bot():
     await generator.run_once()
 
     scheduler.start()
-    schedule_next_post()
+    schedule_news_posts()
     schedule_lead_posts()
 
     try:
@@ -174,6 +173,21 @@ async def fetch_content():
     print("✅ Контент загружен!")
 
 
+def run_requests_and_forward_bot() -> None:
+    if not config.TELEGRAM_BOT_TOKEN:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
+    if not config.TELEGRAM_REQUESTS_CHAT_ID:
+        raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
+
+    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+
+    setup_requests_bot(application)
+    setup_forward_bot(application)
+
+    # Используем настройки по умолчанию; отдельный список allowed_updates не обязателен.
+    application.run_polling()
+
+
 def main():
     parser = argparse.ArgumentParser(description="IT News Bot для Telegram")
     parser.add_argument(
@@ -201,7 +215,8 @@ def main():
     elif args.mode == "fetch":
         asyncio.run(fetch_content())
     elif args.mode == "requests":
-        run_requests_bot()
+        # Используем объединённый бот: заявки + простая пересылка
+        run_requests_and_forward_bot()
     elif args.mode == "forward":
         run_forward_bot()
 

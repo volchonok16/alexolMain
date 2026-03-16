@@ -39,6 +39,12 @@ class PostGenerator:
             except Exception as e:
                 print(f"⚠️ Не удалось инициализировать Backend news интеграцию: {e}")
 
+    def _append_footer(self, text: str) -> str:
+        footer = (getattr(config, "SUBSCRIBE_FOOTER", "") or "").strip()
+        if not footer:
+            return text
+        return f"{text.rstrip()}\n\n{footer}"
+
     async def fetch_new_content(self):
         print("📰 Загрузка новых материалов...")
 
@@ -161,6 +167,7 @@ class PostGenerator:
         for post in posts:
             title_lower = post["original_title"].lower()
             text_lower = post["original_text"].lower()
+            full_text = title_lower + " " + text_lower
 
             if any(keyword in title_lower or keyword in text_lower for keyword in war_keywords):
                 print(f"⚠️ Пост содержит тему о войне, пропускаем: {post['original_title'][:50]}...")
@@ -175,6 +182,16 @@ class PostGenerator:
             if any(keyword in title_lower or keyword in text_lower for keyword in prohibited_keywords):
                 print(
                     f"⚠️ Пост содержит запрещённую тему (вейпы/курение), пропускаем: {post['original_title'][:50]}..."
+                )
+                db.mark_parsed_post_used(post["id"])
+                continue
+
+            has_it = any(keyword in full_text for keyword in getattr(config, "IT_KEYWORDS", []))
+            has_fintech = any(keyword in full_text for keyword in getattr(config, "FINTECH_KEYWORDS", []))
+
+            if not (has_it or has_fintech):
+                print(
+                    f"⚠️ Пост не относится к тематикам финтех/IT, пропускаем: {post['original_title'][:50]}..."
                 )
                 db.mark_parsed_post_used(post["id"])
                 continue
@@ -205,6 +222,19 @@ class PostGenerator:
 
         it_keywords_found = sum(1 for keyword in config.IT_KEYWORDS if keyword in full_text)
         score += it_keywords_found * 3
+
+        fintech_keywords_found = sum(
+            1 for keyword in getattr(config, "FINTECH_KEYWORDS", []) if keyword in full_text
+        )
+        score += fintech_keywords_found * 7
+
+        # Лёгкий перекос в сторону финтеха:
+        has_it = it_keywords_found > 0
+        has_fintech = fintech_keywords_found > 0
+        if has_fintech and not has_it:
+            score += 10  # чистый финтех — чуть выше
+        elif has_it and not has_fintech:
+            score -= 3  # чистый IT — совсем небольшой штраф
 
         if any(word in title for word in ["новый", "новое", "новые", "новинка", "революция", "прорыв", "инновация"]):
             score += 15
@@ -430,8 +460,13 @@ class PostGenerator:
             text_len = len(rewritten_text)
             if text_len > 1000:
                 print(f"⚠️ Текст слишком длинный ({text_len} символов, нужно до 1000)")
-                print("   Обрезаем до 950 символов...")
-                rewritten_text = rewritten_text[:947] + "..."
+                print("   ❌ Не обрезаем текст посередине — просим AI перегенерировать пост")
+                if attempt < max_attempts:
+                    used_post_ids.add(selected_post["id"])
+                    db.mark_parsed_post_used(selected_post["id"])
+                    print(f"   🔄 Попытка {attempt + 1}/{max_attempts} с другими постами...")
+                    continue
+                return None, None, None, None
             elif text_len < 500:
                 print(f"⚠️ Текст слишком короткий ({text_len} символов)")
                 if attempt < max_attempts:
@@ -508,6 +543,7 @@ class PostGenerator:
             return False
 
         processed_text, parse_mode = self.emoji_handler.prepare_for_telegram(text)
+        processed_text = self._append_footer(processed_text)
 
         print(f"   📝 Длина обработанного текста: {len(processed_text)} символов")
         if parse_mode:
@@ -539,7 +575,7 @@ class PostGenerator:
                 backend_success = False
             else:
                 news_title = (title or "IT новости").strip()
-                news_text = (text or "").strip()
+                news_text = self._append_footer((text or "").strip())
                 try:
                     print("\n📰 Публикация новости в админ-панель (backend)...")
                     backend_success = await self.backend_news.create_news(news_title, news_text, image)
@@ -556,6 +592,7 @@ class PostGenerator:
             print("\n📤 Публикация в ВКонтакте...")
             try:
                 vk_text = self.emoji_handler.prepare_for_vk(text)
+                vk_text = self._append_footer(vk_text)
                 print(f"   📝 Текст для VK: {len(vk_text)} символов")
                 print(f"   📋 Первые 150 символов VK: {vk_text[:150]}...")
                 vk_success = await self.vk.publish_post(vk_text, image)
@@ -573,7 +610,8 @@ class PostGenerator:
         if self.instagram and self.instagram.enabled:
             print("\n📸 Публикация в Instagram...")
             try:
-                instagram_success = await self.instagram.publish_post(text, image)
+                insta_text = self._append_footer(text)
+                instagram_success = await self.instagram.publish_post(insta_text, image)
                 print(f"   📊 Результат публикации в Instagram: {'✅ успешно' if instagram_success else '❌ ошибка'}")
             except Exception as e:
                 print(f"   ❌ Исключение при публикации в Instagram: {e}")
@@ -619,7 +657,7 @@ class PostGenerator:
             print("\n" + "=" * 50)
             print("ПРЕВЬЮ ПОСТА:")
             print("=" * 50)
-            print(text)
+            print(self._append_footer(text))
             print("=" * 50)
             if image:
                 print(f"📷 Изображение загружено ({len(image)} байт)")
@@ -668,11 +706,10 @@ class PostGenerator:
             processed_text = text
             parse_mode = None
 
-        # Сначала пробуем использовать фирменные баннеры (светлый/тёмный),
-        # если они есть в образе; если нет —fallback к случайному tech-бэкграунду.
+        # Сначала — фирменные баннеры; если нет — картинки под тему «мы ищем проекты» (бизнес, команда, работа над проектом).
         image = await self.image_handler.get_brand_banner()
         if not image:
-            image = await self.image_handler.get_random_tech_image()
+            image = await self.image_handler.get_lead_post_image()
 
         try:
             print("📤 Публикация промо-поста в Telegram...")
