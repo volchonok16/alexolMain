@@ -25,33 +25,38 @@ generator = None
 
 async def publish_news_post():
     """Одна публикация новостного поста (вызывается по расписанию)."""
-    global scheduler, generator
+    global generator
     await generator.run_once()
 
 
 def schedule_news_posts():
-    """Планируем новостные посты: утром в POST_HOUR и вечером в POST_HOUR_EVENING (если задан)."""
+    """4 публикации в день в случайную минуту внутри каждого часового окна.
+
+    Окна (по умолчанию): 10–11, 14–15, 18–19, 22–23.
+    Переопределить можно через NEWS_WINDOWS в config.py.
+    """
     global scheduler
     tz = config.TIMEZONE
 
-    scheduler.add_job(
-        publish_news_post,
-        CronTrigger(hour=config.POST_HOUR, minute=0, timezone=tz),
-        id="post_generator_morning",
-        name="Новости (утро)",
-        replace_existing=True,
-    )
-    print(f"📅 Новости: ежедневно в {config.POST_HOUR:02d}:00 ({tz})")
+    windows = getattr(config, "NEWS_WINDOWS", [(10, 11), (14, 15), (18, 19), (22, 23)])
 
-    if getattr(config, "POST_HOUR_EVENING", None) is not None:
+    for i, (start_hour, end_hour) in enumerate(windows, 1):
+        # Случайная минута внутри окна, фиксируется при старте бота на весь день.
+        minute = random.randint(0, 59)
+        # Выбираем час: если окно шире одного часа, случайно выбираем час внутри диапазона.
+        if end_hour > start_hour + 1:
+            hour = random.randint(start_hour, end_hour - 1)
+        else:
+            hour = start_hour
+
         scheduler.add_job(
             publish_news_post,
-            CronTrigger(hour=config.POST_HOUR_EVENING, minute=0, timezone=tz),
-            id="post_generator_evening",
-            name="Новости (вечер)",
+            CronTrigger(hour=hour, minute=minute, timezone=tz),
+            id=f"post_generator_{i}",
+            name=f"Новости {i}/4 ({start_hour:02d}–{end_hour:02d}ч)",
             replace_existing=True,
         )
-        print(f"📅 Новости: ежедневно в {config.POST_HOUR_EVENING:02d}:00 ({tz})")
+        print(f"📅 Новости {i}/4: ежедневно в {hour:02d}:{minute:02d} ({tz})")
 
 
 async def publish_lead_post():
@@ -86,12 +91,10 @@ async def run_bot():
     print("=" * 60)
     print("🤖 IT News Bot для Telegram")
     print("=" * 60)
+    windows = getattr(config, "NEWS_WINDOWS", [(10, 11), (14, 15), (18, 19), (22, 23)])
+    windows_str = ", ".join(f"{s:02d}–{e:02d}ч" for s, e in windows)
     print(f"📢 Канал: {config.TELEGRAM_CHANNEL_ID}")
-    print(f"⏰ Публикация: ежедневно в {config.POST_HOUR:02d}:00 ({config.TIMEZONE})", end="")
-    if getattr(config, "POST_HOUR_EVENING", None) is not None:
-        print(f" и в {config.POST_HOUR_EVENING:02d}:00")
-    else:
-        print()
+    print(f"⏰ Публикация новостей: {len(windows)} раза в день | окна: {windows_str} ({config.TIMEZONE})")
     print(f"🧠 AI модель: {config.OPENROUTER_MODEL}")
     print("=" * 60)
 
