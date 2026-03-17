@@ -44,7 +44,8 @@ class OpenRouterClient:
             tag = match.group(0)
             # имя тега без <, > и /, в нижнем регистре
             m = re.match(r"</?\s*([a-zA-Z0-9]+)", tag)
-            allowed = {"b", "i", "code"}
+            # <a href="..."> сохраняем целиком, остальные разрешённые теги — тоже
+            allowed = {"b", "i", "code", "a"}
             if m and m.group(1).lower() in allowed:
                 html_tags.append(tag)
                 return f"__HTML_TAG_{len(html_tags)-1}__"
@@ -493,7 +494,7 @@ class OpenRouterClient:
 Мы в Alexol ищем проекты и готовы к новым интересным задачам: разработка под ключ, цифровизация бизнеса, корпоративные системы, веб и мобильные приложения. Если у вас или ваших знакомых есть идея или готовая задача — сейчас самое время написать нам!
 
 🚀 Как связаться:
-— Заявка на сайте: https://alexol.io
+— Заявка на сайте: <a href="https://alexol.io">alexol.io</a>
 — Написать в бота: @AlexolBot
 
 Работаем быстро, честно и с душой. Ждём ваши задачи! 💻✨
@@ -509,7 +510,7 @@ class OpenRouterClient:
 
 ✅ 7+ лет опыта, 150+ проектов, команда senior-специалистов.
 
-📌 Оставить заявку: https://alexol.io или в Telegram: @AlexolBot
+📌 Оставить заявку: <a href="https://alexol.io">alexol.io</a> или в Telegram: @AlexolBot
 
 Будем рады сотрудничеству! 🤝
 
@@ -519,7 +520,7 @@ class OpenRouterClient:
 
 Качественная разработка под ключ: корпсистемы, веб-сервисы, мобильные приложения. Расскажите о задаче — предложим решение.
 
-🌐 https://alexol.io  |  🤖 @AlexolBot
+🌐 <a href="https://alexol.io">alexol.io</a>  |  🤖 @AlexolBot
 
 Ждём вас! 🚀
 
@@ -531,7 +532,7 @@ class OpenRouterClient:
 
 🏆 7 лет, 150+ проектов, от идеи до поддержки.
 
-📬 Сайт: https://alexol.io  |  Бот: @AlexolBot
+📬 Сайт: <a href="https://alexol.io">alexol.io</a>  |  Бот: @AlexolBot
 """
 
         prompt = f"""Ты — профессиональный редактор и копирайтер Telegram-канала компании по разработке ПО Alexol.
@@ -544,7 +545,8 @@ class OpenRouterClient:
 ЗАДАЧА:
 — Сгенерируй НОВЫЙ вариант поста на русском языке.
 — Суть: Alexol ищет проекты, готов к новым задачам и разработкам; приглашаем оставлять заявки.
-— Обязательно упомяни: сайт https://alexol.io и Telegram-бота @AlexolBot.
+— Для ссылки на сайт ОБЯЗАТЕЛЬНО используй HTML-тег: <a href="https://alexol.io">alexol.io</a>
+— Telegram-бот указывай как: @AlexolBot
 — Стиль: дружелюбный, профессиональный, без канцелярита.
 
 ТРЕБОВАНИЯ:
