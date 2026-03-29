@@ -11,7 +11,7 @@ from telegram import Update
 from telegram.ext import Application
 
 from src.post_generator import PostGenerator
-from src.polling_error_handler import setup_polling_error_handler
+from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
 from src.telegram_bot import TelegramPublisher
 from src.project_requests_bot import run_requests_bot, setup_requests_bot
 from src.simple_forward_bot import run_forward_bot, setup_forward_bot
@@ -191,6 +191,7 @@ def run_requests_and_forward_bot() -> None:
 
     # Используем настройки по умолчанию; отдельный список allowed_updates не обязателен.
     application.run_polling()
+    block_forever_after_polling_conflict()
 
 
 def main():

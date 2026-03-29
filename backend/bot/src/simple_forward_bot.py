@@ -10,7 +10,7 @@ from telegram.ext import (
 )
 
 import config
-from src.polling_error_handler import setup_polling_error_handler
+from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -72,4 +72,4 @@ def run_forward_bot() -> None:
     setup_polling_error_handler(application)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
+    block_forever_after_polling_conflict()
