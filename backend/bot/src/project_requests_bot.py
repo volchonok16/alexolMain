@@ -14,6 +14,7 @@ from telegram.ext import (
 )
 
 import config
+from src.polling_error_handler import setup_polling_error_handler
 
 
 NAME, COMPANY, EMAIL, PHONE, BUDGET, DESCRIPTION = range(6)
@@ -218,6 +219,7 @@ def run_requests_bot() -> None:
     application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
     setup_requests_bot(application)
+    setup_polling_error_handler(application)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

@@ -10,6 +10,7 @@ from telegram.ext import (
 )
 
 import config
+from src.polling_error_handler import setup_polling_error_handler
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -68,6 +69,7 @@ def run_forward_bot() -> None:
     application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
     setup_forward_bot(application)
+    setup_polling_error_handler(application)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

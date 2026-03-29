@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+# Отдельный бот только для публикации новостей в канал (polling не нужен).
+# Если не задан — для постинга используется TELEGRAM_BOT_TOKEN (как раньше).
+TELEGRAM_NEWS_BOT_TOKEN = os.getenv("TELEGRAM_NEWS_BOT_TOKEN")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 # Куда слать заявки / обращения (не новости).
 # Приоритет: TELEGRAM_REQUESTS_CHAT_ID -> TELEGRAM_CHAT_ID -> TELEGRAM_CHANNEL_ID
