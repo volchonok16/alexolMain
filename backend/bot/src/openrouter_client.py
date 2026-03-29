@@ -159,8 +159,20 @@ class OpenRouterClient:
         text = re.sub(r"\s+([,.;:!?])", r"\1", text)
         text = re.sub(r"([,.;:!?])([^\s\n])", r"\1 \2", text)
 
+        # Убираем мусорную пунктуацию: ",," -> "", ", ." -> ".", ". ," -> "."
+        text = re.sub(r",{2,}", "", text)
+        text = re.sub(r"\s*,\s*\.", ".", text)
+        text = re.sub(r"\.\s*,\s*", ". ", text)
+        # Убираем осиротевшие одиночные запятые/точки в начале строки или после пробела перед концом
+        text = re.sub(r"(\s|^)[,.](\s|$)", " ", text)
+
         # Исправляем склейки вида "гигантыcpu" -> "гигант CPU" / "гигантами CPU"
         text = re.sub(r"([А-Яа-яЁё]+)cpu\b", r"\1 CPU", text, flags=re.IGNORECASE)
+
+        # Исправляем склейки кириллицы с латиницей: "видеоcontent" -> "видео content",
+        # "включаяentertainment" -> "включая entertainment"
+        text = re.sub(r"([А-Яа-яЁё])([a-zA-Z])", r"\1 \2", text)
+        text = re.sub(r"([a-zA-Z])([А-Яа-яЁё])", r"\1 \2", text)
 
         for i, emoji in enumerate(emojis):
             text = text.replace(f"__EMOJI_{i}__", emoji)
