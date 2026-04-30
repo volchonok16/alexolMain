@@ -87,31 +87,32 @@ class EmojiHandler:
             )
         )
 
-        has_custom = False
+        placeholder_map = {
+            data["placeholder"]: f'<tg-emoji emoji-id="{data["id"]}">{data["fallback"]}</tg-emoji>'
+            for data in self.custom_emojis.values()
+            if data.get("placeholder") and data.get("id") and data.get("fallback")
+        }
+        if not placeholder_map:
+            return text, False
+
+        pattern = re.compile("|".join(re.escape(p) for p in sorted(placeholder_map, key=len, reverse=True)))
         parts = []
         last_end = 0
 
-        for name, data in self.custom_emojis.items():
-            placeholder = data["placeholder"]
-            emoji_id = data["id"]
-            fallback = data["fallback"]
+        for match in pattern.finditer(text):
+            start, end = match.span()
+            if start > last_end:
+                parts.append(self.escape_html_safe(text[last_end:start], preserve_tags=has_html_tags))
+            parts.append(placeholder_map[match.group(0)])
+            last_end = end
 
-            start = text.find(placeholder, last_end)
-            if start != -1:
-                if start > last_end:
-                    # Сохраняем HTML-теги, если они есть
-                    parts.append(self.escape_html_safe(text[last_end:start], preserve_tags=has_html_tags))
-
-                custom_tag = f'<tg-emoji emoji-id="{emoji_id}">{fallback}</tg-emoji>'
-                parts.append(custom_tag)
-                last_end = start + len(placeholder)
-                has_custom = True
+        if last_end == 0:
+            return text, False
 
         if last_end < len(text):
             parts.append(self.escape_html_safe(text[last_end:], preserve_tags=has_html_tags))
 
-        processed = "".join(parts) if has_custom else text
-        return processed, has_custom
+        return "".join(parts), True
 
     def prepare_for_telegram(self, text: str) -> tuple[str, Optional[str]]:
         """Подготавливает текст для Telegram с поддержкой HTML-форматирования"""

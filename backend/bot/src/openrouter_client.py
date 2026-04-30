@@ -24,6 +24,39 @@ class OpenRouterClient:
             "huggingfaceh4/zephyr-7b-beta:free",
         ]
 
+    def _normalize_markdown_formatting(self, text: str) -> str:
+        """Приводит частые Markdown-ответы моделей к HTML, который понимает Telegram."""
+        text = re.sub(r"```(?:\w+)?\s*([\s\S]*?)```", r"\1", text)
+        text = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", text)
+        text = re.sub(r"\*\*([^\n*][\s\S]*?[^\n*])\*\*", r"<b>\1</b>", text)
+        text = re.sub(r"__([^\n_][\s\S]*?[^\n_])__", r"<b>\1</b>", text)
+        text = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"<i>\1</i>", text)
+        text = re.sub(r"`([^`\n]+)`", r"<code>\1</code>", text)
+        text = re.sub(r"(?m)^\s*[-*_]{3,}\s*$", "", text)
+        text = re.sub(r"#{2,}", "", text)
+        text = re.sub(r"\*{2,}", "", text)
+        return text
+
+    def _looks_broken_russian_post(self, text: str) -> bool:
+        """Отбраковывает ответы, где после очистки почти не осталось русского текста."""
+        stripped = text.strip()
+        if not stripped or stripped.upper().startswith("SKIP"):
+            return False
+
+        cyrillic_count = len(re.findall(r"[А-Яа-яЁё]", stripped))
+        alnum_count = len(re.findall(r"[A-Za-zА-Яа-яЁё0-9]", stripped))
+        markup_noise = len(re.findall(r"[#*]{2,}", stripped))
+        placeholder_noise = len(re.findall(r"\[[A-Z_]{3,}\]", stripped))
+
+        if cyrillic_count < 80:
+            return True
+        if alnum_count and cyrillic_count / alnum_count < 0.35:
+            return True
+        if cyrillic_count < 120 and (markup_noise >= 3 or placeholder_noise >= 4):
+            return True
+
+        return False
+
     def _clean_ai_response(self, text: str) -> str:
         """Очищает ответ AI от артефактов, китайских символов и других нежелательных элементов"""
         if not text:
@@ -180,6 +213,8 @@ class OpenRouterClient:
         for i, tag in enumerate(html_tags):
             text = text.replace(f"__HTML_TAG_{i}__", tag)
 
+        text = self._normalize_markdown_formatting(text)
+
         lines = text.split("\n")
         cleaned_lines = []
         for line in lines:
@@ -221,6 +256,9 @@ class OpenRouterClient:
                 if "choices" in data and len(data["choices"]) > 0:
                     raw_text = data["choices"][0]["message"]["content"].strip()
                     cleaned_text = self._clean_ai_response(raw_text)
+                    if self._looks_broken_russian_post(cleaned_text):
+                        print(f"      ⚠️ Ответ от {model} похож на сломанный формат, пробуем другую модель")
+                        return None
                     if cleaned_text and len(cleaned_text) > 10:
                         return cleaned_text
                     else:
