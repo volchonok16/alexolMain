@@ -32,7 +32,31 @@ TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE")
 TDATA_PATH = os.getenv("TDATA_PATH", "tdata")
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-r1-distill-qwen-32b")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free")
+
+_openrouter_fallback_models_env = os.getenv(
+    "OPENROUTER_FALLBACK_MODELS",
+    ",".join(
+        [
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "poolside/laguna-xs.2:free",
+            "openrouter/free",
+            "qwen/qwen3.6-plus:free",
+            "qwen/qwen3-next-80b-a3b-instruct:free",
+            "qwen/qwen3-coder:free",
+            "nvidia/nemotron-3-nano-30b-a3b:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "google/gemma-3-27b-it:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "meta-llama/llama-3.2-3b-instruct:free",
+        ]
+    ),
+)
+OPENROUTER_FALLBACK_MODELS = [
+    model.strip()
+    for model in _openrouter_fallback_models_env.split(",")
+    if model.strip()
+]
 
 # Backend news integration (optional)
 # Example:

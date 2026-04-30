@@ -12,17 +12,7 @@ class OpenRouterClient:
         self.base_url = config.OPENROUTER_BASE_URL
         self.model = config.OPENROUTER_MODEL
         self.emoji_handler = EmojiHandler()
-        self.fallback_models = [
-            "deepseek/deepseek-r1-distill-qwen-32b",
-            "google/gemini-2.0-flash-exp:free",
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "qwen/qwen-2.5-coder-32b-instruct:free",
-            "deepseek/deepseek-chat:free",
-            "mistralai/mistral-small-24b-instruct-2501:free",
-            "google/gemma-2-9b-it:free",
-            "meta-llama/llama-3.2-3b-instruct:free",
-            "huggingfaceh4/zephyr-7b-beta:free",
-        ]
+        self.fallback_models = config.OPENROUTER_FALLBACK_MODELS
 
     def _normalize_markdown_formatting(self, text: str) -> str:
         """Приводит частые Markdown-ответы моделей к HTML, который понимает Telegram."""
