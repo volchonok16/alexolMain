@@ -140,8 +140,20 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script_stop: true
                   script: |
                       cd /var/www/alexol.io/back
-                      echo "${{ secrets.PWD }}" | sudo -S docker-compose down
-                      echo "${{ secrets.PWD }}" | sudo -S docker-compose up -d --build
-                      echo "${{ secrets.PWD }}" | sudo -S docker-compose ps
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      if docker compose version >/dev/null 2>&1; then
+                        docker compose down
+                        docker compose up -d --build
+                        docker compose ps
+                      elif command -v docker-compose >/dev/null 2>&1; then
+                        docker-compose down
+                        docker-compose up -d --build
+                        docker-compose ps
+                      else
+                        echo "Docker Compose not found"
+                        command -v docker; docker --version || true
+                        exit 1
+                      fi'
