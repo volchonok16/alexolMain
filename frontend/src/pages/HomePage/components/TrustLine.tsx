@@ -14,7 +14,7 @@ export const TrustLine = () => {
     'Dubs',
     'Beggars',
     'Metropolis',
-    'tapF',
+    'TapF',
   ];
 
   const renderClients = (keyPrefix: string) =>
