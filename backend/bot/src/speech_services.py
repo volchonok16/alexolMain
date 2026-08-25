@@ -23,9 +23,9 @@ EDGE_VOICE_BY_LANG = {
 }
 
 OPENROUTER_VOICE_BY_LANG = {
-    "en": "alloy",
-    "es": "nova",
-    "fr": "shimmer",
+    "en": "flux-alexis-en",
+    "es": "flux-alexis-en",
+    "fr": "flux-alexis-en",
 }
 
 MAX_TTS_CHARS = 900

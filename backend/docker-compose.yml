@@ -110,7 +110,7 @@ services:
       - TZ=${TIMEZONE:-Europe/Moscow}
       - SPEAK_BOT_TOKEN=${SPEAK_BOT_TOKEN}
       - SPEAK_STT_MODEL=${SPEAK_STT_MODEL:-openai/whisper-large-v3}
-      - SPEAK_TTS_MODEL=${SPEAK_TTS_MODEL:-openai/gpt-4o-mini-tts-2025-12-15}
+      - SPEAK_TTS_MODEL=${SPEAK_TTS_MODEL:-deepgram/flux-tts:free}
     command: ["python", "main.py", "--mode", "speak"]
     networks:
       - alexol_network

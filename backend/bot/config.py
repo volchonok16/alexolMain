@@ -10,7 +10,7 @@ TELEGRAM_NEWS_BOT_TOKEN = os.getenv("TELEGRAM_NEWS_BOT_TOKEN")
 # Языковой tutor-бот (Alexol Speak): отдельный токен, отдельный polling.
 SPEAK_BOT_TOKEN = os.getenv("SPEAK_BOT_TOKEN")
 SPEAK_STT_MODEL = os.getenv("SPEAK_STT_MODEL", "openai/whisper-large-v3")
-SPEAK_TTS_MODEL = os.getenv("SPEAK_TTS_MODEL", "openai/gpt-4o-mini-tts-2025-12-15")
+SPEAK_TTS_MODEL = os.getenv("SPEAK_TTS_MODEL", "deepgram/flux-tts:free")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 # Куда слать заявки / обращения (не новости).
 # Приоритет: TELEGRAM_REQUESTS_CHAT_ID -> TELEGRAM_CHAT_ID -> TELEGRAM_CHANNEL_ID
