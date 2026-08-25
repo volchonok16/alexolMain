@@ -129,9 +129,13 @@ class TelegramParser:
         posts = []
         url = f"https://t.me/s/{username}"
 
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; AlexolNewsBot/1.0; +https://alexol.io)",
+            "Accept": "text/html,application/xhtml+xml",
+        }
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30), headers=headers) as response:
                     if response.status != 200:
                         print(f"⚠️ Канал @{username} недоступен публично")
                         return posts
@@ -160,7 +164,7 @@ class TelegramParser:
                         photo_wrap = msg.find("a", class_="tgme_widget_message_photo_wrap")
                         if photo_wrap:
                             style = photo_wrap.get("style", "")
-                            url_match = re.search(r"url\\('([^']+)'\\)", style)
+                            url_match = re.search(r"url\(['\"]([^'\"]+)['\"]\)", style)
                             if url_match:
                                 image_url = url_match.group(1)
 

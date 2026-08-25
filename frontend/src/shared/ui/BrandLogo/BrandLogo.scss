@@ -1,0 +1,26 @@
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 46px;
+
+  &__mark {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(2px);
+  }
+
+  &__wordmark {
+    height: 36px;
+    width: auto;
+    display: block;
+
+    path {
+      fill: var(--color-text);
+    }
+  }
+}

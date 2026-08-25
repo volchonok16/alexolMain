@@ -26,21 +26,6 @@
     cursor: pointer;
     display: flex;
     align-items: center;
-
-    svg {
-      height: 40px;
-      width: auto;
-
-      .alexol-primary {
-        fill: var(--color-text);
-        transition: fill 0.3s;
-      }
-
-      .alexol-accent {
-        fill: var(--color-primary);
-        transition: fill 0.3s;
-      }
-    }
   }
 
   &__nav {

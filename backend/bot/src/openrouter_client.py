@@ -244,7 +244,19 @@ class OpenRouterClient:
             if response.status_code == 200:
                 data = response.json()
                 if "choices" in data and len(data["choices"]) > 0:
-                    raw_text = data["choices"][0]["message"]["content"].strip()
+                    message = data["choices"][0].get("message") or {}
+                    raw_text = message.get("content")
+                    if isinstance(raw_text, list):
+                        raw_text = "".join(
+                            part.get("text", "") if isinstance(part, dict) else str(part) for part in raw_text
+                        )
+                    if not raw_text:
+                        raw_text = message.get("reasoning") or message.get("reasoning_content") or ""
+                    raw_text = (raw_text or "").strip()
+                    raw_text = re.sub(r"<think>[\s\S]*?</think>", "", raw_text, flags=re.IGNORECASE).strip()
+                    if not raw_text:
+                        print(f"      ⚠️ Пустой content от {model}")
+                        return None
                     cleaned_text = self._clean_ai_response(raw_text)
                     if self._looks_broken_russian_post(cleaned_text):
                         print(f"      ⚠️ Ответ от {model} похож на сломанный формат, пробуем другую модель")
@@ -516,7 +528,13 @@ class OpenRouterClient:
 
                 if response.status_code == 200:
                     data = response.json()
-                    raw_text = data["choices"][0]["message"]["content"].strip()
+                    message = (data.get("choices") or [{}])[0].get("message") or {}
+                    raw_text = message.get("content") or ""
+                    if isinstance(raw_text, list):
+                        raw_text = "".join(
+                            part.get("text", "") if isinstance(part, dict) else str(part) for part in raw_text
+                        )
+                    raw_text = (raw_text or "").strip()
                     cleaned_text = self._clean_ai_response(raw_text)
                     return cleaned_text if cleaned_text else None
                 return None

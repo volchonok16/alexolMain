@@ -43,6 +43,31 @@ class TelegramPublisher:
             text = re.sub(rf"<(?!\/?(?:{valid_pattern})\b)[^>]+>", "", text, flags=re.IGNORECASE)
         return text
 
+    def _plain_text(self, text: str) -> str:
+        import re
+
+        plain = re.sub(r"<[^>]+>", "", text or "")
+        plain = (
+            plain.replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", '"')
+            .replace("&#39;", "'")
+        )
+        return plain.strip()
+
+    def _is_html_parse_error(self, error: Exception) -> bool:
+        message = str(error).lower()
+        return any(
+            token in message
+            for token in (
+                "can't parse entities",
+                "can't find end of the entity",
+                "unsupported start tag",
+                "unclosed start tag",
+            )
+        )
+
     async def publish_post(
         self,
         text: str,
@@ -91,12 +116,25 @@ class TelegramPublisher:
                 photo = InputFile(BytesIO(image_data), filename="post_image.jpg")
 
                 print(f"   🚀 ВЫЗОВ send_photo с caption={len(caption)} символов")
-                message = await self.bot.send_photo(
-                    chat_id=self.channel_id,
-                    photo=photo,
-                    caption=caption,
-                    parse_mode=parse_mode,
-                )
+                try:
+                    message = await self.bot.send_photo(
+                        chat_id=self.channel_id,
+                        photo=photo,
+                        caption=caption,
+                        parse_mode=parse_mode,
+                    )
+                except TelegramError as e:
+                    if parse_mode and self._is_html_parse_error(e):
+                        print(f"   ⚠️ Telegram не принял HTML ({e}), повторяем без разметки")
+                        photo = InputFile(BytesIO(image_data), filename="post_image.jpg")
+                        message = await self.bot.send_photo(
+                            chat_id=self.channel_id,
+                            photo=photo,
+                            caption=self._plain_text(caption)[:1024] or "📰 IT новости",
+                            parse_mode=None,
+                        )
+                    else:
+                        raise
 
                 print(f"✅ Опубликовано фото с caption (ID: {message.message_id})")
                 print(f"   📌 Caption: {len(caption)} символов")
@@ -104,8 +142,6 @@ class TelegramPublisher:
                 if len(text) > 1024:
                     print(f"   ⚠️ Исходный текст был {len(text)} символов, обрезан до 1024")
 
-                TelegramPublisher._sending_global = False
-                self._sending = False
                 return True
             elif image_data:
                 print(f"   ⚠️ Изображение слишком маленькое ({len(image_data)} байт), отправляем только текст")
@@ -118,8 +154,6 @@ class TelegramPublisher:
                     disable_web_page_preview=True,
                 )
                 print(f"✅ Пост без изображения успешно опубликован в {self.channel_id}")
-                TelegramPublisher._sending_global = False
-                self._sending = False
                 return True
             else:
                 if len(text) > config.MAX_POST_LENGTH:
@@ -131,8 +165,6 @@ class TelegramPublisher:
                     disable_web_page_preview=True,
                 )
                 print(f"✅ Пост успешно опубликован в {self.channel_id}")
-                TelegramPublisher._sending_global = False
-                self._sending = False
                 return True
 
         except TelegramError as e:
@@ -141,8 +173,6 @@ class TelegramPublisher:
             import traceback
 
             print(f"   Traceback: {traceback.format_exc()}")
-            TelegramPublisher._sending_global = False
-            self._sending = False
             return False
         except Exception as e:
             print(f"❌ Ошибка публикации: {e}")
@@ -150,9 +180,10 @@ class TelegramPublisher:
             import traceback
 
             print(f"   Traceback: {traceback.format_exc()}")
+            return False
+        finally:
             TelegramPublisher._sending_global = False
             self._sending = False
-            return False
 
     async def send_test_message(self) -> bool:
         try:

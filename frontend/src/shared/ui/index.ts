@@ -7,3 +7,5 @@ export { Modal } from './Modal';
 export { Select } from './Select';
 export { ErrorState } from './ErrorState';
 export { OfferModal } from './OfferModal';
+export { Logo3D } from './Logo3D';
+export { BrandLogo } from './BrandLogo';

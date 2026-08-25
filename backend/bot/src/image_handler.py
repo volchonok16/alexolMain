@@ -22,13 +22,16 @@ class ImageHandler:
         ]
 
     async def download_image(self, url: str) -> Optional[bytes]:
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; AlexolNewsBot/1.0; +https://alexol.io)"}
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                    if response.status == 200:
-                        content_type = response.headers.get("Content-Type", "")
-                        if "image" in content_type:
-                            return await response.read()
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30), headers=headers) as response:
+                    if response.status != 200:
+                        return None
+                    content_type = response.headers.get("Content-Type", "")
+                    data = await response.read()
+                    if "image" in content_type or self.validate_image(data):
+                        return data
         except asyncio.CancelledError:
             print(f"   ⚠️ Загрузка изображения прервана: {url[:50]}...")
             return None
@@ -216,10 +219,20 @@ class ImageHandler:
                 if image and self.validate_image(image):
                     print("   ✅ Использовано изображение из статьи")
                     return image
-                else:
-                    print("   ❌ Изображение из статьи не валидно или не загрузилось")
+                print("   ❌ Изображение из статьи не валидно или не загрузилось")
             else:
                 print("   ⚠️ У статьи нет исходного изображения (image_url отсутствует)")
+
+            if search_query:
+                print(f"   🔎 Ищем стоковое изображение по запросу: {search_query}")
+                image = await self.get_unsplash_image(search_query)
+                if image and self.validate_image(image):
+                    return image
+
+            print("   🔎 Берём запасное технологическое изображение")
+            image = await self.get_random_tech_image()
+            if image and self.validate_image(image):
+                return image
 
             print("   ⚠️ Для этой статьи не найдено подходящее изображение, возвращаем None")
             return None

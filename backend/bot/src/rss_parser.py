@@ -1,17 +1,34 @@
 import feedparser
 import aiohttp
 import asyncio
+import ssl
 from bs4 import BeautifulSoup
 from dataclasses import dataclass
 from typing import Optional
 import re
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
 from src.sources import SourcesManager
 from src import database as db
 import config
+
+
+HTTP_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; AlexolNewsBot/1.0; +https://alexol.io)",
+    "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+}
+
+_SSL_ERRORS = tuple(
+    cls
+    for cls in (
+        ssl.SSLError,
+        getattr(aiohttp, "ClientConnectorCertificateError", None),
+        getattr(aiohttp, "ClientSSLError", None),
+    )
+    if cls is not None
+)
 
 
 @dataclass
@@ -32,31 +49,60 @@ class RSSParser:
             sources = SourcesManager()
             self.feeds = sources.get_enabled_rss_urls()
 
+    def _to_utc(self, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    def _entry_published_utc(self, entry) -> Optional[datetime]:
+        if getattr(entry, "published_parsed", None):
+            try:
+                # feedparser отдаёт struct_time в UTC
+                return datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+            except Exception:
+                pass
+        published = getattr(entry, "published", None)
+        if published:
+            try:
+                return self._to_utc(parsedate_to_datetime(published))
+            except Exception:
+                pass
+        return None
+
+    async def _get_feed_text(self, session: aiohttp.ClientSession, url: str) -> Optional[str]:
+        timeout = aiohttp.ClientTimeout(total=30)
+        try:
+            async with session.get(url, timeout=timeout, headers=HTTP_HEADERS) as response:
+                if response.status != 200:
+                    print(f"⚠️ RSS {url}: HTTP {response.status}")
+                    return None
+                return await response.text()
+        except _SSL_ERRORS as e:
+            print(f"⚠️ RSS {url}: проблема SSL ({type(e).__name__}), пробуем без проверки сертификата")
+            ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+            async with session.get(url, timeout=timeout, headers=HTTP_HEADERS, ssl=ssl_ctx) as response:
+                if response.status != 200:
+                    print(f"⚠️ RSS {url}: HTTP {response.status}")
+                    return None
+                return await response.text()
+
     async def fetch_feed(self, session: aiohttp.ClientSession, url: str) -> list[NewsArticle]:
         articles = []
         try:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                content = await response.text()
-                feed = feedparser.parse(content)
+            content = await self._get_feed_text(session, url)
+            if not content:
+                return articles
 
-                source_name = feed.feed.get("title", url)
+            feed = feedparser.parse(content)
+            source_name = feed.feed.get("title", url)
+            max_age = timedelta(hours=config.NEWS_MAX_AGE_HOURS)
+            now = datetime.now(timezone.utc)
 
-                max_age = timedelta(hours=config.NEWS_MAX_AGE_HOURS)
-                now = datetime.now()
-
-                for entry in feed.entries[:10]:
-                    published_time = None
-                    if hasattr(entry, "published_parsed") and entry.published_parsed:
-                        try:
-                            published_time = datetime(*entry.published_parsed[:6])
-                        except Exception:
-                            pass
-                    elif hasattr(entry, "published"):
-                        try:
-                            published_time = parsedate_to_datetime(entry.published)
-                        except Exception:
-                            pass
-
+            for entry in feed.entries[:25]:
+                try:
+                    published_time = self._entry_published_utc(entry)
                     if published_time and (now - published_time) > max_age:
                         continue
 
@@ -88,6 +134,8 @@ class RSSParser:
                                 db_id=post_id,
                             )
                         )
+                except Exception as e:
+                    print(f"⚠️ Пропуск записи RSS {url}: {type(e).__name__}: {e}")
         except Exception as e:
             print(f"Ошибка при парсинге {url}: {e}")
 
@@ -148,4 +196,3 @@ class RSSParser:
     async def get_latest_article(self) -> Optional[NewsArticle]:
         articles = await self.get_random_articles(1)
         return articles[0] if articles else None
-

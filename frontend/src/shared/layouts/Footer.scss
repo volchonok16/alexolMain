@@ -37,19 +37,6 @@
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
-
-    svg {
-      height: 40px;
-      width: auto;
-
-      .alexol-primary {
-        fill: var(--color-text);
-      }
-
-      .alexol-accent {
-        fill: var(--color-primary);
-      }
-    }
   }
 
   &__description {
