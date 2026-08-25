@@ -6,6 +6,7 @@ Does NOT reuse news response cleaning (it strips English words).
 from __future__ import annotations
 
 import json
+import random
 import re
 from typing import Any, Optional
 
@@ -18,6 +19,31 @@ LANG_META = {
     "es": {"name_ru": "испанский", "name_en": "Spanish", "code": "es"},
     "fr": {"name_ru": "французский", "name_en": "French", "code": "fr"},
 }
+
+# Ключ → (подпись в UI RU, описание темы для модели EN)
+TOPICS: dict[str, tuple[str, str]] = {
+    "today": ("📅 Что делал сегодня", "what the learner did today / daily routine"),
+    "work": ("💼 Работа и учёба", "work, studies, projects, colleagues"),
+    "hobbies": ("🎨 Хобби", "hobbies, free time, sports, creativity"),
+    "travel": ("✈️ Путешествия", "travel, cities, trips, dream destinations"),
+    "food": ("🍕 Еда", "food, cooking, restaurants, favorite dishes"),
+    "movies": ("🎬 Фильмы и сериалы", "movies, series, music, books"),
+    "friends": ("👥 Друзья и семья", "friends, family, weekend plans together"),
+    "future": ("🚀 Планы и мечты", "future plans, goals, dreams"),
+    "random": ("🎲 Сам предложи тему", "surprise: pick any lively everyday topic yourself"),
+    "custom": ("✍️ Своя тема", "custom topic chosen by the learner"),
+}
+
+OPENING_STYLES = [
+    "Ask what they did today and react with curiosity.",
+    "Suggest a concrete topic yourself and dive in with a personal question.",
+    "Ask them to record / name a topic they want, then immediately ask one related question.",
+    "Start with your own short story (1 sentence), then ask about theirs.",
+    "Ask about plans for tonight or the weekend.",
+    "Ask about work/study today — what was interesting or hard.",
+    "Ask about food: last meal, favorite cafe, or what they want to cook.",
+    "Ask about a hobby or something they enjoy lately.",
+]
 
 
 def _extract_json(text: str) -> Optional[dict[str, Any]]:
@@ -40,6 +66,88 @@ def _extract_json(text: str) -> Optional[dict[str, Any]]:
             except json.JSONDecodeError:
                 return None
     return None
+
+
+def _normalize_compare(text: str) -> str:
+    """Сравнение без учёта регистра, лишних пробелов и пробелов перед пунктуацией."""
+    s = (text or "").lower().strip()
+    s = re.sub(r"\s+", " ", s)
+    s = re.sub(r"\s+([?!.,;:])", r"\1", s)
+    s = re.sub(r"[`''']", "'", s)
+    return s
+
+
+def _is_trivial_correction(wrong: str, right: str) -> bool:
+    """Пропускаем правки только по пунктуации, пробелам или регистру."""
+    if not wrong or not right:
+        return True
+    if _normalize_compare(wrong) == _normalize_compare(right):
+        return True
+
+    words_w = re.findall(r"[\w']+", wrong.lower())
+    words_r = re.findall(r"[\w']+", right.lower())
+    if words_w and words_w == words_r:
+        return True
+
+    compact_wrong = re.sub(r"\s*([?!.,;:])", r"\1", wrong.strip())
+    compact_right = re.sub(r"\s*([?!.,;:])", r"\1", right.strip())
+    if compact_wrong.lower() == compact_right.lower():
+        return True
+
+    return False
+
+
+def _normalize_corrections(
+    raw_corrections: Any,
+    *,
+    user_text: str,
+    corrected_message: str,
+) -> list[dict[str, str]]:
+    """Приводит corrections к единому виду; если список пуст, но есть corrected_message — одна правка целиком."""
+    result: list[dict[str, str]] = []
+    if isinstance(raw_corrections, list):
+        for item in raw_corrections:
+            if not isinstance(item, dict):
+                continue
+            wrong = str(item.get("wrong") or "").strip()
+            right = str(item.get("right") or "").strip()
+            wrong_line = str(item.get("wrong_line") or "").strip()
+            right_line = str(item.get("right_line") or "").strip()
+            if not wrong and wrong_line:
+                wrong = wrong_line
+            if not right and right_line:
+                right = right_line
+            if not wrong or not right:
+                continue
+            if _is_trivial_correction(wrong, right):
+                continue
+            if wrong.lower() == right.lower():
+                continue
+            result.append(
+                {
+                    "wrong": wrong,
+                    "right": right,
+                    "wrong_line": wrong_line or wrong,
+                    "right_line": right_line or right,
+                    "type": str(item.get("type") or "grammar"),
+                }
+            )
+
+    if not result and corrected_message.strip():
+        orig = user_text.strip()
+        fixed = corrected_message.strip()
+        if orig and fixed and not _is_trivial_correction(orig, fixed):
+            if _normalize_compare(orig) != _normalize_compare(fixed):
+                result.append(
+                    {
+                        "wrong": orig,
+                        "right": fixed,
+                        "wrong_line": orig,
+                        "right_line": fixed,
+                        "type": "grammar",
+                    }
+                )
+    return result
 
 
 class SpeakTutorAI:
@@ -96,25 +204,47 @@ class SpeakTutorAI:
                     continue
         return None
 
-    async def start_conversation(self, language: str, user_name: str) -> Optional[dict[str, Any]]:
+    async def start_conversation(
+        self,
+        language: str,
+        user_name: str,
+        topic_key: str = "random",
+        custom_topic: str = "",
+    ) -> Optional[dict[str, Any]]:
         meta = LANG_META.get(language, LANG_META["en"])
-        system = (
-            f"You are Alexol Speak, a friendly language practice partner. "
-            f"The learner practices {meta['name_en']}. "
-            "Start a natural casual conversation with one short spoken line (1-2 sentences) "
-            "in the target language, then ask a simple question. "
-            "Keep it beginner-friendly and warm."
-        )
+        topic_key = topic_key if topic_key in TOPICS else "random"
+        _, topic_desc = TOPICS[topic_key]
+        if topic_key == "custom" and custom_topic.strip():
+            topic_desc = f"learner-chosen topic: {custom_topic.strip()}"
+
+        style = random.choice(OPENING_STYLES)
+        system = f"""You are Alexol Speak — an energetic voice conversation partner for language practice.
+The learner practices {meta['name_en']}. Your reply will be spoken aloud as a voice message.
+
+Topic focus: {topic_desc}
+Opening style this turn: {style}
+
+Write ONLY what you will SAY aloud (spoken dialogue), 1–3 short sentences in {meta['name_en']}.
+You lead the chat: ask a concrete personal question. Be warm, curious, a bit playful.
+
+HARD RULES:
+- NEVER say "How can I help you", "How may I assist", "What do you need", or similar support-desk phrases.
+- NEVER sound like a call center or FAQ bot.
+- DO ask about real life: today, work, hobbies, food, plans, feelings, stories.
+- Prefer questions like: What did you do today? Tell me a topic you want. What was the best part of your day?
+- End with a clear question so the learner can answer by voice.
+- Beginner-friendly vocabulary, natural spoken rhythm."""
+
         user = (
             f"Learner name: {user_name or 'friend'}. "
             "Return ONLY valid JSON with keys: "
-            "reply (string, target language), "
+            "reply (string, target language, spoken), "
             "reply_translation (string, Russian)."
         )
         raw = await self._chat(
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
             max_tokens=400,
-            temperature=0.85,
+            temperature=0.95,
         )
         data = _extract_json(raw or "")
         if data and data.get("reply"):
@@ -128,32 +258,72 @@ class SpeakTutorAI:
         language: str,
         history: list[dict[str, str]],
         user_text: str,
+        topic_key: str = "random",
+        custom_topic: str = "",
     ) -> Optional[dict[str, Any]]:
         meta = LANG_META.get(language, LANG_META["en"])
-        system = f"""You are Alexol Speak — a language tutor and conversation partner.
-Learner practices {meta['name_en']}. UI language for explanations is Russian.
+        topic_key = topic_key if topic_key in TOPICS else "random"
+        _, topic_desc = TOPICS[topic_key]
+        if custom_topic.strip():
+            topic_desc = f"{topic_desc}; learner topic note: {custom_topic.strip()}"
 
-Tasks for each user message:
-1) Find grammar/vocabulary/word-order mistakes (ignore tiny typos if meaning is clear).
-2) Continue the conversation naturally in {meta['name_en']} (1-3 short sentences, end with a question when natural).
-3) Give a Russian translation of your reply.
+        system = f"""You are Alexol Speak — a lively voice conversation partner AND careful grammar tutor.
+Learner practices {meta['name_en']}. UI explanations language: Russian.
+Your "reply" is spoken as a voice message — write natural speech, not a formal letter.
+Stay loosely on topic: {topic_desc}
+
+For EACH user message you MUST:
+1) Analyze real grammar, vocabulary, articles, prepositions, word order, tense, collocations.
+2) List only REAL mistakes that affect correctness or natural meaning.
+3) React to content and ask a concrete follow-up question (active partner, not helpdesk).
+4) Give Russian translation of your spoken reply.
+
+DO NOT flag as mistakes (leave corrections=[]):
+- Spacing before punctuation: "and you ?" vs "and you?" — BOTH OK in chat.
+- Missing/extra space around ? ! . ,
+- Capitalization in casual chat: "hi" vs "Hi", "i'm" vs "I'm" unless clearly wrong.
+- Informal but understandable phrasing if meaning is clear.
+- Stylistic preferences when grammar is already acceptable.
+
+ONLY flag: wrong words, wrong tense, missing/wrong articles, bad word order, wrong prepositions,
+unnatural collocations, meaning-changing errors.
 
 Return ONLY valid JSON:
 {{
   "has_errors": boolean,
   "corrections": [
-    {{"wrong": "exact wrong fragment", "right": "corrected fragment"}}
+    {{
+      "wrong": "exact wrong fragment from the user text",
+      "right": "corrected fragment",
+      "wrong_line": "short phrase/clause containing the mistake (with the wrong words)",
+      "right_line": "same phrase/clause fully corrected",
+      "type": "grammar|vocabulary|article|preposition|word_order|tense|collocation|other"
+    }}
   ],
   "corrected_message": "full corrected version of the user's message in {meta['name_en']}",
-  "reply": "your spoken reply in {meta['name_en']}",
+  "reply": "your spoken reply in {meta['name_en']} (1-3 short sentences, end with a question)",
   "reply_translation": "Russian translation of reply"
 }}
 
-Rules:
-- corrections: only real mistakes; empty array if none.
-- wrong/right must be short phrases from the sentence, not the whole essay.
-- Do not invent mistakes.
-- Keep reply conversational, not lecture-like."""
+CORRECTION EXAMPLES (style):
+User: "when I break my job I use Duolingo application for the English"
+→ corrections like:
+  wrong="break my job", right="take a break from my job",
+  wrong_line="when I break my job", right_line="when I take a break from my job"
+  wrong="Duolingo application for the English", right="the Duolingo application for English",
+  wrong_line="I use Duolingo application for the English",
+  right_line="I use the Duolingo application for English"
+
+HARD RULES:
+- If there ARE real mistakes: has_errors=true and corrections MUST be non-empty.
+- If the message is correct or only stylistic/punctuation: has_errors=false, corrections=[].
+- wrong/right must be real substrings of wrong_line/right_line.
+- Do NOT invent mistakes. Do NOT correct punctuation spacing.
+- NEVER use helpdesk phrases ("How can I help you", etc.).
+- React + ask (What happened next? How did you feel?).
+
+Example — NO correction needed:
+User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear)."""
 
         messages: list[dict[str, str]] = [{"role": "system", "content": system}]
         for item in history[-8:]:
@@ -163,12 +333,15 @@ Rules:
                 messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": user_text})
 
-        raw = await self._chat(messages, max_tokens=1200, temperature=0.6)
+        raw = await self._chat(messages, max_tokens=1400, temperature=0.55)
         data = _extract_json(raw or "")
         if data and data.get("reply"):
-            if not isinstance(data.get("corrections"), list):
-                data["corrections"] = []
-            data["has_errors"] = bool(data.get("has_errors") or data["corrections"])
+            data["corrections"] = _normalize_corrections(
+                data.get("corrections"),
+                user_text=user_text,
+                corrected_message=(data.get("corrected_message") or ""),
+            )
+            data["has_errors"] = bool(data["corrections"])
             return data
         if raw:
             return {
@@ -187,16 +360,18 @@ Rules:
         last_bot_reply: str,
     ) -> Optional[dict[str, Any]]:
         meta = LANG_META.get(language, LANG_META["en"])
-        system = f"""You help a learner answer in {meta['name_en']}.
-Explain in Russian what they can talk about, give 3 short ready phrases in {meta['name_en']}
-with Russian translations, and one full example answer.
+        system = f"""You help a learner answer aloud in {meta['name_en']}.
+Explain in Russian what they can talk about (daily life, opinions, short stories),
+give 3 short ready spoken phrases in {meta['name_en']} with Russian translations,
+and one full example answer that sounds natural when spoken.
 Return ONLY JSON:
 {{
   "what_to_say": "Russian guidance paragraph",
   "phrases": [{{"en": "phrase", "ru": "перевод"}}],
   "example": "full example answer in {meta['name_en']}"
 }}
-Use key "en" for the target-language phrase even if the language is not English."""
+Use key "en" for the target-language phrase even if the language is not English.
+Avoid helpdesk phrases; keep it conversational."""
 
         context = last_bot_reply or ""
         if history:
@@ -231,17 +406,19 @@ Use key "en" for the target-language phrase even if the language is not English.
                 {
                     "role": "system",
                     "content": (
-                        f"Explain language mistakes for a {meta['name_en']} learner. "
-                        "Answer in Russian, short and clear, with examples. No JSON."
+                        f"You explain {meta['name_en']} grammar mistakes to a Russian-speaking learner. "
+                        "For each mistake: name the rule (articles, tense, preposition, collocation…), "
+                        "why the original is wrong, and give 1 short correct example. "
+                        "Answer in Russian, clear and structured with short paragraphs. No JSON."
                     ),
                 },
                 {
                     "role": "user",
-                    "content": f"Original: {user_text}\nCorrections JSON: {payload}",
+                    "content": f"Original message:\n{user_text}\n\nCorrections JSON:\n{payload}",
                 },
             ],
-            max_tokens=700,
-            temperature=0.5,
+            max_tokens=900,
+            temperature=0.4,
         )
         return raw
 
