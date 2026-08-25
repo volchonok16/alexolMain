@@ -9,6 +9,7 @@ from typing import Any
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    InputFile,
     LabeledPrice,
     MenuButtonCommands,
     Update,
@@ -364,31 +365,47 @@ async def _send_tutor_voice_and_controls(
     reply: str,
     points: int | None = None,
 ) -> None:
+    """Разговор — только голосом (voice/audio). Текст не отправляем."""
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
     audio_path = await synthesize_speech(reply, lang)
+    keyboard = _session_keyboard(points)
+
     try:
-        if audio_path:
-            with audio_path.open("rb") as audio_file:
+        if not audio_path:
+            print("❌ TTS failed completely — no audio generated")
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="⚠️ Не удалось озвучить ответ. Попробуй ещё раз через минуту.",
+                reply_markup=keyboard,
+            )
+            return
+
+        filename = "voice.ogg" if audio_path.suffix.lower() == ".ogg" else "speech.mp3"
+        with audio_path.open("rb") as audio_file:
+            voice_file = InputFile(audio_file, filename=filename)
+            try:
                 if audio_path.suffix.lower() == ".ogg":
                     await context.bot.send_voice(
                         chat_id=chat_id,
-                        voice=audio_file,
-                        reply_markup=_session_keyboard(points),
+                        voice=voice_file,
+                        reply_markup=keyboard,
                     )
                 else:
                     await context.bot.send_audio(
                         chat_id=chat_id,
-                        audio=audio_file,
+                        audio=voice_file,
                         title="Alexol Speak",
-                        reply_markup=_session_keyboard(points),
+                        reply_markup=keyboard,
                     )
-        else:
-            # TTS недоступен — крайний fallback
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=f"🎙 {reply}",
-                reply_markup=_session_keyboard(points),
-            )
+            except Exception as send_exc:
+                print(f"⚠️ send_voice failed, retry as audio: {send_exc}")
+                audio_file.seek(0)
+                await context.bot.send_audio(
+                    chat_id=chat_id,
+                    audio=InputFile(audio_file, filename=filename),
+                    title="Alexol Speak",
+                    reply_markup=keyboard,
+                )
     finally:
         if audio_path:
             Path(audio_path).unlink(missing_ok=True)
