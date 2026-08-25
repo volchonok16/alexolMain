@@ -109,7 +109,9 @@ services:
     environment:
       - TZ=${TIMEZONE:-Europe/Moscow}
       - SPEAK_BOT_TOKEN=${SPEAK_BOT_TOKEN}
-      - SPEAK_STT_MODEL=${SPEAK_STT_MODEL:-openai/whisper-large-v3}
+      - SPEAK_STT_BACKEND=${SPEAK_STT_BACKEND:-local}
+      - SPEAK_WHISPER_LOCAL_MODEL=${SPEAK_WHISPER_LOCAL_MODEL:-base}
+      - SPEAK_STT_MODEL=${SPEAK_STT_MODEL:-openai/whisper-1}
       - SPEAK_TTS_MODEL=${SPEAK_TTS_MODEL:-deepgram/flux-tts:free}
     command: ["python", "main.py", "--mode", "speak"]
     networks:
