@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { prisma } from '../config/database.js';
+import { isMinioReady } from '../config/minio.js';
 import { deleteObjectFromMinio, uploadLocalPathToMinio } from './minioStorage.js';
 
 const ASSETS_DIR = path.resolve(
@@ -145,6 +146,11 @@ export async function seedPortfolio(): Promise<void> {
   const existing = await prisma.portfolioItem.count();
   if (existing > 0) {
     console.log('ℹ️  Portfolio items already exist, skipping seed');
+    return;
+  }
+
+  if (!isMinioReady()) {
+    console.warn('[Portfolio] Skipping seed: MinIO is not available');
     return;
   }
 

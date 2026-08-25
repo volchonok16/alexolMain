@@ -1,3 +1,4 @@
+import asyncio
 import re
 import aiohttp
 from bs4 import BeautifulSoup
@@ -25,27 +26,62 @@ class TelegramParser:
         self.channels = sources.get_enabled_telegram_channels()
         self.client = None
         self.use_tdata = False
+        self._tdata_init_done = False
+
+    def _resolve_tdata_path(self) -> Optional[Path]:
+        """Return a tdata folder that actually contains key_data, or None."""
+        raw = Path(config.TDATA_PATH)
+        for path in (raw, raw / "tdata"):
+            if (path / "key_data").is_file():
+                return path
+        return None
+
+    def _describe_tdata(self, path: Path) -> str:
+        if not path.exists():
+            return "путь не существует"
+        if path.is_file():
+            return "это файл, нужна папка tdata"
+        try:
+            names = sorted(p.name for p in path.iterdir())
+        except OSError as e:
+            return f"не удалось прочитать каталог: {e}"
+        if not names:
+            return "папка пустая"
+        preview = ", ".join(names[:12])
+        extra = f" (+{len(names) - 12})" if len(names) > 12 else ""
+        return f"содержимое: {preview}{extra}"
 
     async def _init_client(self):
         if self.client:
             return True
+        if self._tdata_init_done:
+            return False
 
-        tdata_path = Path(config.TDATA_PATH)
+        self._tdata_init_done = True
+        tdata_path = self._resolve_tdata_path()
 
-        if not tdata_path.exists():
-            print(f"⚠️ tdata не найден по пути: {tdata_path}")
+        if tdata_path is None:
+            configured = Path(config.TDATA_PATH)
+            print(
+                f"⚠️ tdata неполный или отсутствует ({configured}: {self._describe_tdata(configured)}). "
+                "Нужен файл key_data из папки Telegram Desktop/tdata. Используем веб-парсинг."
+            )
             return False
 
         try:
             from opentele.td import TDesktop
             from opentele.api import UseCurrentSession
+        except ImportError:
+            print("⚠️ opentele не установлен, используем веб-парсинг")
+            return False
 
+        try:
             print(f"📂 Загрузка tdata из: {tdata_path}")
 
             tdesk = TDesktop(str(tdata_path))
 
             if not tdesk.isLoaded():
-                print("❌ Не удалось загрузить tdata")
+                print("❌ Не удалось загрузить tdata, используем веб-парсинг")
                 return False
 
             session_path = Path("data/parser_session")
@@ -56,7 +92,9 @@ class TelegramParser:
             await self.client.connect()
 
             if not await self.client.is_user_authorized():
-                print("❌ Сессия не авторизована")
+                print("❌ Сессия не авторизована, используем веб-парсинг")
+                await self.client.disconnect()
+                self.client = None
                 return False
 
             me = await self.client.get_me()
@@ -64,11 +102,18 @@ class TelegramParser:
             self.use_tdata = True
             return True
 
-        except ImportError:
-            print("⚠️ opentele не установлен, используем веб-парсинг")
-            return False
-        except Exception as e:
+        except BaseException as e:
+            # opentele.OpenTeleException inherits from BaseException, not Exception
+            if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                raise
             print(f"⚠️ Ошибка загрузки tdata: {e}")
+            print("   Используем веб-парсинг публичных каналов.")
+            if self.client:
+                try:
+                    await self.client.disconnect()
+                except Exception:
+                    pass
+                self.client = None
             return False
 
     async def fetch_channel_api(self, username: str, limit: int = 10) -> list[TelegramPost]:
@@ -204,13 +249,18 @@ class TelegramParser:
         if not self.channels:
             return all_posts
 
-        await self._init_client()
+        try:
+            await self._init_client()
 
-        for channel in self.channels:
-            posts = await self.fetch_channel(channel, limit_per_channel)
-            all_posts.extend(posts)
-            method = "API" if self.use_tdata else "WEB"
-            print(f"📱 [{method}] @{channel}: {len(posts)} новых постов")
+            for channel in self.channels:
+                posts = await self.fetch_channel(channel, limit_per_channel)
+                all_posts.extend(posts)
+                method = "API" if self.use_tdata else "WEB"
+                print(f"📱 [{method}] @{channel}: {len(posts)} новых постов")
+        except BaseException as e:
+            if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                raise
+            print(f"⚠️ Парсинг Telegram-каналов пропущен: {e}")
 
         return all_posts
 

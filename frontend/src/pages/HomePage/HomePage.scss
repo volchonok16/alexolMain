@@ -179,8 +179,7 @@
     }
 
     [data-theme="light"] & {
-      color: white;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      color: #0F172A;
     }
   }
 
@@ -217,8 +216,7 @@
     line-height: 1.6;
 
     [data-theme="light"] & {
-      color: white;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      color: #475569;
     }
   }
 
@@ -1105,20 +1103,19 @@
   }
 
   &__icon {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 0.5rem;
-    background: linear-gradient(to bottom right, rgba(10, 227, 255, 0.2), rgba(27, 145, 247, 0.2));
+    width: 3.65rem;
+    height: 3.65rem;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: #0AE3FF;
+    overflow: visible;
     transition: transform 0.3s;
 
-    [data-theme="light"] & {
-      background: linear-gradient(to bottom right, rgba(8, 145, 178, 0.2), rgba(3, 105, 161, 0.2));
-      color: #0891B2;
+    .icon3d {
+      width: 3.65rem;
+      height: 3.65rem;
+      filter: drop-shadow(0 0 5px color-mix(in srgb, var(--icon-primary) 40%, transparent));
     }
   }
 
@@ -2032,79 +2029,111 @@
 
 // Tech Modules
 .tech-module {
+  --module-accent: #0ae3ff;
+  --ring-bg: rgba(10, 12, 16, 0.8);
+  --ring-border: color-mix(in srgb, var(--module-accent) 38%, transparent);
+  --ring-shadow:
+    0 0 10px color-mix(in srgb, var(--module-accent) 28%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--module-accent) 14%, transparent);
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 100px;
-  height: 100px;
+  width: 108px;
+  height: 108px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 12, 16, 0.8);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(10, 227, 255, 0.3);
-  border-radius: 50%;
+  background: none;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
   cursor: pointer;
   pointer-events: all;
-  transition: transform 0.3s, background 0.3s;
+  transition: transform 0.3s;
   z-index: 100;
   animation: breathe 3s linear infinite;
-  box-shadow:
-    0 0 10px rgba(10, 227, 255, 0.2),
-    inset 0 0 10px rgba(10, 227, 255, 0.1);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--ring-bg);
+    border: 2px solid var(--ring-border);
+    box-shadow: var(--ring-shadow);
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 
   [data-theme="light"] & {
-    background: rgba(255, 255, 255, 0.9);
-    border: 2px solid rgba(8, 145, 178, 0.4);
-    box-shadow:
-      0 0 10px rgba(8, 145, 178, 0.3),
-      inset 0 0 10px rgba(8, 145, 178, 0.15);
+    --ring-bg: rgba(255, 255, 255, 0.94);
+    --ring-border: color-mix(in srgb, var(--module-accent) 62%, transparent);
+    --ring-shadow:
+      0 0 14px color-mix(in srgb, var(--module-accent) 42%, transparent),
+      inset 0 0 12px color-mix(in srgb, var(--module-accent) 18%, transparent);
   }
 
   &:hover {
-    border-color: $color-primary;
-    box-shadow:
-      0 0 20px rgba(10, 227, 255, 0.5),
-      0 0 40px rgba(10, 227, 255, 0.3),
-      inset 0 0 15px rgba(10, 227, 255, 0.2);
-    background: rgba(10, 227, 255, 0.05);
+    --ring-border: var(--module-accent);
+    --ring-shadow:
+      0 0 20px color-mix(in srgb, var(--module-accent) 50%, transparent),
+      0 0 40px color-mix(in srgb, var(--module-accent) 30%, transparent),
+      inset 0 0 15px color-mix(in srgb, var(--module-accent) 22%, transparent);
+    --ring-bg: color-mix(in srgb, var(--module-accent) 8%, transparent);
 
     [data-theme="light"] & {
-      border-color: #0891B2;
-      box-shadow:
-        0 0 20px rgba(8, 145, 178, 0.5),
-        0 0 40px rgba(8, 145, 178, 0.3),
-        inset 0 0 15px rgba(8, 145, 178, 0.2);
-      background: rgba(8, 145, 178, 0.1);
+      --ring-border: var(--module-accent);
+      --ring-shadow:
+        0 0 22px color-mix(in srgb, var(--module-accent) 55%, transparent),
+        0 0 40px color-mix(in srgb, var(--module-accent) 32%, transparent),
+        inset 0 0 15px color-mix(in srgb, var(--module-accent) 20%, transparent);
+      --ring-bg: color-mix(in srgb, var(--module-accent) 12%, white);
     }
   }
 
   &--active {
-    border-color: $color-primary;
-    box-shadow:
-      0 0 25px rgba(10, 227, 255, 0.6),
-      0 0 50px rgba(10, 227, 255, 0.4),
-      0 0 75px rgba(10, 227, 255, 0.2),
-      inset 0 0 20px rgba(10, 227, 255, 0.3);
-    background: rgba(10, 227, 255, 0.1);
+    --ring-border: var(--module-accent);
+    --ring-shadow:
+      0 0 25px color-mix(in srgb, var(--module-accent) 60%, transparent),
+      0 0 50px color-mix(in srgb, var(--module-accent) 40%, transparent),
+      0 0 75px color-mix(in srgb, var(--module-accent) 20%, transparent),
+      inset 0 0 20px color-mix(in srgb, var(--module-accent) 30%, transparent);
+    --ring-bg: color-mix(in srgb, var(--module-accent) 12%, transparent);
   }
 
   &--connected {
-    border-color: rgba(10, 227, 255, 0.6);
-    box-shadow:
-      0 0 15px rgba(10, 227, 255, 0.4),
-      0 0 30px rgba(10, 227, 255, 0.2),
-      inset 0 0 12px rgba(10, 227, 255, 0.15);
+    --ring-border: color-mix(in srgb, var(--module-accent) 62%, transparent);
+    --ring-shadow:
+      0 0 15px color-mix(in srgb, var(--module-accent) 42%, transparent),
+      0 0 30px color-mix(in srgb, var(--module-accent) 22%, transparent),
+      inset 0 0 12px color-mix(in srgb, var(--module-accent) 16%, transparent);
   }
 
   &__icon {
-    width: 3rem;
-    height: 3rem;
-    margin-bottom: 0.25rem;
+    width: 3.55rem;
+    height: 3.55rem;
+    margin-bottom: 0;
+    margin-top: -0.55rem;
+    pointer-events: none;
+  }
+
+  .icon3d {
+    width: 3.55rem;
+    height: 3.55rem;
   }
 
   &__name {
-    font-size: 0.65rem;
+    position: absolute;
+    top: calc(100% - 1.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.58rem;
     color: white;
     font-weight: 500;
     text-align: center;
@@ -2112,6 +2141,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    pointer-events: none;
 
     [data-theme="light"] & {
       color: #0F172A;
@@ -2153,8 +2183,8 @@
     inset: -15px;
     border-radius: 50%;
     background: radial-gradient(circle,
-        rgba(10, 227, 255, 0.3) 0%,
-        rgba(10, 227, 255, 0.1) 50%,
+        color-mix(in srgb, var(--module-accent) 32%, transparent) 0%,
+        color-mix(in srgb, var(--module-accent) 12%, transparent) 50%,
         transparent 70%);
     opacity: 0;
     transition: opacity 0.3s;
@@ -2197,45 +2227,45 @@
 @keyframes breathe {
   0% {
     transform: translate(-50%, -50%) scale(1);
-    box-shadow:
-      0 0 10px rgba(10, 227, 255, 0.2),
-      inset 0 0 10px rgba(10, 227, 255, 0.1);
-    border-color: rgba(10, 227, 255, 0.3);
+    --ring-shadow:
+      0 0 10px color-mix(in srgb, var(--module-accent) 22%, transparent),
+      inset 0 0 10px color-mix(in srgb, var(--module-accent) 12%, transparent);
+    --ring-border: color-mix(in srgb, var(--module-accent) 38%, transparent);
   }
 
   25% {
     transform: translate(-50%, -50%) scale(1.05);
-    box-shadow:
-      0 0 14px rgba(10, 227, 255, 0.275),
-      0 0 18px rgba(10, 227, 255, 0.1),
-      inset 0 0 12px rgba(10, 227, 255, 0.125);
-    border-color: rgba(10, 227, 255, 0.375);
+    --ring-shadow:
+      0 0 14px color-mix(in srgb, var(--module-accent) 30%, transparent),
+      0 0 18px color-mix(in srgb, var(--module-accent) 12%, transparent),
+      inset 0 0 12px color-mix(in srgb, var(--module-accent) 14%, transparent);
+    --ring-border: color-mix(in srgb, var(--module-accent) 46%, transparent);
   }
 
   50% {
     transform: translate(-50%, -50%) scale(1.1);
-    box-shadow:
-      0 0 18px rgba(10, 227, 255, 0.35),
-      0 0 25px rgba(10, 227, 255, 0.15),
-      inset 0 0 15px rgba(10, 227, 255, 0.15);
-    border-color: rgba(10, 227, 255, 0.45);
+    --ring-shadow:
+      0 0 18px color-mix(in srgb, var(--module-accent) 38%, transparent),
+      0 0 25px color-mix(in srgb, var(--module-accent) 18%, transparent),
+      inset 0 0 15px color-mix(in srgb, var(--module-accent) 16%, transparent);
+    --ring-border: color-mix(in srgb, var(--module-accent) 55%, transparent);
   }
 
   75% {
     transform: translate(-50%, -50%) scale(1.05);
-    box-shadow:
-      0 0 14px rgba(10, 227, 255, 0.275),
-      0 0 18px rgba(10, 227, 255, 0.1),
-      inset 0 0 12px rgba(10, 227, 255, 0.125);
-    border-color: rgba(10, 227, 255, 0.375);
+    --ring-shadow:
+      0 0 14px color-mix(in srgb, var(--module-accent) 30%, transparent),
+      0 0 18px color-mix(in srgb, var(--module-accent) 12%, transparent),
+      inset 0 0 12px color-mix(in srgb, var(--module-accent) 14%, transparent);
+    --ring-border: color-mix(in srgb, var(--module-accent) 46%, transparent);
   }
 
   100% {
     transform: translate(-50%, -50%) scale(1);
-    box-shadow:
-      0 0 10px rgba(10, 227, 255, 0.2),
-      inset 0 0 10px rgba(10, 227, 255, 0.1);
-    border-color: rgba(10, 227, 255, 0.3);
+    --ring-shadow:
+      0 0 10px color-mix(in srgb, var(--module-accent) 22%, transparent),
+      inset 0 0 10px color-mix(in srgb, var(--module-accent) 12%, transparent);
+    --ring-border: color-mix(in srgb, var(--module-accent) 38%, transparent);
   }
 }
 

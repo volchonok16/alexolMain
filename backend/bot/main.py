@@ -28,7 +28,12 @@ generator = None
 async def publish_news_post():
     """Одна публикация новостного поста (вызывается по расписанию)."""
     global generator
-    await generator.run_once()
+    try:
+        await generator.run_once()
+    except BaseException as e:
+        if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+            raise
+        print(f"❌ Ошибка публикации новостного поста: {e}")
 
 
 def schedule_news_posts():
@@ -101,7 +106,12 @@ async def run_bot():
     print("=" * 60)
 
     print("\n🚀 Публикация первого поста при запуске...")
-    await generator.run_once()
+    try:
+        await generator.run_once()
+    except BaseException as e:
+        if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+            raise
+        print(f"❌ Ошибка первой публикации (бот продолжит работу по расписанию): {e}")
 
     scheduler.start()
     schedule_news_posts()

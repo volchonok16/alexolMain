@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { TrendingDown, Users, Eye, Shield, Zap, TrendingUp, LucideIcon } from 'lucide-react';
 import { ConsultationModal } from './modals';
 import { useTranslation } from '@/shared/utils/translations';
 import { Reveal } from '@/shared/ui/Reveal';
+import { Icon3D, type Icon3DType } from '@/shared/ui/Icon3D';
 
 interface Benefit {
-  icon: LucideIcon;
+  icon: Icon3DType;
   key: string;
 }
 
@@ -14,12 +14,12 @@ export const WhyDigital = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const benefits: Benefit[] = [
-    { icon: TrendingDown, key: 'automation' },
-    { icon: Users, key: 'simplification' },
-    { icon: Eye, key: 'transparency' },
-    { icon: Shield, key: 'reliability' },
-    { icon: Zap, key: 'adaptation' },
-    { icon: TrendingUp, key: 'efficiency' },
+    { icon: 'automation', key: 'automation' },
+    { icon: 'simplification', key: 'simplification' },
+    { icon: 'transparency', key: 'transparency' },
+    { icon: 'reliability', key: 'reliability' },
+    { icon: 'adaptation', key: 'adaptation' },
+    { icon: 'efficiency', key: 'efficiency' },
   ];
 
   return (
@@ -38,7 +38,7 @@ export const WhyDigital = () => {
 
         <div className="why-digital__grid">
           {benefits.map((benefit, index) => (
-            <BenefitCard key={index} benefit={benefit} index={index} />
+            <BenefitCard key={benefit.key} benefit={benefit} index={index} />
           ))}
         </div>
 
@@ -56,13 +56,12 @@ export const WhyDigital = () => {
 
 const BenefitCard = ({ benefit, index }: { benefit: Benefit; index: number }) => {
   const { t } = useTranslation();
-  const Icon = benefit.icon;
 
   return (
     <Reveal delay={index * 0.1} className="benefit-card">
       <div className="benefit-card__content">
         <div className="benefit-card__icon">
-          <Icon />
+          <Icon3D type={benefit.icon} spin={false} />
         </div>
         <p className="benefit-card__title">{t(`whyDigital.benefits.${benefit.key}`)}</p>
       </div>

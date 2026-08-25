@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { existsSync } from 'fs';
 
 dotenv.config();
 
@@ -37,6 +38,18 @@ const parseBoolean = (value: string | undefined, fallback: boolean): boolean => 
   return ['1', 'true', 'yes'].includes(value.toLowerCase());
 };
 
+const runningInDocker = (): boolean => existsSync('/.dockerenv');
+
+const parseMinioEndpoint = (value: string | undefined): string => {
+  const cleaned = (value || 'localhost').replace(/^https?:\/\//, '');
+  const dockerAliases = new Set(['localhost', '127.0.0.1', 'host.docker.internal']);
+  if (runningInDocker() && dockerAliases.has(cleaned)) {
+    console.warn(`[MinIO] ${cleaned} is not reachable from Docker; using service name "minio"`);
+    return 'minio';
+  }
+  return cleaned;
+};
+
 export const config = {
   port: parseInt(process.env.PORT || '3000'),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -48,7 +61,7 @@ export const config = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
   telegramChatId: process.env.TELEGRAM_CHAT_ID!,
   minio: {
-    endPoint: (process.env.MINIO_ENDPOINT || 'localhost').replace(/^https?:\/\//, ''),
+    endPoint: parseMinioEndpoint(process.env.MINIO_ENDPOINT),
     port: parseInt(process.env.MINIO_PORT || '9000'),
     useSSL: parseBoolean(process.env.MINIO_USE_SSL, false),
     accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',

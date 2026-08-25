@@ -170,7 +170,12 @@ class PostGenerator:
         await self.rss_parser.get_random_articles(20)
 
         print("   Telegram каналы...")
-        await self.telegram_parser.fetch_all_channels(5)
+        try:
+            await self.telegram_parser.fetch_all_channels(5)
+        except BaseException as e:
+            if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                raise
+            print(f"⚠️ Не удалось загрузить Telegram-каналы, продолжаем с RSS: {e}")
 
         stats = db.get_stats()
         print(

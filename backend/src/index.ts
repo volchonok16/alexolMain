@@ -26,14 +26,10 @@ const corsOptions: cors.CorsOptions = {
     // Allow requests with no origin (like mobile apps, curl, Postman, Swagger UI)
     if (!origin) return callback(null, true);
     
-    // Log for debugging
-    console.log(`[CORS] Incoming request from origin: ${origin}`);
-    console.log(`[CORS] Allowed origins:`, config.corsOrigins);
-    
     if (config.corsOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`[CORS] ❌ Blocked origin: ${origin}`);
+      console.warn(`[CORS] Blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -76,11 +72,7 @@ app.listen(config.port, async () => {
   // Инициализация админа при первом запуске
   await initAdmin();
 
-  try {
-    await initMinio();
-  } catch (error) {
-    console.error('[MinIO] Initialization failed:', error);
-  }
+  await initMinio();
 
   try {
     await seedPortfolio();

@@ -21,10 +21,10 @@ const THEME_COLORS = {
     coreEmissive: 0.06,
   },
   light: {
-    ring: '#0891B2',
-    core: '#0F172A',
-    ringEmissive: 0.1,
-    coreEmissive: 0,
+    ring: '#06B6D4',
+    core: '#1E293B',
+    ringEmissive: 0.22,
+    coreEmissive: 0.04,
   },
 } as const;
 

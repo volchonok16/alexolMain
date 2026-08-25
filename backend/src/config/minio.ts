@@ -12,6 +12,12 @@ export const minioClient = new Client({
 
 export const minioBucket = config.minio.bucket;
 
+let minioReady = false;
+
+export function isMinioReady(): boolean {
+  return minioReady;
+}
+
 const publicReadPolicy = (bucket: string) =>
   JSON.stringify({
     Version: '2012-10-17',
@@ -26,7 +32,9 @@ const publicReadPolicy = (bucket: string) =>
     ],
   });
 
-export async function initMinio(): Promise<void> {
+const MINIO_INIT_TIMEOUT_MS = 8000;
+
+async function ensureBucket(): Promise<void> {
   const exists = await minioClient.bucketExists(minioBucket);
   if (!exists) {
     await minioClient.makeBucket(minioBucket);
@@ -38,8 +46,31 @@ export async function initMinio(): Promise<void> {
   } catch (error) {
     console.warn('[MinIO] Could not set public bucket policy:', error);
   }
+}
 
-  console.log(`[MinIO] Ready, bucket "${minioBucket}"`);
+export async function initMinio(): Promise<void> {
+  const target = `${config.minio.endPoint}:${config.minio.port}`;
+  try {
+    await Promise.race([
+      ensureBucket(),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`timeout after ${MINIO_INIT_TIMEOUT_MS}ms`)),
+          MINIO_INIT_TIMEOUT_MS
+        )
+      ),
+    ]);
+  } catch (error) {
+    minioReady = false;
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[MinIO] Unavailable at ${target} (${reason}). Course/portfolio uploads will fail until MinIO is reachable.`
+    );
+    return;
+  }
+
+  minioReady = true;
+  console.log(`[MinIO] Ready, bucket "${minioBucket}" at ${target}`);
 }
 
 export function getMinioPublicUrl(objectKey: string): string {

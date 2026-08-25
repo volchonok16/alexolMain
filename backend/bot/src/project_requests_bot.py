@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -12,6 +13,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters,
 )
+from telegram.warnings import PTBUserWarning
 
 import config
 from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
@@ -193,6 +195,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 def setup_requests_bot(application: Application) -> None:
+    warnings.filterwarnings(
+        "ignore",
+        message="If 'per_message=False'",
+        category=PTBUserWarning,
+    )
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("project", project_entry)],
         states={
@@ -204,6 +211,9 @@ def setup_requests_bot(application: Application) -> None:
             DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_description)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_chat=True,
+        per_user=True,
+        per_message=False,
     )
 
     application.add_handler(CommandHandler("start", start))

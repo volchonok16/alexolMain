@@ -1,0 +1,17 @@
+.icon3d {
+  --icon-primary: #0ae3ff;
+  width: 4rem;
+  height: 4rem;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--icon-primary) 55%, transparent));
+
+  [data-theme='light'] & {
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--icon-primary) 72%, transparent));
+  }
+
+  &__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
