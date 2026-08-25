@@ -8,6 +8,7 @@ import '@/pages/DashboardPage/DashboardPage.scss';
 const titles: Record<string, string> = {
   '/': 'Новости',
   '/courses': 'Курсы',
+  '/portfolio': 'Портфолио',
   '/users': 'Пользователи',
 };
 

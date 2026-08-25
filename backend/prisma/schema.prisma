@@ -40,3 +40,20 @@ model Course {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model PortfolioItem {
+  id            String   @id @default(uuid())
+  category      String
+  titleRu       String
+  titleEn       String
+  descriptionRu String
+  descriptionEn String
+  resultRu      String
+  resultEn      String
+  link          String?
+  imageUrl      String
+  imageKey      String
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

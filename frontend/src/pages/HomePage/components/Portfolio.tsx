@@ -1,52 +1,79 @@
 import { ArrowUpRight } from 'lucide-react';
-import { ImageWithFallback } from '@/shared/ui';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ImageWithFallback, ErrorState } from '@/shared/ui';
+import { useLanguage } from '@/shared/contexts/LanguageContext';
 import { useTranslation } from '@/shared/utils/translations';
 import { Reveal } from '@/shared/ui/Reveal';
-import project1 from './assets/project1.png';
-import project2 from './assets/project2.png';
-import project3 from './assets/project3.png';
-import project4 from './assets/project4.png';
-import project5 from './assets/project5.png';
-import project6 from './assets/project6.png';
-import project7 from './assets/voenasledie.png';
-import project8 from './assets/onewish.png';
-import project9 from './assets/gameClub.png';
-import project10 from './assets/autoParse.png';
+import { usePortfolio } from '../hooks/usePortfolio';
+import type { PortfolioItem } from '@/api/portfolio';
 
-interface Project {
-  id: number;
-  category: string;
-  title: string;
-  titleKey?: string;
-  descriptionKey: string;
-  resultKey: string;
-  image: string;
-  link?: string;
-}
+const CATEGORY_ORDER = ['Crypto', 'eCommerce', 'Enterprise', 'Automation'];
+
+const localized = (
+  item: PortfolioItem,
+  language: 'ru' | 'en',
+  field: 'title' | 'description' | 'result'
+) => {
+  const values = {
+    title: { ru: item.titleRu, en: item.titleEn },
+    description: { ru: item.descriptionRu, en: item.descriptionEn },
+    result: { ru: item.resultRu, en: item.resultEn },
+  }[field];
+  return language === 'en' ? values.en || values.ru : values.ru || values.en;
+};
 
 export const Portfolio = () => {
   const { t } = useTranslation();
+  const { language } = useLanguage();
+  const { projects, isLoading, error } = usePortfolio();
   const [activeCategory, setActiveCategory] = useState('All');
   const [showAll, setShowAll] = useState(false);
 
-  const categories = ['All', 'Crypto', 'eCommerce', 'Enterprise', 'Automation'];
+  const categories = useMemo(() => {
+    const present = new Set(projects.map(project => project.category));
+    const ordered = CATEGORY_ORDER.filter(category => present.has(category));
+    const extra = [...present].filter(category => !CATEGORY_ORDER.includes(category)).sort();
+    return ['All', ...ordered, ...extra];
+  }, [projects]);
 
-  const projects: Project[] = [
-    { id: 1, category: 'Crypto', title: 'Portal to Bitcoin', descriptionKey: 'portfolio.projects.portalToBitcoin.description', resultKey: 'portfolio.projects.portalToBitcoin.result', image: project1, link: 'https://quests.portaltobitcoin.com/' },
-    { id: 2, category: 'Crypto', title: 'Elys Network', descriptionKey: 'portfolio.projects.elysNetwork.description', resultKey: 'portfolio.projects.elysNetwork.result', image: project2, link: 'https://elys.bonusblock.io/' },
-    { id: 3, category: 'Crypto', title: 'Xion', descriptionKey: 'portfolio.projects.xion.description', resultKey: 'portfolio.projects.xion.result', image: project3, link: 'https://xion.bonusblock.io/' },
-    { id: 4, category: 'Crypto', title: 'BonusBlock', descriptionKey: 'portfolio.projects.bonusBlock.description', resultKey: 'portfolio.projects.bonusBlock.result', image: project4, link: 'https://app.bonusblock.io/' },
-    { id: 5, category: 'Crypto', title: 'KiteAi', descriptionKey: 'portfolio.projects.kiteAi.description', resultKey: 'portfolio.projects.kiteAi.result', image: project5, link: 'https://testnet.gokite.ai/' },
-    { id: 6, category: 'Crypto', title: 'Agoric', descriptionKey: 'portfolio.projects.agoric.description', resultKey: 'portfolio.projects.agoric.result', image: project6, link: 'https://agoric.bonusblock.io/' },
-    { id: 7, category: 'eCommerce', title: 'Workwear Store', titleKey: 'portfolio.projects.workwear.title', descriptionKey: 'portfolio.projects.workwear.description', resultKey: 'portfolio.projects.workwear.result', image: project7 },
-    { id: 8, category: 'eCommerce', title: 'OneWish', titleKey: 'portfolio.projects.oneWish.title', descriptionKey: 'portfolio.projects.oneWish.description', resultKey: 'portfolio.projects.oneWish.result', image: project8 },
-    { id: 9, category: 'Enterprise', title: 'Computer Club', titleKey: 'portfolio.projects.computerClub.title', descriptionKey: 'portfolio.projects.computerClub.description', resultKey: 'portfolio.projects.computerClub.result', image: project9 },
-    { id: 10, category: 'Automation', title: 'Telegram Bot', titleKey: 'portfolio.projects.telegramBot.title', descriptionKey: 'portfolio.projects.telegramBot.description', resultKey: 'portfolio.projects.telegramBot.result', image: project10 },
-  ];
-
-  const filteredProjects = activeCategory === 'All' ? projects : projects.filter(p => p.category === activeCategory);
+  const filteredProjects =
+    activeCategory === 'All' ? projects : projects.filter(project => project.category === activeCategory);
   const displayedProjects = showAll ? filteredProjects : filteredProjects.slice(0, 6);
+
+  if (isLoading) {
+    return (
+      <section className="portfolio">
+        <div className="portfolio__container">
+          <div className="portfolio__header">
+            <h2 className="portfolio__title">{t('portfolio.loading')}</h2>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="portfolio">
+        <div className="portfolio__container">
+          <ErrorState title={t('portfolio.error')} description={t('portfolio.errorDescription')} />
+        </div>
+      </section>
+    );
+  }
+
+  if (projects.length === 0) {
+    return (
+      <section className="portfolio">
+        <div className="portfolio__container">
+          <Reveal className="portfolio__header">
+            <h2 className="portfolio__title">{t('portfolio.title')}</h2>
+            <p className="portfolio__description">{t('portfolio.empty')}</p>
+          </Reveal>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="portfolio">
@@ -60,7 +87,10 @@ export const Portfolio = () => {
           {categories.map(category => (
             <button
               key={category}
-              onClick={() => setActiveCategory(category)}
+              onClick={() => {
+                setActiveCategory(category);
+                setShowAll(false);
+              }}
               className={`portfolio__filter ${activeCategory === category ? 'portfolio__filter--active' : ''}`}
             >
               {category === 'All' ? t('portfolio.filters.all') : category}
@@ -70,7 +100,7 @@ export const Portfolio = () => {
 
         <div className="portfolio__grid">
           {displayedProjects.map((project, index) => (
-            <ProjectCard key={project.id} project={project} index={index} />
+            <ProjectCard key={project.id} project={project} index={index} language={language} />
           ))}
         </div>
 
@@ -86,8 +116,16 @@ export const Portfolio = () => {
   );
 };
 
-const ProjectCard = ({ project, index }: { project: Project; index: number }) => {
-  const { t } = useTranslation();
+const ProjectCard = ({
+  project,
+  index,
+  language,
+}: {
+  project: PortfolioItem;
+  index: number;
+  language: 'ru' | 'en';
+}) => {
+  const title = localized(project, language, 'title');
   const handleClick = () => {
     if (project.link) window.open(project.link, '_blank', 'noopener,noreferrer');
   };
@@ -96,7 +134,7 @@ const ProjectCard = ({ project, index }: { project: Project; index: number }) =>
     <Reveal delay={index * 0.1} className="project-card">
       <div onClick={handleClick} style={{ cursor: project.link ? 'pointer' : 'default', height: '100%' }}>
         <div className="project-card__image">
-          <ImageWithFallback src={project.image} alt={project.title} className="project-card__img" />
+          <ImageWithFallback src={project.imageUrl} alt={title} className="project-card__img" />
           <div className="project-card__overlay" />
           <div className="project-card__icon">
             <ArrowUpRight />
@@ -104,10 +142,10 @@ const ProjectCard = ({ project, index }: { project: Project; index: number }) =>
         </div>
         <div className="project-card__content">
           <div className="project-card__category">{project.category}</div>
-          <h3 className="project-card__title">{project.titleKey ? t(project.titleKey) : project.title}</h3>
-          <p className="project-card__description">{t(project.descriptionKey)}</p>
+          <h3 className="project-card__title">{title}</h3>
+          <p className="project-card__description">{localized(project, language, 'description')}</p>
           <div className="project-card__result">
-            <p>{t(project.resultKey)}</p>
+            <p>{localized(project, language, 'result')}</p>
           </div>
         </div>
       </div>

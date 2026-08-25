@@ -11,7 +11,9 @@ import { userRouter } from './routes/user.routes.js';
 import { newsRouter } from './routes/news.routes.js';
 import { courseRouter } from './routes/course.routes.js';
 import { contactRouter } from './routes/contact.routes.js';
+import { portfolioRouter } from './routes/portfolio.routes.js';
 import { initAdmin } from './utils/initAdmin.js';
+import { seedPortfolio } from './utils/seedPortfolio.js';
 import { initMinio } from './config/minio.js';
 
 const app = express();
@@ -62,6 +64,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/news', newsRouter);
 app.use('/api/courses', courseRouter);
+app.use('/api/portfolio', portfolioRouter);
 app.use('/api/contact', contactRouter);
 
 app.use(errorHandler);
@@ -77,5 +80,11 @@ app.listen(config.port, async () => {
     await initMinio();
   } catch (error) {
     console.error('[MinIO] Initialization failed:', error);
+  }
+
+  try {
+    await seedPortfolio();
+  } catch (error) {
+    console.error('[Portfolio] Seed failed:', error);
   }
 });
