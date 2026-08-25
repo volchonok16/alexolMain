@@ -113,7 +113,7 @@ services:
       - SPEAK_WHISPER_LOCAL_MODEL=${SPEAK_WHISPER_LOCAL_MODEL:-base}
       - SPEAK_STT_MODEL=${SPEAK_STT_MODEL:-openai/whisper-1}
       - SPEAK_TTS_MODEL=${SPEAK_TTS_MODEL:-deepgram/flux-tts:free}
-      - SPEAK_TTS_VOICE=${SPEAK_TTS_VOICE:-flux-alexis-en}
+      - SPEAK_TTS_VOICE=${SPEAK_TTS_VOICE:-flux-cole-en}
       - SPEAK_TTS_PROVIDERS=${SPEAK_TTS_PROVIDERS:-openrouter,gtts}
     command: ["python", "main.py", "--mode", "speak"]
     volumes:

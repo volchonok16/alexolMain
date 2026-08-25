@@ -17,9 +17,9 @@ import httpx
 import config
 
 EDGE_VOICE_BY_LANG = {
-    "en": "en-US-JennyNeural",
-    "es": "es-ES-ElviraNeural",
-    "fr": "fr-FR-DeniseNeural",
+    "en": "en-US-GuyNeural",
+    "es": "es-ES-AlvaroNeural",
+    "fr": "fr-FR-HenriNeural",
 }
 
 GTTS_LANG = {"en": "en", "es": "es", "fr": "fr"}
