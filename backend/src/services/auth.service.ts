@@ -13,8 +13,22 @@ export class AuthService {
     const valid = await bcrypt.compare(data.password, user.password);
     if (!valid) throw new Error('Invalid credentials');
 
+    if (user.role !== 'admin') {
+      throw new Error('Admin access required');
+    }
+
     const token = this.generateToken(user.id);
-    return { token, user: { id: user.id, login: user.login, name: user.name } };
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        login: user.login,
+        name: user.name,
+        role: user.role,
+        photo: user.photo,
+      },
+    };
   }
 
   private generateToken(userId: string): string {

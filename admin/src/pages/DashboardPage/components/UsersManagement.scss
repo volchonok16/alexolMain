@@ -1,26 +1,13 @@
 .users-management {
-  max-width: 80rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
-
-  &__title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    background: linear-gradient(to right, #0AE3FF, #7BF7FF);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
   &__stats {
     display: flex;
-    gap: 2rem;
+    gap: 1.5rem;
     margin-bottom: 1.5rem;
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     background: rgba(10, 227, 255, 0.05);
     border: 1px solid rgba(10, 227, 255, 0.1);
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
+    flex-wrap: wrap;
 
     p {
       margin: 0;
@@ -29,75 +16,45 @@
     }
   }
 
-  &__loading,
-  &__error {
-    padding: 2rem;
-    text-align: center;
-    font-size: 1rem;
-    color: #A8B0C0;
-  }
+  &__photo {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(10, 227, 255, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 227, 255, 0.12);
+    color: #0AE3FF;
+    font-weight: 700;
 
-  &__error {
-    color: #ef4444;
-  }
-
-  &__table {
-    overflow-x: auto;
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(10, 227, 255, 0.1);
-    border-radius: 0.75rem;
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-
-      thead {
-        background: rgba(10, 227, 255, 0.05);
-        border-bottom: 1px solid rgba(10, 227, 255, 0.1);
-
-        th {
-          padding: 0.75rem 1rem;
-          text-align: left;
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: #0AE3FF;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-      }
-
-      tbody {
-        tr {
-          border-bottom: 1px solid rgba(10, 227, 255, 0.1);
-          transition: background-color 0.2s;
-
-          &:hover {
-            background: rgba(10, 227, 255, 0.05);
-          }
-
-          &:last-child {
-            border-bottom: none;
-          }
-        }
-
-        td {
-          padding: 1rem;
-          font-size: 0.875rem;
-          color: white;
-        }
-      }
+    &--empty {
+      font-size: 0.85rem;
     }
   }
 
-  &__uuid {
-    font-family: 'Courier New', monospace;
+  &__role {
+    display: inline-flex;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
     font-size: 0.75rem;
-    color: #A8B0C0;
-    max-width: 250px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: help;
+    font-weight: 600;
+
+    &--admin {
+      color: #0AE3FF;
+      background: rgba(10, 227, 255, 0.12);
+    }
+
+    &--user {
+      color: #A8B0C0;
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .users-management__stats {
+    gap: 0.75rem;
   }
 }

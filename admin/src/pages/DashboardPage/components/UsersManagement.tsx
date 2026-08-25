@@ -1,64 +1,177 @@
+import { useState } from 'react';
+import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { User } from '@/api/users';
+import { resolveApiAssetUrl } from '@/api/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '../hooks/useUsers';
 import { Pagination } from './Pagination';
+import { UserModal } from './UserModal';
 import './UsersManagement.scss';
 
-export const UsersManagement = () => {
-  const { users, pagination, isLoading, error, page, setPage } = useUsers();
+const roleLabel = (role: string) => (role === 'admin' ? 'Админ' : 'Пользователь');
 
-  if (isLoading) return <div className="users-management__loading">Загрузка...</div>;
-  if (error) return <div className="users-management__error">Ошибка загрузки пользователей</div>;
+export const UsersManagement = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const {
+    users,
+    pagination,
+    isLoading,
+    error,
+    page,
+    setPage,
+    isSaving,
+    createUser,
+    updateUser,
+    deleteUser,
+  } = useUsers();
+  const { user: currentUser, refreshUser } = useAuth();
+
+  const handleAdd = () => {
+    setEditingUser(null);
+    setSaveError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    setSaveError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Удалить пользователя?')) {
+      deleteUser(id);
+    }
+  };
+
+  const handleSave = async (payload: {
+    login: string;
+    password?: string;
+    name: string;
+    role: 'admin' | 'user';
+    birthDate: string;
+    photo?: File;
+  }) => {
+    setSaveError(null);
+    try {
+      if (editingUser) {
+        await updateUser({ id: editingUser.id, data: payload });
+        if (editingUser.id === currentUser?.id) {
+          await refreshUser();
+        }
+      } else {
+        await createUser(payload);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      const apiError =
+        typeof err === 'object' &&
+        err !== null &&
+        'response' in err &&
+        typeof (err as { response?: { data?: { error?: string } } }).response?.data?.error === 'string'
+          ? (err as { response: { data: { error: string } } }).response.data.error
+          : 'Не удалось сохранить пользователя';
+      setSaveError(apiError);
+    }
+  };
+
+  if (isLoading) return <div className="dashboard__container">Загрузка...</div>;
+  if (error) return <div className="dashboard__container">Ошибка загрузки пользователей</div>;
 
   return (
-    <div className="users-management">
-      <h2 className="users-management__title">Управление пользователями</h2>
-      
-      <div className="users-management__stats">
-        <p>Всего пользователей: {pagination?.total || 0}</p>
-        <p>Показано: {users.length} из {pagination?.total || 0}</p>
+    <div className="dashboard__container">
+      <div className="dashboard__actions">
+        <button onClick={handleAdd} className="dashboard__add">
+          <Plus />
+          Добавить пользователя
+        </button>
       </div>
 
-      <div className="users-management__table">
-        <table>
-          <thead>
-            <tr>
-              <th>UUID</th>
-              <th>Логин</th>
-              <th>Дата создания</th>
-              <th>Дата обновления</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(user => (
-              <tr key={user.id}>
-                <td className="users-management__uuid" title={user.id}>
-                  {user.id}
-                </td>
-                <td>{user.login}</td>
-                <td>{new Date(user.createdAt).toLocaleDateString('ru-RU', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</td>
-                <td>{new Date(user.updatedAt).toLocaleDateString('ru-RU', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {saveError && <div className="dashboard__error">{saveError}</div>}
+
+      <div className="users-management__stats">
+        <p>Всего: {pagination?.total || 0}</p>
+        <p>На странице: {users.length}</p>
       </div>
+
+      {users.length === 0 ? (
+        <div className="dashboard__empty">Пользователей пока нет</div>
+      ) : (
+        <div className="dashboard__table">
+          <table>
+            <thead>
+              <tr>
+                <th>Фото</th>
+                <th>ФИО</th>
+                <th>Логин</th>
+                <th>Роль</th>
+                <th>Дата рождения</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(user => (
+                <tr key={user.id}>
+                  <td>
+                    {user.photo ? (
+                      <img
+                        src={resolveApiAssetUrl(user.photo)}
+                        alt={user.name}
+                        className="users-management__photo"
+                      />
+                    ) : (
+                      <span className="users-management__photo users-management__photo--empty">
+                        {user.name.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                  </td>
+                  <td>{user.name}</td>
+                  <td>{user.login}</td>
+                  <td>
+                    <span className={`users-management__role users-management__role--${user.role}`}>
+                      {roleLabel(user.role)}
+                    </span>
+                  </td>
+                  <td>
+                    {user.birthDate
+                      ? new Date(user.birthDate).toLocaleDateString('ru-RU')
+                      : '—'}
+                  </td>
+                  <td>
+                    <div className="dashboard__row-actions">
+                      <button onClick={() => handleEdit(user)} className="dashboard__edit">
+                        <Edit2 />
+                      </button>
+                      <button onClick={() => handleDelete(user.id)} className="dashboard__delete">
+                        <Trash2 />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {pagination && pagination.totalPages > 1 && (
         <Pagination
           currentPage={page}
           totalPages={pagination.totalPages}
           onPageChange={setPage}
+        />
+      )}
+
+      {isModalOpen && (
+        <UserModal
+          user={editingUser}
+          isSaving={isSaving}
+          onClose={() => {
+            if (!isSaving) setIsModalOpen(false);
+          }}
+          onSave={handleSave}
         />
       )}
     </div>

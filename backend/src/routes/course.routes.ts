@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { CourseController } from '../controllers/course.controller.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, requireAdmin } from '../middleware/auth.js';
 import { uploadVideo } from '../middleware/upload.js';
 
 export const courseRouter = Router();
@@ -39,7 +39,7 @@ const controller = new CourseController();
  *       201:
  *         description: Курс создан
  */
-courseRouter.post('/', authenticate, uploadVideo.single('video'), controller.create);
+courseRouter.post('/', authenticate, requireAdmin, uploadVideo.single('video'), controller.create);
 
 /**
  * @swagger
@@ -115,7 +115,7 @@ courseRouter.get('/:id', controller.getById);
  *       200:
  *         description: Курс обновлён
  */
-courseRouter.put('/:id', authenticate, uploadVideo.single('video'), controller.update);
+courseRouter.put('/:id', authenticate, requireAdmin, uploadVideo.single('video'), controller.update);
 
 /**
  * @swagger
@@ -135,4 +135,4 @@ courseRouter.put('/:id', authenticate, uploadVideo.single('video'), controller.u
  *       200:
  *         description: Курс удалён
  */
-courseRouter.delete('/:id', authenticate, controller.delete);
+courseRouter.delete('/:id', authenticate, requireAdmin, controller.delete);

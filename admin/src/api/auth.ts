@@ -1,5 +1,13 @@
 import { apiClient } from './client';
 
+export interface AuthUser {
+  id: string;
+  login: string;
+  name: string;
+  role: 'admin' | 'user' | string;
+  photo?: string | null;
+}
+
 interface LoginRequest {
   login: string;
   password: string;
@@ -7,6 +15,7 @@ interface LoginRequest {
 
 interface LoginResponse {
   token: string;
+  user: AuthUser;
 }
 
 export const authApi = {

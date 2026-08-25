@@ -20,7 +20,8 @@ export class AuthController {
       // Also return token for clients that use Authorization header (e.g. admin panel).
       res.json({ user: result.user, token: result.token });
     } catch (error: any) {
-      res.status(401).json({ error: error.message });
+      const status = error.message === 'Admin access required' ? 403 : 401;
+      res.status(status).json({ error: error.message });
     }
   };
 }

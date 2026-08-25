@@ -1,23 +1,103 @@
+import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/user.repository.js';
+import { saveFile, deleteFile } from '../utils/fileUpload.js';
+
+const parseBirthDate = (value?: string) => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error('Invalid birth date');
+  return date;
+};
 
 export class UserService {
   private userRepo = new UserRepository();
 
   async findById(id: string) {
-    const user = await this.userRepo.findById(id);
+    const user = await this.userRepo.findPublicById(id);
     if (!user) throw new Error('User not found');
-    
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return user;
   }
 
   async findAll(page: number = 1, limit: number = 20) {
-    const { users, pagination } = await this.userRepo.findAll(page, limit);
-    const usersWithoutPasswords = users.map(({ password, ...user }) => user);
-    
-    return {
-      users: usersWithoutPasswords,
-      pagination
-    };
+    return this.userRepo.findAll(page, limit);
+  }
+
+  async create(data: {
+    login: string;
+    password: string;
+    name: string;
+    role: 'admin' | 'user';
+    birthDate: string;
+    photo?: Express.Multer.File;
+  }) {
+    const existing = await this.userRepo.findByLogin(data.login);
+    if (existing) throw new Error('Login already exists');
+
+    const photoUrl = data.photo ? await saveFile(data.photo) : null;
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+    return this.userRepo.create({
+      login: data.login,
+      password: hashedPassword,
+      name: data.name,
+      role: data.role,
+      birthDate: parseBirthDate(data.birthDate),
+      photo: photoUrl,
+    });
+  }
+
+  async update(
+    id: string,
+    data: {
+      login?: string;
+      password?: string;
+      name?: string;
+      role?: 'admin' | 'user';
+      birthDate?: string;
+      photo?: Express.Multer.File;
+    }
+  ) {
+    const user = await this.userRepo.findById(id);
+    if (!user) throw new Error('User not found');
+
+    if (data.login && data.login !== user.login) {
+      const existing = await this.userRepo.findByLogin(data.login);
+      if (existing) throw new Error('Login already exists');
+    }
+
+    if (data.role === 'user' && user.role === 'admin') {
+      const adminCount = await this.userRepo.countAdmins();
+      if (adminCount <= 1) throw new Error('Cannot demote the last admin');
+    }
+
+    let photoUrl = user.photo;
+    if (data.photo) {
+      if (user.photo) await deleteFile(user.photo);
+      photoUrl = await saveFile(data.photo);
+    }
+
+    return this.userRepo.update(id, {
+      login: data.login,
+      name: data.name,
+      role: data.role,
+      birthDate: parseBirthDate(data.birthDate),
+      photo: photoUrl,
+      ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),
+    });
+  }
+
+  async delete(id: string, currentUserId: string) {
+    if (id === currentUserId) throw new Error('Cannot delete your own account');
+
+    const user = await this.userRepo.findById(id);
+    if (!user) throw new Error('User not found');
+
+    if (user.role === 'admin') {
+      const adminCount = await this.userRepo.countAdmins();
+      if (adminCount <= 1) throw new Error('Cannot delete the last admin');
+    }
+
+    if (user.photo) await deleteFile(user.photo);
+    return this.userRepo.delete(id);
   }
 }

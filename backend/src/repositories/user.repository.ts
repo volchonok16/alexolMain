@@ -1,5 +1,34 @@
 import { prisma } from '../config/database.js';
 
+type UserCreateData = {
+  login: string;
+  password: string;
+  name: string;
+  role: string;
+  photo?: string | null;
+  birthDate?: Date | null;
+};
+
+type UserUpdateData = {
+  login?: string;
+  password?: string;
+  name?: string;
+  role?: string;
+  photo?: string | null;
+  birthDate?: Date | null;
+};
+
+const publicSelect = {
+  id: true,
+  login: true,
+  name: true,
+  role: true,
+  photo: true,
+  birthDate: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 export class UserRepository {
   async findById(id: string) {
     return prisma.user.findUnique({ where: { id } });
@@ -9,6 +38,39 @@ export class UserRepository {
     return prisma.user.findUnique({ where: { login } });
   }
 
+  async findPublicById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: publicSelect,
+    });
+  }
+
+  async countAdmins() {
+    return prisma.user.count({ where: { role: 'admin' } });
+  }
+
+  async create(data: UserCreateData) {
+    return prisma.user.create({
+      data,
+      select: publicSelect,
+    });
+  }
+
+  async update(id: string, data: UserUpdateData) {
+    return prisma.user.update({
+      where: { id },
+      data,
+      select: publicSelect,
+    });
+  }
+
+  async delete(id: string) {
+    return prisma.user.delete({
+      where: { id },
+      select: publicSelect,
+    });
+  }
+
   async findAll(page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
     
@@ -16,7 +78,8 @@ export class UserRepository {
       prisma.user.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        select: publicSelect,
       }),
       prisma.user.count()
     ]);

@@ -1,65 +1,4 @@
 .dashboard {
-  display: flex;
-  min-height: 100vh;
-  background: #0A0C10;
-  color: white;
-
-  &__content {
-    flex: 1;
-    margin-left: 16rem;
-  }
-
-  &__header {
-    background: rgba(12, 15, 22, 0.5);
-    border-bottom: 1px solid rgba(10, 227, 255, 0.1);
-    padding: 1.5rem;
-  }
-
-  &__title {
-    background: linear-gradient(to right, #0AE3FF, #7BF7FF);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 1.5rem;
-  }
-
-  &__tabs {
-    display: flex;
-    gap: 1rem;
-  }
-
-  &__tab {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(10, 227, 255, 0.2);
-    border-radius: 0.5rem;
-    color: #A8B0C0;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-size: 0.875rem;
-    font-weight: 500;
-
-    &:hover {
-      border-color: rgba(10, 227, 255, 0.4);
-      background: rgba(10, 227, 255, 0.1);
-    }
-
-    &--active {
-      background: linear-gradient(to right, rgba(10, 227, 255, 0.2), rgba(27, 145, 247, 0.2));
-      border-color: #0AE3FF;
-      color: #0AE3FF;
-      
-      &:hover {
-        box-shadow: 0 0 20px rgba(10, 227, 255, 0.3);
-      }
-    }
-  }
-
-
-
   &__container {
     max-width: 80rem;
     margin: 0 auto;
@@ -67,11 +6,11 @@
   }
 
   &__actions {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
   }
 
   &__add {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
@@ -93,22 +32,26 @@
     border: 1px solid rgba(10, 227, 255, 0.1);
     border-radius: 0.75rem;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 
     table {
       width: 100%;
       border-collapse: collapse;
+      min-width: 40rem;
     }
 
     th, td {
       padding: 1rem;
       text-align: left;
       border-bottom: 1px solid rgba(10, 227, 255, 0.1);
+      vertical-align: middle;
     }
 
     th {
       background: rgba(10, 227, 255, 0.05);
       color: #0AE3FF;
       font-weight: 600;
+      white-space: nowrap;
     }
 
     tbody tr:hover {
@@ -217,18 +160,24 @@
       font-size: 0.875rem;
     }
 
-    input, textarea {
+    input, textarea, select {
       padding: 0.75rem;
       background: #0A0C10;
       border: 1px solid rgba(10, 227, 255, 0.2);
       border-radius: 0.5rem;
       color: white;
       transition: border-color 0.3s;
+      color-scheme: dark;
 
       &:focus {
         outline: none;
         border-color: #0AE3FF;
       }
+    }
+
+    option {
+      background: #0A0C10;
+      color: white;
     }
 
     textarea {
@@ -252,6 +201,14 @@
     &--video {
       max-width: 100%;
       background: #000;
+    }
+
+    &--avatar {
+      width: 5.5rem;
+      height: 5.5rem;
+      object-fit: cover;
+      border-radius: 999px;
+      border: 1px solid rgba(10, 227, 255, 0.3);
     }
   }
 
@@ -310,6 +267,52 @@
 
     &:hover {
       box-shadow: 0 0 30px rgba(10, 227, 255, 0.5);
+    }
+  }
+}
+
+@media (max-width: 1023px) {
+  .dashboard {
+    &__container {
+      padding: 1.5rem 1.25rem;
+    }
+
+    &__table {
+      th, td {
+        padding: 0.85rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard {
+    &__container {
+      padding: 1.15rem 0.9rem;
+    }
+
+    &__add {
+      width: 100%;
+      justify-content: center;
+    }
+
+    &__table table {
+      min-width: 36rem;
+    }
+  }
+
+  .modal-overlay {
+    padding: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .modal {
+    padding: 1.25rem;
+    max-height: 92vh;
+    border-radius: 1rem 1rem 0.5rem 0.5rem;
+
+    &__actions {
+      flex-direction: column;
     }
   }
 }

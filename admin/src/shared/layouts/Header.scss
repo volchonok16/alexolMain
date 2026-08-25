@@ -1,0 +1,141 @@
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 4.5rem;
+  padding: 0.85rem 1.5rem;
+  background: rgba(12, 15, 22, 0.72);
+  border-bottom: 1px solid rgba(10, 227, 255, 0.1);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  &__menu {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid rgba(10, 227, 255, 0.2);
+    border-radius: 0.6rem;
+    background: rgba(10, 227, 255, 0.08);
+    color: #0AE3FF;
+    cursor: pointer;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1.35rem;
+    background: linear-gradient(to right, #0AE3FF, #7BF7FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__user {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  &__avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(10, 227, 255, 0.35);
+    flex-shrink: 0;
+
+    &--fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 227, 255, 0.16);
+      color: #0AE3FF;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 14rem;
+  }
+
+  &__login {
+    font-size: 0.75rem;
+    color: #A8B0C0;
+  }
+
+  &__logout {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 0.85rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 0.55rem;
+    color: #ef4444;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+  }
+}
+
+@media (max-width: 1023px) {
+  .admin-header {
+    padding: 0.75rem 1rem;
+
+    &__menu {
+      display: inline-flex;
+    }
+
+    &__title {
+      font-size: 1.15rem;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-header {
+    &__meta {
+      display: none;
+    }
+
+    &__logout span {
+      display: none;
+    }
+
+    &__logout {
+      padding: 0.55rem;
+    }
+  }
+}

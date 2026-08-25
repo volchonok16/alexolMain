@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { UserService } from '../services/user.service.js';
 import { AuthRequest } from '../types/index.js';
+import { createUserSchema, updateUserSchema } from '../validators/user.validator.js';
 
 export class UserController {
   private service = new UserService();
@@ -23,6 +24,35 @@ export class UserController {
       res.json({ data: result });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  };
+
+  create = async (req: AuthRequest, res: Response) => {
+    try {
+      const data = createUserSchema.parse(req.body);
+      const user = await this.service.create({ ...data, photo: req.file });
+      res.status(201).json({ data: user });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  update = async (req: AuthRequest, res: Response) => {
+    try {
+      const data = updateUserSchema.parse(req.body);
+      const user = await this.service.update(req.params.id, { ...data, photo: req.file });
+      res.json({ data: user });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  delete = async (req: AuthRequest, res: Response) => {
+    try {
+      await this.service.delete(req.params.id, req.userId!);
+      res.json({ message: 'User deleted' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   };
 }

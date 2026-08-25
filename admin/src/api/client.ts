@@ -33,3 +33,17 @@ apiClient.interceptors.request.use(config => {
   }
   return config;
 });
+
+apiClient.interceptors.response.use(
+  response => response,
+  error => {
+    const status = error?.response?.status;
+    const onLoginPage = window.location.pathname.includes('/login');
+    if (status === 401 && !onLoginPage) {
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);

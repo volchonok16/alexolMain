@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import './LoginPage.scss';
 
@@ -7,15 +7,21 @@ export const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { login, isAuthenticated, isReady } = useAuth();
   const navigate = useNavigate();
+
+  if (isReady && isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = await login(username, password);
-    if (success) {
+    const result = await login(username, password);
+    if (result === 'ok') {
       navigate('/');
+    } else if (result === 'forbidden') {
+      setError('Нет доступа в админ-панель');
     } else {
       setError('Неверный логин или пароль');
     }

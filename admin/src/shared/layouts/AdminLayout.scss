@@ -1,0 +1,38 @@
+.admin-layout {
+  min-height: 100vh;
+  background: #0A0C10;
+  color: #fff;
+
+  &__main {
+    margin-left: 16rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__content {
+    flex: 1;
+    width: 100%;
+  }
+
+  &__overlay {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .admin-layout {
+    &__main {
+      margin-left: 0;
+    }
+
+    &__overlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      border: 0;
+      background: rgba(0, 0, 0, 0.55);
+    }
+  }
+}
