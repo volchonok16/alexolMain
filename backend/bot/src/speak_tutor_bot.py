@@ -54,6 +54,8 @@ def _session(context: ContextTypes.DEFAULT_TYPE) -> dict[str, Any]:
         {
             "language": None,
             "custom_topic": "",
+            "topic_mode": "",
+            "topic_context": "",
             "awaiting_topic": False,
             "history": [],
             "last_reply": "",
@@ -172,6 +174,10 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session["history"] = []
     session["awaiting_topic"] = False
     session["custom_topic"] = ""
+    session["topic_mode"] = ""
+    session["topic_context"] = ""
+    session["topic_mode"] = ""
+    session["topic_context"] = ""
     name = update.effective_user.first_name if update.effective_user else ""
     await update.message.reply_text(
         f"Привет{', ' + name if name else ''}! 👋\n\n"
@@ -214,6 +220,8 @@ async def cmd_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session["active"] = False
     session["history"] = []
     session["custom_topic"] = ""
+    session["topic_mode"] = ""
+    session["topic_context"] = ""
     name = update.effective_user.first_name if update.effective_user else "friend"
     await update.message.reply_text("Слушай голосовое 👇")
     await _ask_topic_voice(context, update.effective_chat.id, session, name)
@@ -259,6 +267,8 @@ async def on_lang_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     session["active"] = False
     session["points"] = 0
     session["custom_topic"] = ""
+    session["topic_mode"] = ""
+    session["topic_context"] = ""
     meta = LANG_META[lang]
     name = update.effective_user.first_name if update.effective_user else "friend"
 
@@ -336,10 +346,14 @@ async def _start_conversation_from_topic(
     reply = (result.get("reply") or "").strip()
     translation = (result.get("reply_translation") or "").strip()
     topic = (result.get("topic") or user_text).strip()
+    topic_mode = (result.get("topic_mode") or "casual").strip()
+    topic_context = (result.get("topic_context") or "").strip()
 
     session["awaiting_topic"] = False
     session["active"] = True
     session["custom_topic"] = topic
+    session["topic_mode"] = topic_mode
+    session["topic_context"] = topic_context
     session["last_reply"] = reply
     session["last_reply_translation"] = translation
     session["last_user_text"] = user_text
@@ -525,6 +539,8 @@ async def on_menu_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     session["active"] = False
     session["history"] = []
     session["custom_topic"] = ""
+    session["topic_mode"] = ""
+    session["topic_context"] = ""
     name = update.effective_user.first_name if update.effective_user else "friend"
     await query.message.reply_text("Слушай голосовое 👇")
     await _ask_topic_voice(context, query.message.chat_id, session, name)
@@ -662,6 +678,8 @@ async def handle_user_text(
         text,
         topic_key="custom",
         custom_topic=session.get("custom_topic") or "",
+        topic_mode=session.get("topic_mode") or "",
+        topic_context=session.get("topic_context") or "",
     )
     if not result:
         await update.message.reply_text("Сейчас не получилось ответить. Попробуй ещё раз.")
@@ -677,6 +695,9 @@ async def handle_user_text(
     session["last_corrections"] = corrections
     session["last_reply"] = reply
     session["last_reply_translation"] = translation
+    new_context = (result.get("topic_context") or "").strip()
+    if new_context:
+        session["topic_context"] = new_context
     history = session.get("history") or []
     history.append({"role": "user", "content": text})
     history.append({"role": "assistant", "content": reply})

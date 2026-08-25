@@ -36,14 +36,62 @@ TOPICS: dict[str, tuple[str, str]] = {
 
 OPENING_STYLES = [
     "Ask what they did today and react with curiosity.",
-    "Suggest a concrete topic yourself and dive in with a personal question.",
-    "Ask them to record / name a topic they want, then immediately ask one related question.",
-    "Start with your own short story (1 sentence), then ask about theirs.",
-    "Ask about plans for tonight or the weekend.",
     "Ask about work/study today — what was interesting or hard.",
+    "Ask about plans for tonight or the weekend.",
     "Ask about food: last meal, favorite cafe, or what they want to cook.",
     "Ask about a hobby or something they enjoy lately.",
 ]
+
+
+def _topic_roleplay_rules() -> str:
+    return """
+ROLE-PLAY & TOPIC RULES (CRITICAL — follow every turn):
+You LEAD the conversation. NEVER ask meta questions like:
+- "What questions should I ask you?"
+- "What would you like me to ask?"
+- "What do you want to talk about within this topic?"
+- "How can I help you with this topic?"
+
+When the learner names a scenario, YOU play the active role and drive it forward:
+
+• Job / interview / "интервью" / "собеседование":
+  → YOU are the interviewer. If you don't know their target role/field yet → ask ONE setup question:
+    "What position or field are you interviewing for?" / "Какую специальность?"
+  → Once you know (or they said it) → ask REAL interview questions one at a time
+    (experience, strengths, why this job, handling stress, teamwork, etc.).
+  → Stay in interviewer character until they change topic.
+
+• Restaurant / café / ordering food → YOU are the waiter. Greet, offer menu, take order, ask preferences.
+
+• Hotel / travel / airport → YOU are staff (reception, check-in, customs). Ask situational questions.
+
+• Doctor / clinic → YOU are the doctor/nurse. Ask symptoms, history, give simple follow-ups.
+
+• Shopping → YOU are the shop assistant. Help choose, ask size/color/budget.
+
+• Casual topics (hobbies, movies, daily life, "не знаю") → curious friend; ask personal follow-ups.
+
+If they give BOTH scenario and details (e.g. "interview for Python developer") → skip setup, start asking interview questions immediately.
+If setup info appears in their latest message → update your mental context and proceed (don't re-ask).
+"""
+
+
+def _session_topic_block(
+    *,
+    custom_topic: str,
+    topic_mode: str = "",
+    topic_context: str = "",
+) -> str:
+    parts = []
+    if custom_topic.strip():
+        parts.append(f"Session topic: {custom_topic.strip()}")
+    if topic_mode.strip():
+        parts.append(f"Topic mode: {topic_mode.strip()}")
+    if topic_context.strip():
+        parts.append(f"Known context (role, field, situation): {topic_context.strip()}")
+    if not parts:
+        return "Session topic: free conversation"
+    return "\n".join(parts)
 
 
 def _extract_json(text: str) -> Optional[dict[str, Any]]:
@@ -169,7 +217,7 @@ class SpeakTutorAI:
             return None
 
         models = [self.model] + [m for m in self.fallback_models if m != self.model]
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=45.0) as client:
             for model in models:
                 try:
                     response = await client.post(
@@ -252,16 +300,21 @@ HARD RULES:
 The learner answered your question about what to talk about.
 
 Analyze their message and decide:
-- If they don't know / want a suggestion / say "anything" / "не знаю" / "предложи" / "not sure" → YOU pick a lively topic (today, work, hobbies, travel, food, movies, weekend plans, dreams).
-- If they named a topic or idea → use exactly what they want.
+- If they don't know / want a suggestion / say "anything" / "не знаю" / "предложи" / "not sure" → YOU pick a lively casual topic (today, work, hobbies, travel, food, movies, weekend plans).
+- If they named a scenario or role-play topic (interview, restaurant, hotel, doctor, shopping…) → follow ROLE-PLAY rules below.
+- If they named a casual topic → use it as a curious friend.
 
 Then speak your OPENING in {meta['name_en']} (2–3 short sentences for a voice message):
 1) Acknowledge warmly (if you picked the topic, say what and why it's interesting).
-2) Ask ONE concrete personal question to start the conversation.
+2) Ask ONE concrete question to start — setup question OR first real question (see rules).
+
+{_topic_roleplay_rules()}
 
 Return ONLY JSON:
 {{
   "topic": "short topic label for session memory",
+  "topic_mode": "roleplay|casual",
+  "topic_context": "job field, role, or situation details if already known, else empty string",
   "bot_picked_topic": boolean,
   "reply": "spoken opening in {meta['name_en']}",
   "reply_translation": "Russian translation of reply"
@@ -272,15 +325,19 @@ NEVER use helpdesk phrases. Be natural, curious, like a smart friend."""
         user = f'Learner name: {user_name or "friend"}\nTheir answer: "{user_text}"'
         raw = await self._chat(
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            max_tokens=450,
-            temperature=0.85,
+            max_tokens=380,
+            temperature=0.75,
         )
         data = _extract_json(raw or "")
         if data and data.get("reply"):
+            data.setdefault("topic_mode", "casual")
+            data.setdefault("topic_context", "")
             return data
         if raw:
             return {
                 "topic": user_text.strip() or "free conversation",
+                "topic_mode": "casual",
+                "topic_context": "",
                 "bot_picked_topic": False,
                 "reply": raw,
                 "reply_translation": "",
@@ -343,23 +400,37 @@ HARD RULES:
         user_text: str,
         topic_key: str = "random",
         custom_topic: str = "",
+        topic_mode: str = "",
+        topic_context: str = "",
     ) -> Optional[dict[str, Any]]:
         meta = LANG_META.get(language, LANG_META["en"])
         topic_key = topic_key if topic_key in TOPICS else "random"
         _, topic_desc = TOPICS[topic_key]
         if custom_topic.strip():
-            topic_desc = f"{topic_desc}; learner topic note: {custom_topic.strip()}"
+            topic_desc = custom_topic.strip()
+
+        session_info = _session_topic_block(
+            custom_topic=custom_topic,
+            topic_mode=topic_mode,
+            topic_context=topic_context,
+        )
 
         system = f"""You are Alexol Speak — a lively voice conversation partner AND careful grammar tutor.
 Learner practices {meta['name_en']}. UI explanations language: Russian.
 Your "reply" is spoken as a voice message — write natural speech, not a formal letter.
-Stay loosely on topic: {topic_desc}
+
+{session_info}
+
+{_topic_roleplay_rules()}
 
 For EACH user message you MUST:
 1) Analyze real grammar, vocabulary, articles, prepositions, word order, tense, collocations.
 2) List only REAL mistakes that affect correctness or natural meaning.
-3) React to content and ask a concrete follow-up question (active partner, not helpdesk).
+3) React to content and ask ONE concrete follow-up (stay in role for role-play topics).
 4) Give Russian translation of your spoken reply.
+
+If topic_mode is roleplay (e.g. interview): extract any new context from the user's message into topic_context in JSON.
+For interview: once field/role is known → ask the NEXT interview question; never ask what to ask.
 
 DO NOT flag as mistakes (leave corrections=[]):
 - Spacing before punctuation: "and you ?" vs "and you?" — BOTH OK in chat.
@@ -374,6 +445,7 @@ unnatural collocations, meaning-changing errors.
 Return ONLY valid JSON:
 {{
   "has_errors": boolean,
+  "topic_context": "updated context if learner gave new details (job title, field, etc.), else keep previous or empty",
   "corrections": [
     {{
       "wrong": "exact wrong fragment from the user text",
@@ -387,15 +459,6 @@ Return ONLY valid JSON:
   "reply": "your spoken reply in {meta['name_en']} (1-3 short sentences, end with a question)",
   "reply_translation": "Russian translation of reply"
 }}
-
-CORRECTION EXAMPLES (style):
-User: "when I break my job I use Duolingo application for the English"
-→ corrections like:
-  wrong="break my job", right="take a break from my job",
-  wrong_line="when I break my job", right_line="when I take a break from my job"
-  wrong="Duolingo application for the English", right="the Duolingo application for English",
-  wrong_line="I use Duolingo application for the English",
-  right_line="I use the Duolingo application for English"
 
 HARD RULES:
 - If there ARE real mistakes: has_errors=true and corrections MUST be non-empty.
@@ -416,7 +479,7 @@ User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear).""
                 messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": user_text})
 
-        raw = await self._chat(messages, max_tokens=1400, temperature=0.55)
+        raw = await self._chat(messages, max_tokens=900, temperature=0.55)
         data = _extract_json(raw or "")
         if data and data.get("reply"):
             data["corrections"] = _normalize_corrections(
@@ -425,6 +488,7 @@ User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear).""
                 corrected_message=(data.get("corrected_message") or ""),
             )
             data["has_errors"] = bool(data["corrections"])
+            data.setdefault("topic_context", topic_context or "")
             return data
         if raw:
             return {

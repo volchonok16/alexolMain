@@ -25,9 +25,9 @@ EDGE_VOICE_BY_LANG = {
 GTTS_LANG = {"en": "en", "es": "es", "fr": "fr"}
 
 OPENROUTER_VOICE_BY_LANG = {
-    "en": "flux-alexis-en",
-    "es": "flux-alexis-en",
-    "fr": "flux-alexis-en",
+    "en": config.SPEAK_TTS_VOICE,
+    "es": config.SPEAK_TTS_VOICE,
+    "fr": config.SPEAK_TTS_VOICE,
 }
 
 OPENROUTER_TTS_FALLBACK_MODELS = [
@@ -116,7 +116,7 @@ async def _transcribe_openrouter(audio_bytes: bytes, language: Optional[str] = N
         payload["language"] = language
 
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
                 f"{config.OPENROUTER_BASE_URL}/audio/transcriptions",
                 headers={
@@ -245,7 +245,7 @@ async def _synthesize_openrouter_one(
     tmp.close()
 
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
                 f"{config.OPENROUTER_BASE_URL}/audio/speech",
                 headers={
@@ -302,7 +302,7 @@ async def _synthesize_openrouter(text: str, language: str) -> Optional[Path]:
 
 
 async def synthesize_speech(text: str, language: str = "en") -> Optional[Path]:
-    """edge-tts → OpenRouter free → gTTS (все бесплатные)."""
+    """Один голос через OpenRouter; gTTS только если OpenRouter недоступен."""
     clean = prepare_text_for_speech(text)
     if not clean:
         print("⚠️ TTS: empty text after cleanup")
@@ -310,11 +310,20 @@ async def synthesize_speech(text: str, language: str = "en") -> Optional[Path]:
 
     print(f"🔊 TTS request ({language}, {len(clean)} chars): {clean[:60]}...")
 
-    for synthesizer in (
-        lambda: _synthesize_edge_tts(clean, language),
-        lambda: _synthesize_openrouter(clean, language),
-        lambda: _synthesize_gtts(clean, language),
-    ):
+    providers = {
+        "openrouter": lambda: _synthesize_openrouter(clean, language),
+        "edge": lambda: _synthesize_edge_tts(clean, language),
+        "gtts": lambda: _synthesize_gtts(clean, language),
+    }
+    order = [
+        p.strip().lower()
+        for p in (config.SPEAK_TTS_PROVIDERS or "openrouter,gtts").split(",")
+        if p.strip()
+    ]
+    for name in order:
+        synthesizer = providers.get(name)
+        if not synthesizer:
+            continue
         audio_path = await synthesizer()
         if audio_path and audio_path.exists() and audio_path.stat().st_size > 0:
             return audio_path
