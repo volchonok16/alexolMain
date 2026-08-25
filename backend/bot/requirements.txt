@@ -13,4 +13,5 @@ opentele==1.15.1
 instagrapi==2.2.1
 edge-tts==6.1.19
 faster-whisper==1.1.1
+gTTS==2.5.4
 

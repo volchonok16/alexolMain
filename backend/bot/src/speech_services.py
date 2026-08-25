@@ -22,11 +22,18 @@ EDGE_VOICE_BY_LANG = {
     "fr": "fr-FR-DeniseNeural",
 }
 
+GTTS_LANG = {"en": "en", "es": "es", "fr": "fr"}
+
 OPENROUTER_VOICE_BY_LANG = {
     "en": "flux-alexis-en",
     "es": "flux-alexis-en",
     "fr": "flux-alexis-en",
 }
+
+OPENROUTER_TTS_FALLBACK_MODELS = [
+    "deepgram/flux-tts:free",
+    "fish-audio/s2.1-pro-free:free",
+]
 
 MAX_TTS_CHARS = 900
 
@@ -41,6 +48,16 @@ def prepare_text_for_speech(text: str) -> str:
     if len(clean) > MAX_TTS_CHARS:
         clean = clean[:MAX_TTS_CHARS].rsplit(" ", 1)[0] + "..."
     return clean
+
+
+def warmup_local_whisper() -> None:
+    """Предзагрузка Whisper при старте бота (чтобы первое голосовое не зависло)."""
+    if (config.SPEAK_STT_BACKEND or "local").lower() != "local":
+        return
+    try:
+        _get_local_whisper()
+    except Exception as exc:
+        print(f"⚠️ Whisper warmup failed: {exc}")
 
 
 def _get_local_whisper():
@@ -74,7 +91,7 @@ def _transcribe_local_sync(audio_bytes: bytes, language: Optional[str] = None) -
         )
         text = " ".join(segment.text.strip() for segment in segments).strip()
         if text:
-            print("✅ STT local Whisper (free)")
+            print(f"✅ STT local Whisper: {text[:80]}...")
         return text or None
     except Exception as exc:
         print(f"⚠️ Local STT error: {exc}")
@@ -84,7 +101,6 @@ def _transcribe_local_sync(audio_bytes: bytes, language: Optional[str] = None) -
 
 
 async def _transcribe_openrouter(audio_bytes: bytes, language: Optional[str] = None) -> Optional[str]:
-    """Платный STT через OpenRouter — только если SPEAK_STT_BACKEND=openrouter."""
     if not config.OPENROUTER_API_KEY:
         print("❌ OPENROUTER_API_KEY не задан — OpenRouter STT недоступен")
         return None
@@ -127,7 +143,6 @@ async def _transcribe_openrouter(audio_bytes: bytes, language: Optional[str] = N
 
 
 async def transcribe_ogg(audio_bytes: bytes, language: Optional[str] = None) -> Optional[str]:
-    """Распознавание голоса: local Whisper (бесплатно) или OpenRouter (платно)."""
     backend = (config.SPEAK_STT_BACKEND or "local").lower()
 
     if backend == "openrouter":
@@ -137,17 +152,15 @@ async def transcribe_ogg(audio_bytes: bytes, language: Optional[str] = None) -> 
     if text:
         return text
 
-    # Запасной вариант, если local упал и есть ключ
     if config.OPENROUTER_API_KEY:
         print("⚠️ Local STT failed, trying OpenRouter fallback…")
         return await _transcribe_openrouter(audio_bytes, language)
     return None
 
 
-async def _mp3_to_ogg(mp3_path: Path) -> Optional[Path]:
-    """Convert mp3 to ogg/opus — формат Telegram voice."""
+async def _mp3_to_ogg(mp3_path: Path) -> Path:
     if not shutil.which("ffmpeg"):
-        print("⚠️ ffmpeg не найден — отправим как audio/mp3")
+        print("⚠️ ffmpeg не найден — отправим mp3 как audio")
         return mp3_path
 
     ogg_path = mp3_path.with_suffix(".ogg")
@@ -189,7 +202,7 @@ async def _synthesize_edge_tts(text: str, language: str) -> Optional[Path]:
         if not tmp_path.exists() or tmp_path.stat().st_size == 0:
             tmp_path.unlink(missing_ok=True)
             return None
-        print(f"✅ TTS edge-tts ({voice})")
+        print(f"✅ TTS edge-tts ({voice}), {tmp_path.stat().st_size} bytes")
         return await _mp3_to_ogg(tmp_path)
     except Exception as exc:
         print(f"⚠️ edge-tts error: {exc}")
@@ -197,12 +210,36 @@ async def _synthesize_edge_tts(text: str, language: str) -> Optional[Path]:
         return None
 
 
-async def _synthesize_openrouter(text: str, language: str) -> Optional[Path]:
-    if not config.OPENROUTER_API_KEY:
+async def _synthesize_gtts(text: str, language: str) -> Optional[Path]:
+    from gtts import gTTS
+
+    lang = GTTS_LANG.get(language, "en")
+    tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()
+
+    def _save() -> None:
+        gTTS(text=text, lang=lang).save(str(tmp_path))
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(_save), timeout=30.0)
+        if not tmp_path.exists() or tmp_path.stat().st_size == 0:
+            tmp_path.unlink(missing_ok=True)
+            return None
+        print(f"✅ TTS gTTS ({lang}), {tmp_path.stat().st_size} bytes")
+        return await _mp3_to_ogg(tmp_path)
+    except Exception as exc:
+        print(f"⚠️ gTTS error: {exc}")
+        tmp_path.unlink(missing_ok=True)
         return None
 
-    model = config.SPEAK_TTS_MODEL
-    voice = OPENROUTER_VOICE_BY_LANG.get(language, OPENROUTER_VOICE_BY_LANG["en"])
+
+async def _synthesize_openrouter_one(
+    text: str,
+    language: str,
+    model: str,
+    voice: str,
+) -> Optional[Path]:
     tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
     tmp_path = Path(tmp.name)
     tmp.close()
@@ -226,13 +263,13 @@ async def _synthesize_openrouter(text: str, language: str) -> Optional[Path]:
             )
 
         if response.status_code != 200:
-            print(f"⚠️ OpenRouter TTS HTTP {response.status_code}: {response.text[:200]}")
+            print(f"⚠️ OpenRouter TTS {model} HTTP {response.status_code}: {response.text[:200]}")
             tmp_path.unlink(missing_ok=True)
             return None
 
         content_type = (response.headers.get("content-type") or "").lower()
         if "json" in content_type:
-            print(f"⚠️ OpenRouter TTS returned JSON: {response.text[:200]}")
+            print(f"⚠️ OpenRouter TTS {model} JSON error: {response.text[:200]}")
             tmp_path.unlink(missing_ok=True)
             return None
 
@@ -241,22 +278,46 @@ async def _synthesize_openrouter(text: str, language: str) -> Optional[Path]:
             tmp_path.unlink(missing_ok=True)
             return None
 
-        print(f"✅ TTS OpenRouter ({model}, {voice})")
+        print(f"✅ TTS OpenRouter ({model}, {voice}), {tmp_path.stat().st_size} bytes")
         return await _mp3_to_ogg(tmp_path)
     except Exception as exc:
-        print(f"⚠️ OpenRouter TTS error: {exc}")
+        print(f"⚠️ OpenRouter TTS {model} error: {exc}")
         tmp_path.unlink(missing_ok=True)
         return None
 
 
-async def synthesize_speech(text: str, language: str = "en") -> Optional[Path]:
-    """Generate voice file. edge-tts (бесплатно) → OpenRouter free TTS (deepgram/flux-tts:free)."""
-    clean = prepare_text_for_speech(text)
-    if not clean:
+async def _synthesize_openrouter(text: str, language: str) -> Optional[Path]:
+    if not config.OPENROUTER_API_KEY:
         return None
 
-    audio_path = await _synthesize_edge_tts(clean, language)
-    if audio_path:
-        return audio_path
+    voice = OPENROUTER_VOICE_BY_LANG.get(language, OPENROUTER_VOICE_BY_LANG["en"])
+    models = [config.SPEAK_TTS_MODEL] + [
+        m for m in OPENROUTER_TTS_FALLBACK_MODELS if m != config.SPEAK_TTS_MODEL
+    ]
+    for model in models:
+        result = await _synthesize_openrouter_one(text, language, model, voice)
+        if result:
+            return result
+    return None
 
-    return await _synthesize_openrouter(clean, language)
+
+async def synthesize_speech(text: str, language: str = "en") -> Optional[Path]:
+    """edge-tts → OpenRouter free → gTTS (все бесплатные)."""
+    clean = prepare_text_for_speech(text)
+    if not clean:
+        print("⚠️ TTS: empty text after cleanup")
+        return None
+
+    print(f"🔊 TTS request ({language}, {len(clean)} chars): {clean[:60]}...")
+
+    for synthesizer in (
+        lambda: _synthesize_edge_tts(clean, language),
+        lambda: _synthesize_openrouter(clean, language),
+        lambda: _synthesize_gtts(clean, language),
+    ):
+        audio_path = await synthesizer()
+        if audio_path and audio_path.exists() and audio_path.stat().st_size > 0:
+            return audio_path
+
+    print("❌ All TTS providers failed")
+    return None

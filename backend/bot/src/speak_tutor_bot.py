@@ -28,7 +28,7 @@ from telegram.ext import (
 import config
 from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
 from src.speak_ai import LANG_META, SpeakTutorAI
-from src.speech_services import synthesize_speech, transcribe_ogg
+from src.speech_services import synthesize_speech, transcribe_ogg, warmup_local_whisper
 
 ai = SpeakTutorAI()
 
@@ -365,50 +365,52 @@ async def _send_tutor_voice_and_controls(
     reply: str,
     points: int | None = None,
 ) -> None:
-    """Разговор — только голосом (voice/audio). Текст не отправляем."""
+    """Разговор — голосовым/audio. Текст реплики не отправляем."""
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
     audio_path = await synthesize_speech(reply, lang)
     keyboard = _session_keyboard(points)
 
-    try:
-        if not audio_path:
-            print("❌ TTS failed completely — no audio generated")
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="⚠️ Не удалось озвучить ответ. Попробуй ещё раз через минуту.",
-                reply_markup=keyboard,
-            )
-            return
+    if not audio_path or not audio_path.exists():
+        print("❌ TTS failed — no audio file")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="⚠️ Не удалось озвучить ответ. Попробуй ещё раз через минуту.",
+            reply_markup=keyboard,
+        )
+        return
 
-        filename = "voice.ogg" if audio_path.suffix.lower() == ".ogg" else "speech.mp3"
-        with audio_path.open("rb") as audio_file:
-            voice_file = InputFile(audio_file, filename=filename)
-            try:
-                if audio_path.suffix.lower() == ".ogg":
-                    await context.bot.send_voice(
-                        chat_id=chat_id,
-                        voice=voice_file,
-                        reply_markup=keyboard,
-                    )
-                else:
-                    await context.bot.send_audio(
-                        chat_id=chat_id,
-                        audio=voice_file,
-                        title="Alexol Speak",
-                        reply_markup=keyboard,
-                    )
-            except Exception as send_exc:
-                print(f"⚠️ send_voice failed, retry as audio: {send_exc}")
-                audio_file.seek(0)
+    try:
+        audio_bytes = audio_path.read_bytes()
+        size = len(audio_bytes)
+        is_ogg = audio_path.suffix.lower() == ".ogg"
+        filename = "voice.ogg" if is_ogg else "speech.mp3"
+        print(f"📤 Sending audio: {filename}, {size} bytes")
+
+        voice_file = InputFile(audio_bytes, filename=filename)
+        try:
+            if is_ogg:
+                await context.bot.send_voice(
+                    chat_id=chat_id,
+                    voice=voice_file,
+                    reply_markup=keyboard,
+                )
+            else:
                 await context.bot.send_audio(
                     chat_id=chat_id,
-                    audio=InputFile(audio_file, filename=filename),
+                    audio=voice_file,
                     title="Alexol Speak",
                     reply_markup=keyboard,
                 )
+        except Exception as send_exc:
+            print(f"⚠️ send_voice/audio failed, retry as audio: {send_exc}")
+            await context.bot.send_audio(
+                chat_id=chat_id,
+                audio=InputFile(audio_bytes, filename="speech.mp3"),
+                title="Alexol Speak",
+                reply_markup=keyboard,
+            )
     finally:
-        if audio_path:
-            Path(audio_path).unlink(missing_ok=True)
+        audio_path.unlink(missing_ok=True)
 
 
 async def on_text_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -788,6 +790,8 @@ def run_speak_bot() -> None:
             await app.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
         except Exception:
             pass
+        # Предзагрузка Whisper в фоне
+        asyncio.create_task(asyncio.to_thread(warmup_local_whisper))
 
     application = (
         Application.builder()
