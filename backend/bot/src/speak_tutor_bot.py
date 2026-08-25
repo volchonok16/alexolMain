@@ -26,14 +26,12 @@ from telegram.ext import (
 
 import config
 from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
-from src.speak_ai import LANG_META, TOPICS, SpeakTutorAI
+from src.speak_ai import LANG_META, SpeakTutorAI
 from src.speech_services import synthesize_speech, transcribe_ogg
 
 ai = SpeakTutorAI()
 
 CB_LANG = "speak_lang:"
-CB_TOPIC = "speak_topic:"
-CB_START = "speak_start"
 CB_TEXT = "speak_text"
 CB_HELP = "speak_help"
 CB_FINISH = "speak_finish"
@@ -53,9 +51,8 @@ def _session(context: ContextTypes.DEFAULT_TYPE) -> dict[str, Any]:
         "speak",
         {
             "language": None,
-            "topic": None,
             "custom_topic": "",
-            "awaiting_custom_topic": False,
+            "awaiting_topic": False,
             "history": [],
             "last_reply": "",
             "last_reply_translation": "",
@@ -76,25 +73,6 @@ def _lang_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("🇪🇸 Español", callback_data=f"{CB_LANG}es")],
             [InlineKeyboardButton("🇫🇷 Français", callback_data=f"{CB_LANG}fr")],
         ]
-    )
-
-
-def _topic_keyboard() -> InlineKeyboardMarkup:
-    rows: list[list[InlineKeyboardButton]] = []
-    row: list[InlineKeyboardButton] = []
-    for key, (label, _) in TOPICS.items():
-        row.append(InlineKeyboardButton(label, callback_data=f"{CB_TOPIC}{key}"))
-        if len(row) == 2:
-            rows.append(row)
-            row = []
-    if row:
-        rows.append(row)
-    return InlineKeyboardMarkup(rows)
-
-
-def _start_speak_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🎙 НАЧАТЬ ГОВОРИТЬ!", callback_data=CB_START)]]
     )
 
 
@@ -190,16 +168,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session = _session(context)
     session["active"] = False
     session["history"] = []
-    session["awaiting_custom_topic"] = False
-    session["topic"] = None
+    session["awaiting_topic"] = False
     session["custom_topic"] = ""
     name = update.effective_user.first_name if update.effective_user else ""
     await update.message.reply_text(
         f"Привет{', ' + name if name else ''}! 👋\n\n"
-        "Я — <b>Alexol Speak</b>, живой собеседник для практики.\n"
-        "Я сам задаю темы и вопросы <b>голосом</b> — отвечай голосовым или текстом, "
-        "я исправлю ошибки и продолжу разговор.\n\n"
-        "Выбери язык, который изучаешь:",
+        "Я — <b>Alexol Speak</b>. Общаюсь с тобой <b>голосовыми</b> — отвечай голосом или текстом.\n\n"
+        "Выбери язык для практики:",
         parse_mode=ParseMode.HTML,
         reply_markup=_lang_keyboard(),
     )
@@ -217,14 +192,14 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "📖 <b>Как пользоваться</b>\n\n"
         "• /start — начать заново\n"
         "• /language — сменить язык\n"
-        "• /topic — выбрать тему разговора\n"
+        "• /topic — новая тема (бот спросит голосом)\n"
         "• /donate — поддержать бота Stars ⭐\n"
         "• /help — эта справка\n\n"
-        "🎙 Бот спрашивает и отвечает <b>голосовыми</b>\n"
+        "🎙 Бот говорит <b>голосовыми</b> — слушай и отвечай\n"
+        "❓ Не знаешь тему — скажи «не знаю», бот сам предложит\n"
         "❓ Не знаешь, что ответить — «💡 Помощь»\n"
         "📖 Текст и перевод фразы бота — «💬 Текст»\n"
-        "⭐ Кнопка <b>⭐ +N</b> — очки и донат Stars\n"
-        "🗣 Темы: день, работа, хобби… или своя / «сам предложи»",
+        "⭐ Кнопка <b>⭐ +N</b> — очки и донат Stars",
         parse_mode=ParseMode.HTML,
     )
 
@@ -235,11 +210,11 @@ async def cmd_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Сначала выбери язык:", reply_markup=_lang_keyboard())
         return
     session["active"] = False
-    session["awaiting_custom_topic"] = False
-    await update.message.reply_text(
-        "О чём поговорим? Выбери тему — или пусть я сам предложу 🎲",
-        reply_markup=_topic_keyboard(),
-    )
+    session["history"] = []
+    session["custom_topic"] = ""
+    name = update.effective_user.first_name if update.effective_user else "friend"
+    await update.message.reply_text("Слушай голосовое 👇")
+    await _ask_topic_voice(context, update.effective_chat.id, session, name)
 
 
 async def cmd_donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -259,7 +234,7 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("🌐 Сменить язык", callback_data=CB_MENU_LANG)],
-                [InlineKeyboardButton("🗣 Сменить тему", callback_data=CB_MENU_TOPIC)],
+                [InlineKeyboardButton("🗣 Новая тема", callback_data=CB_MENU_TOPIC)],
                 [InlineKeyboardButton("💡 Помощь", callback_data=CB_HELP)],
                 [InlineKeyboardButton("⭐ Поддержать Stars", callback_data=CB_DONATE)],
                 [InlineKeyboardButton("🏁 Завершить сессию", callback_data=CB_FINISH)],
@@ -281,135 +256,103 @@ async def on_lang_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     session["history"] = []
     session["active"] = False
     session["points"] = 0
-    session["topic"] = None
     session["custom_topic"] = ""
-    session["awaiting_custom_topic"] = False
     meta = LANG_META[lang]
     name = update.effective_user.first_name if update.effective_user else "friend"
 
     await query.edit_message_text(
-        f"Отлично! Практикуем <b>{meta['name_ru']}</b> ({meta['name_en']}).\n\n"
-        f"Hi, {html.escape(name)}! 👋 Я буду спрашивать и отвечать <b>голосом</b>.\n\n"
-        "О чём поговорим? Выбери тему — или «🎲 Сам предложи тему» / запиши свою.",
+        f"Практикуем <b>{meta['name_ru']}</b> ({meta['name_en']}). Слушай голосовое 👇",
         parse_mode=ParseMode.HTML,
-        reply_markup=_topic_keyboard(),
     )
+    await _ask_topic_voice(context, query.message.chat_id, session, name)
 
 
-async def _begin_conversation(
+async def _ask_topic_voice(
     context: ContextTypes.DEFAULT_TYPE,
-    *,
     chat_id: int,
-    user_name: str,
     session: dict[str, Any],
+    user_name: str,
 ) -> None:
     lang = session.get("language")
     if not lang:
-        await context.bot.send_message(chat_id=chat_id, text="Сначала выбери язык:", reply_markup=_lang_keyboard())
         return
 
-    topic = session.get("topic") or "random"
-    custom = session.get("custom_topic") or ""
-    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
+    session["awaiting_topic"] = True
+    session["active"] = False
+    session["history"] = []
 
-    result = await ai.start_conversation(lang, user_name, topic_key=topic, custom_topic=custom)
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
+    result = await ai.ask_for_topic(lang, user_name)
     if not result:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Не удалось начать диалог. Выбери тему ещё раз:",
-            reply_markup=_topic_keyboard(),
+            text="Не удалось подключиться. Попробуй /start через минуту.",
         )
         return
 
     reply = (result.get("reply") or "").strip()
     translation = (result.get("reply_translation") or "").strip()
-    session["active"] = True
-    session["awaiting_custom_topic"] = False
     session["last_reply"] = reply
     session["last_reply_translation"] = translation
-    session["history"] = [{"role": "assistant", "content": reply}]
 
     await _send_tutor_voice_and_controls(
         context,
         chat_id=chat_id,
         lang=lang,
         reply=reply,
-        intro=(
-            "👋 Я уже начал разговор 🙂 Нажми 🎙 и ответь мне голосом или текстом. "
-            "Ошибки исправлю автоматически."
-        ),
         points=None,
     )
-
     await context.bot.send_message(
         chat_id=chat_id,
-        text=(
-            "⚡ <b>Быстрый старт</b>\n"
-            "❓ Не знаешь, что ответить — «💡 Помощь»\n"
-            "📖 Нужен текст и перевод — «💬 Текст»\n"
-            "🗣 Другая тема — /topic"
-        ),
+        text="Ответь <b>голосом 🎙</b> или текстом. Не знаешь тему — просто скажи «не знаю», я сам предложу.",
         parse_mode=ParseMode.HTML,
     )
 
 
-async def on_topic_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    topic = (query.data or "").removeprefix(CB_TOPIC)
-    if topic not in TOPICS:
-        await query.edit_message_text("Выбери тему:", reply_markup=_topic_keyboard())
+async def _start_conversation_from_topic(
+    context: ContextTypes.DEFAULT_TYPE,
+    *,
+    chat_id: int,
+    session: dict[str, Any],
+    user_name: str,
+    user_text: str,
+    input_mode: str = "text",
+) -> None:
+    lang = session.get("language")
+    if not lang:
         return
 
-    session = _session(context)
-    if not session.get("language"):
-        await query.edit_message_text("Сначала выбери язык:", reply_markup=_lang_keyboard())
-        return
-
-    session["topic"] = topic
-    session["history"] = []
-    session["active"] = False
-    label, _ = TOPICS[topic]
-
-    if topic == "custom":
-        session["awaiting_custom_topic"] = True
-        session["custom_topic"] = ""
-        await query.edit_message_text(
-            "✍️ Напиши или <b>запиши голосовым</b> тему для обсуждения "
-            "(например: «мой питомец», «поездка в отпуск», «любимый сериал»).",
-            parse_mode=ParseMode.HTML,
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
+    result = await ai.begin_from_topic_choice(lang, user_name, user_text)
+    if not result:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Не получилось начать разговор. Попробуй ещё раз — назови тему или скажи «не знаю».",
         )
         return
 
-    session["awaiting_custom_topic"] = False
-    session["custom_topic"] = ""
-    await query.edit_message_text(f"Тема: <b>{html.escape(label)}</b>\nСекунду, включаю голос… 🎙", parse_mode=ParseMode.HTML)
-    name = update.effective_user.first_name if update.effective_user else "friend"
-    await _begin_conversation(
-        context,
-        chat_id=query.message.chat_id,
-        user_name=name,
-        session=session,
-    )
+    reply = (result.get("reply") or "").strip()
+    translation = (result.get("reply_translation") or "").strip()
+    topic = (result.get("topic") or user_text).strip()
 
+    session["awaiting_topic"] = False
+    session["active"] = True
+    session["custom_topic"] = topic
+    session["last_reply"] = reply
+    session["last_reply_translation"] = translation
+    session["last_user_text"] = user_text
+    session["last_user_input_mode"] = input_mode
+    session["history"] = [
+        {"role": "user", "content": user_text},
+        {"role": "assistant", "content": reply},
+    ]
 
-async def on_start_speak(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    session = _session(context)
-    if not session.get("language"):
-        await query.edit_message_text("Сначала выбери язык:", reply_markup=_lang_keyboard())
-        return
-    if not session.get("topic"):
-        await query.edit_message_text("Сначала выбери тему:", reply_markup=_topic_keyboard())
-        return
-    await query.edit_message_text("Секунду, подбираю вопрос… 🎙")
-    name = update.effective_user.first_name if update.effective_user else "friend"
-    await _begin_conversation(
+    await _send_tutor_voice_and_controls(
         context,
-        chat_id=query.message.chat_id,
-        user_name=name,
-        session=session,
+        chat_id=chat_id,
+        lang=lang,
+        reply=reply,
+        points=None,
     )
 
 
@@ -419,12 +362,8 @@ async def _send_tutor_voice_and_controls(
     chat_id: int,
     lang: str,
     reply: str,
-    intro: str | None = None,
     points: int | None = None,
 ) -> None:
-    if intro:
-        await context.bot.send_message(chat_id=chat_id, text=intro)
-
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
     audio_path = await synthesize_speech(reply, lang)
     try:
@@ -444,9 +383,10 @@ async def _send_tutor_voice_and_controls(
                         reply_markup=_session_keyboard(points),
                     )
         else:
+            # TTS недоступен — крайний fallback
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=reply,
+                text=f"🎙 {reply}",
                 reply_markup=_session_keyboard(points),
             )
     finally:
@@ -563,11 +503,11 @@ async def on_menu_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await query.message.reply_text("Сначала выбери язык:", reply_markup=_lang_keyboard())
         return
     session["active"] = False
-    session["awaiting_custom_topic"] = False
-    await query.message.reply_text(
-        "О чём поговорим? Выбери тему — или пусть я сам предложу 🎲",
-        reply_markup=_topic_keyboard(),
-    )
+    session["history"] = []
+    session["custom_topic"] = ""
+    name = update.effective_user.first_name if update.effective_user else "friend"
+    await query.message.reply_text("Слушай голосовое 👇")
+    await _ask_topic_voice(context, query.message.chat_id, session, name)
 
 
 async def on_donate_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -677,29 +617,22 @@ async def handle_user_text(
         await update.message.reply_text("Пустое сообщение — попробуй ещё раз.")
         return
 
-    # Пользователь диктует/пишет свою тему
-    if session.get("awaiting_custom_topic"):
-        session["topic"] = "custom"
-        session["custom_topic"] = text
-        session["awaiting_custom_topic"] = False
-        await update.message.reply_text(
-            f"Тема принята: <b>{html.escape(text)}</b>\nВключаю голосовой вопрос… 🎙",
-            parse_mode=ParseMode.HTML,
-        )
+    # Ждём ответ на голосовой вопрос «о чём поговорим?»
+    if session.get("awaiting_topic"):
         name = update.effective_user.first_name if update.effective_user else "friend"
-        await _begin_conversation(
+        await _start_conversation_from_topic(
             context,
             chat_id=update.effective_chat.id,
-            user_name=name,
             session=session,
+            user_name=name,
+            user_text=text,
+            input_mode=input_mode,
         )
         return
 
     if not session.get("active"):
-        await update.message.reply_text(
-            "Выбери тему — и я начну говорить голосом:",
-            reply_markup=_topic_keyboard(),
-        )
+        name = update.effective_user.first_name if update.effective_user else "friend"
+        await update.message.reply_text("Сначала выбери язык (/start) или дождись моего голосового вопроса.")
         return
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -707,7 +640,7 @@ async def handle_user_text(
         lang,
         session.get("history") or [],
         text,
-        topic_key=session.get("topic") or "random",
+        topic_key="custom",
         custom_topic=session.get("custom_topic") or "",
     )
     if not result:
@@ -788,10 +721,6 @@ async def on_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
 
-    await update.message.reply_text(
-        f"🎧 Распознал: <i>{html.escape(transcript)}</i>",
-        parse_mode=ParseMode.HTML,
-    )
     await handle_user_text(update, context, transcript, input_mode="voice")
 
 
@@ -804,8 +733,6 @@ def setup_speak_bot(application: Application) -> None:
     application.add_handler(CommandHandler("donate", cmd_donate))
 
     application.add_handler(CallbackQueryHandler(on_lang_selected, pattern=f"^{CB_LANG}"))
-    application.add_handler(CallbackQueryHandler(on_topic_selected, pattern=f"^{CB_TOPIC}"))
-    application.add_handler(CallbackQueryHandler(on_start_speak, pattern=f"^{CB_START}$"))
     application.add_handler(CallbackQueryHandler(on_text_button, pattern=f"^{CB_TEXT}$"))
     application.add_handler(CallbackQueryHandler(on_help_button, pattern=f"^{CB_HELP}$"))
     application.add_handler(CallbackQueryHandler(on_finish, pattern=f"^{CB_FINISH}$"))
@@ -834,7 +761,7 @@ def run_speak_bot() -> None:
             [
                 ("start", "Начать / выбрать язык"),
                 ("language", "Сменить язык"),
-                ("topic", "Выбрать тему"),
+                ("topic", "Новая тема"),
                 ("donate", "Поддержать Stars ⭐"),
                 ("menu", "Меню"),
                 ("help", "Справка"),

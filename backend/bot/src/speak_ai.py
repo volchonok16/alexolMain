@@ -204,6 +204,89 @@ class SpeakTutorAI:
                     continue
         return None
 
+    async def ask_for_topic(self, language: str, user_name: str) -> Optional[dict[str, Any]]:
+        """Голосовой вопрос: о чём поговорим? Если не знаешь — скажи, я предложу."""
+        meta = LANG_META.get(language, LANG_META["en"])
+        system = f"""You are Alexol Speak — a smart, warm voice conversation partner for {meta['name_en']} practice.
+This is your FIRST spoken message after the learner picked the language.
+Write ONLY what you will SAY aloud as a voice message — 2–3 short sentences in {meta['name_en']}.
+
+You MUST:
+1) Greet the learner warmly (use their name if provided).
+2) Ask what they would like to talk about today.
+3) Tell them clearly: if they are not sure / don't know, they can say so — and you will suggest a fun topic.
+
+Good vibe (adapt naturally, do not copy verbatim):
+"Hey! Nice to meet you. What would you like to talk about today? If you're not sure, just say so — I'll pick something interesting!"
+
+HARD RULES:
+- Spoken, casual, friendly — NOT formal, NOT a helpdesk.
+- NEVER say "How can I help you" or similar.
+- End inviting them to answer by voice or text."""
+
+        user = (
+            f"Learner name: {user_name or 'friend'}. "
+            'Return ONLY JSON: { "reply": "spoken text", "reply_translation": "Russian translation" }'
+        )
+        raw = await self._chat(
+            [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            max_tokens=350,
+            temperature=0.9,
+        )
+        data = _extract_json(raw or "")
+        if data and data.get("reply"):
+            return data
+        if raw:
+            return {"reply": raw, "reply_translation": ""}
+        return None
+
+    async def begin_from_topic_choice(
+        self,
+        language: str,
+        user_name: str,
+        user_text: str,
+    ) -> Optional[dict[str, Any]]:
+        """Пользователь ответил на вопрос о теме — начинаем разговор голосом."""
+        meta = LANG_META.get(language, LANG_META["en"])
+        system = f"""You are Alexol Speak — a smart voice conversation partner for {meta['name_en']} practice.
+The learner answered your question about what to talk about.
+
+Analyze their message and decide:
+- If they don't know / want a suggestion / say "anything" / "не знаю" / "предложи" / "not sure" → YOU pick a lively topic (today, work, hobbies, travel, food, movies, weekend plans, dreams).
+- If they named a topic or idea → use exactly what they want.
+
+Then speak your OPENING in {meta['name_en']} (2–3 short sentences for a voice message):
+1) Acknowledge warmly (if you picked the topic, say what and why it's interesting).
+2) Ask ONE concrete personal question to start the conversation.
+
+Return ONLY JSON:
+{{
+  "topic": "short topic label for session memory",
+  "bot_picked_topic": boolean,
+  "reply": "spoken opening in {meta['name_en']}",
+  "reply_translation": "Russian translation of reply"
+}}
+
+NEVER use helpdesk phrases. Be natural, curious, like a smart friend."""
+
+        user = f'Learner name: {user_name or "friend"}\nTheir answer: "{user_text}"'
+        raw = await self._chat(
+            [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            max_tokens=450,
+            temperature=0.85,
+        )
+        data = _extract_json(raw or "")
+        if data and data.get("reply"):
+            return data
+        if raw:
+            return {
+                "topic": user_text.strip() or "free conversation",
+                "bot_picked_topic": False,
+                "reply": raw,
+                "reply_translation": "",
+            }
+        return None
+
     async def start_conversation(
         self,
         language: str,
