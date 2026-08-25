@@ -124,7 +124,7 @@ _BEGIN_FALLBACK: dict[str, dict[str, tuple[str, str]]] = {
     "de": {
         "vague": (
             "Kein Problem! Erzähl mir von deinem Tag. Was war heute am interessantesten?",
-            "Без проблем! Пogоворим о твоём дне. Что было самым интересным сегодня?",
+            "Без проблем! Поговорим о твоём дне. Что было самым интересным сегодня?",
         ),
         "named": (
             "Toll — {topic}! Was gefällt dir daran am meisten?",
