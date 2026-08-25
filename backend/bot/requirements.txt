@@ -11,4 +11,5 @@ pytz==2024.2
 telethon==1.37.0
 opentele==1.15.1
 instagrapi==2.2.1
+edge-tts==6.1.19
 

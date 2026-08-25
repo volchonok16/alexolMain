@@ -95,6 +95,25 @@ services:
       - ./bot/data:/app/data
       - ./bot/tdata:/app/tdata
 
+  bot_speak:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: alexol_bot_speak
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - TZ=${TIMEZONE:-Europe/Moscow}
+      - SPEAK_BOT_TOKEN=${SPEAK_BOT_TOKEN}
+      - SPEAK_STT_MODEL=${SPEAK_STT_MODEL:-openai/whisper-large-v3}
+    command: ["python", "main.py", "--mode", "speak"]
+    networks:
+      - alexol_network
+
 volumes:
   postgres_data:
     driver: local

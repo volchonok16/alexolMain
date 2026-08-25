@@ -15,6 +15,7 @@ from src.polling_error_handler import block_forever_after_polling_conflict, setu
 from src.telegram_bot import TelegramPublisher
 from src.project_requests_bot import run_requests_bot, setup_requests_bot
 from src.simple_forward_bot import run_forward_bot, setup_forward_bot
+from src.speak_tutor_bot import run_speak_bot
 
 import config
 import pytz
@@ -198,11 +199,12 @@ def main():
     parser = argparse.ArgumentParser(description="IT News Bot для Telegram")
     parser.add_argument(
         "--mode",
-        choices=["bot", "once", "preview", "test", "stats", "fetch", "requests", "forward"],
+        choices=["bot", "once", "preview", "test", "stats", "fetch", "requests", "forward", "speak"],
         default="bot",
         help=(
             "Режим: bot, once, preview, test, stats (статистика), fetch (загрузить контент), "
-            "requests (приём заявок на проекты), forward (простая пересылка сообщений)"
+            "requests (приём заявок на проекты), forward (простая пересылка сообщений), "
+            "speak (языковой tutor: голос + текст + исправления)"
         ),
     )
 
@@ -225,6 +227,8 @@ def main():
         run_requests_and_forward_bot()
     elif args.mode == "forward":
         run_forward_bot()
+    elif args.mode == "speak":
+        run_speak_bot()
 
 
 if __name__ == "__main__":

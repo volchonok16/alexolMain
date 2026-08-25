@@ -7,6 +7,9 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 # Отдельный бот только для публикации новостей в канал (polling не нужен).
 # Если не задан — для постинга используется TELEGRAM_BOT_TOKEN (как раньше).
 TELEGRAM_NEWS_BOT_TOKEN = os.getenv("TELEGRAM_NEWS_BOT_TOKEN")
+# Языковой tutor-бот (Alexol Speak): отдельный токен, отдельный polling.
+SPEAK_BOT_TOKEN = os.getenv("SPEAK_BOT_TOKEN")
+SPEAK_STT_MODEL = os.getenv("SPEAK_STT_MODEL", "openai/whisper-large-v3")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 # Куда слать заявки / обращения (не новости).
 # Приоритет: TELEGRAM_REQUESTS_CHAT_ID -> TELEGRAM_CHAT_ID -> TELEGRAM_CHANNEL_ID
