@@ -325,7 +325,15 @@ async def on_lang_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     meta = LANG_META[lang]
     name = update.effective_user.first_name if update.effective_user else "friend"
 
-    await query.edit_message_text(
+    try:
+        await query.edit_message_text(
+            f"✅ Язык: <b>{meta['name_ru']}</b> ({meta['name_en']})",
+            parse_mode=ParseMode.HTML,
+        )
+    except Exception:
+        pass
+
+    await query.message.reply_text(
         _welcome_after_lang(meta, name),
         parse_mode=ParseMode.HTML,
         reply_markup=_start_speak_keyboard(),
@@ -369,14 +377,14 @@ async def _ask_topic_voice(
 
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
     result = await ai.ask_for_topic(lang, user_name)
-    if not result:
+    reply = (result.get("reply") or "").strip()
+    if not reply:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Не удалось подключиться. Попробуй /start через минуту.",
+            text="Не удалось подготовить приветствие. Нажми /start и попробуй снова.",
         )
         return
 
-    reply = (result.get("reply") or "").strip()
     translation = (result.get("reply_translation") or "").strip()
     session["last_reply"] = reply
     session["last_reply_translation"] = translation

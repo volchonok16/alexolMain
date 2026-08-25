@@ -43,6 +43,39 @@ OPENING_STYLES = [
     "Ask about a hobby or something they enjoy lately.",
 ]
 
+# Первое голосовое после «Начать говорить» — статически, без AI (надёжно и мгновенно)
+ASK_TOPIC_BY_LANG: dict[str, tuple[str, str]] = {
+    "en": (
+        "Hey {name}! Nice to meet you. What would you like to talk about today? "
+        "If you're not sure, just say so — I'll pick something interesting!",
+        "Привет, {name}! Рад познакомиться. О чём хочешь поговорить сегодня? "
+        "Если не знаешь — скажи, я сам предложу тему!",
+    ),
+    "es": (
+        "¡Hola, {name}! Encantado de conocerte. ¿De qué te gustaría hablar hoy? "
+        "Si no lo sabes, dímelo y yo propongo un tema interesante.",
+        "Привет, {name}! Рад познакомиться. О чём хочешь поговорить сегодня? "
+        "Если не знаешь — скажи, я сам предложу тему!",
+    ),
+    "fr": (
+        "Salut {name} ! Ravi de te rencontrer. De quoi aimerais-tu parler aujourd'hui ? "
+        "Si tu ne sais pas, dis-le moi — je proposerai un sujet intéressant.",
+        "Привет, {name}! Рад познакомиться. О чём хочешь поговорить сегодня? "
+        "Если не знаешь — скажи, я сам предложу тему!",
+    ),
+    "de": (
+        "Hallo {name}! Schön, dich kennenzulernen. Worüber möchtest du heute sprechen? "
+        "Wenn du nicht weißt, sag es einfach — ich schlage ein spannendes Thema vor.",
+        "Привет, {name}! Рад познакомиться. О чём хочешь поговорить сегодня? "
+        "Если не знаешь — скажи, я сам предложу тему!",
+    ),
+}
+
+_GARBAGE_REPLY_RE = re.compile(
+    r"(user\s*safe|safety|```|\{\s*\"has_errors\")",
+    re.IGNORECASE,
+)
+
 
 def _topic_roleplay_rules() -> str:
     return """
@@ -95,10 +128,41 @@ def _session_topic_block(
     return "\n".join(parts)
 
 
+def _clean_model_text(text: str) -> str:
+    """Убираем reasoning/thinking блоки перед парсингом JSON."""
+    if not text:
+        return ""
+    cleaned = text.strip()
+    think_open = "<" + "think" + ">"
+    think_close = "</" + "think" + ">"
+    cleaned = re.sub(
+        re.escape(think_open) + r"[\s\S]*?" + re.escape(think_close),
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"(?is)<reasoning>[\s\S]*?</reasoning>", "", cleaned)
+    return cleaned.strip()
+
+
+def _is_valid_spoken_reply(text: str) -> bool:
+    """Отсеиваем мусор модели (user safe, JSON, reasoning)."""
+    s = (text or "").strip()
+    if len(s) < 8:
+        return False
+    if _GARBAGE_REPLY_RE.search(s):
+        return False
+    if s.startswith("{") or s.startswith("["):
+        return False
+    if not re.search(r"[a-zA-Z\u00C0-\u024F\u0400-\u04FF]", s):
+        return False
+    return True
+
+
 def _extract_json(text: str) -> Optional[dict[str, Any]]:
     if not text:
         return None
-    text = text.strip()
+    text = _clean_model_text(text)
     fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if fence:
         text = fence.group(1).strip()
@@ -168,6 +232,8 @@ def _normalize_corrections(
                 right = right_line
             if not wrong or not right:
                 continue
+            if user_text and wrong.lower() not in user_text.lower():
+                continue
             if _is_trivial_correction(wrong, right):
                 continue
             if wrong.lower() == right.lower():
@@ -203,8 +269,8 @@ class SpeakTutorAI:
     def __init__(self) -> None:
         self.api_key = config.OPENROUTER_API_KEY
         self.base_url = config.OPENROUTER_BASE_URL
-        self.model = config.OPENROUTER_MODEL
-        self.fallback_models = config.OPENROUTER_FALLBACK_MODELS
+        self.model = config.SPEAK_OPENROUTER_MODEL
+        self.fallback_models = config.SPEAK_OPENROUTER_FALLBACK_MODELS
 
     async def _chat(
         self,
@@ -253,41 +319,14 @@ class SpeakTutorAI:
                     continue
         return None
 
-    async def ask_for_topic(self, language: str, user_name: str) -> Optional[dict[str, Any]]:
-        """Голосовой вопрос: о чём поговорим? Если не знаешь — скажи, я предложу."""
-        meta = LANG_META.get(language, LANG_META["en"])
-        system = f"""You are Alexol Speak — a smart, warm voice conversation partner for {meta['name_en']} practice.
-This is your FIRST spoken message after the learner picked the language.
-Write ONLY what you will SAY aloud as a voice message — 2–3 short sentences in {meta['name_en']}.
-
-You MUST:
-1) Greet the learner warmly (use their name if provided).
-2) Ask what they would like to talk about today.
-3) Tell them clearly: if they are not sure / don't know, they can say so — and you will suggest a fun topic.
-
-Good vibe (adapt naturally, do not copy verbatim):
-"Hey! Nice to meet you. What would you like to talk about today? If you're not sure, just say so — I'll pick something interesting!"
-
-HARD RULES:
-- Spoken, casual, friendly — NOT formal, NOT a helpdesk.
-- NEVER say "How can I help you" or similar.
-- End inviting them to answer by voice or text."""
-
-        user = (
-            f"Learner name: {user_name or 'friend'}. "
-            'Return ONLY JSON: { "reply": "spoken text", "reply_translation": "Russian translation" }'
-        )
-        raw = await self._chat(
-            [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            max_tokens=350,
-            temperature=0.9,
-        )
-        data = _extract_json(raw or "")
-        if data and data.get("reply"):
-            return data
-        if raw:
-            return {"reply": raw, "reply_translation": ""}
-        return None
+    async def ask_for_topic(self, language: str, user_name: str) -> dict[str, Any]:
+        """Голосовой вопрос о теме — готовый текст, без AI."""
+        name = (user_name or "friend").strip() or "friend"
+        reply_tpl, trans_tpl = ASK_TOPIC_BY_LANG.get(language, ASK_TOPIC_BY_LANG["en"])
+        return {
+            "reply": reply_tpl.format(name=name),
+            "reply_translation": trans_tpl.format(name=name),
+        }
 
     async def begin_from_topic_choice(
         self,
@@ -330,17 +369,25 @@ NEVER use helpdesk phrases. Be natural, curious, like a smart friend."""
             temperature=0.75,
         )
         data = _extract_json(raw or "")
-        if data and data.get("reply"):
+        if data and data.get("reply") and _is_valid_spoken_reply(str(data.get("reply"))):
             data.setdefault("topic_mode", "casual")
             data.setdefault("topic_context", "")
+            topic = (data.get("topic") or "").strip()
+            vague = {"не знаю", "not sure", "i don't know", "don't know", "no idea"}
+            if not topic or topic.lower() in vague:
+                if data.get("bot_picked_topic"):
+                    topic = (data.get("reply") or "")[:80].strip() or "free conversation"
+                else:
+                    topic = user_text.strip() or "free conversation"
+                data["topic"] = topic[:120]
             return data
-        if raw:
+        if raw and _is_valid_spoken_reply(_clean_model_text(raw)):
             return {
                 "topic": user_text.strip() or "free conversation",
                 "topic_mode": "casual",
                 "topic_context": "",
                 "bot_picked_topic": False,
-                "reply": raw,
+                "reply": _clean_model_text(raw),
                 "reply_translation": "",
             }
         return None
@@ -482,7 +529,7 @@ User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear).""
 
         raw = await self._chat(messages, max_tokens=900, temperature=0.55)
         data = _extract_json(raw or "")
-        if data and data.get("reply"):
+        if data and data.get("reply") and _is_valid_spoken_reply(str(data.get("reply"))):
             data["corrections"] = _normalize_corrections(
                 data.get("corrections"),
                 user_text=user_text,
@@ -491,12 +538,12 @@ User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear).""
             data["has_errors"] = bool(data["corrections"])
             data.setdefault("topic_context", topic_context or "")
             return data
-        if raw:
+        if raw and _is_valid_spoken_reply(_clean_model_text(raw)):
             return {
                 "has_errors": False,
                 "corrections": [],
                 "corrected_message": user_text,
-                "reply": raw,
+                "reply": _clean_model_text(raw),
                 "reply_translation": "",
             }
         return None
