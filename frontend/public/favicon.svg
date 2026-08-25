@@ -1,17 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!--
+    Default (Google, crawlers, no media support): dark badge — читается и на тёмном, и на светлом фоне.
+    Browser tabs: prefers-color-scheme switches light/dark variants.
+  -->
   <style>
-    @media (prefers-color-scheme: dark) {
-      .icon-fill { fill: #0AE3FF; }
-      .icon-center { fill: #FFFFFF; }
-    }
+    .bg { fill: #0C0F16; }
+    .ring { fill: #0AE3FF; }
+    .dot { fill: #FFFFFF; }
+
     @media (prefers-color-scheme: light) {
-      .icon-fill { fill: #0891B2; }
-      .icon-center { fill: #0F172A; }
+      .bg { fill: #F1F5F9; }
+      .ring { fill: #0891B2; }
+      .dot { fill: #0F172A; }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0C0F16; }
+      .ring { fill: #0AE3FF; }
+      .dot { fill: #FFFFFF; }
     }
   </style>
+  <circle class="bg" cx="40" cy="40" r="40" />
   <path
-    class="icon-fill"
-    d="M40,0 L74.64,20 L74.64,60 L40,80 L5.36,60 L5.36,20 Z M40,15 L18.35,27.50 L18.35,52.50 L40,65 L61.65,52.50 L61.65,27.50 Z"
+    class="ring"
+    d="M40,12 L66.5,27.25 L66.5,52.75 L40,68 L13.5,52.75 L13.5,27.25 Z M40,24 L24.5,32.9 L24.5,47.1 L40,56 L55.5,47.1 L55.5,32.9 Z"
   />
-  <circle class="icon-center" cx="40" cy="40" r="8" />
+  <circle class="dot" cx="40" cy="40" r="6" />
 </svg>
