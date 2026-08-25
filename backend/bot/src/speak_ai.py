@@ -71,6 +71,30 @@ ASK_TOPIC_BY_LANG: dict[str, tuple[str, str]] = {
     ),
 }
 
+# Смена темы во время разговора — без «привет, рад познакомиться»
+CHANGE_TOPIC_BY_LANG: dict[str, tuple[str, str]] = {
+    "en": (
+        "Sure, let's switch topics! What do you want to talk about now? "
+        "If you're not sure, just say so — I'll pick something.",
+        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» — предложу сам.",
+    ),
+    "es": (
+        "¡Vale, cambiemos de tema! ¿De qué quieres hablar ahora? "
+        "Si no lo sabes, dímelo y yo propongo algo.",
+        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» — предложу сам.",
+    ),
+    "fr": (
+        "D'accord, changeons de sujet ! De quoi veux-tu parler maintenant ? "
+        "Si tu ne sais pas, dis-le moi — je proposerai quelque chose.",
+        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» — предложу сам.",
+    ),
+    "de": (
+        "Okay, wechseln wir das Thema! Worüber möchtest du jetzt sprechen? "
+        "Wenn du nicht weißt, sag es einfach — ich schlage etwas vor.",
+        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» — предложу сам.",
+    ),
+}
+
 _GARBAGE_REPLY_RE = re.compile(
     r"(user\s*safe|safety|```|\{\s*\"has_errors\")",
     re.IGNORECASE,
@@ -468,10 +492,17 @@ class SpeakTutorAI:
                     continue
         return None
 
-    async def ask_for_topic(self, language: str, user_name: str) -> dict[str, Any]:
+    async def ask_for_topic(
+        self,
+        language: str,
+        user_name: str,
+        *,
+        changing: bool = False,
+    ) -> dict[str, Any]:
         """Голосовой вопрос о теме — готовый текст, без AI."""
         name = (user_name or "friend").strip() or "friend"
-        reply_tpl, trans_tpl = ASK_TOPIC_BY_LANG.get(language, ASK_TOPIC_BY_LANG["en"])
+        templates = CHANGE_TOPIC_BY_LANG if changing else ASK_TOPIC_BY_LANG
+        reply_tpl, trans_tpl = templates.get(language, templates["en"])
         return {
             "reply": reply_tpl.format(name=name),
             "reply_translation": trans_tpl.format(name=name),
@@ -482,11 +513,22 @@ class SpeakTutorAI:
         language: str,
         user_name: str,
         user_text: str,
+        *,
+        changing: bool = False,
     ) -> Optional[dict[str, Any]]:
-        """Пользователь ответил на вопрос о теме — начинаем разговор голосом."""
+        """Пользователь ответил на вопрос о теме — начинаем или переключаем разговор."""
         meta = LANG_META.get(language, LANG_META["en"])
-        system = f"""You are Alexol Speak — a smart voice conversation partner for {meta['name_en']} practice.
-The learner answered your question about what to talk about.
+        if changing:
+            opening_rules = f"""This is a TOPIC SWITCH in an ongoing session — NOT the first message.
+The learner already answered what they want to talk about next.
+
+DO NOT greet again. DO NOT say "nice to meet you", "how are you", or ask "what would you like to talk about".
+Give a smooth transition in {meta['name_en']} (1–2 short sentences + ONE question):
+- If vague / "don't know" → pick a topic and jump in: "Great — let's talk about X. [question]"
+- If they named a topic → brief ack + first real question: "Sure, [topic]! [question]"
+- If role-play scenario → follow ROLE-PLAY rules below, stay in character immediately."""
+        else:
+            opening_rules = f"""The learner answered your question about what to talk about.
 
 Analyze their message and decide:
 - If they don't know / want a suggestion / say "anything" / "не знаю" / "предложи" / "not sure" → YOU pick a lively casual topic (today, work, hobbies, travel, food, movies, weekend plans).
@@ -495,7 +537,11 @@ Analyze their message and decide:
 
 Then speak your OPENING in {meta['name_en']} (2–3 short sentences for a voice message):
 1) Acknowledge warmly (if you picked the topic, say what and why it's interesting).
-2) Ask ONE concrete question to start — setup question OR first real question (see rules).
+2) Ask ONE concrete question to start — setup question OR first real question (see rules)."""
+
+        system = f"""You are Alexol Speak — a smart voice conversation partner for {meta['name_en']} practice.
+
+{opening_rules}
 
 {_topic_roleplay_rules()}
 
@@ -505,7 +551,7 @@ Return ONLY JSON:
   "topic_mode": "roleplay|casual",
   "topic_context": "job field, role, or situation details if already known, else empty string",
   "bot_picked_topic": boolean,
-  "reply": "spoken opening in {meta['name_en']}",
+  "reply": "spoken reply in {meta['name_en']}",
   "reply_translation": "Russian translation of reply"
 }}
 
@@ -619,6 +665,12 @@ For EACH user message you MUST:
 2) List only REAL mistakes that affect correctness or natural meaning.
 3) React to content and ask ONE concrete follow-up (stay in role for role-play topics).
 4) Give Russian translation of your spoken reply.
+5) If the learner clearly switches topic or scenario mid-conversation
+   (e.g. "let's talk about food", "давай про путешествия", "switch to interview prep")
+   → update "topic" and "topic_mode" in JSON.
+   → In "reply": smooth transition ONLY — NO re-greeting, NO "nice to meet you",
+     NO "how are you", NO asking what they want to talk about (they already said).
+     Jump into the new topic with one concrete question.
 
 If topic_mode is roleplay (e.g. interview): extract any new context from the user's message into topic_context in JSON.
 For interview: once field/role is known → ask the NEXT interview question; never ask what to ask.
@@ -636,6 +688,8 @@ unnatural collocations, meaning-changing errors.
 Return ONLY valid JSON:
 {{
   "has_errors": boolean,
+  "topic": "short topic label ONLY if learner changed topic this turn, else empty string",
+  "topic_mode": "roleplay|casual — ONLY if topic/scenario changed this turn, else empty string",
   "topic_context": "updated context if learner gave new details (job title, field, etc.), else keep previous or empty",
   "corrections": [
     {{
@@ -680,6 +734,8 @@ User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear).""
             )
             data["has_errors"] = bool(data["corrections"])
             data.setdefault("topic_context", topic_context or "")
+            data.setdefault("topic", "")
+            data.setdefault("topic_mode", "")
             return data
         print(f"⚠️ practice_turn AI failed, using fallback. raw={ (raw or '')[:200] }")
         return _fallback_practice_turn(language, user_text, topic_context)

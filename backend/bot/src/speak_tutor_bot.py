@@ -29,6 +29,13 @@ from telegram.ext import (
 import config
 from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
 from src.speak_ai import LANG_META, SpeakTutorAI
+from src.speak_settings import (
+    DEFAULT_SPEECH_SPEED_KEY,
+    SPEECH_SPEED_PRESETS,
+    speed_key_from_session,
+    speed_label,
+    speed_value_from_session,
+)
 from src.speech_services import synthesize_speech, transcribe_ogg, warmup_local_whisper
 
 ai = SpeakTutorAI()
@@ -44,6 +51,9 @@ CB_MENU_LANG = "speak_menu_lang"
 CB_MENU_TOPIC = "speak_menu_topic"
 CB_DONATE = "speak_donate"
 CB_DONATE_AMOUNT = "speak_donate_amount:"
+CB_SETTINGS = "speak_settings"
+CB_SPEED = "speak_speed:"
+CB_MENU_SETTINGS = "speak_menu_settings"
 
 # Суммы пожертвования в Telegram Stars (XTR)
 DONATE_AMOUNTS = (10, 50, 100, 250)
@@ -64,7 +74,7 @@ def _session(context: ContextTypes.DEFAULT_TYPE) -> dict[str, Any]:
             "last_user_text": "",
             "last_user_input_mode": "text",
             "last_corrections": [],
-            "points": 0,
+            "speech_speed": DEFAULT_SPEECH_SPEED_KEY,
             "active": False,
         },
     )
@@ -88,21 +98,30 @@ def _lang_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def _session_keyboard(points: int | None = None) -> InlineKeyboardMarkup:
-    # Как на скрине Supreme Speak: ⭐ +N — очки и вход в донат Stars
-    star = f"⭐ +{points}" if points else "⭐ Поддержать"
+def _session_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("💬 Текст", callback_data=CB_TEXT),
-                InlineKeyboardButton(star, callback_data=CB_DONATE),
+                InlineKeyboardButton("⭐ Поддержать", callback_data=CB_DONATE),
             ],
             [
+                InlineKeyboardButton("⚙️ Скорость", callback_data=CB_SETTINGS),
                 InlineKeyboardButton("💡 Помощь", callback_data=CB_HELP),
+            ],
+            [
                 InlineKeyboardButton("🏁 Завершить", callback_data=CB_FINISH),
             ],
         ]
     )
+
+
+def _speed_keyboard(current_key: str) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for key, (_, label) in SPEECH_SPEED_PRESETS.items():
+        mark = " ✓" if key == current_key else ""
+        rows.append([InlineKeyboardButton(f"{label}{mark}", callback_data=f"{CB_SPEED}{key}")])
+    return InlineKeyboardMarkup(rows)
 
 
 def _donate_keyboard(suggested: int | None = None) -> InlineKeyboardMarkup:
@@ -142,7 +161,13 @@ def _welcome_after_lang(meta: dict[str, str], user_name: str) -> str:
     )
 
 
-def _topic_prompt_text() -> str:
+def _topic_prompt_text(*, changing: bool = False) -> str:
+    if changing:
+        return (
+            "👂 <b>Слушай голосовое выше</b>\n\n"
+            "🎙 Назови новую тему голосом или текстом.\n"
+            "❓ Не знаешь — скажи «не знаю», предложу сам."
+        )
     return (
         "👂 <b>Слушай голосовое выше</b>\n\n"
         "🎙 Запиши ответ <b>голосом</b> или напиши текстом.\n"
@@ -152,10 +177,14 @@ def _topic_prompt_text() -> str:
 
 def _active_session_banner(session: dict[str, Any]) -> str:
     topic = (session.get("custom_topic") or "").strip()
-    points = int(session.get("points") or 0)
-    lines = ["━━━━━━━━━━━━━━━━", f"⭐ Очки: <b>{points}</b>"]
-    if topic and topic.lower() not in {"не знаю", "not sure", "free conversation"}:
+    speed_key = speed_key_from_session(session)
+    lines = ["━━━━━━━━━━━━━━━━"]
+    if topic:
         lines.append(f"🗣 Тема: <i>{html.escape(topic)}</i>")
+    else:
+        lines.append("🗣 Тема: <i>свободный разговор</i>")
+    lines.append(f"🔊 Скорость: {html.escape(speed_label(speed_key))}")
+    lines.append("💡 Новая тема — скажи: «давай поговорим о …»")
     lines.append("━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 
@@ -246,6 +275,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• /start — начать заново\n"
         "• /language — сменить язык\n"
         "• /topic — новая тема\n"
+        "• /settings — скорость озвучки\n"
         "• /menu — меню\n"
         "• /donate — поддержать Stars ⭐\n\n"
         "<b>Как учиться</b>\n"
@@ -253,9 +283,24 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "2️⃣ Слушай мои голосовые\n"
         "3️⃣ Отвечай 🎙 голосом или ⌨️ текстом\n"
         "4️⃣ «💬 Текст» — прочитать фразу и перевод\n"
-        "5️⃣ «💡 Помощь» — подсказка, что ответить\n\n"
+        "5️⃣ «💡 Помощь» — подсказка, что ответить\n"
+        "6️⃣ «⚙️ Скорость» — медленнее или быстрее (по умолчанию B1)\n\n"
         "Не знаешь тему? Скажи «не знаю» — предложу сам.",
         parse_mode=ParseMode.HTML,
+    )
+
+
+async def cmd_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    session = _session(context)
+    key = speed_key_from_session(session)
+    await update.message.reply_text(
+        "⚙️ <b>Скорость озвучки</b>\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"Сейчас: <b>{html.escape(speed_label(key))}</b>\n\n"
+        "По умолчанию — <b>B1</b>: чуть медленнее обычной речи, удобно для учёбы.\n"
+        "Можно менять в любой момент — даже во время разговора.",
+        parse_mode=ParseMode.HTML,
+        reply_markup=_speed_keyboard(key),
     )
 
 
@@ -275,7 +320,7 @@ async def cmd_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Сейчас спрошу голосом, о чём поговорим 👇",
         parse_mode=ParseMode.HTML,
     )
-    await _ask_topic_voice(context, update.effective_chat.id, session, name)
+    await _ask_topic_voice(context, update.effective_chat.id, session, name, changing=True)
 
 
 async def cmd_donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -298,6 +343,7 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 [InlineKeyboardButton("🎙 Начать говорить", callback_data=CB_START)],
                 [InlineKeyboardButton("🌐 Сменить язык", callback_data=CB_MENU_LANG)],
                 [InlineKeyboardButton("🗣 Новая тема", callback_data=CB_MENU_TOPIC)],
+                [InlineKeyboardButton("⚙️ Скорость озвучки", callback_data=CB_MENU_SETTINGS)],
                 [InlineKeyboardButton("💡 Помощь", callback_data=CB_HELP)],
                 [InlineKeyboardButton("⭐ Поддержать Stars", callback_data=CB_DONATE)],
                 [InlineKeyboardButton("🏁 Завершить сессию", callback_data=CB_FINISH)],
@@ -318,7 +364,7 @@ async def on_lang_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     session["language"] = lang
     session["history"] = []
     session["active"] = False
-    session["points"] = 0
+    session.setdefault("speech_speed", DEFAULT_SPEECH_SPEED_KEY)
     session["custom_topic"] = ""
     session["topic_mode"] = ""
     session["topic_context"] = ""
@@ -366,17 +412,20 @@ async def _ask_topic_voice(
     chat_id: int,
     session: dict[str, Any],
     user_name: str,
+    *,
+    changing: bool = False,
 ) -> None:
     lang = session.get("language")
     if not lang:
         return
 
     session["awaiting_topic"] = True
+    session["topic_switch"] = changing
     session["active"] = False
     session["history"] = []
 
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
-    result = await ai.ask_for_topic(lang, user_name)
+    result = await ai.ask_for_topic(lang, user_name, changing=changing)
     reply = (result.get("reply") or "").strip()
     if not reply:
         await context.bot.send_message(
@@ -394,14 +443,13 @@ async def _ask_topic_voice(
         chat_id=chat_id,
         lang=lang,
         reply=reply,
-        points=None,
         session=session,
     )
     await context.bot.send_message(
         chat_id=chat_id,
-        text=_topic_prompt_text(),
+        text=_topic_prompt_text(changing=changing),
         parse_mode=ParseMode.HTML,
-        reply_markup=_session_keyboard(None),
+        reply_markup=_session_keyboard(),
     )
 
 
@@ -418,8 +466,11 @@ async def _start_conversation_from_topic(
     if not lang:
         return
 
+    changing = bool(session.pop("topic_switch", False))
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
-    result = await ai.begin_from_topic_choice(lang, user_name, user_text)
+    result = await ai.begin_from_topic_choice(
+        lang, user_name, user_text, changing=changing,
+    )
     if not result:
         await context.bot.send_message(
             chat_id=chat_id,
@@ -452,7 +503,6 @@ async def _start_conversation_from_topic(
         chat_id=chat_id,
         lang=lang,
         reply=reply,
-        points=None,
         session=session,
     )
 
@@ -463,13 +513,13 @@ async def _send_tutor_voice_and_controls(
     chat_id: int,
     lang: str,
     reply: str,
-    points: int | None = None,
     session: dict[str, Any] | None = None,
 ) -> None:
     """Разговор — голосовым/audio. Текст реплики не отправляем."""
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
-    audio_path = await synthesize_speech(reply, lang)
-    keyboard = _session_keyboard(points)
+    spd = speed_value_from_session(session) if session else config.SPEAK_TTS_SPEED_DEFAULT
+    audio_path = await synthesize_speech(reply, lang, speed=spd)
+    keyboard = _session_keyboard()
 
     if not audio_path or not audio_path.exists():
         print("❌ TTS failed — no audio file")
@@ -512,8 +562,6 @@ async def _send_tutor_voice_and_controls(
             )
         if session and session.get("active"):
             banner = _active_session_banner(session)
-            if points:
-                banner += f"\n✅ <b>+{points}</b> за этот ответ"
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=f"{banner}\n\n🎙 Ответь голосом или ⌨️ текстом",
@@ -575,12 +623,10 @@ async def on_finish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
     session = _session(context)
-    points = session.get("points") or 0
     session["active"] = False
     session["history"] = []
     await query.message.reply_text(
-        f"🏁 <b>Сессия завершена</b>\n\n"
-        f"Очки за разговор: <b>{points}</b> ⭐\n\n"
+        "🏁 <b>Сессия завершена</b>\n\n"
         "Чтобы начать снова — /start",
         parse_mode=ParseMode.HTML,
         reply_markup=_lang_keyboard(),
@@ -643,26 +689,55 @@ async def on_menu_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "Сейчас спрошу голосом, о чём поговорим 👇",
         parse_mode=ParseMode.HTML,
     )
-    await _ask_topic_voice(context, query.message.chat_id, session, name)
+    await _ask_topic_voice(context, query.message.chat_id, session, name, changing=True)
 
 
 async def on_donate_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-    session = _session(context)
-    suggested = 10
-    # если только что получили очки — предложим ту же сумму как на скрине (+10)
-    last_gain = int(session.get("last_points_gain") or 0)
-    if last_gain > 0:
-        suggested = last_gain
     await query.message.reply_text(
         "⭐ <b>Спасибо за поддержку!</b>\n\n"
-        f"Очки за практику: <b>{int(session.get('points') or 0)}</b>\n"
         "Можешь отправить Telegram Stars — добровольно, практика бесплатна.\n\n"
         "Выбери сумму:",
         parse_mode=ParseMode.HTML,
-        reply_markup=_donate_keyboard(suggested),
+        reply_markup=_donate_keyboard(),
     )
+
+
+async def on_settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    session = _session(context)
+    key = speed_key_from_session(session)
+    await query.message.reply_text(
+        "⚙️ <b>Скорость озвучки</b>\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"Сейчас: <b>{html.escape(speed_label(key))}</b>",
+        parse_mode=ParseMode.HTML,
+        reply_markup=_speed_keyboard(key),
+    )
+
+
+async def on_speed_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    key = (query.data or "").removeprefix(CB_SPEED)
+    if key not in SPEECH_SPEED_PRESETS:
+        await query.answer("Неизвестная настройка")
+        return
+    session = _session(context)
+    session["speech_speed"] = key
+    await query.answer(f"Скорость: {speed_label(key)}")
+    try:
+        await query.edit_message_text(
+            "⚙️ <b>Скорость озвучки</b>\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"✅ Выбрано: <b>{html.escape(speed_label(key))}</b>\n\n"
+            "Следующее голосовое будет с этой скоростью.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=_speed_keyboard(key),
+        )
+    except Exception:
+        pass
 
 
 async def _send_stars_invoice(
@@ -798,16 +873,16 @@ async def handle_user_text(
     new_context = (result.get("topic_context") or "").strip()
     if new_context:
         session["topic_context"] = new_context
+    new_topic = (result.get("topic") or "").strip()
+    if new_topic:
+        session["custom_topic"] = new_topic[:120]
+    new_mode = (result.get("topic_mode") or "").strip()
+    if new_mode:
+        session["topic_mode"] = new_mode
     history = session.get("history") or []
     history.append({"role": "user", "content": text})
     history.append({"role": "assistant", "content": reply})
     session["history"] = history[-16:]
-
-    gained = 10
-    if has_errors:
-        gained = 5
-    session["points"] = int(session.get("points") or 0) + gained
-    session["last_points_gain"] = gained
 
     if has_errors:
         block = format_corrections(corrections, text)
@@ -831,7 +906,6 @@ async def handle_user_text(
         chat_id=update.effective_chat.id,
         lang=lang,
         reply=reply,
-        points=gained,
         session=session,
     )
 
@@ -872,6 +946,7 @@ def setup_speak_bot(application: Application) -> None:
     application.add_handler(CommandHandler("help", cmd_help))
     application.add_handler(CommandHandler("language", cmd_language))
     application.add_handler(CommandHandler("topic", cmd_topic))
+    application.add_handler(CommandHandler("settings", cmd_settings))
     application.add_handler(CommandHandler("menu", cmd_menu))
     application.add_handler(CommandHandler("donate", cmd_donate))
 
@@ -884,6 +959,9 @@ def setup_speak_bot(application: Application) -> None:
     application.add_handler(CallbackQueryHandler(on_pronounce, pattern=f"^{CB_PRONUNCE}$"))
     application.add_handler(CallbackQueryHandler(on_menu_lang, pattern=f"^{CB_MENU_LANG}$"))
     application.add_handler(CallbackQueryHandler(on_menu_topic, pattern=f"^{CB_MENU_TOPIC}$"))
+    application.add_handler(CallbackQueryHandler(on_settings_menu, pattern=f"^{CB_SETTINGS}$"))
+    application.add_handler(CallbackQueryHandler(on_settings_menu, pattern=f"^{CB_MENU_SETTINGS}$"))
+    application.add_handler(CallbackQueryHandler(on_speed_selected, pattern=f"^{CB_SPEED}"))
     application.add_handler(CallbackQueryHandler(on_donate_menu, pattern=f"^{CB_DONATE}$"))
     application.add_handler(CallbackQueryHandler(on_donate_amount, pattern=f"^{CB_DONATE_AMOUNT}"))
 
@@ -906,6 +984,7 @@ def run_speak_bot() -> None:
                 ("start", "Начать / выбрать язык"),
                 ("language", "Сменить язык"),
                 ("topic", "Новая тема"),
+                ("settings", "Скорость озвучки"),
                 ("donate", "Поддержать Stars ⭐"),
                 ("menu", "Меню"),
                 ("help", "Справка"),

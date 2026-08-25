@@ -11,12 +11,14 @@ TELEGRAM_NEWS_BOT_TOKEN = os.getenv("TELEGRAM_NEWS_BOT_TOKEN")
 SPEAK_BOT_TOKEN = os.getenv("SPEAK_BOT_TOKEN")
 # STT: local = бесплатно (Whisper на сервере), openrouter = платно через API
 SPEAK_STT_BACKEND = os.getenv("SPEAK_STT_BACKEND", "local")
-SPEAK_WHISPER_LOCAL_MODEL = os.getenv("SPEAK_WHISPER_LOCAL_MODEL", "base")
+SPEAK_WHISPER_LOCAL_MODEL = os.getenv("SPEAK_WHISPER_LOCAL_MODEL", "small")
 SPEAK_STT_MODEL = os.getenv("SPEAK_STT_MODEL", "openai/whisper-1")
 SPEAK_TTS_MODEL = os.getenv("SPEAK_TTS_MODEL", "deepgram/flux-tts:free")
 # Один голос для всех ответов (OpenRouter Flux). Провайдеры через запятую: openrouter, edge, gtts
 SPEAK_TTS_VOICE = os.getenv("SPEAK_TTS_VOICE", "flux-kit-en")
 SPEAK_TTS_PROVIDERS = os.getenv("SPEAK_TTS_PROVIDERS", "openrouter,gtts")
+# Скорость озвучки по умолчанию (B1): 0.85 slow, 0.95 b1, 1.0 normal, 1.1 fast
+SPEAK_TTS_SPEED_DEFAULT = float(os.getenv("SPEAK_TTS_SPEED_DEFAULT", "0.95"))
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 # Куда слать заявки / обращения (не новости).
 # Приоритет: TELEGRAM_REQUESTS_CHAT_ID -> TELEGRAM_CHAT_ID -> TELEGRAM_CHANNEL_ID
