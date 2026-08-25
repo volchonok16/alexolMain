@@ -26,3 +26,14 @@ model News {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  topic       String
+  description String
+  videoUrl    String
+  videoKey    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

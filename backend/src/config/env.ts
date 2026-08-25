@@ -32,6 +32,11 @@ const parseCorsOrigin = (origin: string | undefined): string[] => {
   return customOrigins.length > 0 ? customOrigins : productionOrigins;
 };
 
+const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
+  if (value === undefined) return fallback;
+  return ['1', 'true', 'yes'].includes(value.toLowerCase());
+};
+
 export const config = {
   port: parseInt(process.env.PORT || '3000'),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -42,4 +47,14 @@ export const config = {
   publicApiUrl: process.env.PUBLIC_API_URL,
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
   telegramChatId: process.env.TELEGRAM_CHAT_ID!,
+  minio: {
+    endPoint: (process.env.MINIO_ENDPOINT || 'localhost').replace(/^https?:\/\//, ''),
+    port: parseInt(process.env.MINIO_PORT || '9000'),
+    useSSL: parseBoolean(process.env.MINIO_USE_SSL, false),
+    accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+    secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+    bucket: process.env.MINIO_BUCKET || 'courses',
+    publicUrl: (process.env.MINIO_PUBLIC_URL || '').replace(/\/$/, ''),
+    maxVideoSizeMb: parseInt(process.env.MINIO_MAX_VIDEO_SIZE_MB || '10240'),
+  },
 };

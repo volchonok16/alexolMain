@@ -36,6 +36,16 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-https://alexol.io,https://admin.alexol.io,https://api.alexol.io}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-host.docker.internal}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-courses}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://minio.alexol.io}
+      MINIO_MAX_VIDEO_SIZE_MB: ${MINIO_MAX_VIDEO_SIZE_MB:-10240}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,6 +59,31 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Локальный MinIO: docker compose --profile local-minio up -d
+  # Если MinIO уже есть на сервере, профиль не нужен — задайте MINIO_* в .env
+  minio:
+    image: minio/minio:latest
+    container_name: alexol_minio
+    profiles: ["local-minio"]
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    networks:
+      - alexol_network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 20s
 
   bot_news:
     build:
@@ -126,6 +161,8 @@ volumes:
   postgres_data:
     driver: local
   whisper_cache:
+    driver: local
+  minio_data:
     driver: local
 
 networks:

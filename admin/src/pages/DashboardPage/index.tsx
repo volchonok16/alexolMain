@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, Newspaper, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, Newspaper, Users, GraduationCap } from 'lucide-react';
 import { News } from '@/api/news';
 import { useNews } from './hooks/useNews';
 import { ArticleModal } from './components/ArticleModal';
 import { UsersManagement } from './components/UsersManagement';
+import { CoursesManagement } from './components/CoursesManagement';
 import './DashboardPage.scss';
 
-type Tab = 'news' | 'users';
+type Tab = 'news' | 'courses' | 'users';
 
 export const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>('news');
@@ -51,6 +52,13 @@ export const DashboardPage = () => {
             >
               <Newspaper size={18} />
               Новости
+            </button>
+            <button
+              className={`dashboard__tab ${activeTab === 'courses' ? 'dashboard__tab--active' : ''}`}
+              onClick={() => setActiveTab('courses')}
+            >
+              <GraduationCap size={18} />
+              Курсы
             </button>
             <button
               className={`dashboard__tab ${activeTab === 'users' ? 'dashboard__tab--active' : ''}`}
@@ -118,6 +126,8 @@ export const DashboardPage = () => {
             )}
           </>
         )}
+
+        {activeTab === 'courses' && <CoursesManagement />}
 
         {activeTab === 'users' && <UsersManagement />}
       </div>

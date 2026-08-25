@@ -88,6 +88,25 @@ docker-compose down
 
 - **Backend API**: `8547` (внешний) → `3000` (внутренний)
 - **PostgreSQL**: `7432` (внешний) → `5432` (внутренний)
+- **MinIO API**: `9000`
+- **MinIO Console**: `9001`
+
+## Курсы и MinIO
+
+Видео курсов хранятся в MinIO. Публичные эндпоинты:
+
+- `GET /api/courses` — список курсов (без авторизации)
+- `GET /api/courses/:id` — курс по id (без авторизации)
+
+Создание, обновление и удаление требуют JWT.
+
+Если MinIO уже развёрнут отдельно, укажите его в `.env` (`MINIO_ENDPOINT`, ключи, `MINIO_PUBLIC_URL`). Для локального MinIO в этом compose:
+
+```bash
+docker compose --profile local-minio up -d
+```
+
+и в `.env` бэкенда задайте `MINIO_ENDPOINT=minio`.
 
 ## API Documentation
 

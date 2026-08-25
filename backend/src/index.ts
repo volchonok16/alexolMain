@@ -9,8 +9,10 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { authRouter } from './routes/auth.routes.js';
 import { userRouter } from './routes/user.routes.js';
 import { newsRouter } from './routes/news.routes.js';
+import { courseRouter } from './routes/course.routes.js';
 import { contactRouter } from './routes/contact.routes.js';
 import { initAdmin } from './utils/initAdmin.js';
+import { initMinio } from './config/minio.js';
 
 const app = express();
 
@@ -59,6 +61,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/news', newsRouter);
+app.use('/api/courses', courseRouter);
 app.use('/api/contact', contactRouter);
 
 app.use(errorHandler);
@@ -69,4 +72,10 @@ app.listen(config.port, async () => {
   
   // Инициализация админа при первом запуске
   await initAdmin();
+
+  try {
+    await initMinio();
+  } catch (error) {
+    console.error('[MinIO] Initialization failed:', error);
+  }
 });
