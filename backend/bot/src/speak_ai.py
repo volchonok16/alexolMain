@@ -76,6 +76,82 @@ _GARBAGE_REPLY_RE = re.compile(
     re.IGNORECASE,
 )
 
+_VAGUE_TOPIC_PHRASES = {
+    "не знаю",
+    "not sure",
+    "i don't know",
+    "don't know",
+    "no idea",
+    "anything",
+    "whatever",
+    "предложи",
+    "предложите",
+    "anything is fine",
+}
+
+# Запасные ответы, если OpenRouter не вернул JSON
+_BEGIN_FALLBACK: dict[str, dict[str, tuple[str, str]]] = {
+    "en": {
+        "vague": (
+            "No problem! Let's talk about your day. What was the most interesting thing that happened today?",
+            "Без проблем! Поговорим о твоём дне. Что было самым интересным сегодня?",
+        ),
+        "named": (
+            "Great — {topic}! I'd love to hear more. What's your favorite thing about it?",
+            "Отлично — {topic}! Расскажи, что тебе в этом больше всего нравится?",
+        ),
+    },
+    "es": {
+        "vague": (
+            "¡No hay problema! Hablemos de tu día. ¿Qué fue lo más interesante hoy?",
+            "Без проблем! Поговорим о твоём дне. Что было самым интересным сегодня?",
+        ),
+        "named": (
+            "¡Genial — {topic}! Cuéntame, ¿qué es lo que más te gusta de eso?",
+            "Отлично — {topic}! Расскажи, что тебе в этом больше всего нравится?",
+        ),
+    },
+    "fr": {
+        "vague": (
+            "Pas de souci ! Parlons de ta journée. Qu'est-ce qui t'a le plus marqué aujourd'hui ?",
+            "Без проблем! Поговорим о твоём дне. Что было самым интересным сегодня?",
+        ),
+        "named": (
+            "Super — {topic} ! Dis-moi, qu'est-ce que tu préfères là-dedans ?",
+            "Отлично — {topic}! Расскажи, что тебе в этом больше всего нравится?",
+        ),
+    },
+    "de": {
+        "vague": (
+            "Kein Problem! Erzähl mir von deinem Tag. Was war heute am interessantesten?",
+            "Без проблем! Пogоворим о твоём дне. Что было самым интересным сегодня?",
+        ),
+        "named": (
+            "Toll — {topic}! Was gefällt dir daran am meisten?",
+            "Отлично — {topic}! Расскажи, что тебе в этом больше всего нравится?",
+        ),
+    },
+}
+
+_PRACTICE_FALLBACK: dict[str, tuple[str, str]] = {
+    "en": (
+        "That's interesting! Tell me a bit more — what happened next?",
+        "Интересно! Расскажи подробнее — что было дальше?",
+    ),
+    "es": (
+        "¡Qué interesante! Cuéntame un poco más — ¿qué pasó después?",
+        "Интересно! Расскажи подробнее — что было дальше?",
+    ),
+    "fr": (
+        "C'est intéressant ! Raconte-moi un peu plus — qu'est-ce qui s'est passé ensuite ?",
+        "Интересно! Расскажи подробнее — что было дальше?",
+    ),
+    "de": (
+        "Das ist interessant! Erzähl mir mehr — was ist als Nächstes passiert?",
+        "Интересно! Расскажи подробнее — что было дальше?",
+    ),
+}
+
 
 def _topic_roleplay_rules() -> str:
     return """
@@ -159,6 +235,61 @@ def _is_valid_spoken_reply(text: str) -> bool:
     return True
 
 
+def _extract_reply_field(text: str) -> Optional[str]:
+    """Достаёт reply из битого JSON."""
+    if not text:
+        return None
+    match = re.search(r'"reply"\s*:\s*"((?:\\.|[^"\\])*)"', text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        return json.loads(f'"{match.group(1)}"')
+    except json.JSONDecodeError:
+        return match.group(1).replace('\\"', '"').replace("\\n", "\n")
+
+
+def _is_vague_topic(text: str) -> bool:
+    low = (text or "").lower().strip()
+    return any(p in low for p in _VAGUE_TOPIC_PHRASES)
+
+
+def _fallback_begin_topic(language: str, user_text: str) -> dict[str, Any]:
+    pack = _BEGIN_FALLBACK.get(language, _BEGIN_FALLBACK["en"])
+    topic = user_text.strip() or "free conversation"
+    if _is_vague_topic(user_text):
+        reply, trans = pack["vague"]
+        return {
+            "topic": "daily life",
+            "topic_mode": "casual",
+            "topic_context": "",
+            "bot_picked_topic": True,
+            "reply": reply,
+            "reply_translation": trans,
+        }
+    label = topic[:80]
+    reply, trans = pack["named"]
+    return {
+        "topic": label,
+        "topic_mode": "casual",
+        "topic_context": "",
+        "bot_picked_topic": False,
+        "reply": reply.format(topic=label),
+        "reply_translation": trans.format(topic=label),
+    }
+
+
+def _fallback_practice_turn(language: str, user_text: str, topic_context: str = "") -> dict[str, Any]:
+    reply, trans = _PRACTICE_FALLBACK.get(language, _PRACTICE_FALLBACK["en"])
+    return {
+        "has_errors": False,
+        "corrections": [],
+        "corrected_message": user_text,
+        "reply": reply,
+        "reply_translation": trans,
+        "topic_context": topic_context or "",
+    }
+
+
 def _extract_json(text: str) -> Optional[dict[str, Any]]:
     if not text:
         return None
@@ -178,6 +309,19 @@ def _extract_json(text: str) -> Optional[dict[str, Any]]:
                 return data if isinstance(data, dict) else None
             except json.JSONDecodeError:
                 return None
+    return None
+
+
+def _parse_speak_response(raw: str) -> Optional[dict[str, Any]]:
+    data = _extract_json(raw)
+    if data and data.get("reply"):
+        return data
+    reply = _extract_reply_field(raw or "")
+    if reply and _is_valid_spoken_reply(reply):
+        return {"reply": reply, "reply_translation": ""}
+    cleaned = _clean_model_text(raw or "")
+    if cleaned and _is_valid_spoken_reply(cleaned):
+        return {"reply": cleaned, "reply_translation": ""}
     return None
 
 
@@ -278,15 +422,24 @@ class SpeakTutorAI:
         *,
         max_tokens: int = 1200,
         temperature: float = 0.7,
+        json_mode: bool = False,
     ) -> Optional[str]:
         if not self.api_key or self.api_key == "your_openrouter_api_key":
             print("❌ OPENROUTER_API_KEY не настроен")
             return None
 
         models = [self.model] + [m for m in self.fallback_models if m != self.model]
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        async with httpx.AsyncClient(timeout=75.0) as client:
             for model in models:
                 try:
+                    payload: dict[str, Any] = {
+                        "model": model,
+                        "messages": messages,
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                    }
+                    if json_mode:
+                        payload["response_format"] = {"type": "json_object"}
                     response = await client.post(
                         f"{self.base_url}/chat/completions",
                         headers={
@@ -295,15 +448,11 @@ class SpeakTutorAI:
                             "HTTP-Referer": "https://alexol.io",
                             "X-Title": "Alexol Speak Tutor",
                         },
-                        json={
-                            "model": model,
-                            "messages": messages,
-                            "max_tokens": max_tokens,
-                            "temperature": temperature,
-                        },
+                        json=payload,
                     )
                     if response.status_code != 200:
-                        print(f"⚠️ Speak AI {model}: HTTP {response.status_code}")
+                        body = response.text[:300]
+                        print(f"⚠️ Speak AI {model}: HTTP {response.status_code} {body}")
                         continue
                     data = response.json()
                     choices = data.get("choices") or []
@@ -365,32 +514,26 @@ NEVER use helpdesk phrases. Be natural, curious, like a smart friend."""
         user = f'Learner name: {user_name or "friend"}\nTheir answer: "{user_text}"'
         raw = await self._chat(
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            max_tokens=380,
-            temperature=0.75,
+            max_tokens=450,
+            temperature=0.7,
+            json_mode=True,
         )
-        data = _extract_json(raw or "")
+        data = _parse_speak_response(raw or "")
         if data and data.get("reply") and _is_valid_spoken_reply(str(data.get("reply"))):
             data.setdefault("topic_mode", "casual")
             data.setdefault("topic_context", "")
             topic = (data.get("topic") or "").strip()
-            vague = {"не знаю", "not sure", "i don't know", "don't know", "no idea"}
-            if not topic or topic.lower() in vague:
+            if not topic or _is_vague_topic(topic):
                 if data.get("bot_picked_topic"):
-                    topic = (data.get("reply") or "")[:80].strip() or "free conversation"
+                    topic = user_text.strip()[:80] if not _is_vague_topic(user_text) else "daily life"
                 else:
                     topic = user_text.strip() or "free conversation"
+                if _is_vague_topic(topic):
+                    topic = "daily life"
                 data["topic"] = topic[:120]
             return data
-        if raw and _is_valid_spoken_reply(_clean_model_text(raw)):
-            return {
-                "topic": user_text.strip() or "free conversation",
-                "topic_mode": "casual",
-                "topic_context": "",
-                "bot_picked_topic": False,
-                "reply": _clean_model_text(raw),
-                "reply_translation": "",
-            }
-        return None
+        print(f"⚠️ begin_from_topic_choice AI failed, using fallback. raw={ (raw or '')[:200] }")
+        return _fallback_begin_topic(language, user_text)
 
     async def start_conversation(
         self,
@@ -527,8 +670,8 @@ User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear).""
                 messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": user_text})
 
-        raw = await self._chat(messages, max_tokens=900, temperature=0.55)
-        data = _extract_json(raw or "")
+        raw = await self._chat(messages, max_tokens=900, temperature=0.55, json_mode=True)
+        data = _parse_speak_response(raw or "")
         if data and data.get("reply") and _is_valid_spoken_reply(str(data.get("reply"))):
             data["corrections"] = _normalize_corrections(
                 data.get("corrections"),
@@ -538,15 +681,8 @@ User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear).""
             data["has_errors"] = bool(data["corrections"])
             data.setdefault("topic_context", topic_context or "")
             return data
-        if raw and _is_valid_spoken_reply(_clean_model_text(raw)):
-            return {
-                "has_errors": False,
-                "corrections": [],
-                "corrected_message": user_text,
-                "reply": _clean_model_text(raw),
-                "reply_translation": "",
-            }
-        return None
+        print(f"⚠️ practice_turn AI failed, using fallback. raw={ (raw or '')[:200] }")
+        return _fallback_practice_turn(language, user_text, topic_context)
 
     async def make_hint(
         self,
