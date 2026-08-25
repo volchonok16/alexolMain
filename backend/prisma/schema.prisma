@@ -12,6 +12,7 @@ model User {
   login     String    @unique
   password  String
   name      String
+  email     String?   @unique
   role      String    @default("user")
   photo     String?
   birthDate DateTime? @db.Date

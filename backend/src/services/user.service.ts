@@ -1,12 +1,18 @@
 import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/user.repository.js';
 import { saveFile, deleteFile } from '../utils/fileUpload.js';
+import { normalizeLogin } from '../utils/login.js';
 
-const parseBirthDate = (value?: string) => {
-  if (!value) return undefined;
+const parseBirthDate = (value?: string | null) => {
+  if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) throw new Error('Invalid birth date');
   return date;
+};
+
+const normalizeEmail = (email?: string | null) => {
+  const value = email?.trim().toLowerCase();
+  return value || null;
 };
 
 export class UserService {
@@ -27,20 +33,29 @@ export class UserService {
     password: string;
     name: string;
     role: 'admin' | 'user';
-    birthDate: string;
+    email?: string | null;
+    birthDate?: string | null;
     photo?: Express.Multer.File;
   }) {
-    const existing = await this.userRepo.findByLogin(data.login);
+    const login = normalizeLogin(data.login);
+    const existing = await this.userRepo.findByLogin(login);
     if (existing) throw new Error('Login already exists');
+
+    const email = normalizeEmail(data.email);
+    if (email) {
+      const existingEmail = await this.userRepo.findByEmail(email);
+      if (existingEmail) throw new Error('Email already exists');
+    }
 
     const photoUrl = data.photo ? await saveFile(data.photo) : null;
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
     return this.userRepo.create({
-      login: data.login,
+      login,
       password: hashedPassword,
       name: data.name,
       role: data.role,
+      email,
       birthDate: parseBirthDate(data.birthDate),
       photo: photoUrl,
     });
@@ -53,16 +68,27 @@ export class UserService {
       password?: string;
       name?: string;
       role?: 'admin' | 'user';
-      birthDate?: string;
+      email?: string | null;
+      birthDate?: string | null;
       photo?: Express.Multer.File;
     }
   ) {
     const user = await this.userRepo.findById(id);
     if (!user) throw new Error('User not found');
 
-    if (data.login && data.login !== user.login) {
-      const existing = await this.userRepo.findByLogin(data.login);
-      if (existing) throw new Error('Login already exists');
+    if (data.login) {
+      const login = normalizeLogin(data.login);
+      if (login !== user.login.toLowerCase()) {
+        const existing = await this.userRepo.findByLogin(login);
+        if (existing) throw new Error('Login already exists');
+      }
+      data.login = login;
+    }
+
+    const email = data.email === undefined ? undefined : normalizeEmail(data.email);
+    if (email) {
+      const existingEmail = await this.userRepo.findByEmail(email);
+      if (existingEmail && existingEmail.id !== id) throw new Error('Email already exists');
     }
 
     if (data.role === 'user' && user.role === 'admin') {
@@ -80,7 +106,8 @@ export class UserService {
       login: data.login,
       name: data.name,
       role: data.role,
-      birthDate: parseBirthDate(data.birthDate),
+      email,
+      birthDate: data.birthDate === undefined ? undefined : parseBirthDate(data.birthDate),
       photo: photoUrl,
       ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),
     });

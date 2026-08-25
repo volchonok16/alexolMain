@@ -4,6 +4,7 @@ export interface User {
   id: string;
   login: string;
   name: string;
+  email?: string | null;
   role: 'admin' | 'user';
   photo?: string | null;
   birthDate?: string | null;
@@ -26,7 +27,8 @@ export interface UserPayload {
   password?: string;
   name: string;
   role: 'admin' | 'user';
-  birthDate: string;
+  email?: string;
+  birthDate?: string;
   photo?: File;
 }
 
@@ -49,7 +51,8 @@ export const usersApi = {
     formData.append('password', data.password || '');
     formData.append('name', data.name);
     formData.append('role', data.role);
-    formData.append('birthDate', data.birthDate);
+    if (data.email) formData.append('email', data.email);
+    if (data.birthDate) formData.append('birthDate', data.birthDate);
     if (data.photo) formData.append('photo', data.photo);
 
     const response = await apiClient.post<{ data: User }>('/users', formData, {
@@ -63,7 +66,8 @@ export const usersApi = {
     formData.append('login', data.login);
     formData.append('name', data.name);
     formData.append('role', data.role);
-    formData.append('birthDate', data.birthDate);
+    formData.append('email', data.email || '');
+    formData.append('birthDate', data.birthDate || '');
     if (data.password) formData.append('password', data.password);
     if (data.photo) formData.append('photo', data.photo);
 

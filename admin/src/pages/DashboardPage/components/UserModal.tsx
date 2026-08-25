@@ -11,7 +11,8 @@ interface UserModalProps {
     password?: string;
     name: string;
     role: 'admin' | 'user';
-    birthDate: string;
+    email?: string;
+    birthDate?: string;
     photo?: File;
   }) => void;
 }
@@ -27,6 +28,7 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
   const [birthDate, setBirthDate] = useState(toDateInput(user?.birthDate));
+  const [email, setEmail] = useState(user?.email || '');
   const [photo, setPhoto] = useState<File | undefined>();
   const [preview, setPreview] = useState(user?.photo ? resolveApiAssetUrl(user.photo) : '');
 
@@ -43,6 +45,7 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
       name,
       login,
       role,
+      email,
       birthDate,
       photo,
       ...(password ? { password } : {}),
@@ -86,8 +89,19 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
           </div>
 
           <div className="modal__field">
+            <label>Почта</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Необязательно"
+              disabled={isSaving}
+            />
+          </div>
+
+          <div className="modal__field">
             <label>Дата рождения</label>
-            <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} required disabled={isSaving} />
+            <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} disabled={isSaving} />
           </div>
 
           <div className="modal__field">

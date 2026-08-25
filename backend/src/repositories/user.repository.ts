@@ -5,6 +5,7 @@ type UserCreateData = {
   password: string;
   name: string;
   role: string;
+  email?: string | null;
   photo?: string | null;
   birthDate?: Date | null;
 };
@@ -14,6 +15,7 @@ type UserUpdateData = {
   password?: string;
   name?: string;
   role?: string;
+  email?: string | null;
   photo?: string | null;
   birthDate?: Date | null;
 };
@@ -22,6 +24,7 @@ const publicSelect = {
   id: true,
   login: true,
   name: true,
+  email: true,
   role: true,
   photo: true,
   birthDate: true,
@@ -35,7 +38,25 @@ export class UserRepository {
   }
 
   async findByLogin(login: string) {
-    return prisma.user.findUnique({ where: { login } });
+    return prisma.user.findFirst({
+      where: {
+        login: {
+          equals: login.trim(),
+          mode: 'insensitive',
+        },
+      },
+    });
+  }
+
+  async findByEmail(email: string) {
+    return prisma.user.findFirst({
+      where: {
+        email: {
+          equals: email.trim(),
+          mode: 'insensitive',
+        },
+      },
+    });
   }
 
   async findPublicById(id: string) {

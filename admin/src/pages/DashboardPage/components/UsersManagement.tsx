@@ -51,7 +51,8 @@ export const UsersManagement = () => {
     password?: string;
     name: string;
     role: 'admin' | 'user';
-    birthDate: string;
+    email?: string;
+    birthDate?: string;
     photo?: File;
   }) => {
     setSaveError(null);
@@ -106,6 +107,7 @@ export const UsersManagement = () => {
                 <th>Фото</th>
                 <th>ФИО</th>
                 <th>Логин</th>
+                <th>Почта</th>
                 <th>Роль</th>
                 <th>Дата рождения</th>
                 <th>Действия</th>
@@ -129,6 +131,7 @@ export const UsersManagement = () => {
                   </td>
                   <td>{user.name}</td>
                   <td>{user.login}</td>
+                  <td>{user.email || '—'}</td>
                   <td>
                     <span className={`users-management__role users-management__role--${user.role}`}>
                       {roleLabel(user.role)}
