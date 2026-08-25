@@ -176,8 +176,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session["custom_topic"] = ""
     session["topic_mode"] = ""
     session["topic_context"] = ""
-    session["topic_mode"] = ""
-    session["topic_context"] = ""
     name = update.effective_user.first_name if update.effective_user else ""
     await update.message.reply_text(
         f"Привет{', ' + name if name else ''}! 👋\n\n"
