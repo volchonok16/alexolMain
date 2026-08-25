@@ -115,6 +115,7 @@ services:
       - SPEAK_TTS_MODEL=${SPEAK_TTS_MODEL:-deepgram/flux-tts:free}
       - SPEAK_TTS_VOICE=${SPEAK_TTS_VOICE:-flux-cole-en}
       - SPEAK_TTS_PROVIDERS=${SPEAK_TTS_PROVIDERS:-openrouter,gtts}
+      - SPEAK_OPENROUTER_MODEL=${SPEAK_OPENROUTER_MODEL:-qwen/qwen3.6-plus:free}
     command: ["python", "main.py", "--mode", "speak"]
     volumes:
       - whisper_cache:/root/.cache/huggingface

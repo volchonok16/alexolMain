@@ -68,6 +68,27 @@ OPENROUTER_FALLBACK_MODELS = [
     if model.strip()
 ]
 
+# Speak tutor: без reasoning-моделей (ломают JSON, озвучивают «user safe» и т.п.)
+SPEAK_OPENROUTER_MODEL = os.getenv("SPEAK_OPENROUTER_MODEL", "qwen/qwen3.6-plus:free")
+_speak_fallback_env = os.getenv(
+    "SPEAK_OPENROUTER_FALLBACK_MODELS",
+    ",".join(
+        [
+            "qwen/qwen3.6-plus:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "google/gemma-3-27b-it:free",
+            "nvidia/nemotron-3-nano-30b-a3b:free",
+            "poolside/laguna-xs.2:free",
+            "openrouter/free",
+        ]
+    ),
+)
+SPEAK_OPENROUTER_FALLBACK_MODELS = [
+    model.strip()
+    for model in _speak_fallback_env.split(",")
+    if model.strip()
+]
+
 # Backend news integration (optional)
 # Example:
 # BACKEND_API_URL=https://api.alexol.io/api
