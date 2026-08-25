@@ -65,7 +65,7 @@ def _get_local_whisper():
     if _local_whisper_model is None:
         from faster_whisper import WhisperModel
 
-        print(f"🔄 Loading local Whisper model: {config.SPEAK_WHISPER_LOCAL_MODEL}")
+        print(f"🔄 Loading local Whisper model: {config.SPEAK_WHISPER_LOCAL_MODEL} (скачивание с HF Hub при первом запуске может занять 1–3 мин)…")
         _local_whisper_model = WhisperModel(
             config.SPEAK_WHISPER_LOCAL_MODEL,
             device="cpu",

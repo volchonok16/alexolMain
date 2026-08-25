@@ -114,11 +114,15 @@ services:
       - SPEAK_STT_MODEL=${SPEAK_STT_MODEL:-openai/whisper-1}
       - SPEAK_TTS_MODEL=${SPEAK_TTS_MODEL:-deepgram/flux-tts:free}
     command: ["python", "main.py", "--mode", "speak"]
+    volumes:
+      - whisper_cache:/root/.cache/huggingface
     networks:
       - alexol_network
 
 volumes:
   postgres_data:
+    driver: local
+  whisper_cache:
     driver: local
 
 networks:
