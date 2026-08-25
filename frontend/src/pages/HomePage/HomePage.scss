@@ -369,11 +369,17 @@
 
   &__scroll {
     display: flex;
-    animation: scroll-left 30s linear infinite;
+    width: max-content;
+    animation: scroll-left 40s linear infinite;
 
     @media (max-width: 768px) {
-      animation: scroll-left 5s linear infinite;
+      animation: scroll-left 20s linear infinite;
     }
+  }
+
+  &__group {
+    display: flex;
+    flex-shrink: 0;
   }
 
   &__item {

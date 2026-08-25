@@ -14,7 +14,15 @@ export const TrustLine = () => {
     'Dubs',
     'Beggars',
     'Metropolis',
+    'tapF',
   ];
+
+  const renderClients = (keyPrefix: string) =>
+    clients.map((client) => (
+      <div key={`${keyPrefix}-${client}`} className="trust-line__item">
+        <span className="trust-line__client">{client}</span>
+      </div>
+    ));
 
   return (
     <section className="trust-line">
@@ -24,11 +32,10 @@ export const TrustLine = () => {
 
       <div className="trust-line__wrapper">
         <div className="trust-line__scroll">
-          {[...clients, ...clients].map((client, index) => (
-            <div key={index} className="trust-line__item">
-              <span className="trust-line__client">{client}</span>
-            </div>
-          ))}
+          <div className="trust-line__group">{renderClients('a')}</div>
+          <div className="trust-line__group" aria-hidden="true">
+            {renderClients('b')}
+          </div>
         </div>
 
         <div className="trust-line__gradient trust-line__gradient--left" />
