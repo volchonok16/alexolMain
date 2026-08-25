@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import html
 from pathlib import Path
 from typing import Any
