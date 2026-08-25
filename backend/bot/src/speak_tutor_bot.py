@@ -76,6 +76,7 @@ def _lang_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("🇬🇧 English", callback_data=f"{CB_LANG}en")],
             [InlineKeyboardButton("🇪🇸 Español", callback_data=f"{CB_LANG}es")],
             [InlineKeyboardButton("🇫🇷 Français", callback_data=f"{CB_LANG}fr")],
+            [InlineKeyboardButton("🇩🇪 Deutsch", callback_data=f"{CB_LANG}de")],
         ]
     )
 

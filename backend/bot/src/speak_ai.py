@@ -18,6 +18,7 @@ LANG_META = {
     "en": {"name_ru": "английский", "name_en": "English", "code": "en"},
     "es": {"name_ru": "испанский", "name_en": "Spanish", "code": "es"},
     "fr": {"name_ru": "французский", "name_en": "French", "code": "fr"},
+    "de": {"name_ru": "немецкий", "name_en": "German", "code": "de"},
 }
 
 # Ключ → (подпись в UI RU, описание темы для модели EN)

@@ -20,14 +20,16 @@ EDGE_VOICE_BY_LANG = {
     "en": "en-US-GuyNeural",
     "es": "es-ES-AlvaroNeural",
     "fr": "fr-FR-HenriNeural",
+    "de": "de-DE-ConradNeural",
 }
 
-GTTS_LANG = {"en": "en", "es": "es", "fr": "fr"}
+GTTS_LANG = {"en": "en", "es": "es", "fr": "fr", "de": "de"}
 
 OPENROUTER_VOICE_BY_LANG = {
     "en": config.SPEAK_TTS_VOICE,
     "es": config.SPEAK_TTS_VOICE,
     "fr": config.SPEAK_TTS_VOICE,
+    "de": config.SPEAK_TTS_VOICE,
 }
 
 OPENROUTER_TTS_FALLBACK_MODELS = [
