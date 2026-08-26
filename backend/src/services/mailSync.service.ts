@@ -37,7 +37,7 @@ export class MailSyncService {
     return Boolean(config.mail.apiUrl && config.mail.syncSecret);
   }
 
-  private headers(): HeadersInit {
+  private headers(): Record<string, string> {
     return {
       'Content-Type': 'application/json',
       'X-Mail-Sync-Key': config.mail.syncSecret,
