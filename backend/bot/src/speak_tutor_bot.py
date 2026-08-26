@@ -12,8 +12,9 @@ from telegram import (
     InlineKeyboardMarkup,
     InputFile,
     LabeledPrice,
-    MenuButtonCommands,
+    MenuButtonWebApp,
     Update,
+    WebAppInfo,
 )
 from telegram.constants import ChatAction, ParseMode
 from telegram.ext import (
@@ -59,6 +60,17 @@ CB_MENU_SETTINGS = "speak_menu_settings"
 DONATE_AMOUNTS = (10, 50, 100, 250)
 
 
+def _webapp_url(lang: str | None = None) -> str:
+    url = config.SPEAK_WEBAPP_URL
+    if lang:
+        return f"{url}/?lang={lang}"
+    return url
+
+
+def _cards_button(text: str = "🃏 Карточки", lang: str | None = None) -> InlineKeyboardButton:
+    return InlineKeyboardButton(text, web_app=WebAppInfo(url=_webapp_url(lang)))
+
+
 def _session(context: ContextTypes.DEFAULT_TYPE) -> dict[str, Any]:
     data = context.user_data.setdefault(
         "speak",
@@ -81,9 +93,12 @@ def _session(context: ContextTypes.DEFAULT_TYPE) -> dict[str, Any]:
     return data
 
 
-def _start_speak_keyboard() -> InlineKeyboardMarkup:
+def _start_speak_keyboard(lang: str | None = None) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🎙 Начать говорить", callback_data=CB_START)]]
+        [
+            [InlineKeyboardButton("🎙 Начать говорить", callback_data=CB_START)],
+            [_cards_button("🃏 Карточки офлайн", lang)],
+        ]
     )
 
 
@@ -98,7 +113,7 @@ def _lang_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def _session_keyboard() -> InlineKeyboardMarkup:
+def _session_keyboard(lang: str | None = None) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
@@ -109,6 +124,7 @@ def _session_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("⚙️ Скорость", callback_data=CB_SETTINGS),
                 InlineKeyboardButton("💡 Помощь", callback_data=CB_HELP),
             ],
+            [_cards_button("🃏 Карточки", lang)],
             [
                 InlineKeyboardButton("🏁 Завершить", callback_data=CB_FINISH),
             ],
@@ -253,6 +269,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"Привет{', ' + name if name else ''}! 👋\n\n"
         "Практикуй язык в <b>живом голосовом диалоге</b> — "
         "я говорю, ты отвечаешь, поправлю ошибки.\n\n"
+        "🃏 Есть и <b>офлайн-карточки</b>: спрашивай друга по словам, даже в самолёте.\n\n"
         "<b>Языки:</b> 🇬🇧 🇪🇸 🇫🇷 🇩🇪\n\n"
         "Выбери язык для практики 👇",
         parse_mode=ParseMode.HTML,
@@ -277,14 +294,16 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "• /topic — новая тема\n"
         "• /settings — скорость озвучки\n"
         "• /menu — меню\n"
-        "• /donate — поддержать Stars ⭐\n\n"
+        "• /donate — поддержать Stars ⭐\n"
+        "• /cards — офлайн-карточки\n\n"
         "<b>Как учиться</b>\n"
         "1️⃣ Выбери язык → <b>Начать говорить</b>\n"
         "2️⃣ Слушай мои голосовые\n"
         "3️⃣ Отвечай 🎙 голосом или ⌨️ текстом\n"
         "4️⃣ «💬 Текст» — прочитать фразу и перевод\n"
         "5️⃣ «💡 Помощь» — подсказка, что ответить\n"
-        "6️⃣ «⚙️ Скорость» — медленнее или быстрее (по умолчанию B1)\n\n"
+        "6️⃣ «⚙️ Скорость» — медленнее или быстрее (по умолчанию B1)\n"
+        "7️⃣ «🃏 Карточки» — словарь в телефоне, работает в самолёте\n\n"
         "Не знаешь тему? Скажи «не знаю» — предложу сам.",
         parse_mode=ParseMode.HTML,
     )
@@ -335,12 +354,14 @@ async def cmd_donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 
 async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    lang = _session(context).get("language")
     await update.message.reply_text(
         "📋 <b>Меню Alexol Speak</b>",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("🎙 Начать говорить", callback_data=CB_START)],
+                [_cards_button("🃏 Карточки офлайн", lang)],
                 [InlineKeyboardButton("🌐 Сменить язык", callback_data=CB_MENU_LANG)],
                 [InlineKeyboardButton("🗣 Новая тема", callback_data=CB_MENU_TOPIC)],
                 [InlineKeyboardButton("⚙️ Скорость озвучки", callback_data=CB_MENU_SETTINGS)],
@@ -349,6 +370,20 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 [InlineKeyboardButton("🏁 Завершить сессию", callback_data=CB_FINISH)],
             ]
         ),
+    )
+
+
+async def cmd_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    lang = _session(context).get("language")
+    await update.message.reply_text(
+        "🃏 <b>Карточки</b>\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        "Откроется мини-приложение: один держит телефон как словарь, "
+        "на карточке слово и перевод — спрашиваешь второго.\n\n"
+        "Слова хранятся в телефоне. Один раз открой с интернетом — "
+        "дальше работает в самолёте.",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([[_cards_button("Открыть карточки", lang)]]),
     )
 
 
@@ -382,7 +417,7 @@ async def on_lang_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await query.message.reply_text(
         _welcome_after_lang(meta, name),
         parse_mode=ParseMode.HTML,
-        reply_markup=_start_speak_keyboard(),
+        reply_markup=_start_speak_keyboard(lang),
     )
 
 
@@ -449,7 +484,7 @@ async def _ask_topic_voice(
         chat_id=chat_id,
         text=_topic_prompt_text(changing=changing),
         parse_mode=ParseMode.HTML,
-        reply_markup=_session_keyboard(),
+        reply_markup=_session_keyboard(session.get("language")),
     )
 
 
@@ -519,7 +554,7 @@ async def _send_tutor_voice_and_controls(
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
     spd = speed_value_from_session(session) if session else config.SPEAK_TTS_SPEED_DEFAULT
     audio_path = await synthesize_speech(reply, lang, speed=spd)
-    keyboard = _session_keyboard()
+    keyboard = _session_keyboard(lang)
 
     if not audio_path or not audio_path.exists():
         print("❌ TTS failed — no audio file")
@@ -948,6 +983,7 @@ def setup_speak_bot(application: Application) -> None:
     application.add_handler(CommandHandler("topic", cmd_topic))
     application.add_handler(CommandHandler("settings", cmd_settings))
     application.add_handler(CommandHandler("menu", cmd_menu))
+    application.add_handler(CommandHandler("cards", cmd_cards))
     application.add_handler(CommandHandler("donate", cmd_donate))
 
     application.add_handler(CallbackQueryHandler(on_lang_selected, pattern=f"^{CB_LANG}"))
@@ -984,6 +1020,7 @@ def run_speak_bot() -> None:
                 ("start", "Начать / выбрать язык"),
                 ("language", "Сменить язык"),
                 ("topic", "Новая тема"),
+                ("cards", "Офлайн-карточки"),
                 ("settings", "Скорость озвучки"),
                 ("donate", "Поддержать Stars ⭐"),
                 ("menu", "Меню"),
@@ -991,7 +1028,12 @@ def run_speak_bot() -> None:
             ]
         )
         try:
-            await app.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+            await app.bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text="Карточки",
+                    web_app=WebAppInfo(url=_webapp_url()),
+                )
+            )
         except Exception:
             pass
         # Предзагрузка Whisper в фоне

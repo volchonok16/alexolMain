@@ -52,6 +52,142 @@ jobs:
                   overwrite: true
                   strip_components: 2
 
+    deploy-lang:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Install dependencies and build lang Mini App
+              working-directory: ./lang
+              run: |
+                  npm install
+                  npm run build
+                  ls -la dist/
+
+            - name: Prepare server directory
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/lang/html
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/lang/html
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/lang/html
+
+            - name: Deploy lang Mini App to server
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "lang/dist/**"
+                  target: "/var/www/alexol.io/lang/html"
+                  overwrite: true
+                  strip_components: 2
+
+    deploy-mail:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Install dependencies and build mail client
+              working-directory: ./mail
+              run: |
+                  npm install
+                  npm run build
+                  ls -la dist/
+
+            - name: Prepare server directory
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/mail/html
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/mail/html
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/mail/html
+
+            - name: Deploy mail client to server
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "mail/dist/**"
+                  target: "/var/www/alexol.io/mail/html"
+                  overwrite: true
+                  strip_components: 2
+
+    deploy-mail-server:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Prepare server directory
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/mail/backend
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/mail
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/mail
+
+            - name: Deploy mail-server backend
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "mail-server/**"
+                  target: "/var/www/mail"
+                  overwrite: true
+                  strip_components: 1
+
+            - name: Start mail-server with Docker Compose
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script_stop: true
+                  script: |
+                      cd /var/www/mail
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      if docker compose version >/dev/null 2>&1; then
+                        docker compose up -d --build
+                        docker compose ps
+                      elif command -v docker-compose >/dev/null 2>&1; then
+                        docker-compose up -d --build
+                        docker-compose ps
+                      else
+                        echo "Docker Compose not found"
+                        exit 1
+                      fi'
+
     deploy-admin:
         runs-on: ubuntu-latest
         steps:

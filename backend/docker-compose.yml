@@ -44,6 +44,9 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-courses}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://minio.alexol.io}
       MINIO_MAX_VIDEO_SIZE_MB: ${MINIO_MAX_VIDEO_SIZE_MB:-10240}
+      MAIL_API_URL: ${MAIL_API_URL:-http://host.docker.internal:17000}
+      MAIL_SYNC_SECRET: ${MAIL_SYNC_SECRET:-}
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-alexol.io}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

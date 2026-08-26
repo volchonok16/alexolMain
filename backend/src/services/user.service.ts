@@ -2,6 +2,8 @@ import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/user.repository.js';
 import { saveFile, deleteFile } from '../utils/fileUpload.js';
 import { normalizeLogin } from '../utils/login.js';
+import { MailSyncService } from './mailSync.service.js';
+import { config } from '../config/env.js';
 
 const parseBirthDate = (value?: string | null) => {
   if (!value) return null;
@@ -17,6 +19,7 @@ const normalizeEmail = (email?: string | null) => {
 
 export class UserService {
   private userRepo = new UserRepository();
+  private mailSync = new MailSyncService();
 
   async findById(id: string) {
     const user = await this.userRepo.findPublicById(id);
@@ -41,16 +44,19 @@ export class UserService {
     const existing = await this.userRepo.findByLogin(login);
     if (existing) throw new Error('Login already exists');
 
-    const email = normalizeEmail(data.email);
-    if (email) {
-      const existingEmail = await this.userRepo.findByEmail(email);
-      if (existingEmail) throw new Error('Email already exists');
+    // Prefer explicit email; otherwise assign mailbox login@MAIL_DOMAIN
+    let email = normalizeEmail(data.email);
+    if (!email) {
+      email = MailSyncService.mailboxEmail(login, config.mail.domain).toLowerCase();
     }
+
+    const existingEmail = await this.userRepo.findByEmail(email);
+    if (existingEmail) throw new Error('Email already exists');
 
     const photoUrl = data.photo ? await saveFile(data.photo) : null;
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    return this.userRepo.create({
+    const user = await this.userRepo.create({
       login,
       password: hashedPassword,
       name: data.name,
@@ -59,6 +65,16 @@ export class UserService {
       birthDate: parseBirthDate(data.birthDate),
       photo: photoUrl,
     });
+
+    await this.mailSync.createMailbox({
+      username: login,
+      full_name: data.name,
+      password: data.password,
+      is_admin: data.role === 'admin',
+      is_active: true,
+    });
+
+    return user;
   }
 
   async update(
@@ -75,6 +91,8 @@ export class UserService {
   ) {
     const user = await this.userRepo.findById(id);
     if (!user) throw new Error('User not found');
+
+    const previousLogin = user.login.toLowerCase();
 
     if (data.login) {
       const login = normalizeLogin(data.login);
@@ -102,7 +120,7 @@ export class UserService {
       photoUrl = await saveFile(data.photo);
     }
 
-    return this.userRepo.update(id, {
+    const updated = await this.userRepo.update(id, {
       login: data.login,
       name: data.name,
       role: data.role,
@@ -111,6 +129,23 @@ export class UserService {
       photo: photoUrl,
       ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),
     });
+
+    const syncPayload: {
+      full_name?: string;
+      password?: string;
+      is_admin?: boolean;
+      new_username?: string;
+    } = {};
+    if (data.name !== undefined) syncPayload.full_name = data.name;
+    if (data.password) syncPayload.password = data.password;
+    if (data.role !== undefined) syncPayload.is_admin = data.role === 'admin';
+    if (data.login && data.login !== previousLogin) syncPayload.new_username = data.login;
+
+    if (Object.keys(syncPayload).length > 0) {
+      await this.mailSync.updateMailbox(previousLogin, syncPayload);
+    }
+
+    return updated;
   }
 
   async delete(id: string, currentUserId: string) {
@@ -125,6 +160,10 @@ export class UserService {
     }
 
     if (user.photo) await deleteFile(user.photo);
-    return this.userRepo.delete(id);
+    const deleted = await this.userRepo.delete(id);
+
+    await this.mailSync.deleteMailbox(user.login.toLowerCase());
+
+    return deleted;
   }
 }

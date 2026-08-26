@@ -9,6 +9,8 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_NEWS_BOT_TOKEN = os.getenv("TELEGRAM_NEWS_BOT_TOKEN")
 # Языковой tutor-бот (Alexol Speak): отдельный токен, отдельный polling.
 SPEAK_BOT_TOKEN = os.getenv("SPEAK_BOT_TOKEN")
+# Mini App с офлайн-карточками (открывается из бота).
+SPEAK_WEBAPP_URL = (os.getenv("SPEAK_WEBAPP_URL") or "https://lang.alexol.io").rstrip("/")
 # STT: local = бесплатно (Whisper на сервере), openrouter = платно через API
 SPEAK_STT_BACKEND = os.getenv("SPEAK_STT_BACKEND", "local")
 SPEAK_WHISPER_LOCAL_MODEL = os.getenv("SPEAK_WHISPER_LOCAL_MODEL", "small")

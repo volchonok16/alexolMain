@@ -94,9 +94,17 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="Необязательно"
+              placeholder={login ? `${login}@alexol.io` : 'login@alexol.io'}
               disabled={isSaving}
             />
+            <p className="modal__hint">
+              При создании автоматически появится ящик{' '}
+              <strong>{(login || 'login').toLowerCase()}@alexol.io</strong> на{' '}
+              <a href="https://mail.alexol.io" target="_blank" rel="noreferrer">
+                mail.alexol.io
+              </a>
+              {email ? '' : ' (если поле пустое — подставится этот адрес)'}.
+            </p>
           </div>
 
           <div className="modal__field">

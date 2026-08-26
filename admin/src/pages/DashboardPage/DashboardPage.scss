@@ -224,6 +224,22 @@
     }
   }
 
+  &__hint {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #A8B0C0;
+
+    a {
+      color: #0AE3FF;
+    }
+
+    strong {
+      color: #fff;
+      font-weight: 600;
+    }
+  }
+
   &__file {
     padding: 0.5rem !important;
     cursor: pointer;

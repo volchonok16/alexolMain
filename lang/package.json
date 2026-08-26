@@ -1,0 +1,25 @@
+{
+  "name": "alexol-lang",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host --port 5175",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host --port 5175"
+  },
+  "dependencies": {
+    "lucide-react": "^0.344.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "sass": "^1.71.1",
+    "typescript": "^5.4.2",
+    "vite": "^5.1.6",
+    "vite-plugin-pwa": "^0.21.1"
+  }
+}

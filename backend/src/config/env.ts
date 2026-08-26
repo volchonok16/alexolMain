@@ -70,4 +70,10 @@ export const config = {
     publicUrl: (process.env.MINIO_PUBLIC_URL || '').replace(/\/$/, ''),
     maxVideoSizeMb: parseInt(process.env.MINIO_MAX_VIDEO_SIZE_MB || '10240'),
   },
+  mail: {
+    /** Base URL of mail API (e.g. http://127.0.0.1:17000 or https://mail.alexol.io) */
+    apiUrl: (process.env.MAIL_API_URL || '').replace(/\/$/, ''),
+    syncSecret: process.env.MAIL_SYNC_SECRET || '',
+    domain: process.env.MAIL_DOMAIN || 'alexol.io',
+  },
 };
