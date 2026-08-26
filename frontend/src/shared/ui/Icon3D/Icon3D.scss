@@ -9,6 +9,14 @@
     filter: drop-shadow(0 0 8px color-mix(in srgb, var(--icon-primary) 72%, transparent));
   }
 
+  &--static {
+    filter: none;
+
+    [data-theme='light'] & {
+      filter: none;
+    }
+  }
+
   &__canvas {
     display: block;
     width: 100%;

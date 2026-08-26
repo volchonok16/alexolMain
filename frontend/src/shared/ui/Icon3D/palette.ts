@@ -66,4 +66,24 @@ export const ICON_COLORS: Record<Icon3DType, Record<ThemeName, IconPalette>> = {
     dark: { primary: '#0AE3FF', accent: '#7EF0FF', glow: 0x0ae3ff, rim: 0x22d3ee },
     light: { primary: '#06B6D4', accent: '#5EEAD4', glow: 0x06b6d4, rim: 0x14b8a6 },
   },
+  development: {
+    dark: { primary: '#00D4FF', accent: '#E8F6FF', glow: 0x00d4ff, rim: 0xa78bfa },
+    light: { primary: '#0EA5E9', accent: '#A78BFA', glow: 0x0ea5e9, rim: 0x7c3aed },
+  },
+  outsourcing: {
+    dark: { primary: '#4DB8FF', accent: '#E8F6FF', glow: 0x4db8ff, rim: 0x818cf8 },
+    light: { primary: '#0EA5E9', accent: '#93C5FD', glow: 0x0ea5e9, rim: 0x6366f1 },
+  },
+  design: {
+    dark: { primary: '#8B9BFF', accent: '#C5FFF3', glow: 0x8b9bff, rim: 0x0ae3ff },
+    light: { primary: '#6366F1', accent: '#5EEAD4', glow: 0x6366f1, rim: 0x06b6d4 },
+  },
+  support: {
+    dark: { primary: '#3D9EFF', accent: '#B9DCFF', glow: 0x3d9eff, rim: 0x38bdf8 },
+    light: { primary: '#2563EB', accent: '#93C5FD', glow: 0x2563eb, rim: 0x0284c7 },
+  },
+  consulting: {
+    dark: { primary: '#00C2E0', accent: '#7EF0FF', glow: 0x00c2e0, rim: 0x38bdf8 },
+    light: { primary: '#14B8A6', accent: '#5EEAD4', glow: 0x14b8a6, rim: 0x0284c7 },
+  },
 };

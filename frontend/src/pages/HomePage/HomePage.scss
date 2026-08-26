@@ -672,20 +672,19 @@
   }
 
   &__icon {
-    width: 3.5rem;
-    height: 3.5rem;
-    border-radius: 0.5rem;
-    background: linear-gradient(to bottom right, rgba(10, 227, 255, 0.2), rgba(27, 145, 247, 0.2));
+    width: 4.25rem;
+    height: 4.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
+    overflow: visible;
     transition: transform 0.3s;
-    color: #0AE3FF;
 
-    [data-theme="light"] & {
-      background: linear-gradient(to bottom right, rgba(8, 145, 178, 0.2), rgba(3, 105, 161, 0.2));
-      color: #0891B2;
+    .icon3d {
+      width: 4.25rem;
+      height: 4.25rem;
+      filter: none;
     }
   }
 
@@ -1115,7 +1114,7 @@
     .icon3d {
       width: 3.65rem;
       height: 3.65rem;
-      filter: drop-shadow(0 0 5px color-mix(in srgb, var(--icon-primary) 40%, transparent));
+      filter: none;
     }
   }
 

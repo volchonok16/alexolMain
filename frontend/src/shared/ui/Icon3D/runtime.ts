@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { collectGeometries, createIconGroup, type Icon3DType } from './meshes';
 import { ICON_COLORS, type ThemeName } from './palette';
 
-const SIZE = 128;
+const SIZE = 192;
 const ROTATE_SPEED = 0.55;
 
 type IconView = {
@@ -32,30 +32,31 @@ let running = false;
 let last = 0;
 
 const applyPalette = (
-  view: Pick<IconView, 'type' | 'primary' | 'accent' | 'fill' | 'glow' | 'rim' | 'materials'>,
+  view: Pick<IconView, 'type' | 'primary' | 'accent' | 'fill' | 'glow' | 'rim' | 'materials' | 'staticPose'>,
   theme: ThemeName
 ) => {
   const colors = ICON_COLORS[view.type][theme];
   const dark = theme === 'dark';
+  const solid = view.staticPose;
 
   view.primary.color.set(colors.primary);
   view.primary.emissive.set(colors.primary);
-  view.primary.emissiveIntensity = dark ? 0.58 : 0.4;
-  view.primary.metalness = dark ? 0.52 : 0.26;
-  view.primary.roughness = dark ? 0.22 : 0.3;
+  view.primary.emissiveIntensity = dark ? (solid ? 0.28 : 0.58) : solid ? 0.22 : 0.4;
+  view.primary.metalness = dark ? (solid ? 0.62 : 0.52) : 0.26;
+  view.primary.roughness = dark ? (solid ? 0.28 : 0.22) : 0.3;
 
   view.accent.color.set(colors.accent);
   view.accent.emissive.set(colors.accent);
-  view.accent.emissiveIntensity = dark ? 0.34 : 0.22;
+  view.accent.emissiveIntensity = dark ? (solid ? 0.16 : 0.34) : 0.22;
   view.accent.metalness = dark ? 0.18 : 0.1;
   view.accent.roughness = dark ? 0.16 : 0.24;
 
   view.fill.color.set(colors.glow);
-  view.fill.intensity = dark ? 0.7 : 0.95;
+  view.fill.intensity = dark ? (solid ? 0.95 : 0.7) : 0.95;
   view.glow.color.set(colors.glow);
-  view.glow.intensity = dark ? 0.95 : 1.2;
+  view.glow.intensity = dark ? (solid ? 0.55 : 0.95) : 1.2;
   view.rim.color.set(colors.rim);
-  view.rim.intensity = dark ? 0.62 : 0.88;
+  view.rim.intensity = dark ? (solid ? 0.85 : 0.62) : 0.88;
 
   for (const material of view.materials) {
     if (material === view.primary || material === view.accent) continue;
@@ -68,15 +69,17 @@ const applyPalette = (
 };
 
 const ensureRenderer = () => {
-  if (renderer) return renderer;
-  renderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: true,
-    preserveDrawingBuffer: true,
-    powerPreference: 'low-power',
-  });
-  renderer.setClearColor(0x000000, 0);
-  renderer.setPixelRatio(1);
+  if (!renderer) {
+    renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'low-power',
+    });
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setPixelRatio(1);
+  }
   renderer.setSize(SIZE, SIZE, false);
   return renderer;
 };
@@ -145,12 +148,17 @@ export const registerIcon3D = (
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
-  camera.position.set(0, 0, options.spin === false ? (type === 'transparency' ? 3.48 : 3.35) : 3.55);
+  const staticPose = options.spin === false;
+  camera.position.set(
+    0,
+    staticPose ? 0.08 : 0,
+    staticPose ? (type === 'transparency' ? 3.58 : type === 'development' ? 3.15 : 3.28) : 3.55,
+  );
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-  const key = new THREE.DirectionalLight(0xffffff, 1.5);
+  const ambient = new THREE.AmbientLight(0xffffff, staticPose ? 0.3 : 0.4);
+  const key = new THREE.DirectionalLight(0xffffff, staticPose ? 1.9 : 1.5);
   key.position.set(3.6, 2.8, 5.2);
-  const fill = new THREE.DirectionalLight(0x3d9eff, 0.7);
+  const fill = new THREE.DirectionalLight(0x3d9eff, staticPose ? 0.85 : 0.7);
   fill.position.set(-3, -1.6, 2.2);
   const glow = new THREE.PointLight(0x0ae3ff, 0.95, 6);
   glow.position.set(0.2, 0.4, 1.8);
@@ -174,7 +182,7 @@ export const registerIcon3D = (
     geometries: collectGeometries(group),
     visible: true,
     reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    staticPose: options.spin === false,
+    staticPose,
     dirty: true,
   };
   applyPalette(view, theme);

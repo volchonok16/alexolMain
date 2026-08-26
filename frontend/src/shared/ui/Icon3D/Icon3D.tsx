@@ -37,7 +37,7 @@ export const Icon3D = ({ type, className = '', spin = true }: Icon3DProps) => {
 
   return (
     <div
-      className={`icon3d ${className}`.trim()}
+      className={`icon3d ${spin ? '' : 'icon3d--static'} ${className}`.trim()}
       style={{
         '--icon-primary': colors.primary,
         '--icon-accent': colors.accent,
