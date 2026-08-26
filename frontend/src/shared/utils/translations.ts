@@ -145,52 +145,13 @@ const translations = {
     },
     showMore: { ru: 'Показать ещё', en: 'Show more' },
     showLess: { ru: 'Скрыть', en: 'Show less' },
-    projects: {
-      portalToBitcoin: {
-        description: { ru: 'Промо-платформа для BonusBlock', en: 'Promo platform for BonusBlock' },
-        result: { ru: 'Quests & Rewards система', en: 'Quests & Rewards system' },
-      },
-      elysNetwork: {
-        description: { ru: 'Промо-платформа для BonusBlock', en: 'Promo platform for BonusBlock' },
-        result: { ru: 'DeFi проект', en: 'DeFi project' },
-      },
-      xion: {
-        description: { ru: 'Промо-платформа для BonusBlock', en: 'Promo platform for BonusBlock' },
-        result: { ru: 'Web3 инфраструктура', en: 'Web3 infrastructure' },
-      },
-      bonusBlock: {
-        description: { ru: 'Основная платформа', en: 'Main platform' },
-        result: { ru: '15+ интегрированных проектов', en: '15+ integrated projects' },
-      },
-      kiteAi: {
-        description: { ru: 'AI-платформа testnet', en: 'AI platform testnet' },
-        result: { ru: 'AI + Blockchain интеграция', en: 'AI + Blockchain integration' },
-      },
-      agoric: {
-        description: { ru: 'Промо-платформа для BonusBlock', en: 'Promo platform for BonusBlock' },
-        result: { ru: 'Smart Contracts платформа', en: 'Smart Contracts platform' },
-      },
-      workwear: {
-        title: { ru: 'Интернет-магазин спецодежды', en: 'Workwear Online Store' },
-        description: { ru: 'voenasledie.ru — магазин камуфляжа и тактической одежды', en: 'voenasledie.ru — camouflage and tactical clothing store' },
-        result: { ru: 'Каталог, корзина, оплата', en: 'Catalog, cart, payment' },
-      },
-      oneWish: {
-        title: { ru: 'OneWish — женское бельё', en: 'OneWish — Lingerie' },
-        description: { ru: 'onewish.ru — интернет-магазин с админ-панелью', en: 'onewish.ru — online store with admin panel' },
-        result: { ru: 'Полный цикл: каталог, корзина, CMS', en: 'Full cycle: catalog, cart, CMS' },
-      },
-      computerClub: {
-        title: { ru: 'ПО для компьютерного клуба', en: 'Computer Club Software' },
-        description: { ru: 'tapf.ru — система управления компьютерным клубом', en: 'tapf.ru — computer club management system' },
-        result: { ru: 'Бронирование, тарифы, аналитика', en: 'Booking, tariffs, analytics' },
-      },
-      telegramBot: {
-        title: { ru: 'Telegram-бот парсер авто', en: 'Telegram Car Parser Bot' },
-        description: { ru: 'Парсинг объявлений с зарубежных сайтов', en: 'Parsing ads from foreign websites' },
-        result: { ru: 'Автоматический мониторинг и уведомления', en: 'Automatic monitoring and notifications' },
-      },
+    loading: { ru: 'Загрузка...', en: 'Loading...' },
+    error: { ru: 'Не удалось загрузить портфолио', en: 'Failed to load portfolio' },
+    errorDescription: {
+      ru: 'Попробуйте обновить страницу или вернитесь позже',
+      en: 'Try refreshing the page or come back later',
     },
+    empty: { ru: 'Скоро здесь появятся наши работы', en: 'Our work will appear here soon' },
   },
   whyDigital: {
     title: { ru: 'Инвестиции в ПО —', en: 'Software investment is' },
