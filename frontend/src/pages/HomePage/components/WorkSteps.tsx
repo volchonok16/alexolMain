@@ -59,7 +59,7 @@ const StepCard = ({ step, index }: { step: Step; index: number }) => {
     <Reveal delay={index * 0.1} className="step-card">
       <div className="step-card__content">
         <div className="step-card__icon">
-          <Icon3D type={step.icon} />
+          <Icon3D type={step.icon} pose="front" />
         </div>
         <div className="step-card__info">
           <div className="step-card__number">
@@ -99,7 +99,7 @@ const StepTimeline = ({ step, index }: { step: Step; index: number }) => {
       </div>
 
       <div className="step-timeline__node">
-        <Icon3D type={step.icon} />
+        <Icon3D type={step.icon} pose="front" />
       </div>
     </motion.div>
   );

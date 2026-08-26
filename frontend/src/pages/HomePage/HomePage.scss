@@ -1289,8 +1289,8 @@
   }
 
   &__icon {
-    width: 4rem;
-    height: 4rem;
+    width: 4.25rem;
+    height: 4.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1299,9 +1299,19 @@
     transition: transform 0.3s;
 
     .icon3d {
-      width: 4rem;
-      height: 4rem;
+      width: 4.25rem;
+      height: 4.25rem;
       filter: none;
+    }
+
+    &--emphasized {
+      width: 4.75rem;
+      height: 4.75rem;
+
+      .icon3d {
+        width: 4.75rem;
+        height: 4.75rem;
+      }
     }
   }
 
@@ -1313,6 +1323,7 @@
 // WorkSteps Section
 .work-steps {
   padding: 6rem 1.5rem;
+  overflow: visible;
 
   &__container {
     max-width: 80rem;
@@ -1355,6 +1366,7 @@
   &__timeline {
     display: none;
     position: relative;
+    overflow: visible;
 
     @media (min-width: 1024px) {
       display: block;
@@ -1379,6 +1391,7 @@
     display: flex;
     flex-direction: column;
     gap: 4rem;
+    overflow: visible;
   }
 }
 
@@ -1527,8 +1540,8 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    width: 4.75rem;
-    height: 4.75rem;
+    width: 6rem;
+    height: 6rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1541,7 +1554,7 @@
     &::before {
       content: '';
       position: absolute;
-      inset: 0.5rem;
+      inset: 0.75rem;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(10, 227, 255, 0.22) 0%, rgba(10, 227, 255, 0.06) 55%, transparent 72%);
       z-index: -1;
@@ -1552,8 +1565,8 @@
     }
 
     .icon3d {
-      width: 3.75rem;
-      height: 3.75rem;
+      width: 4.5rem;
+      height: 4.5rem;
     }
   }
 }
@@ -1989,8 +2002,8 @@
   gap: 1rem;
 
   &__icon {
-    width: 3.25rem;
-    height: 3.25rem;
+    width: 3.5rem;
+    height: 3.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1998,8 +2011,8 @@
     overflow: visible;
 
     .icon3d {
-      width: 3.25rem;
-      height: 3.25rem;
+      width: 3.5rem;
+      height: 3.5rem;
       filter: none;
     }
   }

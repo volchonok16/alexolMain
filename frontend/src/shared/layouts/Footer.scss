@@ -55,41 +55,24 @@
   }
 
   &__social-link {
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 0.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(10, 227, 255, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #A8B0C0;
-    transition: all 0.3s;
+    padding: 0;
+    border: none;
+    background: none;
+    backdrop-filter: none;
     overflow: visible;
+    transition: transform 0.25s ease;
 
     &:hover {
-      border-color: #0AE3FF;
-      background: rgba(10, 227, 255, 0.1);
-      color: #0AE3FF;
+      transform: scale(1.12);
     }
 
     .icon3d {
-      width: 2.25rem;
-      height: 2.25rem;
+      width: 3rem;
+      height: 3rem;
       filter: none;
-    }
-
-    [data-theme="light"] & {
-      background: rgba(255, 255, 255, 0.8);
-      border: 1px solid rgba(8, 145, 178, 0.2);
-      color: #0F172A;
-
-      &:hover {
-        border-color: #0891B2;
-        background: rgba(8, 145, 178, 0.1);
-        color: #0891B2;
-      }
     }
   }
 
@@ -161,8 +144,8 @@
   }
 
   &__contact-icon {
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 2rem;
+    height: 2rem;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -170,8 +153,8 @@
     overflow: visible;
 
     .icon3d {
-      width: 1.75rem;
-      height: 1.75rem;
+      width: 2rem;
+      height: 2rem;
       filter: none;
     }
   }

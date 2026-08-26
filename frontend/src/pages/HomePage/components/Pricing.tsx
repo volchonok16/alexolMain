@@ -9,6 +9,8 @@ interface Factor {
   key: string;
 }
 
+const EMPHASIZED_ICONS = new Set<Icon3DType>(['integrations', 'clock', 'headphones']);
+
 export const Pricing = () => {
   const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,7 +63,7 @@ const FactorCard = ({ factor, index }: { factor: Factor; index: number }) => {
 
   return (
     <Reveal delay={index * 0.05} className="factor-card">
-      <div className="factor-card__icon">
+      <div className={`factor-card__icon${EMPHASIZED_ICONS.has(factor.icon) ? ' factor-card__icon--emphasized' : ''}`}>
         <Icon3D type={factor.icon} spin={false} />
       </div>
       <p className="factor-card__label">{t(`pricing.factors.${factor.key}`)}</p>

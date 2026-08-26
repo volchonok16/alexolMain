@@ -4,21 +4,27 @@ import { ICON_COLORS, type ThemeName } from './palette';
 
 const SIZE = 192;
 const ROTATE_SPEED = 0.55;
-const STATIC_CAMERA_Z: Partial<Record<Icon3DType, number>> = {
-  development: 3.85,
-  support: 3.8,
-  reliability: 3.72,
-  efficiency: 3.65,
-  automation: 3.62,
-  adaptation: 3.58,
-  transparency: 3.7,
-  outsourcing: 3.55,
-  consulting: 3.55,
-  architecture: 3.7,
-  platforms: 3.65,
-  headphones: 3.62,
-  phone: 3.6,
-  chat: 3.58,
+const CAMERA_Z: Partial<Record<Icon3DType, number>> = {
+  development: 4.35,
+  design: 4.1,
+  testing: 4.1,
+  support: 4.08,
+  reliability: 4.02,
+  efficiency: 3.98,
+  automation: 3.95,
+  adaptation: 3.92,
+  transparency: 4.02,
+  outsourcing: 3.9,
+  consulting: 3.9,
+  architecture: 4.02,
+  platforms: 3.98,
+  integrations: 3.88,
+  clock: 3.88,
+  headphones: 3.9,
+  phone: 3.92,
+  chat: 3.9,
+  launch: 3.98,
+  scale: 3.95,
 };
 
 type IconView = {
@@ -57,22 +63,22 @@ const applyPalette = (
 
   view.primary.color.set(colors.primary);
   view.primary.emissive.set(colors.primary);
-  view.primary.emissiveIntensity = dark ? (solid ? 0.28 : 0.58) : solid ? 0.22 : 0.4;
-  view.primary.metalness = dark ? (solid ? 0.62 : 0.52) : 0.26;
-  view.primary.roughness = dark ? (solid ? 0.28 : 0.22) : 0.3;
+  view.primary.emissiveIntensity = dark ? (solid ? 0.28 : 0.58) : solid ? 0.12 : 0.22;
+  view.primary.metalness = dark ? (solid ? 0.62 : 0.52) : solid ? 0.38 : 0.32;
+  view.primary.roughness = dark ? (solid ? 0.28 : 0.22) : solid ? 0.34 : 0.38;
 
   view.accent.color.set(colors.accent);
   view.accent.emissive.set(colors.accent);
-  view.accent.emissiveIntensity = dark ? (solid ? 0.16 : 0.34) : 0.22;
-  view.accent.metalness = dark ? 0.18 : 0.1;
-  view.accent.roughness = dark ? 0.16 : 0.24;
+  view.accent.emissiveIntensity = dark ? (solid ? 0.16 : 0.34) : solid ? 0.06 : 0.1;
+  view.accent.metalness = dark ? 0.18 : 0.08;
+  view.accent.roughness = dark ? 0.16 : 0.32;
 
   view.fill.color.set(colors.glow);
-  view.fill.intensity = dark ? (solid ? 0.95 : 0.7) : 0.95;
+  view.fill.intensity = dark ? (solid ? 0.95 : 0.7) : solid ? 0.72 : 0.58;
   view.glow.color.set(colors.glow);
-  view.glow.intensity = dark ? (solid ? 0.55 : 0.95) : 1.2;
+  view.glow.intensity = dark ? (solid ? 0.55 : 0.95) : solid ? 0.38 : 0.52;
   view.rim.color.set(colors.rim);
-  view.rim.intensity = dark ? (solid ? 0.85 : 0.62) : 0.88;
+  view.rim.intensity = dark ? (solid ? 0.85 : 0.62) : solid ? 0.42 : 0.55;
 
   for (const material of view.materials) {
     if (material === view.primary || material === view.accent) continue;
@@ -138,7 +144,7 @@ export const registerIcon3D = (
   canvas: HTMLCanvasElement,
   type: Icon3DType,
   theme: ThemeName,
-  options: { spin?: boolean } = {},
+  options: { spin?: boolean; pose?: 'front' | 'orbit' } = {},
 ) => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
@@ -154,7 +160,9 @@ export const registerIcon3D = (
     metalness: 0.18,
     roughness: 0.16,
   });
-  const group = createIconGroup(type, primary, accent, options.spin === false ? 'front' : 'orbit');
+  const staticPose = options.spin === false;
+  const pose = options.pose ?? (staticPose ? 'front' : 'orbit');
+  const group = createIconGroup(type, primary, accent, pose);
   const materials: THREE.MeshStandardMaterial[] = [];
   group.traverse((obj) => {
     if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
@@ -163,13 +171,9 @@ export const registerIcon3D = (
   });
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
-  const staticPose = options.spin === false;
-  camera.position.set(
-    0,
-    0,
-    staticPose ? (STATIC_CAMERA_Z[type] ?? 3.48) : 3.55,
-  );
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
+  const defaultZ = staticPose ? 3.72 : 4.12;
+  camera.position.set(0, 0, CAMERA_Z[type] ?? defaultZ);
 
   const ambient = new THREE.AmbientLight(0xffffff, staticPose ? 0.3 : 0.4);
   const key = new THREE.DirectionalLight(0xffffff, staticPose ? 1.9 : 1.5);
