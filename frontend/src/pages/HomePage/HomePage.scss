@@ -1390,7 +1390,7 @@
   &__timeline-items {
     display: flex;
     flex-direction: column;
-    gap: 4rem;
+    gap: 5rem;
     overflow: visible;
   }
 }
@@ -1423,8 +1423,8 @@
   }
 
   &__icon {
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 4.75rem;
+    height: 4.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1432,8 +1432,8 @@
     overflow: visible;
 
     .icon3d {
-      width: 3.5rem;
-      height: 3.5rem;
+      width: 4.75rem;
+      height: 4.75rem;
     }
   }
 
@@ -1475,7 +1475,7 @@
     justify-content: flex-end;
 
     .step-timeline__content {
-      padding-right: 3rem;
+      padding-right: 4.5rem;
       text-align: right;
     }
   }
@@ -1484,7 +1484,7 @@
     justify-content: flex-start;
 
     .step-timeline__content {
-      padding-left: 3rem;
+      padding-left: 4.5rem;
     }
   }
 
@@ -1540,8 +1540,8 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    width: 6rem;
-    height: 6rem;
+    width: 7.75rem;
+    height: 7.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1554,7 +1554,7 @@
     &::before {
       content: '';
       position: absolute;
-      inset: 0.75rem;
+      inset: 0.85rem;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(10, 227, 255, 0.22) 0%, rgba(10, 227, 255, 0.06) 55%, transparent 72%);
       z-index: -1;
@@ -1565,8 +1565,8 @@
     }
 
     .icon3d {
-      width: 4.5rem;
-      height: 4.5rem;
+      width: 6.5rem;
+      height: 6.5rem;
     }
   }
 }
@@ -2002,8 +2002,8 @@
   gap: 1rem;
 
   &__icon {
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 4rem;
+    height: 4rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2011,8 +2011,8 @@
     overflow: visible;
 
     .icon3d {
-      width: 3.5rem;
-      height: 3.5rem;
+      width: 4rem;
+      height: 4rem;
       filter: none;
     }
   }

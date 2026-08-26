@@ -10,10 +10,10 @@
   }
 
   &--static {
-    filter: none;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--icon-primary) 48%, transparent));
 
     [data-theme='light'] & {
-      filter: none;
+      filter: drop-shadow(0 3px 10px color-mix(in srgb, var(--icon-primary) 38%, transparent));
     }
   }
 

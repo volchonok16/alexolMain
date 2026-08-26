@@ -364,30 +364,30 @@ export const createIconGroup = (
       break;
     }
     case 'integrations': {
-      const linkA = add(group, new THREE.TorusGeometry(0.3, 0.11, 12, 24), primary, -0.22, 0.06, 0);
+      const linkA = add(group, new THREE.TorusGeometry(0.3, 0.12, 12, 24), primary, -0.22, 0.08, -0.04);
+      linkA.rotation.x = 0.45;
       linkA.rotation.z = -0.35;
-      const linkB = add(group, new THREE.TorusGeometry(0.3, 0.11, 12, 24), accent, 0.22, -0.06, 0.06);
+      const linkB = add(group, new THREE.TorusGeometry(0.3, 0.12, 12, 24), accent, 0.22, -0.04, 0.1);
+      linkB.rotation.x = 0.45;
       linkB.rotation.z = Math.PI / 2 - 0.35;
-      add(group, new THREE.SphereGeometry(0.13, 12, 10), primary, -0.54, 0.22, 0.04);
-      add(group, new THREE.SphereGeometry(0.13, 12, 10), accent, 0.54, -0.22, 0.08);
+      add(group, new THREE.SphereGeometry(0.14, 12, 10), primary, -0.54, 0.24, 0);
+      add(group, new THREE.SphereGeometry(0.14, 12, 10), accent, 0.54, -0.18, 0.1);
+      add(group, new THREE.CylinderGeometry(0.08, 0.08, 0.22, 10), primary, 0, 0.02, 0.02).rotation.z = Math.PI / 2;
       break;
     }
     case 'clock': {
-      const face = add(group, new THREE.CylinderGeometry(0.72, 0.72, 0.1, 32), primary);
-      face.rotation.x = Math.PI / 2;
-      add(group, new THREE.TorusGeometry(0.76, 0.06, 12, 32), primary, 0, 0, 0);
-      const dial = add(group, new THREE.CylinderGeometry(0.6, 0.6, 0.04, 32), accent, 0, 0, 0.06);
-      dial.rotation.x = Math.PI / 2;
-      add(group, new THREE.BoxGeometry(0.08, 0.16, 0.05), accent, 0, 0.56, 0.08);
-      add(group, new THREE.BoxGeometry(0.16, 0.08, 0.05), accent, 0.56, 0, 0.08);
-      add(group, new THREE.BoxGeometry(0.08, 0.16, 0.05), accent, 0, -0.56, 0.08);
-      add(group, new THREE.BoxGeometry(0.16, 0.08, 0.05), accent, -0.56, 0, 0.08);
-      const hour = add(group, new THREE.BoxGeometry(0.07, 0.26, 0.06), primary, -0.04, 0.06, 0.1);
+      add(group, new THREE.CylinderGeometry(0.72, 0.72, 0.22, 32), primary);
+      add(group, new THREE.CylinderGeometry(0.64, 0.64, 0.06, 32), accent, 0, 0.12, 0);
+      add(group, new THREE.TorusGeometry(0.76, 0.07, 12, 32), primary, 0, 0.12, 0).rotation.x = Math.PI / 2;
+      add(group, new THREE.BoxGeometry(0.08, 0.14, 0.06), accent, 0, 0.74, 0.14);
+      add(group, new THREE.BoxGeometry(0.14, 0.08, 0.06), accent, 0.74, 0.12, 0.14);
+      add(group, new THREE.BoxGeometry(0.08, 0.14, 0.06), accent, 0, -0.5, 0.14);
+      add(group, new THREE.BoxGeometry(0.14, 0.08, 0.06), accent, -0.74, 0.12, 0.14);
+      const hour = add(group, new THREE.BoxGeometry(0.07, 0.28, 0.07), primary, -0.04, 0.18, 0.16);
       hour.rotation.z = 0.55;
-      const minute = add(group, new THREE.BoxGeometry(0.06, 0.36, 0.06), accent, 0.1, 0.04, 0.12);
+      const minute = add(group, new THREE.BoxGeometry(0.06, 0.38, 0.07), accent, 0.1, 0.14, 0.18);
       minute.rotation.z = -0.35;
-      const hub = add(group, new THREE.CylinderGeometry(0.07, 0.07, 0.06, 12), primary, 0, 0, 0.13);
-      hub.rotation.x = Math.PI / 2;
+      add(group, new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12), primary, 0, 0.12, 0.2);
       break;
     }
     case 'scale': {
@@ -412,80 +412,104 @@ export const createIconGroup = (
       break;
     }
     case 'mail': {
-      add(group, new THREE.BoxGeometry(1.02, 0.72, 0.1), primary);
+      add(group, new THREE.BoxGeometry(1.08, 0.76, 0.32), primary);
       const flap = new THREE.Shape();
-      flap.moveTo(-0.51, 0.36);
-      flap.lineTo(0, 0.06);
-      flap.lineTo(0.51, 0.36);
+      flap.moveTo(-0.54, 0.38);
+      flap.lineTo(0, -0.06);
+      flap.lineTo(0.54, 0.38);
       flap.closePath();
-      add(group, new THREE.ExtrudeGeometry(flap, thin), accent, 0, 0.02, 0.08);
-      const fold = new THREE.Shape();
-      fold.moveTo(-0.51, -0.36);
-      fold.lineTo(0, -0.02);
-      fold.lineTo(0.51, -0.36);
-      add(group, new THREE.ExtrudeGeometry(fold, thin), accent, 0, 0, 0.06);
+      add(group, new THREE.ExtrudeGeometry(flap, crisp), accent, 0, 0.06, 0.18);
+      const frontFold = new THREE.Shape();
+      frontFold.moveTo(-0.54, -0.38);
+      frontFold.lineTo(0, 0.04);
+      frontFold.lineTo(0.54, -0.38);
+      add(group, new THREE.ExtrudeGeometry(frontFold, thin), primary, 0, 0, 0.17);
+      add(group, new THREE.BoxGeometry(0.08, 0.76, 0.32), accent, -0.5, 0, 0.02);
+      add(group, new THREE.BoxGeometry(0.08, 0.76, 0.32), accent, 0.5, 0, 0.02);
       break;
     }
     case 'phone': {
-      add(group, new THREE.CylinderGeometry(0.2, 0.2, 0.14, 16), primary, 0, 0.5, 0);
-      add(group, new THREE.CylinderGeometry(0.2, 0.2, 0.14, 16), primary, 0, -0.5, 0);
-      const handle = add(group, new THREE.TorusGeometry(0.4, 0.09, 12, 24, Math.PI), accent);
+      add(group, new THREE.CylinderGeometry(0.24, 0.24, 0.22, 16), primary, 0, 0.54, 0.06);
+      add(group, new THREE.CylinderGeometry(0.24, 0.24, 0.22, 16), primary, 0, -0.54, 0.06);
+      add(group, new THREE.SphereGeometry(0.24, 16, 14), accent, 0, 0.54, 0.06);
+      add(group, new THREE.SphereGeometry(0.24, 16, 14), accent, 0, -0.54, 0.06);
+      const handle = add(group, new THREE.TorusGeometry(0.46, 0.13, 12, 24, Math.PI), primary);
       handle.rotation.z = Math.PI / 2;
+      add(group, new THREE.TorusGeometry(0.13, 0.04, 8, 16), accent, 0, 0.54, 0.14).rotation.x = Math.PI / 2;
+      add(group, new THREE.TorusGeometry(0.13, 0.04, 8, 16), accent, 0, -0.54, 0.14).rotation.x = Math.PI / 2;
       break;
     }
     case 'chat': {
-      add(group, new THREE.CylinderGeometry(0.58, 0.58, 0.14, 24), primary);
+      const bubble = new THREE.Shape();
+      const w = 0.96;
+      const h = 0.78;
+      const r = 0.2;
+      bubble.moveTo(-w / 2 + r, -h / 2);
+      bubble.lineTo(w / 2 - r, -h / 2);
+      bubble.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+      bubble.lineTo(w / 2, h / 2 - r);
+      bubble.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2);
+      bubble.lineTo(-w / 2 + r, h / 2);
+      bubble.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r);
+      bubble.lineTo(-w / 2, -h / 2 + r);
+      bubble.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
+      bubble.closePath();
+      add(group, new THREE.ExtrudeGeometry(bubble, crisp), primary);
       const tail = new THREE.Shape();
-      tail.moveTo(-0.18, -0.52);
-      tail.lineTo(-0.38, -0.72);
-      tail.lineTo(0.02, -0.52);
+      tail.moveTo(0, 0);
+      tail.lineTo(-0.22, -0.32);
+      tail.lineTo(0.14, -0.06);
       tail.closePath();
-      add(group, new THREE.ExtrudeGeometry(tail, crisp), primary, -0.12, -0.08, 0);
-      const receiver = add(group, new THREE.TorusGeometry(0.2, 0.06, 10, 18, Math.PI), accent, 0, 0.02, 0.12);
-      receiver.rotation.z = Math.PI / 2;
+      add(group, new THREE.ExtrudeGeometry(tail, crisp), primary, -0.42, -0.46, 0.02);
+      add(group, new THREE.TorusGeometry(0.11, 0.045, 8, 16, Math.PI), accent, 0.02, 0.14, 0.2).rotation.z = Math.PI / 2;
+      add(group, new THREE.TorusGeometry(0.11, 0.045, 8, 16, Math.PI), accent, 0.02, -0.14, 0.2).rotation.z = Math.PI / 2;
+      const handset = add(group, new THREE.TorusGeometry(0.17, 0.045, 8, 16, Math.PI), accent, 0.02, 0, 0.18);
+      handset.rotation.z = Math.PI / 2;
       break;
     }
     case 'telegram': {
+      add(group, new THREE.CylinderGeometry(0.74, 0.74, 0.26, 32), primary);
+      add(group, new THREE.TorusGeometry(0.76, 0.05, 12, 32), primary, 0, 0, 0.1).rotation.x = Math.PI / 2;
       const plane = new THREE.Shape();
-      plane.moveTo(-0.58, 0.22);
-      plane.lineTo(0.68, -0.28);
-      plane.lineTo(0.02, -0.02);
-      plane.lineTo(-0.22, 0.58);
+      plane.moveTo(-0.38, 0.2);
+      plane.lineTo(0.5, -0.24);
+      plane.lineTo(0.04, -0.02);
+      plane.lineTo(-0.16, 0.46);
       plane.closePath();
-      add(group, new THREE.ExtrudeGeometry(plane, crisp), primary);
-      add(group, new THREE.BoxGeometry(0.42, 0.1, 0.1), accent, 0.02, 0.02, 0.14).rotation.z = -0.22;
+      add(group, new THREE.ExtrudeGeometry(plane, crisp), accent, -0.02, 0.02, 0.16);
+      add(group, new THREE.BoxGeometry(0.34, 0.1, 0.08), accent, 0.02, 0.02, 0.22).rotation.z = -0.2;
       break;
     }
     case 'estimation': {
-      add(group, new THREE.BoxGeometry(0.68, 0.88, 0.1), primary);
-      add(group, new THREE.BoxGeometry(0.48, 0.06, 0.04), accent, 0, 0.2, 0.08);
-      add(group, new THREE.BoxGeometry(0.48, 0.06, 0.04), accent, 0, 0, 0.08);
-      add(group, new THREE.BoxGeometry(0.48, 0.06, 0.04), accent, 0, -0.2, 0.08);
-      const glass = add(group, new THREE.TorusGeometry(0.24, 0.07, 12, 24), accent, 0.26, 0.26, 0.12);
+      add(group, new THREE.BoxGeometry(0.68, 0.88, 0.18), primary);
+      add(group, new THREE.BoxGeometry(0.48, 0.06, 0.06), accent, 0, 0.2, 0.1);
+      add(group, new THREE.BoxGeometry(0.48, 0.06, 0.06), accent, 0, 0, 0.1);
+      add(group, new THREE.BoxGeometry(0.48, 0.06, 0.06), accent, 0, -0.2, 0.1);
+      const glass = add(group, new THREE.TorusGeometry(0.24, 0.08, 12, 24), accent, 0.26, 0.26, 0.14);
       glass.rotation.x = Math.PI / 2;
-      add(group, new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), primary, 0.42, 0.06, 0.12).rotation.z = -0.65;
+      add(group, new THREE.CylinderGeometry(0.05, 0.05, 0.32, 8), primary, 0.42, 0.06, 0.14).rotation.z = -0.65;
       break;
     }
     case 'contract': {
-      add(group, new THREE.BoxGeometry(0.72, 0.95, 0.1), primary);
-      add(group, new THREE.BoxGeometry(0.42, 0.04, 0.04), accent, 0, -0.12, 0.08);
+      add(group, new THREE.BoxGeometry(0.72, 0.95, 0.18), primary);
+      add(group, new THREE.BoxGeometry(0.42, 0.04, 0.06), accent, 0, -0.12, 0.1);
       const check = new THREE.Shape();
       check.moveTo(-0.14, 0.04);
       check.lineTo(-0.04, -0.08);
       check.lineTo(0.2, 0.2);
-      add(group, new THREE.ExtrudeGeometry(check, thin), accent, 0, 0.08, 0.12);
-      add(group, new THREE.CylinderGeometry(0.05, 0.05, 0.32, 8), primary, 0.3, -0.3, 0.12).rotation.z = -0.42;
-      add(group, new THREE.ConeGeometry(0.06, 0.12, 8), accent, 0.44, -0.44, 0.12).rotation.z = -0.42;
+      add(group, new THREE.ExtrudeGeometry(check, crisp), accent, 0, 0.08, 0.14);
+      add(group, new THREE.CylinderGeometry(0.06, 0.06, 0.34, 8), primary, 0.3, -0.3, 0.14).rotation.z = -0.42;
+      add(group, new THREE.ConeGeometry(0.07, 0.14, 8), accent, 0.44, -0.44, 0.14).rotation.z = -0.42;
       break;
     }
     case 'requirements': {
-      add(group, new THREE.BoxGeometry(0.72, 0.95, 0.1), primary);
-      add(group, new THREE.BoxGeometry(0.28, 0.1, 0.12), accent, 0, 0.52, 0.04);
+      add(group, new THREE.BoxGeometry(0.72, 0.95, 0.18), primary);
+      add(group, new THREE.BoxGeometry(0.28, 0.12, 0.14), accent, 0, 0.52, 0.04);
       [-0.2, 0, 0.2].forEach((y, i) => {
-        add(group, new THREE.BoxGeometry(0.12, 0.12, 0.04), accent, -0.2, y, 0.08);
-        add(group, new THREE.BoxGeometry(0.36, 0.05, 0.04), primary, 0.1, y, 0.08);
+        add(group, new THREE.BoxGeometry(0.12, 0.12, 0.06), accent, -0.2, y, 0.1);
+        add(group, new THREE.BoxGeometry(0.36, 0.05, 0.06), primary, 0.1, y, 0.1);
         if (i < 2) {
-          add(group, new THREE.BoxGeometry(0.06, 0.06, 0.05), accent, -0.2, y, 0.1);
+          add(group, new THREE.BoxGeometry(0.06, 0.06, 0.07), accent, -0.2, y, 0.13);
         }
       });
       break;
@@ -515,7 +539,23 @@ export const createIconGroup = (
   }
 
   if (pose === 'front') {
-    group.rotation.set(0.04, 0, 0);
+    group.rotation.set(
+      type === 'transparency' ? 0.08 : type === 'development' ? 0.28 : 0.22,
+      type === 'transparency'
+        ? 0.06
+        : type === 'development'
+          ? 0.42
+          : type === 'outsourcing'
+            ? 0.58
+            : type === 'consulting' || type === 'design'
+              ? 0.55
+              : type === 'mail' || type === 'phone' || type === 'clock'
+                ? 0.4
+                : type === 'chat' || type === 'telegram'
+                  ? 0.36
+                  : 0.48,
+      0.06,
+    );
   } else {
     group.rotation.set(0.38, 0.85, 0.1);
   }
@@ -535,7 +575,7 @@ export const createIconGroup = (
       reliability: 0.78,
       adaptation: 0.84,
       efficiency: 0.78,
-      development: 0.68,
+      development: 0.72,
       outsourcing: 0.82,
       design: 0.8,
       support: 0.74,
@@ -547,10 +587,10 @@ export const createIconGroup = (
       clock: 0.9,
       scale: 0.76,
       headphones: 0.88,
-      mail: 0.82,
-      phone: 0.84,
-      chat: 0.8,
-      telegram: 0.82,
+      mail: 0.86,
+      phone: 0.86,
+      chat: 0.9,
+      telegram: 0.9,
       estimation: 0.78,
       contract: 0.78,
       requirements: 0.76,

@@ -21,8 +21,9 @@ const CAMERA_Z: Partial<Record<Icon3DType, number>> = {
   integrations: 3.88,
   clock: 3.88,
   headphones: 3.9,
-  phone: 3.92,
-  chat: 3.9,
+  chat: 3.82,
+  phone: 3.85,
+  mail: 3.85,
   launch: 3.98,
   scale: 3.95,
 };
@@ -63,22 +64,22 @@ const applyPalette = (
 
   view.primary.color.set(colors.primary);
   view.primary.emissive.set(colors.primary);
-  view.primary.emissiveIntensity = dark ? (solid ? 0.28 : 0.58) : solid ? 0.12 : 0.22;
-  view.primary.metalness = dark ? (solid ? 0.62 : 0.52) : solid ? 0.38 : 0.32;
-  view.primary.roughness = dark ? (solid ? 0.28 : 0.22) : solid ? 0.34 : 0.38;
+  view.primary.emissiveIntensity = dark ? (solid ? 0.32 : 0.62) : solid ? 0.2 : 0.36;
+  view.primary.metalness = dark ? (solid ? 0.62 : 0.54) : solid ? 0.34 : 0.28;
+  view.primary.roughness = dark ? (solid ? 0.24 : 0.2) : solid ? 0.28 : 0.26;
 
   view.accent.color.set(colors.accent);
   view.accent.emissive.set(colors.accent);
-  view.accent.emissiveIntensity = dark ? (solid ? 0.16 : 0.34) : solid ? 0.06 : 0.1;
-  view.accent.metalness = dark ? 0.18 : 0.08;
-  view.accent.roughness = dark ? 0.16 : 0.32;
+  view.accent.emissiveIntensity = dark ? (solid ? 0.18 : 0.38) : solid ? 0.12 : 0.2;
+  view.accent.metalness = dark ? 0.2 : 0.12;
+  view.accent.roughness = dark ? 0.14 : 0.22;
 
   view.fill.color.set(colors.glow);
-  view.fill.intensity = dark ? (solid ? 0.95 : 0.7) : solid ? 0.72 : 0.58;
+  view.fill.intensity = dark ? (solid ? 1 : 0.75) : solid ? 0.82 : 0.7;
   view.glow.color.set(colors.glow);
-  view.glow.intensity = dark ? (solid ? 0.55 : 0.95) : solid ? 0.38 : 0.52;
+  view.glow.intensity = dark ? (solid ? 0.65 : 1) : solid ? 0.55 : 0.78;
   view.rim.color.set(colors.rim);
-  view.rim.intensity = dark ? (solid ? 0.85 : 0.62) : solid ? 0.42 : 0.55;
+  view.rim.intensity = dark ? (solid ? 0.9 : 0.68) : solid ? 0.58 : 0.72;
 
   for (const material of view.materials) {
     if (material === view.primary || material === view.accent) continue;
@@ -171,20 +172,22 @@ export const registerIcon3D = (
   });
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
-  const defaultZ = staticPose ? 3.72 : 4.12;
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
+  const defaultZ = staticPose ? 3.68 : 4.05;
   camera.position.set(0, 0, CAMERA_Z[type] ?? defaultZ);
 
-  const ambient = new THREE.AmbientLight(0xffffff, staticPose ? 0.3 : 0.4);
-  const key = new THREE.DirectionalLight(0xffffff, staticPose ? 1.9 : 1.5);
-  key.position.set(3.6, 2.8, 5.2);
-  const fill = new THREE.DirectionalLight(0x3d9eff, staticPose ? 0.85 : 0.7);
-  fill.position.set(-3, -1.6, 2.2);
-  const glow = new THREE.PointLight(0x0ae3ff, 0.95, 6);
-  glow.position.set(0.2, 0.4, 1.8);
-  const rim = new THREE.PointLight(0x8b9bff, 0.62, 5);
-  rim.position.set(-0.8, 0.6, -1.2);
-  scene.add(group, ambient, key, fill, glow, rim);
+  const ambient = new THREE.AmbientLight(0xffffff, staticPose ? 0.32 : 0.38);
+  const key = new THREE.DirectionalLight(0xffffff, staticPose ? 2.05 : 1.65);
+  key.position.set(3.4, 3.2, 4.6);
+  const fill = new THREE.DirectionalLight(0x3d9eff, staticPose ? 0.9 : 0.75);
+  fill.position.set(-3.2, -1.2, 2.4);
+  const bounce = new THREE.DirectionalLight(0x1a3355, staticPose ? 0.42 : 0.32);
+  bounce.position.set(0.6, -2.4, 1.6);
+  const glow = new THREE.PointLight(0x0ae3ff, 1.05, 6);
+  glow.position.set(0.4, 0.6, 2);
+  const rim = new THREE.PointLight(0x8b9bff, staticPose ? 0.82 : 0.7, 5);
+  rim.position.set(-1.2, 0.8, -1);
+  scene.add(group, ambient, key, fill, bounce, glow, rim);
 
   const view: IconView = {
     canvas,
