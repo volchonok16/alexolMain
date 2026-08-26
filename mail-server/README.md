@@ -7,8 +7,8 @@ FastAPI mail backend for frontend `mail.alexol.io` (domain https://mail.alexol.i
 Set the same secret in both places:
 
 - `mail-server` env: `MAIL_SYNC_SECRET`
-- alexolMain `backend/.env`: `MAIL_SYNC_SECRET` + `MAIL_API_URL=http://127.0.0.1:17000`
-  (from Docker: `http://host.docker.internal:17000` — add `extra_hosts` on Linux)
+- alexolMain `backend/.env`: `MAIL_SYNC_SECRET` + `MAIL_API_URL=http://mail_backend:8000`
+  (both stacks share Docker network `alexol_mail_sync`; on host use `http://127.0.0.1:17000`)
 
 When a user is created/updated/deleted in admin, the backend calls:
 

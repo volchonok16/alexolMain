@@ -44,11 +44,11 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-courses}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://minio.alexol.io}
       MINIO_MAX_VIDEO_SIZE_MB: ${MINIO_MAX_VIDEO_SIZE_MB:-10240}
-      MAIL_API_URL: ${MAIL_API_URL:-http://host.docker.internal:17000}
+      # Reach mail-server over shared Docker network (not host.docker.internal —
+      # mail API is bound to 127.0.0.1:17000 on the host and is unreachable that way).
+      MAIL_API_URL: ${MAIL_API_URL:-http://mail_backend:8000}
       MAIL_SYNC_SECRET: ${MAIL_SYNC_SECRET:-}
       MAIL_DOMAIN: ${MAIL_DOMAIN:-alexol.io}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,6 +56,7 @@ services:
         condition: service_started
     networks:
       - alexol_network
+      - alexol_mail_sync
     volumes:
       - ./uploads:/app/uploads
     healthcheck:
@@ -169,5 +170,9 @@ volumes:
 
 networks:
   alexol_network:
+    driver: bridge
+  # Shared with mail-server so alexol_backend can call mail_backend:8000
+  alexol_mail_sync:
+    name: alexol_mail_sync
     driver: bridge
 

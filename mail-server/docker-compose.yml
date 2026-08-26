@@ -83,6 +83,7 @@ services:
         condition: service_healthy
     networks:
       - mail_network
+      - alexol_mail_sync
     restart: unless-stopped
 
 volumes:
@@ -91,5 +92,9 @@ volumes:
 
 networks:
   mail_network:
+    driver: bridge
+  # Shared with alexolMain backend for mailbox provisioning (MAIL_API_URL)
+  alexol_mail_sync:
+    name: alexol_mail_sync
     driver: bridge
 

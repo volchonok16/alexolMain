@@ -51,6 +51,26 @@ const parseMinioEndpoint = (value: string | undefined): string => {
   return cleaned;
 };
 
+/** Mail API is published on host as 127.0.0.1:17000 — unreachable via host.docker.internal. */
+const parseMailApiUrl = (value: string | undefined): string => {
+  const cleaned = (value || '').replace(/\/$/, '');
+  if (!cleaned || !runningInDocker()) return cleaned;
+
+  try {
+    const url = new URL(cleaned);
+    const dockerAliases = new Set(['localhost', '127.0.0.1', 'host.docker.internal']);
+    if (dockerAliases.has(url.hostname)) {
+      console.warn(
+        `[mail-sync] ${url.hostname} is not reachable from Docker; using http://mail_backend:8000`
+      );
+      return 'http://mail_backend:8000';
+    }
+  } catch {
+    // keep original
+  }
+  return cleaned;
+};
+
 export const config = {
   port: parseInt(process.env.PORT || '3000'),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -72,8 +92,8 @@ export const config = {
     maxVideoSizeMb: parseInt(process.env.MINIO_MAX_VIDEO_SIZE_MB || '10240'),
   },
   mail: {
-    /** Base URL of mail API (e.g. http://127.0.0.1:17000 or https://mail.alexol.io) */
-    apiUrl: (process.env.MAIL_API_URL || '').replace(/\/$/, ''),
+    /** Base URL of mail API (e.g. http://mail_backend:8000 or https://mail.alexol.io) */
+    apiUrl: parseMailApiUrl(process.env.MAIL_API_URL),
     syncSecret: process.env.MAIL_SYNC_SECRET || '',
     domain: process.env.MAIL_DOMAIN || 'alexol.io',
   },
