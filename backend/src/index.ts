@@ -11,6 +11,7 @@ import { userRouter } from './routes/user.routes.js';
 import { newsRouter } from './routes/news.routes.js';
 import { courseRouter } from './routes/course.routes.js';
 import { contactRouter } from './routes/contact.routes.js';
+import { leadRouter } from './routes/lead.routes.js';
 import { portfolioRouter } from './routes/portfolio.routes.js';
 import { initAdmin } from './utils/initAdmin.js';
 import { seedPortfolio } from './utils/seedPortfolio.js';
@@ -62,6 +63,7 @@ app.use('/api/news', newsRouter);
 app.use('/api/courses', courseRouter);
 app.use('/api/portfolio', portfolioRouter);
 app.use('/api/contact', contactRouter);
+app.use('/api/leads', leadRouter);
 
 app.use(errorHandler);
 

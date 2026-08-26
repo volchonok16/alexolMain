@@ -9,6 +9,7 @@ const titles: Record<string, string> = {
   '/': 'Новости',
   '/courses': 'Курсы',
   '/portfolio': 'Портфолио',
+  '/leads': 'Заявки',
   '/users': 'Пользователи',
 };
 

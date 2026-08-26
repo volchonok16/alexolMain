@@ -9,4 +9,5 @@ export const contactSchema = z.object({
   description: z.string().min(1),
   pageCount: z.number().optional(),
   calculatedPrice: z.number().optional(),
+  source: z.string().optional(),
 });

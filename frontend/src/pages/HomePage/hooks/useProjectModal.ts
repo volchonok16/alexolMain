@@ -38,6 +38,7 @@ export const useProjectModal = () => {
       phone: formData.phone,
       budget: formData.budget,
       description: formData.message,
+      source: 'project_modal',
     });
   };
 

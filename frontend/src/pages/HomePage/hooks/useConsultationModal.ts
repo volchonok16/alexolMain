@@ -28,6 +28,7 @@ export const useConsultationModal = () => {
       email: formData.email,
       phone: formData.phone,
       description: formData.message,
+      source: 'consultation_modal',
     });
   };
 

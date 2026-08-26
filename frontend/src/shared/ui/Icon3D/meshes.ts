@@ -465,32 +465,14 @@ export const createIconGroup = (
       break;
     }
     case 'whatsapp': {
-      const chunky = {
-        ...crisp,
-        depth: 0.34,
-        bevelThickness: 0.065,
-        bevelSize: 0.05,
-        bevelSegments: 2,
-      } as const;
-      add(group, new THREE.TorusGeometry(0.56, 0.1, 20, 36), accent, 0, 0.02, 0.06);
-      const green = add(group, new THREE.CylinderGeometry(0.48, 0.48, 0.12, 36), primary, 0, 0.02, 0.1);
-      green.rotation.x = Math.PI / 2;
-      const tail = new THREE.Shape();
-      tail.moveTo(-0.06, -0.48);
-      tail.lineTo(-0.34, -0.66);
-      tail.lineTo(0.04, -0.44);
-      tail.closePath();
-      add(group, new THREE.ExtrudeGeometry(tail, chunky), accent, -0.18, -0.06, 0.02);
-      const tailInner = new THREE.Shape();
-      tailInner.moveTo(-0.04, -0.46);
-      tailInner.lineTo(-0.26, -0.58);
-      tailInner.lineTo(0.02, -0.42);
-      tailInner.closePath();
-      add(group, new THREE.ExtrudeGeometry(tailInner, thin), primary, -0.18, -0.06, 0.1);
-      add(group, new THREE.TorusGeometry(0.1, 0.04, 10, 20, Math.PI), accent, 0, 0.13, 0.2).rotation.z = Math.PI / 2;
-      add(group, new THREE.TorusGeometry(0.1, 0.04, 10, 20, Math.PI), accent, 0, -0.13, 0.2).rotation.z = Math.PI / 2;
-      const handset = add(group, new THREE.TorusGeometry(0.16, 0.04, 10, 20, Math.PI), accent, 0, 0, 0.18);
-      handset.rotation.z = Math.PI / 2;
+      const outer = add(group, new THREE.CylinderGeometry(0.58, 0.58, 0.12, 36), accent, 0, 0.02, 0.04);
+      outer.rotation.x = Math.PI / 2;
+      const inner = add(group, new THREE.CylinderGeometry(0.48, 0.48, 0.14, 36), primary, 0, 0.02, 0.12);
+      inner.rotation.x = Math.PI / 2;
+      const receiver = add(group, new THREE.TorusGeometry(0.15, 0.038, 12, 24, Math.PI * 0.92), accent, 0.02, 0.02, 0.22);
+      receiver.rotation.z = Math.PI * 0.54;
+      add(group, new THREE.SphereGeometry(0.046, 10, 8), accent, -0.12, 0.14, 0.22);
+      add(group, new THREE.SphereGeometry(0.046, 10, 8), accent, 0.14, -0.1, 0.22);
       break;
     }
     case 'message': {
@@ -524,19 +506,33 @@ export const createIconGroup = (
       const tile = roundedRect(1.36, 1.36, 0.3);
       const chunky = {
         ...crisp,
-        depth: 0.4,
+        depth: 0.36,
         bevelThickness: 0.085,
         bevelSize: 0.065,
         bevelSegments: 3,
       } as const;
       add(group, new THREE.ExtrudeGeometry(tile, chunky), primary);
       const plane = new THREE.Shape();
-      plane.moveTo(-0.34, 0.22);
-      plane.lineTo(0.42, -0.04);
-      plane.lineTo(-0.02, 0.02);
-      plane.lineTo(-0.16, 0.38);
+      plane.moveTo(-0.38, 0.26);
+      plane.lineTo(0.48, -0.06);
+      plane.lineTo(-0.04, 0.04);
+      plane.lineTo(-0.2, 0.44);
       plane.closePath();
-      add(group, new THREE.ExtrudeGeometry(plane, { ...thin, depth: 0.1, bevelThickness: 0.02 }), accent, 0, 0, 0.24);
+      add(
+        group,
+        new THREE.ExtrudeGeometry(plane, {
+          depth: 0.14,
+          bevelEnabled: true,
+          bevelThickness: 0.03,
+          bevelSize: 0.025,
+          bevelSegments: 2,
+          curveSegments: 12,
+        }),
+        accent,
+        0,
+        0,
+        0.44,
+      );
       break;
     }
     case 'estimation': {
