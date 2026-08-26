@@ -48,16 +48,16 @@ const L = {
     rim: 0x0891b2,
   },
   whatsapp: {
-    primary: '#128C7E',
+    primary: '#25D366',
     accent: '#FFFFFF',
-    glow: 0x128c7e,
-    rim: 0x075e54,
+    glow: 0x25d366,
+    rim: 0x128c7e,
   },
   telegram: {
-    primary: '#0088CC',
+    primary: '#2AABEE',
     accent: '#FFFFFF',
-    glow: 0x0088cc,
-    rim: 0x0369a1,
+    glow: 0x2aabee,
+    rim: 0x0088cc,
   },
 } as const satisfies Record<string, IconPalette>;
 
