@@ -14,7 +14,7 @@ export const WorkSteps = () => {
   const { t } = useTranslation();
 
   const steps: Step[] = [
-    { icon: 'chat', key: 'consultation' },
+    { icon: 'message', key: 'consultation' },
     { icon: 'estimation', key: 'estimation' },
     { icon: 'contract', key: 'contract' },
     { icon: 'requirements', key: 'requirements' },

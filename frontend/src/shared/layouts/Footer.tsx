@@ -19,7 +19,7 @@ export const Footer = () => {
             </div>
             <p className="footer__description">{t('footer.description')}</p>
             <div className="footer__social">
-              <SocialLink icon="chat" href="https://wa.me/79095175557" />
+              <SocialLink icon="whatsapp" href="https://wa.me/79095175557" />
               <SocialLink icon="telegram" href="https://t.me/alexolcorp" />
             </div>
           </div>

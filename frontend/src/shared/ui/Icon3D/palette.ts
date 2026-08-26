@@ -174,13 +174,17 @@ export const ICON_COLORS: Record<Icon3DType, Record<ThemeName, IconPalette>> = {
     dark: { primary: '#4DB8FF', accent: '#E8F6FF', glow: 0x4db8ff, rim: 0x818cf8 },
     light: L.sky,
   },
-  chat: {
+  whatsapp: {
     dark: { primary: '#25D366', accent: '#FFFFFF', glow: 0x25d366, rim: 0x128c7e },
-    light: { primary: '#128C7E', accent: '#FFFFFF', glow: 0x128c7e, rim: 0x075e54 },
+    light: L.whatsapp,
+  },
+  message: {
+    dark: { primary: '#0AE3FF', accent: '#FFFFFF', glow: 0x0ae3ff, rim: 0x3d9eff },
+    light: L.cyan,
   },
   telegram: {
     dark: { primary: '#2AABEE', accent: '#FFFFFF', glow: 0x2aabee, rim: 0x0088cc },
-    light: { primary: '#0088CC', accent: '#FFFFFF', glow: 0x0088cc, rim: 0x006699 },
+    light: L.telegram,
   },
   estimation: {
     dark: { primary: '#4DB8FF', accent: '#E8F6FF', glow: 0x4db8ff, rim: 0x818cf8 },
