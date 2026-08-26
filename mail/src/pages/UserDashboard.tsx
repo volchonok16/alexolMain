@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X } from 'lucide-react'
+import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { openSiteAdmin } from '../sso'
 import './UserDashboard.css'
 
 interface Email {
@@ -41,6 +42,7 @@ export default function UserDashboard() {
   const [showCompose, setShowCompose] = useState(false)
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [siteAdminLoading, setSiteAdminLoading] = useState(false)
   const [composeData, setComposeData] = useState({
     to_address: '',
     subject: '',
@@ -264,10 +266,29 @@ export default function UserDashboard() {
         <div className="nav-actions">
           <ThemeSwitch />
           {user?.is_admin && (
-            <button onClick={() => navigate('/admin')} className="btn-admin-panel">
-              <Users size={20} />
-              <span className="btn-label">Админ</span>
-            </button>
+            <>
+              <button
+                onClick={async () => {
+                  setSiteAdminLoading(true)
+                  try {
+                    await openSiteAdmin(api)
+                  } catch {
+                    setSiteAdminLoading(false)
+                    window.open('https://admin.alexol.io', '_blank', 'noopener,noreferrer')
+                  }
+                }}
+                className="btn-admin-panel"
+                disabled={siteAdminLoading}
+                title="admin.alexol.io без повторного входа"
+              >
+                <LayoutDashboard size={20} />
+                <span className="btn-label">{siteAdminLoading ? '…' : 'Сайт'}</span>
+              </button>
+              <button onClick={() => navigate('/admin')} className="btn-admin-panel">
+                <Users size={20} />
+                <span className="btn-label">Ящики</span>
+              </button>
+            </>
           )}
           <button onClick={() => navigate('/profile')} className="btn-profile">
             <User size={20} />

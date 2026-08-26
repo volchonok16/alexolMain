@@ -14,6 +14,7 @@ const parseCorsOrigin = (origin: string | undefined): string[] => {
   const productionOrigins = [
     'https://alexol.io',
     'https://admin.alexol.io',
+    'https://mail.alexol.io',
   ];
   
   if (!origin) {

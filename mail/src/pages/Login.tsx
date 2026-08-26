@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Users, Mail, X, Eye, EyeOff } from 'lucide-react'
+import { Users, Mail, X, Eye, EyeOff, LayoutDashboard } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { openSiteAdmin } from '../sso'
 import './Login.css'
 
 export default function Login() {
@@ -13,6 +14,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [showAdminChoice, setShowAdminChoice] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [ssoLoading, setSsoLoading] = useState(false)
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
 
@@ -27,14 +29,12 @@ export default function Login() {
         password,
       })
 
-      // Get user data
       const { data: userData } = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       })
 
       setAuth(userData, tokenData.access_token)
-      
-      // If admin, show choice popup, otherwise go to dashboard
+
       if (userData.is_admin) {
         setShowAdminChoice(true)
       } else {
@@ -52,6 +52,16 @@ export default function Login() {
     navigate(path)
   }
 
+  const handleSiteAdmin = async () => {
+    setSsoLoading(true)
+    try {
+      await openSiteAdmin(api)
+    } catch (err: any) {
+      setSsoLoading(false)
+      setError(err.response?.data?.detail || 'Не удалось открыть admin.alexol.io')
+    }
+  }
+
   return (
     <div className="login-container">
       <div className="login-box">
@@ -61,7 +71,7 @@ export default function Login() {
         </div>
         <h1>Почтовый сервер</h1>
         <h2>alexol.io</h2>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="email">Email</label>
@@ -83,14 +93,12 @@ export default function Login() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
                 required
               />
               <button
                 type="button"
-                className="password-toggle"
+                className="toggle-password"
                 onClick={() => setShowPassword((v) => !v)}
-                tabIndex={-1}
                 aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -106,17 +114,28 @@ export default function Login() {
         </form>
       </div>
 
-      {/* Admin Choice Popup */}
       {showAdminChoice && (
         <div className="modal-overlay">
           <div className="admin-choice-modal" onClick={(e) => e.stopPropagation()}>
             <button className="close-btn" onClick={() => handleChoice('/dashboard')}>
               <X size={24} />
             </button>
-            
+
             <h2>Куда вы хотите перейти?</h2>
-            
+
             <div className="choice-buttons">
+              <button
+                className="choice-btn admin-btn"
+                onClick={handleSiteAdmin}
+                disabled={ssoLoading}
+              >
+                <div className="choice-icon">
+                  <LayoutDashboard size={40} />
+                </div>
+                <h3>Admin панель сайта</h3>
+                <p>{ssoLoading ? 'Вход…' : 'admin.alexol.io — без повторного пароля'}</p>
+              </button>
+
               <button
                 className="choice-btn admin-btn"
                 onClick={() => handleChoice('/admin')}
@@ -124,8 +143,8 @@ export default function Login() {
                 <div className="choice-icon">
                   <Users size={40} />
                 </div>
-                <h3>Управление пользователями</h3>
-                <p>Создание и редактирование пользователей</p>
+                <h3>Пользователи почты</h3>
+                <p>Ящики и шаблоны на mail.alexol.io</p>
               </button>
 
               <button
@@ -145,4 +164,3 @@ export default function Login() {
     </div>
   )
 }
-

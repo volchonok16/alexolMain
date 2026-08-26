@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileText } from 'lucide-react'
+import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileText, LayoutDashboard } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { openSiteAdmin } from '../sso'
 import './AdminDashboard.css'
 
 interface User {
@@ -34,6 +35,7 @@ export default function AdminDashboard() {
   const logout = useAuthStore((state) => state.logout)
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
+  const [siteAdminLoading, setSiteAdminLoading] = useState(false)
   
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -275,6 +277,22 @@ export default function AdminDashboard() {
         <div className="nav-user">
           <ThemeSwitch />
           <span>{user?.email}</span>
+          <button
+            onClick={async () => {
+              setSiteAdminLoading(true)
+              try {
+                await openSiteAdmin(api)
+              } catch {
+                setSiteAdminLoading(false)
+                window.open('https://admin.alexol.io', '_blank', 'noopener,noreferrer')
+              }
+            }}
+            className="btn-templates"
+            disabled={siteAdminLoading}
+          >
+            <LayoutDashboard size={20} />
+            {siteAdminLoading ? '…' : 'Admin сайта'}
+          </button>
           <button
             onClick={() => {
               setShowTemplatesModal(true)

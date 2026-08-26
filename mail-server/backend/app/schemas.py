@@ -79,6 +79,15 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SsoExchangeRequest(BaseModel):
+    ticket: str
+
+
+class SsoTicketResponse(BaseModel):
+    ticket: str
+    expires_in: int
+
+
 class EmailCreate(BaseModel):
     to_address: str
     subject: str

@@ -91,6 +91,31 @@
     color: #A8B0C0;
   }
 
+  &__mail {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 0.85rem;
+    background: rgba(10, 227, 255, 0.1);
+    border: 1px solid rgba(10, 227, 255, 0.3);
+    border-radius: 0.6rem;
+    color: #0AE3FF;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: rgba(10, 227, 255, 0.18);
+      border-color: rgba(10, 227, 255, 0.45);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+  }
+
   &__logout {
     display: inline-flex;
     align-items: center;

@@ -1,7 +1,9 @@
-import { LogOut, Menu } from 'lucide-react';
+import { LogOut, Mail, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveApiAssetUrl } from '@/api/client';
+import { openMailApp } from '@/api/auth';
 import './Header.scss';
 
 interface HeaderProps {
@@ -24,10 +26,21 @@ export const Header = ({ title, onMenuClick }: HeaderProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const photo = user?.photo ? resolveApiAssetUrl(user.photo) : '';
+  const [mailLoading, setMailLoading] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleOpenMail = async () => {
+    setMailLoading(true);
+    try {
+      await openMailApp();
+    } catch {
+      setMailLoading(false);
+      window.open('https://mail.alexol.io', '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
@@ -49,6 +62,16 @@ export const Header = ({ title, onMenuClick }: HeaderProps) => {
           <span className="admin-header__name">{user?.name || 'Администратор'}</span>
           <span className="admin-header__login">{user?.login}</span>
         </div>
+        <button
+          type="button"
+          className="admin-header__mail"
+          onClick={handleOpenMail}
+          disabled={mailLoading}
+          title="Открыть почту без повторного входа"
+        >
+          <Mail size={16} />
+          <span>{mailLoading ? '…' : 'Почта'}</span>
+        </button>
         <button type="button" className="admin-header__logout" onClick={handleLogout}>
           <LogOut size={16} />
           <span>Выход</span>

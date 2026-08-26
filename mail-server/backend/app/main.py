@@ -2,12 +2,14 @@ from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, F
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import List, Optional
 import io
 import uuid
 import asyncio
 import secrets
+
+from jose import JWTError, jwt
 
 from app.database import get_db, engine, Base, AsyncSessionLocal
 from app.models import User, Email, EmailTemplate
@@ -20,6 +22,8 @@ from app.schemas import (
     SyncUserUpdate,
     LoginRequest,
     Token,
+    SsoExchangeRequest,
+    SsoTicketResponse,
     EmailCreate,
     EmailResponse,
     EmailTemplateCreate,
@@ -136,6 +140,83 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
 async def get_me(current_user: User = Depends(get_current_user)):
     """Get current user info"""
     return current_user
+
+
+SSO_TYP = "alexol-sso"
+SSO_TTL_SEC = 90
+
+
+def _sso_secret() -> str:
+    secret = settings.MAIL_SYNC_SECRET
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SSO is not configured (MAIL_SYNC_SECRET)",
+        )
+    return secret
+
+
+@app.post("/api/auth/sso/admin-ticket", response_model=SsoTicketResponse)
+async def create_admin_sso_ticket(current_user: User = Depends(get_current_admin_user)):
+    """Mail admin → site admin.alexol.io handoff ticket."""
+    ticket = jwt.encode(
+        {
+            "typ": SSO_TYP,
+            "aud": "admin",
+            "login": current_user.username.lower(),
+            "email": current_user.email.lower(),
+            "name": current_user.full_name,
+            "exp": datetime.utcnow() + timedelta(seconds=SSO_TTL_SEC),
+        },
+        _sso_secret(),
+        algorithm=settings.ALGORITHM,
+    )
+    return {"ticket": ticket, "expires_in": SSO_TTL_SEC}
+
+
+@app.post("/api/auth/sso/exchange", response_model=Token)
+async def exchange_sso_ticket(body: SsoExchangeRequest, db: AsyncSession = Depends(get_db)):
+    """Accept SSO ticket from site admin → mail access_token."""
+    try:
+        payload = jwt.decode(body.ticket, _sso_secret(), algorithms=[settings.ALGORITHM])
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired SSO ticket",
+        )
+
+    if payload.get("typ") != SSO_TYP or payload.get("aud") != "mail":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid SSO ticket",
+        )
+
+    email = (payload.get("email") or "").lower().strip()
+    login = (payload.get("login") or "").lower().strip()
+    if not email and login:
+        email = f"{login}@{settings.MAIL_DOMAIN}"
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid SSO ticket",
+        )
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user and login:
+        result = await db.execute(select(User).where(User.username == login))
+        user = result.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Mailbox not found or inactive",
+        )
+
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 # Admin endpoints
 @app.post("/api/admin/users", response_model=UserResponse)

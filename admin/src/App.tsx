@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { AdminLayout } from '@/shared/layouts/AdminLayout';
 import { LoginPage } from '@/pages/LoginPage';
+import { SsoPage } from '@/pages/SsoPage';
 import { NewsManagement } from '@/pages/DashboardPage/components/NewsManagement';
 import { CoursesManagement } from '@/pages/DashboardPage/components/CoursesManagement';
 import { PortfolioManagement } from '@/pages/DashboardPage/components/PortfolioManagement';
@@ -29,6 +30,7 @@ const App = () => {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/sso" element={<SsoPage />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<AdminLayout />}>
                 <Route path="/" element={<NewsManagement />} />

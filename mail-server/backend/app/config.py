@@ -56,8 +56,11 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_EMAIL: str = "admin@alexol.io"
     DEFAULT_ADMIN_PASSWORD: str = "Gord078134Alexol!9256"
 
-    # Sync with alexolMain admin (X-Mail-Sync-Key)
+    # Sync with alexolMain admin (X-Mail-Sync-Key) + SSO ticket signing
     MAIL_SYNC_SECRET: Optional[str] = None
+
+    # Site admin panel URL (for UI redirects / docs)
+    ADMIN_PUBLIC_URL: str = "https://admin.alexol.io"
     
     class Config:
         env_file = ".env"

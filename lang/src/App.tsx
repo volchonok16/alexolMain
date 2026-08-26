@@ -169,7 +169,7 @@ function TopBar({
   return (
     <header className="top">
       {onBack && (
-        <button className="back" type="button" onClick={onBack} aria-label="Назад">
+        <button className="back-btn" type="button" onClick={onBack} aria-label="Назад">
           <ArrowLeft size={18} />
         </button>
       )}
@@ -422,15 +422,17 @@ function QuizScreen({
             }
           }}
         >
-          <div className="front">{card.front}</div>
-          {revealed ? (
-            <>
-              <div className="back">{card.back}</div>
-              {card.example && <div className="example">{card.example}</div>}
-            </>
-          ) : (
-            <div className="hint">Нажми, чтобы открыть перевод</div>
-          )}
+          <span className="flash-inner">
+            <span className="flash-front">{card.front}</span>
+            {revealed ? (
+              <>
+                <span className="flash-translation">{card.back}</span>
+                {card.example && <span className="flash-example">{card.example}</span>}
+              </>
+            ) : (
+              <span className="flash-hint">Нажми, чтобы открыть перевод</span>
+            )}
+          </span>
         </button>
       </div>
       <div className="actions">
@@ -615,7 +617,7 @@ function WordsScreen({
             <div key={card.id} className="word">
               <div>
                 <div className="front">{card.front}</div>
-                <div className="back">{card.back}</div>
+                <div className="translation">{card.back}</div>
               </div>
               <button className="kill" type="button" onClick={() => onRemove(card.id)} aria-label="Удалить">
                 ✕
