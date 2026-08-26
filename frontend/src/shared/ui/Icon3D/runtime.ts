@@ -4,6 +4,22 @@ import { ICON_COLORS, type ThemeName } from './palette';
 
 const SIZE = 192;
 const ROTATE_SPEED = 0.55;
+const STATIC_CAMERA_Z: Partial<Record<Icon3DType, number>> = {
+  development: 3.85,
+  support: 3.8,
+  reliability: 3.72,
+  efficiency: 3.65,
+  automation: 3.62,
+  adaptation: 3.58,
+  transparency: 3.7,
+  outsourcing: 3.55,
+  consulting: 3.55,
+  architecture: 3.7,
+  platforms: 3.65,
+  headphones: 3.62,
+  phone: 3.6,
+  chat: 3.58,
+};
 
 type IconView = {
   canvas: HTMLCanvasElement;
@@ -151,8 +167,8 @@ export const registerIcon3D = (
   const staticPose = options.spin === false;
   camera.position.set(
     0,
-    staticPose ? 0.08 : 0,
-    staticPose ? (type === 'transparency' ? 3.58 : type === 'development' ? 3.15 : 3.28) : 3.55,
+    0,
+    staticPose ? (STATIC_CAMERA_Z[type] ?? 3.48) : 3.55,
   );
 
   const ambient = new THREE.AmbientLight(0xffffff, staticPose ? 0.3 : 0.4);

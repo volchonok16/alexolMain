@@ -1,8 +1,8 @@
-import { Mail, Phone, MessageCircle, Send, LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { OfferModal, BrandLogo } from '../ui';
 import './Footer.scss';
 import { useTranslation } from '../utils/translations';
+import { Icon3D, type Icon3DType } from '@/shared/ui/Icon3D';
 
 export const Footer = () => {
   const { t } = useTranslation();
@@ -19,8 +19,8 @@ export const Footer = () => {
             </div>
             <p className="footer__description">{t('footer.description')}</p>
             <div className="footer__social">
-              <SocialLink icon={MessageCircle} href="https://wa.me/79095175557" />
-              <SocialLink icon={Send} href="https://t.me/alexolcorp" />
+              <SocialLink icon="chat" href="https://wa.me/79095175557" />
+              <SocialLink icon="telegram" href="https://t.me/alexolcorp" />
             </div>
           </div>
 
@@ -50,13 +50,17 @@ export const Footer = () => {
             <h4 className="footer__title">{t('footer.contacts')}</h4>
             <ul className="footer__contacts">
               <li className="footer__contact">
-                <Mail className="footer__contact-icon" />
+                <div className="footer__contact-icon">
+                  <Icon3D type="mail" spin={false} />
+                </div>
                 <a href="mailto:support@alexol.io" className="footer__contact-link">
                   support@alexol.io
                 </a>
               </li>
               <li className="footer__contact">
-                <Phone className="footer__contact-icon" />
+                <div className="footer__contact-icon">
+                  <Icon3D type="phone" spin={false} />
+                </div>
                 <a href="tel:+79095175557" className="footer__contact-link">
                   +7 (909) 517-55-57
                 </a>
@@ -92,10 +96,10 @@ const FooterLink = ({ label, href }: { label: string; href: string }) => {
   );
 };
 
-const SocialLink = ({ icon: Icon, href }: { icon: LucideIcon; href: string }) => {
+const SocialLink = ({ icon, href }: { icon: Icon3DType; href: string }) => {
   return (
     <a href={href} className="footer__social-link" target="_blank" rel="noopener noreferrer">
-      <Icon />
+      <Icon3D type={icon} spin={false} />
     </a>
   );
 };

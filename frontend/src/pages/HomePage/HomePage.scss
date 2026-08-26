@@ -632,7 +632,7 @@
   border-radius: 0.75rem;
   transition: all 0.3s;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 
   &:hover {
     border-color: #0AE3FF;
@@ -689,7 +689,7 @@
   }
 
   &:hover &__icon {
-    transform: scale(1.1);
+    transform: scale(1.04);
   }
 
   &__title {
@@ -1080,6 +1080,7 @@
   border: 1px solid rgba(10, 227, 255, 0.1);
   border-radius: 0.75rem;
   padding: 1.5rem;
+  overflow: visible;
   transition: all 0.3s;
 
   &:hover {
@@ -1119,7 +1120,7 @@
   }
 
   &:hover &__icon {
-    transform: scale(1.1);
+    transform: scale(1.04);
   }
 
   &__title {
@@ -1290,23 +1291,22 @@
   &__icon {
     width: 4rem;
     height: 4rem;
-    border-radius: 0.5rem;
-    background: linear-gradient(to bottom right, rgba(10, 227, 255, 0.2), rgba(27, 145, 247, 0.2));
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 1rem;
-    color: #0AE3FF;
+    overflow: visible;
     transition: transform 0.3s;
 
-    [data-theme="light"] & {
-      background: linear-gradient(to bottom right, rgba(8, 145, 178, 0.2), rgba(3, 105, 161, 0.2));
-      color: #0891B2;
+    .icon3d {
+      width: 4rem;
+      height: 4rem;
+      filter: none;
     }
   }
 
   &:hover &__icon {
-    transform: scale(1.1);
+    transform: scale(1.04);
   }
 }
 
@@ -1410,19 +1410,17 @@
   }
 
   &__icon {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 0.5rem;
-    background: linear-gradient(to bottom right, rgba(10, 227, 255, 0.2), rgba(27, 145, 247, 0.2));
+    width: 3.5rem;
+    height: 3.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: #0AE3FF;
+    overflow: visible;
 
-    [data-theme="light"] & {
-      background: linear-gradient(to bottom right, rgba(8, 145, 178, 0.2), rgba(3, 105, 161, 0.2));
-      color: #0891B2;
+    .icon3d {
+      width: 3.5rem;
+      height: 3.5rem;
     }
   }
 
@@ -1458,6 +1456,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  overflow: visible;
 
   &--left {
     justify-content: flex-end;
@@ -1528,25 +1527,33 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    width: 3.5rem;
-    height: 3.5rem;
-    border-radius: 50%;
-    background: linear-gradient(to bottom right, #0AE3FF, #1B91F7);
+    width: 4.75rem;
+    height: 4.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    box-shadow: 0 0 30px rgba(10, 227, 255, 0.5);
+    overflow: visible;
     z-index: 10;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
 
-    svg {
-      width: 1.75rem;
-      height: 1.75rem;
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0.5rem;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(10, 227, 255, 0.22) 0%, rgba(10, 227, 255, 0.06) 55%, transparent 72%);
+      z-index: -1;
+
+      [data-theme="light"] & {
+        background: radial-gradient(circle, rgba(8, 145, 178, 0.24) 0%, rgba(8, 145, 178, 0.08) 55%, transparent 72%);
+      }
     }
 
-    [data-theme="light"] & {
-      background: linear-gradient(to bottom right, #0891B2, #0369A1);
-      box-shadow: 0 0 30px rgba(8, 145, 178, 0.5);
+    .icon3d {
+      width: 3.75rem;
+      height: 3.75rem;
     }
   }
 }
@@ -1982,24 +1989,18 @@
   gap: 1rem;
 
   &__icon {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 0.5rem;
-    background: linear-gradient(to bottom right, rgba(10, 227, 255, 0.2), rgba(27, 145, 247, 0.2));
+    width: 3.25rem;
+    height: 3.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: #0AE3FF;
+    overflow: visible;
 
-    svg {
-      width: 1.5rem;
-      height: 1.5rem;
-    }
-
-    [data-theme="light"] & {
-      background: linear-gradient(to bottom right, rgba(8, 145, 178, 0.2), rgba(3, 105, 161, 0.2));
-      color: #0891B2;
+    .icon3d {
+      width: 3.25rem;
+      height: 3.25rem;
+      filter: none;
     }
   }
 
