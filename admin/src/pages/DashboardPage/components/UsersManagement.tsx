@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { User } from '@/api/users';
-import { resolveApiAssetUrl } from '@/api/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Avatar } from '@/shared/ui/Avatar';
 import { useUsers } from '../hooks/useUsers';
 import { Pagination } from './Pagination';
 import { UserModal } from './UserModal';
@@ -117,17 +117,13 @@ export const UsersManagement = () => {
               {users.map(user => (
                 <tr key={user.id}>
                   <td>
-                    {user.photo ? (
-                      <img
-                        src={resolveApiAssetUrl(user.photo)}
-                        alt={user.name}
-                        className="users-management__photo"
-                      />
-                    ) : (
-                      <span className="users-management__photo users-management__photo--empty">
-                        {user.name.slice(0, 1).toUpperCase()}
-                      </span>
-                    )}
+                    <Avatar
+                      src={user.photo}
+                      alt={user.name}
+                      className="users-management__photo"
+                      emptyClassName="users-management__photo users-management__photo--empty"
+                      fallback={user.name.slice(0, 1).toUpperCase()}
+                    />
                   </td>
                   <td>{user.name}</td>
                   <td>{user.login}</td>

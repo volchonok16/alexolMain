@@ -117,10 +117,25 @@ async def shutdown_event():
 # Auth endpoints
 @app.post("/api/auth/login", response_model=Token)
 async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """Login user"""
-    result = await db.execute(select(User).where(User.email == login_data.email))
+    """Login user by email or username (non-admins OK — this is mail, not site admin)."""
+    identity = (login_data.email or "").strip().lower()
+    if not identity:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+
+    # Allow "alex" as well as "alex@alexol.io"
+    if "@" not in identity:
+        identity = f"{identity}@{settings.MAIL_DOMAIN}"
+
+    result = await db.execute(select(User).where(User.email == identity))
     user = result.scalar_one_or_none()
-    
+    if not user:
+        username = identity.split("@", 1)[0]
+        result = await db.execute(select(User).where(User.username == username))
+        user = result.scalar_one_or_none()
+
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
