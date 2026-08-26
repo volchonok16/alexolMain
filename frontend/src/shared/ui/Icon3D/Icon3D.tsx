@@ -10,9 +10,10 @@ interface Icon3DProps {
   className?: string;
   spin?: boolean;
   pose?: 'front' | 'orbit';
+  glowScale?: number;
 }
 
-export const Icon3D = ({ type, className = '', spin = true, pose }: Icon3DProps) => {
+export const Icon3D = ({ type, className = '', spin = true, pose, glowScale = 1 }: Icon3DProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { theme } = useTheme();
   const handleRef = useRef<ReturnType<typeof registerIcon3D>>(null);
@@ -20,7 +21,7 @@ export const Icon3D = ({ type, className = '', spin = true, pose }: Icon3DProps)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const handle = registerIcon3D(canvas, type, theme, { spin, pose });
+    const handle = registerIcon3D(canvas, type, theme, { spin, pose, glowScale });
     handleRef.current = handle;
     return () => {
       handle?.dispose();
@@ -28,7 +29,7 @@ export const Icon3D = ({ type, className = '', spin = true, pose }: Icon3DProps)
     };
     // Theme updates go through the second effect so the mesh is not rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, spin, pose]);
+  }, [type, spin, pose, glowScale]);
 
   useEffect(() => {
     handleRef.current?.setTheme(theme);
@@ -38,7 +39,7 @@ export const Icon3D = ({ type, className = '', spin = true, pose }: Icon3DProps)
 
   return (
     <div
-      className={`icon3d ${spin ? '' : 'icon3d--static'} ${className}`.trim()}
+      className={`icon3d ${spin ? '' : 'icon3d--static'} ${glowScale < 1 ? 'icon3d--reduced-glow' : ''} ${className}`.trim()}
       style={{
         '--icon-primary': colors.primary,
         '--icon-accent': colors.accent,

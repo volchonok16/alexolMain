@@ -28,6 +28,7 @@ const CAMERA_Z: Partial<Record<Icon3DType, number>> = {
   telegram: 3.78,
   launch: 3.98,
   scale: 3.95,
+  lifebuoy: 3.85,
 };
 
 type IconView = {
@@ -47,6 +48,7 @@ type IconView = {
   visible: boolean;
   reducedMotion: boolean;
   staticPose: boolean;
+  glowScale: number;
   dirty: boolean;
 };
 
@@ -57,7 +59,7 @@ let running = false;
 let last = 0;
 
 const applyPalette = (
-  view: Pick<IconView, 'type' | 'primary' | 'accent' | 'fill' | 'glow' | 'rim' | 'materials' | 'staticPose'>,
+  view: Pick<IconView, 'type' | 'primary' | 'accent' | 'fill' | 'glow' | 'rim' | 'materials' | 'staticPose' | 'glowScale'>,
   theme: ThemeName
 ) => {
   const colors = ICON_COLORS[view.type][theme];
@@ -79,7 +81,7 @@ const applyPalette = (
   view.fill.color.set(colors.glow);
   view.fill.intensity = dark ? (solid ? 1 : 0.75) : solid ? 0.82 : 0.7;
   view.glow.color.set(colors.glow);
-  view.glow.intensity = dark ? (solid ? 0.65 : 1) : solid ? 0.55 : 0.78;
+  view.glow.intensity = (dark ? (solid ? 0.65 : 1) : solid ? 0.55 : 0.78) * view.glowScale;
   view.rim.color.set(colors.rim);
   view.rim.intensity = dark ? (solid ? 0.9 : 0.68) : solid ? 0.58 : 0.72;
 
@@ -147,7 +149,7 @@ export const registerIcon3D = (
   canvas: HTMLCanvasElement,
   type: Icon3DType,
   theme: ThemeName,
-  options: { spin?: boolean; pose?: 'front' | 'orbit' } = {},
+  options: { spin?: boolean; pose?: 'front' | 'orbit'; glowScale?: number } = {},
 ) => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
@@ -165,8 +167,7 @@ export const registerIcon3D = (
   });
   const staticPose = options.spin === false;
   const pose = options.pose ?? (staticPose ? 'front' : 'orbit');
-  const group = createIconGroup(type, primary, accent, pose);
-  const materials: THREE.MeshStandardMaterial[] = [];
+  const group = createIconGroup(type, primary, accent, pose);  const materials: THREE.MeshStandardMaterial[] = [];
   group.traverse((obj) => {
     if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
       materials.push(obj.material);
@@ -208,6 +209,7 @@ export const registerIcon3D = (
     visible: true,
     reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     staticPose,
+    glowScale: options.glowScale ?? 1,
     dirty: true,
   };
   applyPalette(view, theme);

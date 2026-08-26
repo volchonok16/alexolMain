@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { OfferModal, BrandLogo } from '../ui';
+import { OfferModal, BrandLogo, WhatsAppIcon, TelegramIcon } from '../ui';
 import './Footer.scss';
 import { useTranslation } from '../utils/translations';
-import { Icon3D, type Icon3DType } from '@/shared/ui/Icon3D';
+import { Icon3D } from '@/shared/ui/Icon3D';
 
 export const Footer = () => {
   const { t } = useTranslation();
@@ -19,8 +19,24 @@ export const Footer = () => {
             </div>
             <p className="footer__description">{t('footer.description')}</p>
             <div className="footer__social">
-              <SocialLink icon="whatsapp" href="https://wa.me/79095175557" />
-              <SocialLink icon="telegram" href="https://t.me/alexolcorp" />
+              <a
+                href="https://wa.me/79095175557"
+                className="footer__social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="WhatsApp"
+              >
+                <WhatsAppIcon size={40} />
+              </a>
+              <a
+                href="https://t.me/alexolcorp"
+                className="footer__social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Telegram"
+              >
+                <TelegramIcon size={40} />
+              </a>
             </div>
           </div>
 
@@ -93,13 +109,5 @@ const FooterLink = ({ label, href }: { label: string; href: string }) => {
         {label}
       </a>
     </li>
-  );
-};
-
-const SocialLink = ({ icon, href }: { icon: Icon3DType; href: string }) => {
-  return (
-    <a href={href} className="footer__social-link" target="_blank" rel="noopener noreferrer">
-      <Icon3D type={icon} spin={false} />
-    </a>
   );
 };

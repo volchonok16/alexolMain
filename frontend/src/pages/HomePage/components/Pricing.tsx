@@ -9,7 +9,7 @@ interface Factor {
   key: string;
 }
 
-const EMPHASIZED_ICONS = new Set<Icon3DType>(['integrations', 'clock', 'headphones']);
+const EMPHASIZED_ICONS = new Set<Icon3DType>(['integrations', 'clock', 'lifebuoy']);
 
 export const Pricing = () => {
   const { t } = useTranslation();
@@ -23,7 +23,7 @@ export const Pricing = () => {
     { icon: 'integrations', key: 'integrations' },
     { icon: 'clock', key: 'timeline' },
     { icon: 'scale', key: 'scale' },
-    { icon: 'headphones', key: 'support' },
+    { icon: 'lifebuoy', key: 'support' },
   ];
 
   return (

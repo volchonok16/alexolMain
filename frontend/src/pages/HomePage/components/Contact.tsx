@@ -1,10 +1,10 @@
 import { useState } from 'react';
+import { Mail, Phone, Clock, type LucideIcon } from 'lucide-react';
 import { useContactForm } from '../hooks/useContactForm';
 import { MeetingModal } from './modals';
 import { useTranslation } from '../../../shared/utils/translations';
 import { Select } from '../../../shared/ui/Select/Select';
 import { Reveal } from '@/shared/ui/Reveal';
-import { Icon3D, type Icon3DType } from '@/shared/ui/Icon3D';
 
 export const Contact = () => {
   const { t, getOptions } = useTranslation();
@@ -110,18 +110,18 @@ export const Contact = () => {
               <h3 className="contact__info-title">{t('contact.infoTitle')}</h3>
               <div className="contact__info-items">
                 <ContactItem
-                  icon="mail"
+                  icon={Mail}
                   label={t('contact.labels.email')}
                   value="support@alexol.io"
                   href="mailto:support@alexol.io"
                 />
                 <ContactItem
-                  icon="phone"
+                  icon={Phone}
                   label={t('contact.labels.phone')}
                   value="+7 (909) 517-55-57"
                   href="tel:+79095175557"
                 />
-                <ContactItem icon="clock" label={t('contact.labels.schedule')} value={t('contact.values.schedule')} />
+                <ContactItem icon={Clock} label={t('contact.labels.schedule')} value={t('contact.values.schedule')} />
               </div>
             </div>
 
@@ -142,19 +142,19 @@ export const Contact = () => {
 };
 
 const ContactItem = ({
-  icon,
+  icon: Icon,
   label,
   value,
   href,
 }: {
-  icon: Icon3DType;
+  icon: LucideIcon;
   label: string;
   value: string;
   href?: string;
 }) => (
   <div className="contact-item">
     <div className="contact-item__icon">
-      <Icon3D type={icon} spin={false} />
+      <Icon size={24} strokeWidth={1.75} className="contact-item__icon-svg" />
     </div>
     <div className="contact-item__content">
       <div className="contact-item__label">{label}</div>

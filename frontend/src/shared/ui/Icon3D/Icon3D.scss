@@ -17,6 +17,14 @@
     }
   }
 
+  &--reduced-glow {
+    filter: drop-shadow(0 0 3px color-mix(in srgb, var(--icon-primary) 28%, transparent));
+
+    [data-theme='light'] & {
+      filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--icon-primary) 14%, transparent));
+    }
+  }
+
   &__canvas {
     display: block;
     width: 100%;

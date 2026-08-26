@@ -69,10 +69,8 @@
       transform: scale(1.12);
     }
 
-    .icon3d {
-      width: 4rem;
-      height: 4rem;
-      filter: none;
+    svg {
+      display: block;
     }
   }
 

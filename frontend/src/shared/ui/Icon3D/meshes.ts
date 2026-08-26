@@ -36,7 +36,8 @@ export type Icon3DType =
   | 'contract'
   | 'requirements'
   | 'testing'
-  | 'launch';
+  | 'launch'
+  | 'lifebuoy';
 
 const extrude = {
   depth: 0.28,
@@ -591,9 +592,17 @@ export const createIconGroup = (
       add(group, new THREE.SphereGeometry(0.1, 10, 8), accent, 0, -0.02, 0.18);
       break;
     }
+    case 'lifebuoy': {
+      add(group, new THREE.TorusGeometry(0.52, 0.14, 12, 40), primary);
+      for (let i = 0; i < 4; i += 1) {
+        const arc = add(group, new THREE.TorusGeometry(0.52, 0.155, 10, 14, Math.PI / 4), accent);
+        arc.rotation.z = (i / 4) * Math.PI * 2 + Math.PI / 8;
+      }
+      break;
+    }
   }
 
-  const upright = new Set<Icon3DType>(['clock', 'mail', 'phone', 'telegram', 'whatsapp']);
+  const upright = new Set<Icon3DType>(['clock', 'mail', 'phone', 'telegram', 'whatsapp', 'lifebuoy']);
 
   if (pose === 'front' && upright.has(type)) {
     group.rotation.set(0.12, 0.06, 0);
@@ -652,6 +661,7 @@ export const createIconGroup = (
       requirements: 0.84,
       testing: 0.84,
       launch: 0.84,
+      lifebuoy: 0.8,
     } as Record<Icon3DType, number>)[type],
   );
 

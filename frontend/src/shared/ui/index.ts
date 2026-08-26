@@ -9,3 +9,4 @@ export { ErrorState } from './ErrorState';
 export { OfferModal } from './OfferModal';
 export { Logo3D } from './Logo3D';
 export { BrandLogo } from './BrandLogo';
+export { WhatsAppIcon, TelegramIcon } from './BrandIcons';

@@ -206,4 +206,8 @@ export const ICON_COLORS: Record<Icon3DType, Record<ThemeName, IconPalette>> = {
     dark: { primary: '#0AE3FF', accent: '#7EF0FF', glow: 0x0ae3ff, rim: 0x22d3ee },
     light: L.cyan,
   },
+  lifebuoy: {
+    dark: { primary: '#00C2E0', accent: '#7EF0FF', glow: 0x00c2e0, rim: 0x38bdf8 },
+    light: L.teal,
+  },
 };

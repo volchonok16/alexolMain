@@ -2009,11 +2009,12 @@
     justify-content: center;
     flex-shrink: 0;
     overflow: visible;
+    color: #0AE3FF;
+    filter: drop-shadow(0 0 8px rgba(10, 227, 255, 0.45));
 
-    .icon3d {
-      width: 4rem;
-      height: 4rem;
-      filter: none;
+    [data-theme="light"] & {
+      color: #0891B2;
+      filter: drop-shadow(0 2px 6px rgba(8, 145, 178, 0.3));
     }
   }
 
