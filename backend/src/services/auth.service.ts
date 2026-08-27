@@ -69,17 +69,15 @@ export class AuthService {
     }
 
     const login = user.login.toLowerCase();
-    const email = (user.email || `${login}@${config.mail.domain}`).toLowerCase();
     // Prefer mailbox address for mail SSO (custom admin email may be external).
     const mailEmail = `${login}@${config.mail.domain}`.toLowerCase();
 
-    // Best-effort ensure (no password) — exchange will auto-provision if missing.
+    // Best-effort ensure — exchange auto-provisions if mailbox is still missing.
     void this.mailSync.ensureMailbox({
       username: login,
       full_name: user.name,
       is_admin: true,
       is_active: true,
-      avatar_url: undefined,
     });
 
     const ticket = jwt.sign(
