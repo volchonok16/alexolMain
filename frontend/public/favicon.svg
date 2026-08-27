@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
   <!--
-    Default (Google, crawlers, no media support): dark badge — читается и на тёмном, и на светлом фоне.
+    Default (Google, crawlers, no media support): dark badge - читается и на тёмном, и на светлом фоне.
     Browser tabs: prefers-color-scheme switches light/dark variants.
   -->
   <style>

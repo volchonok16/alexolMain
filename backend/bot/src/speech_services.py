@@ -80,7 +80,7 @@ def _get_local_whisper():
 
 
 def _convert_ogg_to_wav(ogg_path: Path) -> Path:
-    """16 kHz mono PCM — лучше для Whisper."""
+    """16 kHz mono PCM - лучше для Whisper."""
     wav_path = ogg_path.with_suffix(".wav")
     if not shutil.which("ffmpeg"):
         return ogg_path
@@ -151,7 +151,7 @@ def _transcribe_local_sync(audio_bytes: bytes, language: Optional[str] = None) -
 
 async def _transcribe_openrouter(audio_bytes: bytes, language: Optional[str] = None) -> Optional[str]:
     if not config.OPENROUTER_API_KEY:
-        print("❌ OPENROUTER_API_KEY не задан — OpenRouter STT недоступен")
+        print("❌ OPENROUTER_API_KEY не задан - OpenRouter STT недоступен")
         return None
 
     payload: dict = {
@@ -236,7 +236,7 @@ async def _adjust_mp3_speed(mp3_path: Path, speed: float) -> Path:
 
 async def _mp3_to_ogg(mp3_path: Path) -> Path:
     if not shutil.which("ffmpeg"):
-        print("⚠️ ffmpeg не найден — отправим mp3 как audio")
+        print("⚠️ ffmpeg не найден - отправим mp3 как audio")
         return mp3_path
 
     ogg_path = mp3_path.with_suffix(".ogg")

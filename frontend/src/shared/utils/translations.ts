@@ -76,7 +76,7 @@ const translations = {
     title: { ru: 'Превращаем бизнес-задачи в', en: 'We transform business challenges into' },
     titleHighlight: { ru: 'эффективные программные решения', en: 'effective software solutions' },
     description: {
-      ru: 'Alexol — компания по разработке программного обеспечения на заказ. Специализируемся на создании сложных корпоративных систем, веб-приложений и мобильных решений. Обеспечиваем полный цикл разработки: от аналитики и проектирования до внедрения и технической поддержки.',
+      ru: 'Alexol - компания по разработке программного обеспечения на заказ. Специализируемся на создании сложных корпоративных систем, веб-приложений и мобильных решений. Обеспечиваем полный цикл разработки: от аналитики и проектирования до внедрения и технической поддержки.',
       en: 'Alexol is a custom software development company. We specialize in creating complex enterprise systems, web applications, and mobile solutions. We provide a full development cycle: from analysis and design to implementation and technical support.',
     },
     button: { ru: 'О компании', en: 'About company' },
@@ -154,7 +154,7 @@ const translations = {
     empty: { ru: 'Скоро здесь появятся наши работы', en: 'Our work will appear here soon' },
   },
   whyDigital: {
-    title: { ru: 'Инвестиции в ПО —', en: 'Software investment is' },
+    title: { ru: 'Инвестиции в ПО -', en: 'Software investment is' },
     titleHighlight: { ru: 'это инвестиции в развитие бизнеса', en: 'an investment in business growth' },
     button: { ru: 'Запросить консультацию', en: 'Request Consultation' },
     benefits: {
@@ -204,7 +204,7 @@ const translations = {
       ru: 'Индивидуальный подход к каждому проекту. Разрабатываем архитектуру и решения под конкретные бизнес-задачи заказчика.',
       en: 'Individual approach to each project. We develop architecture and solutions for specific customer business tasks.',
     },
-    threshold: { ru: 'Минимальный бюджет проекта — от 50 тыс. ₽', en: 'Minimum project budget — from $500' },
+    threshold: { ru: 'Минимальный бюджет проекта - от 50 тыс. ₽', en: 'Minimum project budget - from $500' },
     button: { ru: 'Запросить коммерческое предложение', en: 'Request Commercial Offer' },
   },
   pricingModal: {

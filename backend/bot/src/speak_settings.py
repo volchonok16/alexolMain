@@ -5,7 +5,7 @@ from __future__ import annotations
 # key → (speed float for Flux TTS, label RU)
 SPEECH_SPEED_PRESETS: dict[str, tuple[float, str]] = {
     "slow": (0.85, "🐢 Медленно (A2)"),
-    "b1": (0.95, "📘 B1 — по умолчанию"),
+    "b1": (0.95, "📘 B1 - по умолчанию"),
     "normal": (1.0, "⚡ Обычная"),
     "fast": (1.1, "🚀 Быстрая"),
 }

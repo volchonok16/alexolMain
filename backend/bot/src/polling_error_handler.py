@@ -14,7 +14,7 @@ def block_forever_after_polling_conflict() -> None:
     if not _polling_conflict:
         return
     print("")
-    print("⏸️  Polling остановлен. Контейнер ждёт — перезапуски Docker больше не спамят лог.")
+    print("⏸️  Polling остановлен. Контейнер ждёт - перезапуски Docker больше не спамят лог.")
     print("   Как исправить: один токен = один процесс с getUpdates.")
     print("   • Остановите другой контейнер/скрипт с тем же TELEGRAM_BOT_TOKEN (другой сервер, systemd, локальный ПК).")
     print("   • Или задайте разные боты: TELEGRAM_BOT_TOKEN (заявки) ≠ TELEGRAM_NEWS_BOT_TOKEN (новости в канал).")

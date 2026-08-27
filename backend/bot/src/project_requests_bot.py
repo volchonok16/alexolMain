@@ -73,7 +73,7 @@ def format_request_message(req: ProjectRequest, user_mention: str | None = None)
     if req.description:
         parts.append(req.description)
     else:
-        parts.append("—")
+        parts.append("-")
 
     return "".join(parts)
 
@@ -190,7 +190,7 @@ async def handle_description(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.pop("project_request", None)
-    await update.message.reply_text("Окей, заявку отменили. Если захочешь начать заново — напиши /project.")
+    await update.message.reply_text("Окей, заявку отменили. Если захочешь начать заново - напиши /project.")
     return ConversationHandler.END
 
 

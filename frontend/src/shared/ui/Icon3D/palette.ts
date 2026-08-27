@@ -9,7 +9,7 @@ export type IconPalette = {
   rim: number;
 };
 
-/** Light theme families — aligned with site tokens (#0891B2, #0369A1, #06B6D4) */
+/** Light theme families - aligned with site tokens (#0891B2, #0369A1, #06B6D4) */
 const L = {
   cyan: {
     primary: '#0891B2',

@@ -37,61 +37,61 @@ TOPICS: dict[str, tuple[str, str]] = {
 
 OPENING_STYLES = [
     "Ask what they did today and react with curiosity.",
-    "Ask about work/study today — what was interesting or hard.",
+    "Ask about work/study today - what was interesting or hard.",
     "Ask about plans for tonight or the weekend.",
     "Ask about food: last meal, favorite cafe, or what they want to cook.",
     "Ask about a hobby or something they enjoy lately.",
 ]
 
-# Первое голосовое после «Начать говорить» — статически, без AI (надёжно и мгновенно)
+# Первое голосовое после «Начать говорить» - статически, без AI (надёжно и мгновенно)
 ASK_TOPIC_BY_LANG: dict[str, tuple[str, str]] = {
     "en": (
         "Hey {name}! Nice to meet you. What would you like to talk about today? "
-        "If you're not sure, just say so — I'll pick something interesting!",
+        "If you're not sure, just say so - I'll pick something interesting!",
         "Привет, {name}! Рад познакомиться. О чём хочешь поговорить сегодня? "
-        "Если не знаешь — скажи, я сам предложу тему!",
+        "Если не знаешь - скажи, я сам предложу тему!",
     ),
     "es": (
         "¡Hola, {name}! Encantado de conocerte. ¿De qué te gustaría hablar hoy? "
         "Si no lo sabes, dímelo y yo propongo un tema interesante.",
         "Привет, {name}! Рад познакомиться. О чём хочешь поговорить сегодня? "
-        "Если не знаешь — скажи, я сам предложу тему!",
+        "Если не знаешь - скажи, я сам предложу тему!",
     ),
     "fr": (
         "Salut {name} ! Ravi de te rencontrer. De quoi aimerais-tu parler aujourd'hui ? "
-        "Si tu ne sais pas, dis-le moi — je proposerai un sujet intéressant.",
+        "Si tu ne sais pas, dis-le moi - je proposerai un sujet intéressant.",
         "Привет, {name}! Рад познакомиться. О чём хочешь поговорить сегодня? "
-        "Если не знаешь — скажи, я сам предложу тему!",
+        "Если не знаешь - скажи, я сам предложу тему!",
     ),
     "de": (
         "Hallo {name}! Schön, dich kennenzulernen. Worüber möchtest du heute sprechen? "
-        "Wenn du nicht weißt, sag es einfach — ich schlage ein spannendes Thema vor.",
+        "Wenn du nicht weißt, sag es einfach - ich schlage ein spannendes Thema vor.",
         "Привет, {name}! Рад познакомиться. О чём хочешь поговорить сегодня? "
-        "Если не знаешь — скажи, я сам предложу тему!",
+        "Если не знаешь - скажи, я сам предложу тему!",
     ),
 }
 
-# Смена темы во время разговора — без «привет, рад познакомиться»
+# Смена темы во время разговора - без «привет, рад познакомиться»
 CHANGE_TOPIC_BY_LANG: dict[str, tuple[str, str]] = {
     "en": (
         "Sure, let's switch topics! What do you want to talk about now? "
-        "If you're not sure, just say so — I'll pick something.",
-        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» — предложу сам.",
+        "If you're not sure, just say so - I'll pick something.",
+        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» - предложу сам.",
     ),
     "es": (
         "¡Vale, cambiemos de tema! ¿De qué quieres hablar ahora? "
         "Si no lo sabes, dímelo y yo propongo algo.",
-        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» — предложу сам.",
+        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» - предложу сам.",
     ),
     "fr": (
         "D'accord, changeons de sujet ! De quoi veux-tu parler maintenant ? "
-        "Si tu ne sais pas, dis-le moi — je proposerai quelque chose.",
-        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» — предложу сам.",
+        "Si tu ne sais pas, dis-le moi - je proposerai quelque chose.",
+        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» - предложу сам.",
     ),
     "de": (
         "Okay, wechseln wir das Thema! Worüber möchtest du jetzt sprechen? "
-        "Wenn du nicht weißt, sag es einfach — ich schlage etwas vor.",
-        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» — предложу сам.",
+        "Wenn du nicht weißt, sag es einfach - ich schlage etwas vor.",
+        "Хорошо, меняем тему! О чём поговорим? Или скажи «не знаю» - предложу сам.",
     ),
 }
 
@@ -121,8 +121,8 @@ _BEGIN_FALLBACK: dict[str, dict[str, tuple[str, str]]] = {
             "Без проблем! Поговорим о твоём дне. Что было самым интересным сегодня?",
         ),
         "named": (
-            "Great — {topic}! I'd love to hear more. What's your favorite thing about it?",
-            "Отлично — {topic}! Расскажи, что тебе в этом больше всего нравится?",
+            "Great - {topic}! I'd love to hear more. What's your favorite thing about it?",
+            "Отлично - {topic}! Расскажи, что тебе в этом больше всего нравится?",
         ),
     },
     "es": {
@@ -131,8 +131,8 @@ _BEGIN_FALLBACK: dict[str, dict[str, tuple[str, str]]] = {
             "Без проблем! Поговорим о твоём дне. Что было самым интересным сегодня?",
         ),
         "named": (
-            "¡Genial — {topic}! Cuéntame, ¿qué es lo que más te gusta de eso?",
-            "Отлично — {topic}! Расскажи, что тебе в этом больше всего нравится?",
+            "¡Genial - {topic}! Cuéntame, ¿qué es lo que más te gusta de eso?",
+            "Отлично - {topic}! Расскажи, что тебе в этом больше всего нравится?",
         ),
     },
     "fr": {
@@ -141,8 +141,8 @@ _BEGIN_FALLBACK: dict[str, dict[str, tuple[str, str]]] = {
             "Без проблем! Поговорим о твоём дне. Что было самым интересным сегодня?",
         ),
         "named": (
-            "Super — {topic} ! Dis-moi, qu'est-ce que tu préfères là-dedans ?",
-            "Отлично — {topic}! Расскажи, что тебе в этом больше всего нравится?",
+            "Super - {topic} ! Dis-moi, qu'est-ce que tu préfères là-dedans ?",
+            "Отлично - {topic}! Расскажи, что тебе в этом больше всего нравится?",
         ),
     },
     "de": {
@@ -151,35 +151,35 @@ _BEGIN_FALLBACK: dict[str, dict[str, tuple[str, str]]] = {
             "Без проблем! Поговорим о твоём дне. Что было самым интересным сегодня?",
         ),
         "named": (
-            "Toll — {topic}! Was gefällt dir daran am meisten?",
-            "Отлично — {topic}! Расскажи, что тебе в этом больше всего нравится?",
+            "Toll - {topic}! Was gefällt dir daran am meisten?",
+            "Отлично - {topic}! Расскажи, что тебе в этом больше всего нравится?",
         ),
     },
 }
 
 _PRACTICE_FALLBACK: dict[str, tuple[str, str]] = {
     "en": (
-        "That's interesting! Tell me a bit more — what happened next?",
-        "Интересно! Расскажи подробнее — что было дальше?",
+        "That's interesting! Tell me a bit more - what happened next?",
+        "Интересно! Расскажи подробнее - что было дальше?",
     ),
     "es": (
-        "¡Qué interesante! Cuéntame un poco más — ¿qué pasó después?",
-        "Интересно! Расскажи подробнее — что было дальше?",
+        "¡Qué interesante! Cuéntame un poco más - ¿qué pasó después?",
+        "Интересно! Расскажи подробнее - что было дальше?",
     ),
     "fr": (
-        "C'est intéressant ! Raconte-moi un peu plus — qu'est-ce qui s'est passé ensuite ?",
-        "Интересно! Расскажи подробнее — что было дальше?",
+        "C'est intéressant ! Raconte-moi un peu plus - qu'est-ce qui s'est passé ensuite ?",
+        "Интересно! Расскажи подробнее - что было дальше?",
     ),
     "de": (
-        "Das ist interessant! Erzähl mir mehr — was ist als Nächstes passiert?",
-        "Интересно! Расскажи подробнее — что было дальше?",
+        "Das ist interessant! Erzähl mir mehr - was ist als Nächstes passiert?",
+        "Интересно! Расскажи подробнее - что было дальше?",
     ),
 }
 
 
 def _topic_roleplay_rules() -> str:
     return """
-ROLE-PLAY & TOPIC RULES (CRITICAL — follow every turn):
+ROLE-PLAY & TOPIC RULES (CRITICAL - follow every turn):
 You LEAD the conversation. NEVER ask meta questions like:
 - "What questions should I ask you?"
 - "What would you like me to ask?"
@@ -384,7 +384,7 @@ def _normalize_corrections(
     user_text: str,
     corrected_message: str,
 ) -> list[dict[str, str]]:
-    """Приводит corrections к единому виду; если список пуст, но есть corrected_message — одна правка целиком."""
+    """Приводит corrections к единому виду; если список пуст, но есть corrected_message - одна правка целиком."""
     result: list[dict[str, str]] = []
     if isinstance(raw_corrections, list):
         for item in raw_corrections:
@@ -499,7 +499,7 @@ class SpeakTutorAI:
         *,
         changing: bool = False,
     ) -> dict[str, Any]:
-        """Голосовой вопрос о теме — готовый текст, без AI."""
+        """Голосовой вопрос о теме - готовый текст, без AI."""
         name = (user_name or "friend").strip() or "friend"
         templates = CHANGE_TOPIC_BY_LANG if changing else ASK_TOPIC_BY_LANG
         reply_tpl, trans_tpl = templates.get(language, templates["en"])
@@ -516,15 +516,15 @@ class SpeakTutorAI:
         *,
         changing: bool = False,
     ) -> Optional[dict[str, Any]]:
-        """Пользователь ответил на вопрос о теме — начинаем или переключаем разговор."""
+        """Пользователь ответил на вопрос о теме - начинаем или переключаем разговор."""
         meta = LANG_META.get(language, LANG_META["en"])
         if changing:
-            opening_rules = f"""This is a TOPIC SWITCH in an ongoing session — NOT the first message.
+            opening_rules = f"""This is a TOPIC SWITCH in an ongoing session - NOT the first message.
 The learner already answered what they want to talk about next.
 
 DO NOT greet again. DO NOT say "nice to meet you", "how are you", or ask "what would you like to talk about".
 Give a smooth transition in {meta['name_en']} (1–2 short sentences + ONE question):
-- If vague / "don't know" → pick a topic and jump in: "Great — let's talk about X. [question]"
+- If vague / "don't know" → pick a topic and jump in: "Great - let's talk about X. [question]"
 - If they named a topic → brief ack + first real question: "Sure, [topic]! [question]"
 - If role-play scenario → follow ROLE-PLAY rules below, stay in character immediately."""
         else:
@@ -537,9 +537,9 @@ Analyze their message and decide:
 
 Then speak your OPENING in {meta['name_en']} (2–3 short sentences for a voice message):
 1) Acknowledge warmly (if you picked the topic, say what and why it's interesting).
-2) Ask ONE concrete question to start — setup question OR first real question (see rules)."""
+2) Ask ONE concrete question to start - setup question OR first real question (see rules)."""
 
-        system = f"""You are Alexol Speak — a smart voice conversation partner for {meta['name_en']} practice.
+        system = f"""You are Alexol Speak - a smart voice conversation partner for {meta['name_en']} practice.
 
 {opening_rules}
 
@@ -595,7 +595,7 @@ NEVER use helpdesk phrases. Be natural, curious, like a smart friend."""
             topic_desc = f"learner-chosen topic: {custom_topic.strip()}"
 
         style = random.choice(OPENING_STYLES)
-        system = f"""You are Alexol Speak — an energetic voice conversation partner for language practice.
+        system = f"""You are Alexol Speak - an energetic voice conversation partner for language practice.
 The learner practices {meta['name_en']}. Your reply will be spoken aloud as a voice message.
 
 Topic focus: {topic_desc}
@@ -652,9 +652,9 @@ HARD RULES:
             topic_context=topic_context,
         )
 
-        system = f"""You are Alexol Speak — a lively voice conversation partner AND careful grammar tutor.
+        system = f"""You are Alexol Speak - a lively voice conversation partner AND careful grammar tutor.
 Learner practices {meta['name_en']}. UI explanations language: Russian.
-Your "reply" is spoken as a voice message — write natural speech, not a formal letter.
+Your "reply" is spoken as a voice message - write natural speech, not a formal letter.
 
 {session_info}
 
@@ -668,7 +668,7 @@ For EACH user message you MUST:
 5) If the learner clearly switches topic or scenario mid-conversation
    (e.g. "let's talk about food", "давай про путешествия", "switch to interview prep")
    → update "topic" and "topic_mode" in JSON.
-   → In "reply": smooth transition ONLY — NO re-greeting, NO "nice to meet you",
+   → In "reply": smooth transition ONLY - NO re-greeting, NO "nice to meet you",
      NO "how are you", NO asking what they want to talk about (they already said).
      Jump into the new topic with one concrete question.
 
@@ -676,7 +676,7 @@ If topic_mode is roleplay (e.g. interview): extract any new context from the use
 For interview: once field/role is known → ask the NEXT interview question; never ask what to ask.
 
 DO NOT flag as mistakes (leave corrections=[]):
-- Spacing before punctuation: "and you ?" vs "and you?" — BOTH OK in chat.
+- Spacing before punctuation: "and you ?" vs "and you?" - BOTH OK in chat.
 - Missing/extra space around ? ! . ,
 - Capitalization in casual chat: "hi" vs "Hi", "i'm" vs "I'm" unless clearly wrong.
 - Informal but understandable phrasing if meaning is clear.
@@ -689,7 +689,7 @@ Return ONLY valid JSON:
 {{
   "has_errors": boolean,
   "topic": "short topic label ONLY if learner changed topic this turn, else empty string",
-  "topic_mode": "roleplay|casual — ONLY if topic/scenario changed this turn, else empty string",
+  "topic_mode": "roleplay|casual - ONLY if topic/scenario changed this turn, else empty string",
   "topic_context": "updated context if learner gave new details (job title, field, etc.), else keep previous or empty",
   "corrections": [
     {{
@@ -713,7 +713,7 @@ HARD RULES:
 - NEVER use helpdesk phrases ("How can I help you", etc.).
 - React + ask (What happened next? How did you feel?).
 
-Example — NO correction needed:
+Example - NO correction needed:
 User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear)."""
 
         messages: list[dict[str, str]] = [{"role": "system", "content": system}]

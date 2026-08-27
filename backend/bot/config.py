@@ -5,7 +5,7 @@ load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 # Отдельный бот только для публикации новостей в канал (polling не нужен).
-# Если не задан — для постинга используется TELEGRAM_BOT_TOKEN (как раньше).
+# Если не задан - для постинга используется TELEGRAM_BOT_TOKEN (как раньше).
 TELEGRAM_NEWS_BOT_TOKEN = os.getenv("TELEGRAM_NEWS_BOT_TOKEN")
 # Языковой tutor-бот (Alexol Speak): отдельный токен, отдельный polling.
 SPEAK_BOT_TOKEN = os.getenv("SPEAK_BOT_TOKEN")
@@ -267,7 +267,7 @@ TIMEZONE = os.getenv("TIMEZONE", "Europe/Moscow")
 MAX_POST_LENGTH = 3000
 
 # Подпись с ссылкой на канал, которая будет добавляться в конец каждого поста.
-# Формат по умолчанию — HTML-ссылка для Telegram:
+# Формат по умолчанию - HTML-ссылка для Telegram:
 # <a href="https://t.me/+B3Ru2nZS8K82MDc6">Alexol | Подписаться</a>
 # VK и Instagram получают тот же текст, но без HTML (в VK будет "Alexol | Подписаться (https://t.me/+B3Ru2nZS8K82MDc6)").
 SUBSCRIBE_FOOTER = os.getenv(

@@ -13,7 +13,7 @@ from src.emoji_handler import EmojiHandler
 from src import database as db
 import config
 
-# Источники из sources.json — это уже IT-издания. Их не режем по общим словам вроде «технология».
+# Источники из sources.json - это уже IT-издания. Их не режем по общим словам вроде «технология».
 TRUSTED_IT_SOURCE_MARKERS = (
     "habr",
     "opennet",
@@ -252,9 +252,9 @@ class PostGenerator:
         has_it = it_keywords_found > 0
         has_fintech = fintech_keywords_found > 0
         if has_fintech and not has_it:
-            score += 10  # чистый финтех — чуть выше
+            score += 10  # чистый финтех - чуть выше
         elif has_it and not has_fintech:
-            score -= 3  # чистый IT — совсем небольшой штраф
+            score -= 3  # чистый IT - совсем небольшой штраф
 
         if any(word in title for word in ["новый", "новое", "новые", "новинка", "революция", "прорыв", "инновация"]):
             score += 15
@@ -387,7 +387,7 @@ class PostGenerator:
             text_len = len(rewritten_text)
             if text_len > 1000:
                 print(f"⚠️ Текст слишком длинный ({text_len} символов, нужно до 1000)")
-                print("   ❌ Не обрезаем текст посередине — просим AI перегенерировать пост")
+                print("   ❌ Не обрезаем текст посередине - просим AI перегенерировать пост")
                 if attempt < max_attempts:
                     used_post_ids.add(selected_post["id"])
                     db.mark_parsed_post_used(selected_post["id"])
@@ -621,7 +621,7 @@ class PostGenerator:
             processed_text = text
             parse_mode = None
 
-        # Сначала — фирменные баннеры; если нет — картинки под тему «мы ищем проекты» (бизнес, команда, работа над проектом).
+        # Сначала - фирменные баннеры; если нет - картинки под тему «мы ищем проекты» (бизнес, команда, работа над проектом).
         image = await self.image_handler.get_brand_banner()
         if not image:
             image = await self.image_handler.get_lead_post_image()

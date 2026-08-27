@@ -1,4 +1,4 @@
-"""Telegram language practice bot (Alexol Speak) — text + voice, corrections, hints."""
+"""Telegram language practice bot (Alexol Speak) - text + voice, corrections, hints."""
 
 from __future__ import annotations
 
@@ -152,12 +152,12 @@ def _welcome_after_lang(meta: dict[str, str], user_name: str) -> str:
         f"✨ <b>Отлично! Практикуем {meta['name_ru']}</b> "
         f"({meta['name_en']})\n\n"
         f"Привет, {name}! 👋\n\n"
-        "Я — <b>Alexol Speak</b>, твой голосовой репетитор.\n\n"
-        "🎙 <b>Голосом</b> — запиши ответ\n"
-        "⌨️ <b>Текстом</b> — напиши в чат\n"
+        "Я - <b>Alexol Speak</b>, твой голосовой репетитор.\n\n"
+        "🎙 <b>Голосом</b> - запиши ответ\n"
+        "⌨️ <b>Текстом</b> - напиши в чат\n"
         "✏️ Поправлю грамматику, если ошибёшься\n"
         "💡 Подскажу, если не знаешь, что сказать\n\n"
-        "Нажми кнопку — начнём разговор 👇"
+        "Нажми кнопку - начнём разговор 👇"
     )
 
 
@@ -166,12 +166,12 @@ def _topic_prompt_text(*, changing: bool = False) -> str:
         return (
             "👂 <b>Слушай голосовое выше</b>\n\n"
             "🎙 Назови новую тему голосом или текстом.\n"
-            "❓ Не знаешь — скажи «не знаю», предложу сам."
+            "❓ Не знаешь - скажи «не знаю», предложу сам."
         )
     return (
         "👂 <b>Слушай голосовое выше</b>\n\n"
         "🎙 Запиши ответ <b>голосом</b> или напиши текстом.\n"
-        "❓ Не знаешь тему — скажи «не знаю», я сам предложу."
+        "❓ Не знаешь тему - скажи «не знаю», я сам предложу."
     )
 
 
@@ -184,7 +184,7 @@ def _active_session_banner(session: dict[str, Any]) -> str:
     else:
         lines.append("🗣 Тема: <i>свободный разговор</i>")
     lines.append(f"🔊 Скорость: {html.escape(speed_label(speed_key))}")
-    lines.append("💡 Новая тема — скажи: «давай поговорим о …»")
+    lines.append("💡 Новая тема - скажи: «давай поговорим о …»")
     lines.append("━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 
@@ -251,7 +251,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "🗣 <b>Alexol Speak</b>\n"
         "━━━━━━━━━━━━━━━━\n\n"
         f"Привет{', ' + name if name else ''}! 👋\n\n"
-        "Практикуй язык в <b>живом голосовом диалоге</b> — "
+        "Практикуй язык в <b>живом голосовом диалоге</b> - "
         "я говорю, ты отвечаешь, поправлю ошибки.\n\n"
         "<b>Языки:</b> 🇬🇧 🇪🇸 🇫🇷 🇩🇪\n\n"
         "Выбери язык для практики 👇",
@@ -272,20 +272,20 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "📖 <b>Как пользоваться</b>\n"
         "━━━━━━━━━━━━━━━━\n\n"
         "<b>Команды</b>\n"
-        "• /start — начать заново\n"
-        "• /language — сменить язык\n"
-        "• /topic — новая тема\n"
-        "• /settings — скорость озвучки\n"
-        "• /menu — меню\n"
-        "• /donate — поддержать Stars ⭐\n\n"
+        "• /start - начать заново\n"
+        "• /language - сменить язык\n"
+        "• /topic - новая тема\n"
+        "• /settings - скорость озвучки\n"
+        "• /menu - меню\n"
+        "• /donate - поддержать Stars ⭐\n\n"
         "<b>Как учиться</b>\n"
         "1️⃣ Выбери язык → <b>Начать говорить</b>\n"
         "2️⃣ Слушай мои голосовые\n"
         "3️⃣ Отвечай 🎙 голосом или ⌨️ текстом\n"
-        "4️⃣ «💬 Текст» — прочитать фразу и перевод\n"
-        "5️⃣ «💡 Помощь» — подсказка, что ответить\n"
-        "6️⃣ «⚙️ Скорость» — медленнее или быстрее (по умолчанию B1)\n\n"
-        "Не знаешь тему? Скажи «не знаю» — предложу сам.",
+        "4️⃣ «💬 Текст» - прочитать фразу и перевод\n"
+        "5️⃣ «💡 Помощь» - подсказка, что ответить\n"
+        "6️⃣ «⚙️ Скорость» - медленнее или быстрее (по умолчанию B1)\n\n"
+        "Не знаешь тему? Скажи «не знаю» - предложу сам.",
         parse_mode=ParseMode.HTML,
     )
 
@@ -297,8 +297,8 @@ async def cmd_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "⚙️ <b>Скорость озвучки</b>\n"
         "━━━━━━━━━━━━━━━━\n\n"
         f"Сейчас: <b>{html.escape(speed_label(key))}</b>\n\n"
-        "По умолчанию — <b>B1</b>: чуть медленнее обычной речи, удобно для учёбы.\n"
-        "Можно менять в любой момент — даже во время разговора.",
+        "По умолчанию - <b>B1</b>: чуть медленнее обычной речи, удобно для учёбы.\n"
+        "Можно менять в любой момент - даже во время разговора.",
         parse_mode=ParseMode.HTML,
         reply_markup=_speed_keyboard(key),
     )
@@ -326,7 +326,7 @@ async def cmd_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "⭐ <b>Поддержать Alexol Speak</b>\n\n"
-        "Если бот полезен — можно отправить Telegram Stars. "
+        "Если бот полезен - можно отправить Telegram Stars. "
         "Это добровольное пожертвование, практика остаётся бесплатной.\n\n"
         "Выбери сумму:",
         parse_mode=ParseMode.HTML,
@@ -474,7 +474,7 @@ async def _start_conversation_from_topic(
     if not result:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Не получилось начать разговор. Попробуй ещё раз — назови тему или скажи «не знаю».",
+            text="Не получилось начать разговор. Попробуй ещё раз - назови тему или скажи «не знаю».",
         )
         return
 
@@ -515,14 +515,14 @@ async def _send_tutor_voice_and_controls(
     reply: str,
     session: dict[str, Any] | None = None,
 ) -> None:
-    """Разговор — голосовым/audio. Текст реплики не отправляем."""
+    """Разговор - голосовым/audio. Текст реплики не отправляем."""
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.RECORD_VOICE)
     spd = speed_value_from_session(session) if session else config.SPEAK_TTS_SPEED_DEFAULT
     audio_path = await synthesize_speech(reply, lang, speed=spd)
     keyboard = _session_keyboard()
 
     if not audio_path or not audio_path.exists():
-        print("❌ TTS failed — no audio file")
+        print("❌ TTS failed - no audio file")
         await context.bot.send_message(
             chat_id=chat_id,
             text="⚠️ Не удалось озвучить ответ. Попробуй ещё раз через минуту.",
@@ -578,7 +578,7 @@ async def on_text_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     reply = session.get("last_reply") or ""
     translation = session.get("last_reply_translation") or ""
     if not reply:
-        await query.message.reply_text("Пока нет фразы — сначала начни разговор.")
+        await query.message.reply_text("Пока нет фразы - сначала начни разговор.")
         return
     text = f"💬 <b>Текст реплики</b>\n━━━━━━━━━━━━━━━━\n\n{html.escape(reply)}"
     if translation:
@@ -612,7 +612,7 @@ async def on_help_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             en = html.escape((p.get("en") or "").strip())
             ru = html.escape((p.get("ru") or "").strip())
             if en:
-                lines.append(f"• <i>{en}</i>" + (f" — {ru}" if ru else ""))
+                lines.append(f"• <i>{en}</i>" + (f" - {ru}" if ru else ""))
     example = hint.get("example") or ""
     if example:
         lines.append(f"\n<b>Пример</b>\n{html.escape(example)}")
@@ -627,7 +627,7 @@ async def on_finish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session["history"] = []
     await query.message.reply_text(
         "🏁 <b>Сессия завершена</b>\n\n"
-        "Чтобы начать снова — /start",
+        "Чтобы начать снова - /start",
         parse_mode=ParseMode.HTML,
         reply_markup=_lang_keyboard(),
     )
@@ -697,7 +697,7 @@ async def on_donate_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await query.answer()
     await query.message.reply_text(
         "⭐ <b>Спасибо за поддержку!</b>\n\n"
-        "Можешь отправить Telegram Stars — добровольно, практика бесплатна.\n\n"
+        "Можешь отправить Telegram Stars - добровольно, практика бесплатна.\n\n"
         "Выбери сумму:",
         parse_mode=ParseMode.HTML,
         reply_markup=_donate_keyboard(),
@@ -805,7 +805,7 @@ async def on_successful_payment(update: Update, context: ContextTypes.DEFAULT_TY
     print(f"⭐ Stars donation: {stars} XTR, charge_id={charge_id}")
     await update.message.reply_text(
         f"Спасибо за <b>{stars} ⭐</b>! Твоя поддержка очень важна 💙\n"
-        "Продолжаем практику — отвечай голосом или текстом.",
+        "Продолжаем практику - отвечай голосом или текстом.",
         parse_mode=ParseMode.HTML,
     )
 
@@ -825,7 +825,7 @@ async def handle_user_text(
 
     text = (text or "").strip()
     if not text:
-        await update.message.reply_text("Пустое сообщение — попробуй ещё раз.")
+        await update.message.reply_text("Пустое сообщение - попробуй ещё раз.")
         return
 
     # Ждём ответ на голосовой вопрос «о чём поговорим?»

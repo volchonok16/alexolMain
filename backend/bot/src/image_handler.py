@@ -173,7 +173,7 @@ class ImageHandler:
         except Exception as e:
             print(f"   ⚠️ Ошибка при выборе брендового баннера: {type(e).__name__}")
 
-        # Если по какой-то причине не нашли/не прочитали — вернём None, вызывающий код сам подберёт fallback.
+        # Если по какой-то причине не нашли/не прочитали - вернём None, вызывающий код сам подберёт fallback.
         return None
 
     def _generate_query_variants(self, query: str) -> list[str]:
