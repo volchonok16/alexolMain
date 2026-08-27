@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { ArrowLeft, Upload, Save } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { resolveAvatarUrl } from '../utils/avatarUrl'
 import './Profile.css'
 
 export default function Profile() {
@@ -20,6 +21,9 @@ export default function Profile() {
   
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [avatarBroken, setAvatarBroken] = useState(false)
+
+  const avatarSrc = avatarPreview || resolveAvatarUrl(user?.avatar_url)
 
   // Update profile mutation
   const updateMutation = useMutation({
@@ -49,8 +53,9 @@ export default function Profile() {
     },
     onSuccess: (data) => {
       if (user) {
-        setUser({ ...user, avatar_url: data.avatar_url })
+        setUser({ ...user, avatar_url: resolveAvatarUrl(data.avatar_url) || data.avatar_url })
       }
+      setAvatarBroken(false)
       alert('Аватар обновлен!')
       setAvatarFile(null)
       setAvatarPreview(null)
@@ -115,11 +120,12 @@ export default function Profile() {
         <div className="profile-card">
           <div className="avatar-section">
             <div className="avatar-wrapper">
-              {(avatarPreview || user?.avatar_url) ? (
+              {avatarSrc && !avatarBroken ? (
                 <img
-                  src={avatarPreview || user?.avatar_url}
+                  src={avatarSrc}
                   alt="Avatar"
                   className="profile-avatar"
+                  onError={() => setAvatarBroken(true)}
                 />
               ) : (
                 <div className="avatar-placeholder">

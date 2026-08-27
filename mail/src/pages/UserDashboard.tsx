@@ -7,6 +7,7 @@ import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, L
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { openSiteAdmin } from '../sso'
+import { resolveAvatarUrl } from '../utils/avatarUrl'
 import './UserDashboard.css'
 
 interface Email {
@@ -355,9 +356,16 @@ export default function UserDashboard() {
           </div>
 
           <div className="user-info">
-            {user?.avatar_url && (
-              <img src={user.avatar_url} alt="Avatar" className="user-avatar" />
-            )}
+            {resolveAvatarUrl(user?.avatar_url) ? (
+              <img
+                src={resolveAvatarUrl(user?.avatar_url)!}
+                alt=""
+                className="user-avatar"
+                onError={(e) => {
+                  ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+                }}
+              />
+            ) : null}
             <div>
               <div className="user-name">{user?.full_name}</div>
               <div className="user-email">{user?.email}</div>

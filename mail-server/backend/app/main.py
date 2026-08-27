@@ -564,7 +564,12 @@ async def update_profile(
         avatar_url=current_user.avatar_url,
     )
 
-    return current_user
+    return UserResponse.model_validate(current_user).model_copy(
+        update={
+            "avatar_url": to_browser_avatar_url(current_user.avatar_url)
+            or current_user.avatar_url
+        }
+    )
 
 @app.post("/api/profile/avatar")
 async def upload_avatar(

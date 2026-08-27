@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { resolveAvatarUrl } from '../utils/avatarUrl'
 
 interface User {
   id: number
@@ -20,17 +21,33 @@ interface AuthState {
   logout: () => void
 }
 
+function withResolvedAvatar(user: User): User {
+  return {
+    ...user,
+    avatar_url: resolveAvatarUrl(user.avatar_url) || user.avatar_url,
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
       token: null,
-      setAuth: (user, token) => set({ user, token }),
-      setUser: (user) => set({ user }),
+      setAuth: (user, token) => set({ user: withResolvedAvatar(user), token }),
+      setUser: (user) => set({ user: withResolvedAvatar(user) }),
       logout: () => set({ user: null, token: null }),
     }),
     {
       name: 'auth-storage',
+      merge: (persisted, current) => {
+        const p = persisted as Partial<AuthState> | undefined
+        const user = p?.user ? withResolvedAvatar(p.user as User) : null
+        return {
+          ...current,
+          ...p,
+          user,
+        }
+      },
     }
   )
 )
