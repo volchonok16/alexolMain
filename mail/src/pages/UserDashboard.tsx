@@ -444,11 +444,18 @@ export default function UserDashboard() {
                   key={email.id}
                   className={`email-item ${!email.is_read && !email.is_sent ? 'unread' : ''}`}
                   onClick={() => {
-                    setSelectedEmail(email)
+                    const opened = { ...email, is_read: email.is_sent ? email.is_read : true }
+                    setSelectedEmail(opened)
                     if (!email.is_read && !email.is_sent) {
+                      // Optimistic badge update — don't wait for network
+                      queryClient.setQueryData<Email[]>(['inbox'], (old) =>
+                        (old || []).map((e) =>
+                          e.id === email.id ? { ...e, is_read: true } : e
+                        )
+                      )
                       void (async () => {
                         try {
-                          const { data } = await api.get<Email>(`/emails/${email.id}`)
+                          const { data } = await api.post<Email>(`/emails/${email.id}/read`)
                           setSelectedEmail(data)
                           queryClient.setQueryData<Email[]>(['inbox'], (old) =>
                             (old || []).map((e) =>
@@ -456,7 +463,13 @@ export default function UserDashboard() {
                             )
                           )
                         } catch {
-                          // still show local copy if mark-read fails
+                          // Revert if server rejected
+                          queryClient.setQueryData<Email[]>(['inbox'], (old) =>
+                            (old || []).map((e) =>
+                              e.id === email.id ? { ...e, is_read: false } : e
+                            )
+                          )
+                          setSelectedEmail(email)
                         }
                       })()
                     }

@@ -1119,7 +1119,7 @@ async def get_email(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get email by ID"""
+    """Get email by ID (also marks inbound as read)."""
     result = await db.execute(
         select(Email).where(Email.id == email_id, Email.user_id == current_user.id)
     )
@@ -1132,9 +1132,34 @@ async def get_email(
     if not email.is_read and not email.is_sent:
         email.is_read = True
         await db.commit()
+        await db.refresh(email)
     
     enriched = await _emails_to_response(db, [email])
     return enriched[0]
+
+
+@app.post("/api/emails/{email_id}/read", response_model=EmailResponse)
+async def mark_email_read(
+    email_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Explicitly mark an inbound email as read."""
+    result = await db.execute(
+        select(Email).where(Email.id == email_id, Email.user_id == current_user.id)
+    )
+    email = result.scalar_one_or_none()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    if email.is_sent:
+        raise HTTPException(status_code=400, detail="Sent emails cannot be marked unread/read this way")
+    if not email.is_read:
+        email.is_read = True
+        await db.commit()
+        await db.refresh(email)
+    enriched = await _emails_to_response(db, [email])
+    return enriched[0]
+
 
 @app.delete("/api/emails/{email_id}")
 async def delete_email(
