@@ -1,15 +1,9 @@
 import { useState } from 'react';
 import { resolveApiAssetUrl } from '@/api/client';
-
-interface Article {
-  id?: number;
-  title: string;
-  text: string;
-  photo: string;
-}
+import { News } from '@/api/news';
 
 interface ArticleModalProps {
-  article: Article | null;
+  article: News | null;
   onClose: () => void;
   onSave: (article: { title: string; text: string; photo: string | File }) => void;
 }
