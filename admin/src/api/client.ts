@@ -38,8 +38,13 @@ apiClient.interceptors.response.use(
   response => response,
   error => {
     const status = error?.response?.status;
-    const onLoginPage = window.location.pathname.includes('/login');
-    if (status === 401 && !onLoginPage) {
+    const path = window.location.pathname;
+    const onLoginPage = path.includes('/login');
+    const onSsoPage = path.includes('/sso');
+    const url = String(error?.config?.url || '');
+    const isSsoExchange = url.includes('/auth/sso/exchange');
+
+    if (status === 401 && !onLoginPage && !onSsoPage && !isSsoExchange) {
       localStorage.removeItem('admin_token');
       localStorage.removeItem('admin_user');
       window.location.href = '/login';

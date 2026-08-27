@@ -10,14 +10,14 @@ const api = axios.create({
 
 function isPublicAuthRequest(url?: string): boolean {
   if (!url) return false
-  return (
-    url.includes('/auth/login') ||
-    url.includes('/auth/sso/exchange')
-  )
+  return url.includes('/auth/login') || url.includes('/auth/sso/exchange')
+}
+
+function isSsoPage(): boolean {
+  return window.location.pathname.startsWith('/sso')
 }
 
 api.interceptors.request.use((config) => {
-  // Не перетираем явный Authorization (свежий токен после login/SSO).
   const headers = config.headers
   const hasAuth =
     typeof headers.get === 'function'
@@ -39,8 +39,8 @@ api.interceptors.response.use(
     const status = error.response?.status
     const url = error.config?.url as string | undefined
 
-    // 401 на login/SSO — обычная ошибка формы, не сброс сессии.
-    if (status === 401 && !isPublicAuthRequest(url)) {
+    // На /sso не выкидываем на /login — страница сама обработает ошибку/ретрай.
+    if (status === 401 && !isPublicAuthRequest(url) && !isSsoPage()) {
       useAuthStore.getState().logout()
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login'
