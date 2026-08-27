@@ -125,7 +125,7 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Incorrect email or password",
         )
 
-    # Allow "alex" as well as "alex@alexol.io"
+    # Allow "user" as well as "user@alexol.io"
     if "@" not in identity:
         identity = f"{identity}@{settings.MAIL_DOMAIN}"
 

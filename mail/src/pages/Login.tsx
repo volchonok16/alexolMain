@@ -25,14 +25,14 @@ export default function Login() {
 
     try {
       const { data: tokenData } = await api.post('/auth/login', {
-        email,
+        email: email.trim(),
         password,
       })
 
-      const { data: userData } = await api.get('/auth/me', {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` },
-      })
+      // Сразу кладём новый токен, чтобы /auth/me не ушёл со старым JWT из persist.
+      useAuthStore.setState({ token: tokenData.access_token, user: null })
 
+      const { data: userData } = await api.get('/auth/me')
       setAuth(userData, tokenData.access_token)
 
       if (userData.is_admin) {
@@ -41,7 +41,14 @@ export default function Login() {
         navigate('/dashboard')
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка входа')
+      const detail = err.response?.data?.detail
+      setError(
+        typeof detail === 'string'
+          ? detail === 'Incorrect email or password'
+            ? 'Неверный email или пароль'
+            : detail
+          : 'Ошибка входа'
+      )
     } finally {
       setLoading(false)
     }
@@ -81,7 +88,7 @@ export default function Login() {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="alex или alex@alexol.io"
+              placeholder="user@alexol.io"
               required
             />
           </div>

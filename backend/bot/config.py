@@ -30,6 +30,16 @@ TELEGRAM_REQUESTS_CHAT_ID = (
     or TELEGRAM_CHANNEL_ID
 )
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+# OpenRouter за Cloudflare часто режет RU IP (HTTP 403 "Access denied by security policy").
+# Прокси вне РФ: OPENROUTER_HTTP_PROXY или стандартные HTTPS_PROXY / HTTP_PROXY.
+OPENROUTER_HTTP_PROXY = (
+    os.getenv("OPENROUTER_HTTP_PROXY")
+    or os.getenv("HTTPS_PROXY")
+    or os.getenv("HTTP_PROXY")
+    or os.getenv("https_proxy")
+    or os.getenv("http_proxy")
+    or ""
+).strip() or None
 
 # VK API настройки
 VK_ACCESS_TOKEN = os.getenv("VK_ACCESS_TOKEN")

@@ -8,26 +8,46 @@ const api = axios.create({
   },
 })
 
-// Add token to requests
+function isPublicAuthRequest(url?: string): boolean {
+  if (!url) return false
+  return (
+    url.includes('/auth/login') ||
+    url.includes('/auth/sso/exchange')
+  )
+}
+
 api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  // Не перетираем явный Authorization (свежий токен после login/SSO).
+  const headers = config.headers
+  const hasAuth =
+    typeof headers.get === 'function'
+      ? Boolean(headers.get('Authorization'))
+      : Boolean((headers as Record<string, unknown>).Authorization)
+
+  if (!hasAuth) {
+    const token = useAuthStore.getState().token
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
   }
   return config
 })
 
-// Handle 401 responses
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    const url = error.config?.url as string | undefined
+
+    // 401 на login/SSO — обычная ошибка формы, не сброс сессии.
+    if (status === 401 && !isPublicAuthRequest(url)) {
       useAuthStore.getState().logout()
-      window.location.href = '/login'
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
 )
 
 export default api
-

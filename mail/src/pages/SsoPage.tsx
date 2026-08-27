@@ -21,12 +21,11 @@ export default function SsoPage() {
     ;(async () => {
       try {
         const { data: tokenData } = await api.post('/auth/sso/exchange', { ticket })
-        const { data: userData } = await api.get('/auth/me', {
-          headers: { Authorization: `Bearer ${tokenData.access_token}` },
-        })
+        useAuthStore.setState({ token: tokenData.access_token, user: null })
+        const { data: userData } = await api.get('/auth/me')
         if (cancelled) return
         setAuth(userData, tokenData.access_token)
-        navigate(userData.is_admin ? '/dashboard' : '/dashboard', { replace: true })
+        navigate('/dashboard', { replace: true })
       } catch {
         if (!cancelled) {
           setError('Не удалось войти через SSO. Войдите вручную.')
