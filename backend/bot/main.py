@@ -98,6 +98,7 @@ async def run_bot():
     print("=" * 60)
     print("🤖 IT News Bot для Telegram")
     print("=" * 60)
+    generator.print_status()
     windows = getattr(config, "NEWS_WINDOWS", [(10, 11), (14, 15), (18, 19), (22, 23)])
     windows_str = ", ".join(f"{s:02d}–{e:02d}ч" for s, e in windows)
     print(f"📢 Канал: {config.TELEGRAM_CHANNEL_ID}")
@@ -137,6 +138,69 @@ async def run_once():
 async def preview():
     generator = PostGenerator()
     await generator.preview_post()
+
+
+async def diagnose():
+    """Полная диагностика: конфиг, Telegram, backend, OpenRouter, SQLite."""
+    from src import database as db
+
+    print("=" * 60)
+    print("🔍 Диагностика новостного бота")
+    print("=" * 60)
+
+    generator = PostGenerator()
+    generator.print_status()
+
+    stats = db.get_stats()
+    print(f"\n📊 SQLite: спарсено={stats.get('total_parsed', 0)}, "
+          f"сгенерировано={stats.get('total_generated', 0)}, "
+          f"опубликовано={stats.get('total_published', 0)}, "
+          f"неиспользованных={stats.get('unused_parsed', 0)}")
+
+    publisher = TelegramPublisher()
+    bot_info = await publisher.get_bot_info()
+    if bot_info:
+        print(f"\n✅ Telegram: @{bot_info.get('username')} (id={bot_info.get('id')})")
+    else:
+        print("\n❌ Telegram: не удалось подключиться (проверь TELEGRAM_NEWS_BOT_TOKEN)")
+
+    if generator.backend_news:
+        ok, msg = await generator.backend_news.test_connection()
+        print(f"{'✅' if ok else '❌'} Backend API: {msg}")
+        await generator.backend_news.aclose()
+    else:
+        print("❌ Backend API: интеграция отключена")
+
+    if config.OPENROUTER_API_KEY:
+        try:
+            import httpx
+            from src.http_utils import openrouter_client_kwargs, is_openrouter_security_block
+
+            async with httpx.AsyncClient(**openrouter_client_kwargs(15.0)) as client:
+                resp = await client.get(
+                    f"{config.OPENROUTER_BASE_URL}/models",
+                    headers={"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"},
+                )
+            if resp.status_code == 200:
+                print("✅ OpenRouter: API доступен")
+            elif is_openrouter_security_block(resp.status_code, resp.text):
+                print("❌ OpenRouter: 403 security policy — нужен OPENROUTER_HTTP_PROXY вне РФ")
+            else:
+                print(f"❌ OpenRouter: HTTP {resp.status_code} {(resp.text or '')[:120]}")
+        except Exception as e:
+            print(f"❌ OpenRouter: {e}")
+    else:
+        print("❌ OpenRouter: OPENROUTER_API_KEY не задан")
+
+    print("\n📰 RSS (1 статья)...")
+    articles = await generator.rss_parser.get_random_articles(1)
+    if articles:
+        print(f"✅ RSS OK: {articles[0].title[:70]}...")
+    else:
+        print("❌ RSS: не удалось получить статьи")
+
+    print("\n💡 Ручной прогон: python main.py --mode once")
+    print("=" * 60)
 
 
 async def test_connection():
@@ -213,12 +277,12 @@ def main():
     parser = argparse.ArgumentParser(description="IT News Bot для Telegram")
     parser.add_argument(
         "--mode",
-        choices=["bot", "once", "preview", "test", "stats", "fetch", "requests", "forward", "speak"],
+        choices=["bot", "once", "preview", "test", "diagnose", "stats", "fetch", "requests", "forward", "speak"],
         default="bot",
         help=(
-            "Режим: bot, once, preview, test, stats (статистика), fetch (загрузить контент), "
-            "requests (приём заявок на проекты), forward (простая пересылка сообщений), "
-            "speak (языковой tutor: голос + текст + исправления)"
+            "Режим: bot, once, preview, test, diagnose (диагностика), stats (статистика), "
+            "fetch (загрузить контент), requests (приём заявок на проекты), "
+            "forward (простая пересылка сообщений), speak (языковой tutor)"
         ),
     )
 
@@ -232,6 +296,8 @@ def main():
         asyncio.run(preview())
     elif args.mode == "test":
         asyncio.run(test_connection())
+    elif args.mode == "diagnose":
+        asyncio.run(diagnose())
     elif args.mode == "stats":
         asyncio.run(show_stats())
     elif args.mode == "fetch":

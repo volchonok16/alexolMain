@@ -24,7 +24,7 @@ export const useNews = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { title: string; text: string; photo: string | File } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { title: string; text: string; photo: string | File } }) =>
       newsApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['news'] });

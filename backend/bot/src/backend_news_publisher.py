@@ -70,7 +70,9 @@ class BackendNewsPublisher:
 
         url = self._creds.api_url.rstrip("/") + "/auth/login"
         resp = await self._client.post(url, json={"login": self._creds.login, "password": self._creds.password})
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            body = resp.text[:500] if resp.text else ""
+            raise RuntimeError(f"Backend login failed: HTTP {resp.status_code} {body}")
         data = resp.json()
 
         token = data.get("token")
@@ -111,6 +113,16 @@ class BackendNewsPublisher:
                 headers={"Authorization": f"Bearer {token}"},
             )
 
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            body = resp.text[:500] if resp.text else ""
+            raise RuntimeError(f"Backend POST /news failed: HTTP {resp.status_code} {body}")
+
         return True
+
+    async def test_connection(self) -> tuple[bool, str]:
+        try:
+            await self._ensure_token()
+            return True, "Backend login OK"
+        except Exception as e:
+            return False, str(e)
 

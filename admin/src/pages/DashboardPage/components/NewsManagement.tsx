@@ -9,7 +9,7 @@ export const NewsManagement = () => {
   const [editingArticle, setEditingArticle] = useState<News | null>(null);
   const { articles, isLoading, error, deleteNews, createNews, updateNews } = useNews();
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     if (confirm('Удалить статью?')) {
       deleteNews(id);
     }

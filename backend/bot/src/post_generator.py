@@ -146,6 +146,25 @@ class PostGenerator:
                 print(f"🧩 Backend news integration enabled: {config.BACKEND_API_URL}")
             except Exception as e:
                 print(f"⚠️ Не удалось инициализировать Backend news интеграцию: {e}")
+        else:
+            missing = []
+            if not config.BACKEND_API_URL:
+                missing.append("BACKEND_API_URL")
+            if not config.BACKEND_ADMIN_LOGIN:
+                missing.append("BACKEND_ADMIN_LOGIN")
+            if not config.BACKEND_ADMIN_PASSWORD:
+                missing.append("BACKEND_ADMIN_PASSWORD")
+            print(f"⚠️ Backend news integration disabled (нет: {', '.join(missing)})")
+
+    def print_status(self):
+        token = config.TELEGRAM_NEWS_BOT_TOKEN or config.TELEGRAM_BOT_TOKEN
+        print(f"   Telegram token: {'✅' if token else '❌'}")
+        print(f"   Telegram channel: {config.TELEGRAM_CHANNEL_ID or '❌ не задан'}")
+        print(f"   OpenRouter key: {'✅' if config.OPENROUTER_API_KEY else '❌'}")
+        print(f"   OpenRouter proxy: {config.OPENROUTER_HTTP_PROXY or 'не задан'}")
+        print(f"   Backend API: {config.BACKEND_API_URL or '❌ не задан'}")
+        print(f"   Backend admin: {'✅' if config.BACKEND_ADMIN_LOGIN and config.BACKEND_ADMIN_PASSWORD else '❌'}")
+        print(f"   Backend client: {'✅ активен' if self.backend_news else '❌ отключён'}")
 
     def _append_footer(self, text: str) -> str:
         footer = (getattr(config, "SUBSCRIBE_FOOTER", "") or "").strip()

@@ -103,6 +103,12 @@ services:
       - TZ=${TIMEZONE:-Europe/Moscow}
       - TDATA_PATH=/app/tdata
       - TELEGRAM_NEWS_BOT_TOKEN=${TELEGRAM_NEWS_BOT_TOKEN}
+      - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_HTTP_PROXY=${OPENROUTER_HTTP_PROXY}
+      - BACKEND_API_URL=${BACKEND_API_URL:-http://backend:3000/api}
+      - BACKEND_ADMIN_LOGIN=${BACKEND_ADMIN_LOGIN}
+      - BACKEND_ADMIN_PASSWORD=${BACKEND_ADMIN_PASSWORD}
     command: ["python", "main.py", "--mode", "bot"]
     networks:
       - alexol_network
