@@ -41,12 +41,14 @@ from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.minio_client import minio_client
 from app.dkim_signer import sign_message
+from app.avatar_resolve import avatar_map_for_emails, to_browser_avatar_url
 from app import admin_sync
 import smtplib
 import httpx
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from fastapi.responses import StreamingResponse
 
 app = FastAPI(title="Mail Server API")
 
@@ -178,16 +180,27 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
         await db.refresh(user)
     
     access_token = create_access_token(data={"sub": user.email.lower()})
+    user_out = UserResponse.model_validate(user).model_copy(
+        update={
+            "avatar_url": to_browser_avatar_url(user.avatar_url) or user.avatar_url
+        }
+    )
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": user,
+        "user": user_out,
     }
 
 @app.get("/api/auth/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Get current user info"""
-    return current_user
+    data = UserResponse.model_validate(current_user)
+    return data.model_copy(
+        update={
+            "avatar_url": to_browser_avatar_url(current_user.avatar_url)
+            or current_user.avatar_url
+        }
+    )
 
 
 SSO_TYP = "alexol-sso"
@@ -573,7 +586,66 @@ async def upload_avatar(
         avatar_url=avatar_url,
     )
     
-    return {"avatar_url": avatar_url}
+    return {"avatar_url": to_browser_avatar_url(avatar_url) or avatar_url}
+
+
+async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:
+    """Attach from/to avatar URLs (local MinIO or Gravatar)."""
+    rows = list(emails)
+    avatars = await avatar_map_for_emails(
+        db,
+        [e.from_address for e in rows] + [e.to_address for e in rows],
+    )
+    out: List[EmailResponse] = []
+    for e in rows:
+        out.append(
+            EmailResponse(
+                id=e.id,
+                from_address=e.from_address,
+                to_address=e.to_address,
+                subject=e.subject,
+                body=e.body,
+                html_body=e.html_body,
+                is_read=e.is_read,
+                is_sent=e.is_sent,
+                received_at=e.received_at,
+                from_avatar_url=avatars.get((e.from_address or "").lower()),
+                to_avatar_url=avatars.get((e.to_address or "").lower()),
+            )
+        )
+    return out
+
+
+@app.get("/api/media/{bucket}/{object_name:path}")
+async def media_proxy(
+    bucket: str,
+    object_name: str,
+):
+    """Public read of MinIO avatars (SPA <img> cannot send Bearer)."""
+    if bucket != settings.MINIO_BUCKET:
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        minio_client._ensure_bucket()
+        obj = minio_client.client.get_object(bucket, object_name)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Object not found: {e}") from e
+
+    content_type = obj.headers.get("Content-Type", "application/octet-stream")
+
+    def iter_file():
+        try:
+            for chunk in obj.stream(32 * 1024):
+                yield chunk
+        finally:
+            obj.close()
+            obj.release_conn()
+
+    return StreamingResponse(
+        iter_file(),
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
 
 def _build_and_send_email_message(
     *,
@@ -930,7 +1002,7 @@ async def get_inbox(
         .order_by(Email.received_at.desc())
     )
     emails = result.scalars().all()
-    return emails
+    return await _emails_to_response(db, emails)
 
 @app.get("/api/emails/sent", response_model=List[EmailResponse])
 async def get_sent(
@@ -944,7 +1016,7 @@ async def get_sent(
         .order_by(Email.received_at.desc())
     )
     emails = result.scalars().all()
-    return emails
+    return await _emails_to_response(db, emails)
 
 @app.get("/api/emails/{email_id}", response_model=EmailResponse)
 async def get_email(
@@ -966,7 +1038,8 @@ async def get_email(
         email.is_read = True
         await db.commit()
     
-    return email
+    enriched = await _emails_to_response(db, [email])
+    return enriched[0]
 
 @app.delete("/api/emails/{email_id}")
 async def delete_email(

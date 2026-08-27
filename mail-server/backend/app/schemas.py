@@ -122,6 +122,8 @@ class EmailResponse(BaseModel):
     is_read: bool
     is_sent: bool
     received_at: datetime
+    from_avatar_url: Optional[str] = None
+    to_avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True

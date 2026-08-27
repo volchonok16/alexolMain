@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { PeerAvatar } from '../components/PeerAvatar'
 import { openSiteAdmin } from '../sso'
 import './UserDashboard.css'
 
@@ -18,6 +19,8 @@ interface Email {
   is_read: boolean
   is_sent: boolean
   received_at: string
+  from_avatar_url?: string | null
+  to_avatar_url?: string | null
 }
 
 type TemplateType = 'body' | 'signature' | 'other'
@@ -382,15 +385,20 @@ export default function UserDashboard() {
                 <p>Нет писем</p>
               </div>
             ) : (
-              emails.map((email) => (
+              emails.map((email) => {
+                const peerAddress = email.is_sent ? email.to_address : email.from_address
+                const peerAvatar = email.is_sent ? email.to_avatar_url : email.from_avatar_url
+                return (
                 <div
                   key={email.id}
                   className={`email-item ${!email.is_read && !email.is_sent ? 'unread' : ''}`}
                   onClick={() => setSelectedEmail(email)}
                 >
+                  <PeerAvatar src={peerAvatar} email={peerAddress} size={44} />
+                  <div className="email-item-body">
                   <div className="email-item-top">
                     <div className="email-from">
-                      {email.is_sent ? email.to_address : email.from_address}
+                      {peerAddress}
                     </div>
                     <div className="email-date">
                       {new Date(email.received_at).toLocaleString('ru-RU', {
@@ -406,8 +414,10 @@ export default function UserDashboard() {
                     {(email.body || '').substring(0, 100)}
                     {(email.body || '').length > 100 ? '…' : ''}
                   </div>
+                  </div>
                 </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
@@ -617,11 +627,33 @@ export default function UserDashboard() {
         <div className="modal-overlay" onClick={() => setSelectedEmail(null)}>
           <div className="modal email-modal" onClick={(e) => e.stopPropagation()}>
             <div className="email-header">
-              <div>
+              <div className="email-header-main">
+                <div className="email-header-peers">
+                  <div className="email-peer-row">
+                    <PeerAvatar
+                      src={selectedEmail.from_avatar_url}
+                      email={selectedEmail.from_address}
+                      size={40}
+                    />
+                    <div>
+                      <div className="email-peer-label">От</div>
+                      <div className="email-peer-address">{selectedEmail.from_address}</div>
+                    </div>
+                  </div>
+                  <div className="email-peer-row">
+                    <PeerAvatar
+                      src={selectedEmail.to_avatar_url}
+                      email={selectedEmail.to_address}
+                      size={40}
+                    />
+                    <div>
+                      <div className="email-peer-label">Кому</div>
+                      <div className="email-peer-address">{selectedEmail.to_address}</div>
+                    </div>
+                  </div>
+                </div>
                 <div className="email-subject-large">{selectedEmail.subject || '(Без темы)'}</div>
                 <div className="email-meta">
-                  <strong>От:</strong> {selectedEmail.from_address}<br />
-                  <strong>Кому:</strong> {selectedEmail.to_address}<br />
                   <strong>Дата:</strong> {new Date(selectedEmail.received_at).toLocaleString('ru-RU')}
                 </div>
               </div>
