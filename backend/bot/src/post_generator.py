@@ -164,6 +164,9 @@ class PostGenerator:
         print(f"   OpenRouter proxy: {config.OPENROUTER_HTTP_PROXY or 'не задан'}")
         print(f"   Backend API: {config.BACKEND_API_URL or '❌ не задан'}")
         print(f"   Backend admin: {'✅' if config.BACKEND_ADMIN_LOGIN and config.BACKEND_ADMIN_PASSWORD else '❌'}")
+        pwd = config.BACKEND_ADMIN_PASSWORD or ""
+        if pwd:
+            print(f"   Backend password: задан, длина {len(pwd)} символов")
         print(f"   Backend client: {'✅ активен' if self.backend_news else '❌ отключён'}")
 
     def _append_footer(self, text: str) -> str:
