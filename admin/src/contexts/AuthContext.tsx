@@ -56,6 +56,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // SSO handoff owns the session — do not validate/clear tokens here
+    // (stale getMe 401 would wipe a freshly exchanged SSO token).
+    if (window.location.pathname.includes('/sso')) {
+      setIsReady(true);
+      return;
+    }
+
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
       setIsReady(true);

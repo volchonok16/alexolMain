@@ -133,29 +133,44 @@ export class MailSyncService {
 
     const prev = username.trim().toLowerCase();
     if (ok && payload.new_username && prev !== nextUsername) {
-      await this.deleteMailbox(prev);
+      const deletedOld = await this.deleteMailbox(prev);
+      if (!deletedOld) {
+        log(`rename: ensured ${nextUsername} but failed to delete old ${prev}`);
+        return false;
+      }
     }
     return ok;
   }
 
-  async deleteMailbox(username: string): Promise<void> {
-    if (!this.enabled()) return;
-    const login = username.trim().toLowerCase();
-    try {
-      const res = await fetch(
-        this.url(`/api/internal/users/${encodeURIComponent(login)}`),
-        this.fetchOpts({
-          method: 'DELETE',
-          headers: this.headers(),
-        })
-      );
-      if (!res.ok && res.status !== 404) {
-        const text = await res.text().catch(() => '');
-        log(`delete failed (${res.status})`, text);
-      }
-    } catch (err) {
-      log('delete request error', formatFetchError(err));
+  /** Delete mailbox on mail-server. Returns true if deleted or already absent. */
+  async deleteMailbox(username: string): Promise<boolean> {
+    if (!this.enabled()) {
+      log('delete skipped: MAIL_API_URL / MAIL_SYNC_SECRET not set');
+      return false;
     }
+    const login = username.trim().toLowerCase();
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch(
+          this.url(`/api/internal/users/${encodeURIComponent(login)}`),
+          this.fetchOpts({
+            method: 'DELETE',
+            headers: this.headers(),
+          })
+        );
+        if (res.ok || res.status === 404) {
+          log(`delete ok for ${login} (${res.status})`);
+          return true;
+        }
+        const text = await res.text().catch(() => '');
+        log(`delete failed (${res.status}) attempt ${attempt}`, text);
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 400));
+      } catch (err) {
+        log(`delete request error attempt ${attempt}`, formatFetchError(err));
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 400));
+      }
+    }
+    return false;
   }
 
   static mailboxEmail(login: string, domain = config.mail.domain): string {

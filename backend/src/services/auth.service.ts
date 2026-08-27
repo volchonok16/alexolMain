@@ -28,7 +28,20 @@ export class AuthService {
   }
 
   async login(data: { login: string; password: string }) {
-    const user = await this.userRepo.findByLogin(data.login);
+    const identity = data.login.trim().toLowerCase();
+    let user = await this.userRepo.findByLogin(identity);
+
+    if (!user && identity.includes('@')) {
+      user = await this.userRepo.findByEmail(identity);
+      // Also accept login@MAIL_DOMAIN → lookup by local-part
+      if (!user) {
+        const [local, domain] = identity.split('@', 2);
+        if (domain === config.mail.domain.toLowerCase() && local) {
+          user = await this.userRepo.findByLogin(local);
+        }
+      }
+    }
+
     if (!user) throw new Error('Invalid credentials');
 
     const valid = await bcrypt.compare(data.password, user.password);
@@ -99,12 +112,16 @@ export class AuthService {
   async exchangeSsoTicket(ticket: string) {
     let payload: SsoTicketPayload;
     try {
-      payload = jwt.verify(ticket, this.ssoSecret()) as SsoTicketPayload;
+      payload = jwt.verify(ticket, this.ssoSecret(), {
+        algorithms: ['HS256'],
+      }) as SsoTicketPayload;
     } catch {
       throw new Error('Invalid or expired SSO ticket');
     }
 
-    if (payload.typ !== SSO_TYP || payload.aud !== 'admin') {
+    const aud = payload.aud as string | string[] | undefined;
+    const audOk = aud === 'admin' || (Array.isArray(aud) && aud.includes('admin'));
+    if (payload.typ !== SSO_TYP || !audOk) {
       throw new Error('Invalid SSO ticket');
     }
 

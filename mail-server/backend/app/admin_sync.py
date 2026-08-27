@@ -60,9 +60,10 @@ async def push_user_ensure(
     is_active: bool = True,
     phone: Optional[str] = None,
     avatar_url: Optional[str] = None,
-) -> None:
+) -> bool:
     if not _enabled():
-        return
+        logger.warning("[admin-sync] ensure skipped: ALEXOL_API_URL / MAIL_SYNC_SECRET not set")
+        return False
     payload: dict[str, Any] = {
         "username": username.strip().lower(),
         "full_name": full_name,
@@ -87,24 +88,32 @@ async def push_user_ensure(
                     res.status_code,
                     res.text[:300],
                 )
+                return False
+            return True
     except Exception as exc:
         logger.warning("[admin-sync] ensure error: %s", exc)
+        return False
 
 
-async def push_user_delete(username: str) -> None:
+async def push_user_delete(username: str) -> bool:
     if not _enabled():
-        return
-    try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            res = await client.delete(
-                f"{_base()}/api/internal/mail-sync/users/{username.strip().lower()}",
-                headers=_headers(),
-            )
-            if res.status_code >= 400 and res.status_code != 404:
+        logger.warning("[admin-sync] delete skipped: ALEXOL_API_URL / MAIL_SYNC_SECRET not set")
+        return False
+    for attempt in range(1, 3):
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                res = await client.delete(
+                    f"{_base()}/api/internal/mail-sync/users/{username.strip().lower()}",
+                    headers=_headers(),
+                )
+                if res.status_code < 400 or res.status_code == 404:
+                    return True
                 logger.warning(
-                    "[admin-sync] delete failed %s: %s",
+                    "[admin-sync] delete failed %s (attempt %s): %s",
                     res.status_code,
+                    attempt,
                     res.text[:300],
                 )
-    except Exception as exc:
-        logger.warning("[admin-sync] delete error: %s", exc)
+        except Exception as exc:
+            logger.warning("[admin-sync] delete error (attempt %s): %s", attempt, exc)
+    return False

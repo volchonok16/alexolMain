@@ -50,9 +50,17 @@ export class UserService {
     const existing = await this.userRepo.findByLogin(login);
     if (existing) throw new Error('Login already exists');
 
-    let email = normalizeEmail(data.email);
-    if (!email) {
-      email = MailSyncService.mailboxEmail(login, config.mail.domain).toLowerCase();
+    // Mailbox identity is always login@MAIL_DOMAIN (custom contact emails break mail login).
+    const email = MailSyncService.mailboxEmail(login, config.mail.domain).toLowerCase();
+    const contactEmail = normalizeEmail(data.email);
+    if (contactEmail && contactEmail !== email) {
+      const atDomain = `@${config.mail.domain}`.toLowerCase();
+      if (contactEmail.endsWith(atDomain)) {
+        throw new Error(
+          `Почта на домене ${config.mail.domain} должна совпадать с логином: ${email}`
+        );
+      }
+      // Non-domain "email" in the form is ignored for auth — mailbox stays login@domain.
     }
 
     const existingEmail = await this.userRepo.findByEmail(email);
@@ -117,11 +125,10 @@ export class UserService {
       data.login = login;
     }
 
-    const email = data.email === undefined ? undefined : normalizeEmail(data.email);
-    if (email) {
-      const existingEmail = await this.userRepo.findByEmail(email);
-      if (existingEmail && existingEmail.id !== id) throw new Error('Email already exists');
-    }
+    const nextLogin = (data.login || user.login).toLowerCase();
+    const email = MailSyncService.mailboxEmail(nextLogin, config.mail.domain).toLowerCase();
+    const existingEmail = await this.userRepo.findByEmail(email);
+    if (existingEmail && existingEmail.id !== id) throw new Error('Email already exists');
 
     if (data.role === 'user' && user.role === 'admin') {
       const adminCount = await this.userRepo.countAdmins();
@@ -177,11 +184,16 @@ export class UserService {
       if (adminCount <= 1) throw new Error('Cannot delete the last admin');
     }
 
+    const login = user.login.toLowerCase();
+    // Remote first — both sides stay in sync; abort if mail delete fails.
+    const mailOk = await this.mailSync.deleteMailbox(login);
+    if (!mailOk) {
+      throw new Error(
+        'Не удалось удалить ящик на mail.alexol.io. Пользователь в админке не удалён. Проверьте MAIL_API_URL / MAIL_SYNC_SECRET.'
+      );
+    }
+
     if (user.photo) await deleteFile(user.photo);
-    const deleted = await this.userRepo.delete(id);
-
-    await this.mailSync.deleteMailbox(user.login.toLowerCase());
-
-    return deleted;
+    return this.userRepo.delete(id);
   }
 }

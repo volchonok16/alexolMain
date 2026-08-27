@@ -14,6 +14,10 @@ async function exchangeTicketOnce(ticket: string): Promise<SsoResult> {
   if (existing) return existing;
 
   const promise = (async () => {
+    // Drop stale admin session so a parallel getMe 401 cannot wipe the new SSO token.
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+
     let lastError: unknown;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
@@ -56,6 +60,7 @@ export const SsoPage = () => {
         if (!alive) return;
         localStorage.setItem(TOKEN_KEY, data.token);
         localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        // Full reload so AuthProvider hydrates with the new token only.
         window.location.replace('/');
       } catch (err) {
         if (!alive) return;

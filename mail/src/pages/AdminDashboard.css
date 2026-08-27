@@ -297,11 +297,14 @@ tbody tr:hover {
   background: #e74c3c;
   color: white;
   border: none;
-  padding: 0.5rem;
+  padding: 0.45rem 0.65rem;
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   transition: background 0.3s;
 }
 
@@ -318,17 +321,21 @@ tbody tr:hover {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .btn-edit {
   background: #3498db;
   color: white;
   border: none;
-  padding: 0.5rem;
+  padding: 0.45rem 0.65rem;
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   transition: background 0.3s;
 }
 
@@ -340,11 +347,14 @@ tbody tr:hover {
   background: #e67e22;
   color: white;
   border: none;
-  padding: 0.5rem;
+  padding: 0.45rem 0.65rem;
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   transition: background 0.3s;
 }
 

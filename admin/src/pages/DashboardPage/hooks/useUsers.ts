@@ -39,8 +39,9 @@ export const useUsers = () => {
     page,
     setPage,
     isSaving: createMutation.isPending || updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
     createUser: createMutation.mutateAsync,
     updateUser: updateMutation.mutateAsync,
-    deleteUser: deleteMutation.mutate,
+    deleteUser: deleteMutation.mutateAsync,
   };
 };

@@ -29,10 +29,11 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
   const [birthDate, setBirthDate] = useState(toDateInput(user?.birthDate));
-  const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [photo, setPhoto] = useState<File | undefined>();
   const [preview, setPreview] = useState(user?.photo ? resolveApiAssetUrl(user.photo) : '');
+
+  const mailboxEmail = login ? `${login.toLowerCase()}@alexol.io` : '';
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -47,7 +48,7 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
       name,
       login,
       role,
-      email,
+      email: mailboxEmail || undefined,
       phone,
       birthDate,
       photo,
@@ -92,23 +93,22 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
           </div>
 
           <div className="modal__field">
-            <label>Почта</label>
+            <label>Почта (ящик)</label>
             <input
               type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder={login ? `${login}@alexol.io` : 'login@alexol.io'}
+              value={mailboxEmail}
+              readOnly
               disabled={isSaving}
             />
             <p className="modal__hint">
-              Ящик{' '}
-              <strong>{(login || 'login').toLowerCase()}@alexol.io</strong> на{' '}
+              Вход на{' '}
               <a href="https://mail.alexol.io" target="_blank" rel="noreferrer">
                 mail.alexol.io
               </a>
-              {email ? '' : ' (если поле пустое — подставится этот адрес)'}.
+              : логин <strong>{(login || 'login').toLowerCase()}</strong> или{' '}
+              <strong>{(login || 'login').toLowerCase()}@alexol.io</strong> и тот же пароль.
               {user
-                ? ' Чтобы пароль совпадал с почтой — задайте новый пароль и сохраните. Или откройте «Почта» в шапке (SSO без пароля).'
+                ? ' Если вход в почту не работает — задайте новый пароль и сохраните (ящик пересоздастся/обновится).'
                 : ' Пароль сразу синхронизируется с почтой.'}
             </p>
           </div>

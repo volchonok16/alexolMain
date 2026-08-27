@@ -40,9 +40,20 @@ export const UsersManagement = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Удалить пользователя?')) {
-      deleteUser(id);
+  const handleDelete = async (id: string) => {
+    if (!confirm('Удалить пользователя и в админке, и в почте?')) return;
+    setSaveError(null);
+    try {
+      await deleteUser(id);
+    } catch (err) {
+      const apiError =
+        typeof err === 'object' &&
+        err !== null &&
+        'response' in err &&
+        typeof (err as { response?: { data?: { error?: string } } }).response?.data?.error === 'string'
+          ? (err as { response: { data: { error: string } } }).response.data.error
+          : 'Не удалось удалить пользователя';
+      setSaveError(apiError);
     }
   };
 
@@ -141,11 +152,24 @@ export const UsersManagement = () => {
                   </td>
                   <td>
                     <div className="dashboard__row-actions">
-                      <button onClick={() => handleEdit(user)} className="dashboard__edit">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(user)}
+                        className="dashboard__edit"
+                        title="Редактировать"
+                      >
                         <Edit2 />
+                        <span>Изменить</span>
                       </button>
-                      <button onClick={() => handleDelete(user.id)} className="dashboard__delete">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(user.id)}
+                        className="dashboard__delete"
+                        title="Удалить в админке и в почте"
+                        disabled={user.id === currentUser?.id}
+                      >
                         <Trash2 />
+                        <span>Удалить</span>
                       </button>
                     </div>
                   </td>

@@ -128,9 +128,21 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Incorrect email or password",
         )
 
-    # Allow "user" as well as "user@alexol.io" (any domain → try local username too)
-    username = identity.split("@", 1)[0] if "@" in identity else identity
-    email_identity = identity if "@" in identity else f"{identity}@{settings.MAIL_DOMAIN}".lower()
+    domain = settings.MAIL_DOMAIN.lower()
+    if "@" in identity:
+        local, id_domain = identity.split("@", 1)
+        username = local
+        # Only accept mailbox domain — personal emails from admin profile are not logins.
+        if id_domain != domain:
+            print(f"[auth] login rejected: foreign domain {identity!r} (use login@{domain})")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Войдите как login@{domain} или просто логин",
+            )
+        email_identity = f"{username}@{domain}"
+    else:
+        username = identity
+        email_identity = f"{identity}@{domain}"
 
     result = await db.execute(select(User).where(func.lower(User.email) == email_identity))
     user = result.scalar_one_or_none()
@@ -321,7 +333,7 @@ async def create_user(
     await db.commit()
     await db.refresh(user)
 
-    await admin_sync.push_user_ensure(
+    synced = await admin_sync.push_user_ensure(
         username=user.username,
         full_name=user.full_name,
         password=user_data.password,
@@ -330,6 +342,13 @@ async def create_user(
         phone=user.phone,
         avatar_url=user.avatar_url,
     )
+    if not synced:
+        await db.delete(user)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Не удалось создать пользователя в admin.alexol.io. Ящик откатан. Проверьте ALEXOL_API_URL / MAIL_SYNC_SECRET.",
+        )
 
     return user
 
@@ -349,21 +368,27 @@ async def delete_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin_user)
 ):
-    """Delete user (admin only)"""
+    """Delete user (admin only). Also deletes matching account on admin.alexol.io."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    if user.is_admin:
-        raise HTTPException(status_code=400, detail="Cannot delete admin user")
+
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
     username = user.username
+    # Remote first so sides stay aligned; abort if admin sync fails.
+    ok = await admin_sync.push_user_delete(username)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Не удалось удалить пользователя в admin.alexol.io. Ящик не удалён. Проверьте ALEXOL_API_URL / MAIL_SYNC_SECRET.",
+        )
+
     await db.delete(user)
     await db.commit()
-
-    await admin_sync.push_user_delete(username)
 
     return {"message": "User deleted successfully"}
 

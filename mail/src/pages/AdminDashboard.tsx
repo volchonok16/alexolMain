@@ -33,7 +33,7 @@ interface EmailTemplate {
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const logout = useAuthStore((state) => state.logout)
-  const user = useAuthStore((state) => state.user)
+  const currentUser = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
   const [siteAdminLoading, setSiteAdminLoading] = useState(false)
   
@@ -105,7 +105,10 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-      alert('Пользователь удален')
+      alert('Пользователь удалён в почте и в админке')
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.detail || 'Ошибка удаления пользователя')
     },
   })
 
@@ -276,7 +279,7 @@ export default function AdminDashboard() {
         </div>
         <div className="nav-user">
           <ThemeSwitch />
-          <span>{user?.email}</span>
+          <span>{currentUser?.email}</span>
           <button
             onClick={async () => {
               setSiteAdminLoading(true)
@@ -495,6 +498,7 @@ export default function AdminDashboard() {
                           title="Редактировать"
                         >
                           <Edit size={16} />
+                          <span>Изменить</span>
                         </button>
                         
                         {user.is_admin ? (
@@ -509,6 +513,7 @@ export default function AdminDashboard() {
                             disabled={toggleAdminMutation.isPending}
                           >
                             <ShieldOff size={16} />
+                            <span>Снять</span>
                           </button>
                         ) : (
                           <button
@@ -522,23 +527,27 @@ export default function AdminDashboard() {
                             disabled={toggleAdminMutation.isPending}
                           >
                             <Shield size={16} />
+                            <span>Админ</span>
                           </button>
                         )}
                         
-                        {!user.is_admin && (
-                          <button
-                            onClick={() => {
-                              if (confirm(`Удалить пользователя ${user.full_name}?`)) {
-                                deleteMutation.mutate(user.id)
-                              }
-                            }}
-                            className="btn-delete"
-                            title="Удалить"
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Удалить ${user.full_name} в почте и в админке?`
+                              )
+                            ) {
+                              deleteMutation.mutate(user.id)
+                            }
+                          }}
+                          className="btn-delete"
+                          title="Удалить в почте и в админке"
+                          disabled={deleteMutation.isPending || user.id === currentUser?.id}
+                        >
+                          <Trash2 size={16} />
+                          <span>Удалить</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
