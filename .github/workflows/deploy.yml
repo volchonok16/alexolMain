@@ -147,16 +147,25 @@ jobs:
                   echo "${{ secrets.MAIL_ENV }}" > mail-server/.env
 
             # DKIM: secret MAIL_DKIM_PRIVATE_KEY_B64 = base64 of private.pem (do not commit PEM)
+            # Also accepts raw PEM if the secret starts with BEGIN.
             - name: Write DKIM private key from secret
+              env:
+                  DKIM_B64: ${{ secrets.MAIL_DKIM_PRIVATE_KEY_B64 }}
               run: |
                   mkdir -p mail-server/dkim
-                  if [ -z "${{ secrets.MAIL_DKIM_PRIVATE_KEY_B64 }}" ]; then
+                  if [ -z "$DKIM_B64" ]; then
                     echo "::warning::MAIL_DKIM_PRIVATE_KEY_B64 not set — outbound mail will be unsigned"
                     exit 0
                   fi
-                  echo "${{ secrets.MAIL_DKIM_PRIVATE_KEY_B64 }}" | base64 -d > mail-server/dkim/private.pem
+                  if printf '%s' "$DKIM_B64" | grep -q 'BEGIN.*PRIVATE KEY'; then
+                    printf '%s\n' "$DKIM_B64" > mail-server/dkim/private.pem
+                  else
+                    # Strip whitespace/newlines (GitHub UI / macOS base64 wrapping)
+                    printf '%s' "$DKIM_B64" | tr -d ' \n\r\t' | base64 -d > mail-server/dkim/private.pem
+                  fi
                   chmod 600 mail-server/dkim/private.pem
                   head -1 mail-server/dkim/private.pem | grep -q 'BEGIN.*PRIVATE KEY'
+                  echo "DKIM private key written ($(wc -c < mail-server/dkim/private.pem) bytes)"
 
             - name: Prepare server directory
               uses: appleboy/ssh-action@v1.0.3
