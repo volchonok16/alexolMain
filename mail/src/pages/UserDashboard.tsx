@@ -317,8 +317,10 @@ export default function UserDashboard() {
                   try {
                     await openSiteAdmin(api)
                   } catch {
-                    setSiteAdminLoading(false)
+                    toast.error('Не удалось открыть admin.alexol.io')
                     window.open('https://admin.alexol.io', '_blank', 'noopener,noreferrer')
+                  } finally {
+                    setSiteAdminLoading(false)
                   }
                 }}
                 className="btn-admin-panel"
@@ -441,7 +443,24 @@ export default function UserDashboard() {
                 <div
                   key={email.id}
                   className={`email-item ${!email.is_read && !email.is_sent ? 'unread' : ''}`}
-                  onClick={() => setSelectedEmail(email)}
+                  onClick={() => {
+                    setSelectedEmail(email)
+                    if (!email.is_read && !email.is_sent) {
+                      void (async () => {
+                        try {
+                          const { data } = await api.get<Email>(`/emails/${email.id}`)
+                          setSelectedEmail(data)
+                          queryClient.setQueryData<Email[]>(['inbox'], (old) =>
+                            (old || []).map((e) =>
+                              e.id === email.id ? { ...e, ...data, is_read: true } : e
+                            )
+                          )
+                        } catch {
+                          // still show local copy if mark-read fails
+                        }
+                      })()
+                    }
+                  }}
                 >
                   <PeerAvatar src={peerAvatar} email={peerAddress} size={44} />
                   <div className="email-item-body">
