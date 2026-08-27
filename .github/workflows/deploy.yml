@@ -26,9 +26,9 @@ jobs:
               run: |
                   npm install
                   npm run build
-                  ls -la dist/
+                  ls -laR dist/
 
-            - name: Prepare server directory
+            - name: Prepare staging directory
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -36,12 +36,14 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/html
-                      echo "${{ secrets.PWD }}" | sudo -S rm -rf /var/www/alexol.io/html/*
-                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/html
-                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/html
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      STAGING=/var/www/alexol.io/html.staging
+                      rm -rf "$STAGING"
+                      mkdir -p "$STAGING"
+                      chown -R $SUDO_USER:$SUDO_USER "$STAGING"
+                      chmod -R 755 "$STAGING"'
 
-            - name: Deploy frontend to server
+            - name: Upload build to staging
               uses: appleboy/scp-action@v1
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -49,9 +51,32 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   source: "frontend/dist/**"
-                  target: "/var/www/alexol.io/html"
+                  target: "/var/www/alexol.io/html.staging"
                   overwrite: true
                   strip_components: 2
+
+            - name: Verify and activate frontend
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      LIVE=/var/www/alexol.io/html
+                      STAGING=/var/www/alexol.io/html.staging
+                      test -f "$STAGING/index.html"
+                      js=$(grep -oE "/assets/[^\"]+\.js" "$STAGING/index.html" | head -1)
+                      css=$(grep -oE "/assets/[^\"]+\.css" "$STAGING/index.html" | head -1 || true)
+                      test -n "$js"
+                      test -f "$STAGING$js"
+                      if [ -n "$css" ]; then test -f "$STAGING$css"; fi
+                      rm -rf "${LIVE}.old"
+                      if [ -d "$LIVE" ]; then mv "$LIVE" "${LIVE}.old"; fi
+                      mv "$STAGING" "$LIVE"
+                      chown -R $SUDO_USER:$SUDO_USER "$LIVE"
+                      echo "frontend activated: $js"'
 
     deploy-lang:
         runs-on: ubuntu-latest
@@ -69,9 +94,9 @@ jobs:
               run: |
                   npm install
                   npm run build
-                  ls -la dist/
+                  ls -laR dist/
 
-            - name: Prepare server directory
+            - name: Prepare staging directory
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -79,11 +104,14 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/lang/html
-                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/lang/html
-                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/lang/html
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      STAGING=/var/www/alexol.io/lang/html.staging
+                      rm -rf "$STAGING"
+                      mkdir -p "$STAGING"
+                      chown -R $SUDO_USER:$SUDO_USER "$STAGING"
+                      chmod -R 755 "$STAGING"'
 
-            - name: Deploy lang Mini App to server
+            - name: Upload build to staging
               uses: appleboy/scp-action@v1
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -91,9 +119,27 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   source: "lang/dist/**"
-                  target: "/var/www/alexol.io/lang/html"
+                  target: "/var/www/alexol.io/lang/html.staging"
                   overwrite: true
                   strip_components: 2
+
+            - name: Verify and activate lang
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      LIVE=/var/www/alexol.io/lang/html
+                      STAGING=/var/www/alexol.io/lang/html.staging
+                      test -f "$STAGING/index.html"
+                      rm -rf "${LIVE}.old"
+                      if [ -d "$LIVE" ]; then mv "$LIVE" "${LIVE}.old"; fi
+                      mv "$STAGING" "$LIVE"
+                      chown -R $SUDO_USER:$SUDO_USER "$LIVE"
+                      echo "lang activated"'
 
     deploy-mail:
         runs-on: ubuntu-latest
@@ -111,9 +157,9 @@ jobs:
               run: |
                   npm install
                   npm run build
-                  ls -la dist/
+                  ls -laR dist/
 
-            - name: Prepare server directory
+            - name: Prepare staging directory
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -121,11 +167,14 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/mail/html
-                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/mail/html
-                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/mail/html
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      STAGING=/var/www/alexol.io/mail/html.staging
+                      rm -rf "$STAGING"
+                      mkdir -p "$STAGING"
+                      chown -R $SUDO_USER:$SUDO_USER "$STAGING"
+                      chmod -R 755 "$STAGING"'
 
-            - name: Deploy mail client to server
+            - name: Upload build to staging
               uses: appleboy/scp-action@v1
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -133,9 +182,30 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   source: "mail/dist/**"
-                  target: "/var/www/alexol.io/mail/html"
+                  target: "/var/www/alexol.io/mail/html.staging"
                   overwrite: true
                   strip_components: 2
+
+            - name: Verify and activate mail
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      LIVE=/var/www/alexol.io/mail/html
+                      STAGING=/var/www/alexol.io/mail/html.staging
+                      test -f "$STAGING/index.html"
+                      js=$(grep -oE "/assets/[^\"]+\.js" "$STAGING/index.html" | head -1)
+                      test -n "$js"
+                      test -f "$STAGING$js"
+                      rm -rf "${LIVE}.old"
+                      if [ -d "$LIVE" ]; then mv "$LIVE" "${LIVE}.old"; fi
+                      mv "$STAGING" "$LIVE"
+                      chown -R $SUDO_USER:$SUDO_USER "$LIVE"
+                      echo "mail activated: $js"'
 
     deploy-mail-server:
         runs-on: ubuntu-latest
@@ -147,21 +217,18 @@ jobs:
               run: |
                   echo "${{ secrets.MAIL_ENV }}" > mail-server/.env
 
-            # DKIM: secret MAIL_DKIM_PRIVATE_KEY_B64 = base64 of private.pem (do not commit PEM)
-            # Also accepts raw PEM if the secret starts with BEGIN.
             - name: Write DKIM private key from secret
               env:
                   DKIM_B64: ${{ secrets.MAIL_DKIM_PRIVATE_KEY_B64 }}
               run: |
                   mkdir -p mail-server/dkim
                   if [ -z "$DKIM_B64" ]; then
-                    echo "::warning::MAIL_DKIM_PRIVATE_KEY_B64 not set - outbound mail will be unsigned"
+                    echo "::warning::MAIL_DKIM_PRIVATE_KEY_B64 not set — outbound mail will be unsigned"
                     exit 0
                   fi
                   if printf '%s' "$DKIM_B64" | grep -q 'BEGIN.*PRIVATE KEY'; then
                     printf '%s\n' "$DKIM_B64" > mail-server/dkim/private.pem
                   else
-                    # Strip whitespace/newlines (GitHub UI / macOS base64 wrapping)
                     printf '%s' "$DKIM_B64" | tr -d ' \n\r\t' | base64 -d > mail-server/dkim/private.pem
                   fi
                   chmod 600 mail-server/dkim/private.pem
@@ -240,9 +307,9 @@ jobs:
               run: |
                   npm install
                   npm run build
-                  ls -la dist/
+                  ls -laR dist/
 
-            - name: Prepare server directory
+            - name: Prepare staging directory
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -250,12 +317,14 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/admin/html
-                      echo "${{ secrets.PWD }}" | sudo -S rm -rf /var/www/alexol.io/admin/html/*
-                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/admin/html
-                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/admin/html
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      STAGING=/var/www/alexol.io/admin/html.staging
+                      rm -rf "$STAGING"
+                      mkdir -p "$STAGING"
+                      chown -R $SUDO_USER:$SUDO_USER "$STAGING"
+                      chmod -R 755 "$STAGING"'
 
-            - name: Deploy admin to server
+            - name: Upload build to staging
               uses: appleboy/scp-action@v1
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -263,9 +332,32 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   source: "admin/dist/**"
-                  target: "/var/www/alexol.io/admin/html"
+                  target: "/var/www/alexol.io/admin/html.staging"
                   overwrite: true
                   strip_components: 2
+
+            - name: Verify and activate admin
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      LIVE=/var/www/alexol.io/admin/html
+                      STAGING=/var/www/alexol.io/admin/html.staging
+                      test -f "$STAGING/index.html"
+                      js=$(grep -oE "/assets/[^\"]+\.js" "$STAGING/index.html" | head -1)
+                      css=$(grep -oE "/assets/[^\"]+\.css" "$STAGING/index.html" | head -1 || true)
+                      test -n "$js"
+                      test -f "$STAGING$js"
+                      if [ -n "$css" ]; then test -f "$STAGING$css"; fi
+                      rm -rf "${LIVE}.old"
+                      if [ -d "$LIVE" ]; then mv "$LIVE" "${LIVE}.old"; fi
+                      mv "$STAGING" "$LIVE"
+                      chown -R $SUDO_USER:$SUDO_USER "$LIVE"
+                      echo "admin activated: $js"'
 
     deploy-backend:
         runs-on: ubuntu-latest
@@ -314,15 +406,57 @@ jobs:
                       cd /var/www/alexol.io/back
                       echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
                       if docker compose version >/dev/null 2>&1; then
-                        docker compose down
                         docker compose up -d --build
                         docker compose ps
                       elif command -v docker-compose >/dev/null 2>&1; then
-                        docker-compose down
                         docker-compose up -d --build
                         docker-compose ps
                       else
                         echo "Docker Compose not found"
-                        command -v docker; docker --version || true
                         exit 1
                       fi'
+
+    deploy-nginx:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Upload nginx configs
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "backend/nginx/**"
+                  target: "/tmp/alexol-nginx"
+                  overwrite: true
+                  strip_components: 2
+
+            - name: Install nginx configs and reload
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      shopt -s nullglob
+                      for f in /tmp/alexol-nginx/sites/*.conf; do
+                        install -m 644 "$f" "/etc/nginx/sites-available/$(basename "$f" .conf)"
+                      done
+                      if [ -f /tmp/alexol-nginx/upstream.conf ]; then
+                        install -m 644 /tmp/alexol-nginx/upstream.conf /etc/nginx/sites-available/upstream
+                      fi
+                      for name in upstream alexol.io admin.alexol.io api.alexol.io be.alexol.io lang.alexol.io mail.alexol.io minio.alexol.io prana.alexol.io voentorg77.ru; do
+                        if [ -f "/etc/nginx/sites-available/$name" ]; then
+                          ln -sf "/etc/nginx/sites-available/$name" "/etc/nginx/sites-enabled/$name"
+                        fi
+                      done
+                      rm -f /etc/nginx/sites-enabled/default
+                      nginx -t
+                      systemctl reload nginx
+                      rm -rf /tmp/alexol-nginx
+                      echo "nginx reloaded"'
