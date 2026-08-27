@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from datetime import timedelta, datetime
 from typing import List, Optional
 import io
@@ -100,6 +100,21 @@ async def startup_event():
         )
         await conn.execute(
             text("ALTER TABLE emails ADD COLUMN IF NOT EXISTS to_name VARCHAR")
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE email_templates "
+                "ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        )
+        # Existing admin-created templates become org-shared so users keep access
+        await conn.execute(
+            text(
+                "UPDATE email_templates SET is_shared = TRUE "
+                "WHERE is_shared = FALSE AND user_id IN ("
+                "  SELECT id FROM users WHERE is_admin = TRUE"
+                ")"
+            )
         )
     
     # Create default admin
@@ -704,6 +719,50 @@ async def media_proxy(
     )
 
 
+def _wrap_outbound_html(content_html: str, signature_html: str) -> str:
+    """
+    Wrap fragment HTML in a Gmail/Outlook-friendly table layout.
+    Skip outer chrome if the fragment already looks like a full document.
+    """
+    lowered = (content_html or "").lower()
+    already_full = "<html" in lowered or "<body" in lowered
+    # Avoid double signature when a signature template already marked itself
+    has_sig = 'data-alexol-sig="1"' in lowered or "data-alexol-sig='1'" in lowered
+    sig = "" if has_sig else signature_html
+
+    if already_full:
+        return content_html + sig
+
+    return (
+        "<!DOCTYPE html>"
+        '<html lang="ru">'
+        "<head>"
+        '<meta charset="utf-8" />'
+        '<meta name="viewport" content="width=device-width, initial-scale=1" />'
+        "<title>Email</title>"
+        "</head>"
+        '<body style="margin:0;padding:0;background:#f1f5f9;">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="border-collapse:collapse;background:#f1f5f9;width:100%;">'
+        "<tr><td align=\"center\" style=\"padding:24px 12px;\">"
+        '<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
+        'style="border-collapse:collapse;width:100%;max-width:600px;'
+        'background:#ffffff;border-radius:12px;overflow:hidden;'
+        'border:1px solid #e2e8f0;">'
+        "<tr><td style=\"padding:28px 32px;font-family:-apple-system,BlinkMacSystemFont,"
+        "'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;"
+        'color:#0f172a;">'
+        f"{content_html}"
+        f"{sig}"
+        "</td></tr>"
+        "</table>"
+        "</td></tr>"
+        "</table>"
+        "</body>"
+        "</html>"
+    )
+
+
 def _build_and_send_email_message(
     *,
     current_user: User,
@@ -731,15 +790,18 @@ def _build_and_send_email_message(
         )
 
     signature_html = (
-        "<div style='margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;"
+        "<div data-alexol-sig=\"1\" style='margin-top:28px;padding-top:16px;"
+        "border-top:1px solid #e2e8f0;"
         "font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'>"
-        f"<div style='font-weight:600;color:#0f172a'>{html_escape(display_name)}</div>"
-        f"<div style='color:#64748b;font-size:13px'>{html_escape(current_user.email)}</div>"
+        f"<div style='font-weight:600;color:#0f172a;font-size:14px'>"
+        f"{html_escape(display_name)}</div>"
+        f"<div style='color:#64748b;font-size:13px;margin-top:2px'>"
+        f"{html_escape(current_user.email)}</div>"
         "</div>"
     )
     signature_text = f"\n\n--\n{display_name}\n{current_user.email}\n"
 
-    full_html = content_html + signature_html
+    full_html = _wrap_outbound_html(content_html, signature_html)
     full_text = (body or "") + signature_text
 
     if attachments:
@@ -806,12 +868,11 @@ def _build_and_send_email_message(
                             "name": current_user.full_name or current_user.email,
                         },
                         "subject": subject,
-                        "content": [{"type": "text/plain", "value": body or ""}],
+                        "content": [
+                            {"type": "text/plain", "value": full_text or ""},
+                            {"type": "text/html", "value": full_html},
+                        ],
                     }
-                    if html_body:
-                        payload["content"].append(
-                            {"type": "text/html", "value": html_body}
-                        )
                     import httpx  # local import to avoid circular issues
 
                     async def _send_via_sendgrid():
@@ -954,55 +1015,87 @@ async def send_email(
     return {"message": "Email sent successfully", "email_id": email_obj.id}
 
 
+def _template_response(template: EmailTemplate, current_user: User) -> EmailTemplateResponse:
+    return EmailTemplateResponse(
+        id=template.id,
+        user_id=template.user_id,
+        name=template.name,
+        type=template.type,
+        description=template.description,
+        html_content=template.html_content,
+        is_shared=bool(getattr(template, "is_shared", False)),
+        is_mine=template.user_id == current_user.id,
+        created_at=template.created_at,
+        updated_at=template.updated_at,
+    )
+
+
+def _can_manage_template(template: EmailTemplate, user: User) -> bool:
+    return user.is_admin or template.user_id == user.id
+
+
 @app.get("/api/templates", response_model=List[EmailTemplateResponse])
 async def list_templates(
     template_type: Optional[str] = None,
+    mine_only: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List email templates (authenticated users)."""
-    _ = current_user
+    """List templates: own + shared. Admins see all unless mine_only=true."""
     query = select(EmailTemplate)
+    if mine_only:
+        query = query.where(EmailTemplate.user_id == current_user.id)
+    elif not current_user.is_admin:
+        query = query.where(
+            or_(
+                EmailTemplate.user_id == current_user.id,
+                EmailTemplate.is_shared.is_(True),
+            )
+        )
     if template_type:
         query = query.where(EmailTemplate.type == template_type)
 
     result = await db.execute(query.order_by(EmailTemplate.created_at.desc()))
     templates = result.scalars().all()
-    return templates
+    return [_template_response(t, current_user) for t in templates]
 
 
 @app.post("/api/templates", response_model=EmailTemplateResponse)
 async def create_template(
     template_data: EmailTemplateCreate,
-    admin: User = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new email template (admin only)"""
+    """Create template — any user (private). Admins may mark is_shared."""
+    is_shared = bool(template_data.is_shared) if current_user.is_admin else False
     template = EmailTemplate(
-        user_id=admin.id,
+        user_id=current_user.id,
         name=template_data.name,
         type=template_data.type,
         description=template_data.description,
         html_content=template_data.html_content,
+        is_shared=is_shared,
     )
     db.add(template)
     await db.commit()
     await db.refresh(template)
-    return template
+    return _template_response(template, current_user)
 
 
 @app.put("/api/templates/{template_id}", response_model=EmailTemplateResponse)
 async def update_template(
     template_id: int,
     template_data: EmailTemplateUpdate,
-    admin: User = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update existing email template (admin only)"""
+    """Update template — owner or admin."""
     result = await db.execute(select(EmailTemplate).where(EmailTemplate.id == template_id))
     template = result.scalar_one_or_none()
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
+    if not _can_manage_template(template, current_user):
+        raise HTTPException(status_code=403, detail="Not allowed to edit this template")
 
     if template_data.name is not None:
         template.name = template_data.name
@@ -1012,23 +1105,27 @@ async def update_template(
         template.description = template_data.description
     if template_data.html_content is not None:
         template.html_content = template_data.html_content
+    if template_data.is_shared is not None and current_user.is_admin:
+        template.is_shared = bool(template_data.is_shared)
 
     await db.commit()
     await db.refresh(template)
-    return template
+    return _template_response(template, current_user)
 
 
 @app.delete("/api/templates/{template_id}")
 async def delete_template(
     template_id: int,
-    admin: User = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete email template (admin only)"""
+    """Delete template — owner or admin."""
     result = await db.execute(select(EmailTemplate).where(EmailTemplate.id == template_id))
     template = result.scalar_one_or_none()
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
+    if not _can_manage_template(template, current_user):
+        raise HTTPException(status_code=403, detail="Not allowed to delete this template")
 
     await db.delete(template)
     await db.commit()

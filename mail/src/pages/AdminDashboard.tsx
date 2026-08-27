@@ -7,6 +7,7 @@ import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileTex
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { useToast } from '../components/Toast'
 import { openSiteAdmin } from '../sso'
+import { starterHtml, type EmailTemplate, type TemplateType } from '../utils/templateStarters'
 import './AdminDashboard.css'
 
 interface User {
@@ -17,18 +18,6 @@ interface User {
   phone?: string
   is_admin: boolean
   created_at: string
-}
-
-type TemplateType = 'body' | 'signature' | 'other'
-
-interface EmailTemplate {
-  id: number
-  name: string
-  type: TemplateType
-  description?: string
-  html_content: string
-  created_at: string
-  updated_at: string
 }
 
 export default function AdminDashboard() {
@@ -64,6 +53,7 @@ export default function AdminDashboard() {
     type: 'body' as TemplateType,
     description: '',
     html_content: '',
+    is_shared: true,
   })
 
   // Fetch users
@@ -149,16 +139,28 @@ export default function AdminDashboard() {
     },
   })
 
-  // Template mutations (admin-only)
+  // Template mutations
   const createTemplateMutation = useMutation({
-    mutationFn: async (payload: Omit<EmailTemplate, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (payload: {
+      name: string
+      type: TemplateType
+      description: string
+      html_content: string
+      is_shared: boolean
+    }) => {
       const { data } = await api.post<EmailTemplate>('/templates', payload)
       return data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
       setEditingTemplate(null)
-      setTemplateForm({ name: '', type: 'body', description: '', html_content: '' })
+      setTemplateForm({
+        name: '',
+        type: 'body',
+        description: '',
+        html_content: starterHtml('body'),
+        is_shared: true,
+      })
       toast.success('Шаблон сохранён')
     },
     onError: (error: any) => {
@@ -167,14 +169,29 @@ export default function AdminDashboard() {
   })
 
   const updateTemplateMutation = useMutation({
-    mutationFn: async (payload: { id: number; data: Partial<EmailTemplate> }) => {
+    mutationFn: async (payload: {
+      id: number
+      data: {
+        name: string
+        type: TemplateType
+        description: string
+        html_content: string
+        is_shared: boolean
+      }
+    }) => {
       const { data } = await api.put<EmailTemplate>(`/templates/${payload.id}`, payload.data)
       return data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
       setEditingTemplate(null)
-      setTemplateForm({ name: '', type: 'body', description: '', html_content: '' })
+      setTemplateForm({
+        name: '',
+        type: 'body',
+        description: '',
+        html_content: starterHtml('body'),
+        is_shared: true,
+      })
       toast.success('Шаблон обновлён')
     },
     onError: (error: any) => {
@@ -237,7 +254,8 @@ export default function AdminDashboard() {
       name: '',
       type,
       description: '',
-      html_content: '',
+      html_content: starterHtml(type),
+      is_shared: true,
     })
   }
 
@@ -248,6 +266,7 @@ export default function AdminDashboard() {
       type: template.type,
       description: template.description || '',
       html_content: template.html_content,
+      is_shared: Boolean(template.is_shared),
     })
   }
 
@@ -261,6 +280,7 @@ export default function AdminDashboard() {
           type: templateForm.type,
           description: templateForm.description,
           html_content: templateForm.html_content,
+          is_shared: templateForm.is_shared,
         },
       })
     } else {
@@ -269,7 +289,8 @@ export default function AdminDashboard() {
         type: templateForm.type,
         description: templateForm.description,
         html_content: templateForm.html_content,
-      } as any)
+        is_shared: templateForm.is_shared,
+      })
     }
   }
 
@@ -623,7 +644,12 @@ export default function AdminDashboard() {
                     filteredTemplates.map((tpl) => (
                       <div key={tpl.id} className="template-item-row">
                         <div className="template-main">
-                          <div className="template-name">{tpl.name}</div>
+                          <div className="template-name">
+                            {tpl.name}
+                            <span className={`template-badge ${tpl.is_shared ? 'shared' : 'mine'}`}>
+                              {tpl.is_shared ? 'общий' : 'личный'}
+                            </span>
+                          </div>
                           {tpl.description && (
                             <div className="template-description">{tpl.description}</div>
                           )}
@@ -707,7 +733,34 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>HTML содержимое</label>
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={templateForm.is_shared}
+                          onChange={(e) =>
+                            setTemplateForm({ ...templateForm, is_shared: e.target.checked })
+                          }
+                        />
+                        Общий шаблон (видят все пользователи)
+                      </label>
+                    </div>
+                    <div className="form-group">
+                      <div className="compose-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label>HTML содержимое</label>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
+                          onClick={() =>
+                            setTemplateForm({
+                              ...templateForm,
+                              html_content: starterHtml(templateForm.type),
+                            })
+                          }
+                        >
+                          Вставить заготовку
+                        </button>
+                      </div>
                       <textarea
                         value={templateForm.html_content}
                         onChange={(e) =>

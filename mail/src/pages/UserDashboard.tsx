@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File } from 'lucide-react'
+import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2 } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
 import { openSiteAdmin } from '../sso'
 import { resolveAvatarUrl } from '../utils/avatarUrl'
+import { starterHtml, type EmailTemplate, type TemplateType } from '../utils/templateStarters'
 import './UserDashboard.css'
 
 interface Email {
@@ -25,18 +26,6 @@ interface Email {
   to_avatar_url?: string | null
   from_name?: string | null
   to_name?: string | null
-}
-
-type TemplateType = 'body' | 'signature' | 'other'
-
-interface EmailTemplate {
-  id: number
-  name: string
-  type: TemplateType
-  description?: string
-  html_content: string
-  created_at: string
-  updated_at: string
 }
 
 export default function UserDashboard() {
@@ -58,8 +47,17 @@ export default function UserDashboard() {
     html_body: '',
   })
   const [showTemplatesModal, setShowTemplatesModal] = useState(false)
+  const [showManageTemplates, setShowManageTemplates] = useState(false)
   const [templatesTab, setTemplatesTab] = useState<TemplateType>('body')
+  const [templatesScope, setTemplatesScope] = useState<'all' | 'mine' | 'shared'>('all')
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<number[]>([])
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null)
+  const [templateForm, setTemplateForm] = useState({
+    name: '',
+    type: 'body' as TemplateType,
+    description: '',
+    html_content: '',
+  })
   const [attachments, setAttachments] = useState<File[]>([])
   const [attachmentPreviews, setAttachmentPreviews] = useState<
     { name: string; size: number; isImage: boolean; url: string | null }[]
@@ -100,6 +98,109 @@ export default function UserDashboard() {
       return data
     },
   })
+
+  const openCreateTemplate = (type: TemplateType) => {
+    setEditingTemplate(null)
+    setTemplateForm({
+      name: '',
+      type,
+      description: '',
+      html_content: starterHtml(type),
+    })
+  }
+
+  const startEditTemplate = (template: EmailTemplate) => {
+    setEditingTemplate(template)
+    setTemplateForm({
+      name: template.name,
+      type: template.type,
+      description: template.description || '',
+      html_content: template.html_content,
+    })
+  }
+
+  const createTemplateMutation = useMutation({
+    mutationFn: async (payload: {
+      name: string
+      type: TemplateType
+      description: string
+      html_content: string
+    }) => {
+      const { data } = await api.post<EmailTemplate>('/templates', payload)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] })
+      setEditingTemplate(null)
+      setTemplateForm({
+        name: '',
+        type: templatesTab,
+        description: '',
+        html_content: starterHtml(templatesTab),
+      })
+      toast.success('Шаблон сохранён')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Ошибка сохранения шаблона')
+    },
+  })
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: async (payload: {
+      id: number
+      data: {
+        name: string
+        type: TemplateType
+        description: string
+        html_content: string
+      }
+    }) => {
+      const { data } = await api.put<EmailTemplate>(`/templates/${payload.id}`, payload.data)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] })
+      setEditingTemplate(null)
+      setTemplateForm({
+        name: '',
+        type: templatesTab,
+        description: '',
+        html_content: starterHtml(templatesTab),
+      })
+      toast.success('Шаблон обновлён')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Ошибка обновления шаблона')
+    },
+  })
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/templates/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] })
+      toast.success('Шаблон удалён')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Ошибка удаления шаблона')
+    },
+  })
+
+  const handleTemplateSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const payload = {
+      name: templateForm.name,
+      type: templateForm.type,
+      description: templateForm.description,
+      html_content: templateForm.html_content,
+    }
+    if (editingTemplate) {
+      updateTemplateMutation.mutate({ id: editingTemplate.id, data: payload })
+    } else {
+      createTemplateMutation.mutate(payload)
+    }
+  }
 
   // Send email mutation
   type ComposePayload = typeof composeData & { attachments: File[] }
@@ -241,7 +342,16 @@ export default function UserDashboard() {
 
   const emails = activeTab === 'inbox' ? inbox : sent
 
-  const filteredTemplates = (templates || []).filter((t) => t.type === templatesTab)
+  const filteredTemplates = (templates || []).filter((t) => {
+    if (t.type !== templatesTab) return false
+    if (templatesScope === 'mine') return Boolean(t.is_mine)
+    if (templatesScope === 'shared') return Boolean(t.is_shared) && !t.is_mine
+    return true
+  })
+
+  const myTemplates = (templates || []).filter(
+    (t) => t.type === templatesTab && t.is_mine
+  )
 
   const toggleTemplateSelection = (template: EmailTemplate) => {
     setSelectedTemplateIds((prev) =>
@@ -336,6 +446,18 @@ export default function UserDashboard() {
               </button>
             </>
           )}
+          <button
+            onClick={() => {
+              setShowManageTemplates(true)
+              setTemplatesTab('body')
+              openCreateTemplate('body')
+            }}
+            className="btn-profile"
+            title="Мои шаблоны писем"
+          >
+            <FileText size={20} />
+            <span className="btn-label">Шаблоны</span>
+          </button>
           <button onClick={() => navigate('/profile')} className="btn-profile">
             <User size={20} />
             <span className="btn-label">Профиль</span>
@@ -573,7 +695,20 @@ export default function UserDashboard() {
                       type="button"
                       className="btn-link"
                       onClick={() => {
+                        setShowManageTemplates(true)
+                        setTemplatesTab('body')
+                        openCreateTemplate('body')
+                      }}
+                    >
+                      <Edit size={16} />
+                      Мои шаблоны
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={() => {
                         setSelectedTemplateIds([])
+                        setTemplatesScope('all')
                         setShowTemplatesModal(true)
                       }}
                     >
@@ -686,6 +821,29 @@ export default function UserDashboard() {
                   Другое
                 </button>
               </div>
+              <div className="templates-scope">
+                <button
+                  type="button"
+                  className={templatesScope === 'all' ? 'active' : ''}
+                  onClick={() => setTemplatesScope('all')}
+                >
+                  Все
+                </button>
+                <button
+                  type="button"
+                  className={templatesScope === 'mine' ? 'active' : ''}
+                  onClick={() => setTemplatesScope('mine')}
+                >
+                  Мои
+                </button>
+                <button
+                  type="button"
+                  className={templatesScope === 'shared' ? 'active' : ''}
+                  onClick={() => setTemplatesScope('shared')}
+                >
+                  Общие
+                </button>
+              </div>
             </div>
             <div className="templates-list">
               {filteredTemplates.length === 0 ? (
@@ -700,7 +858,12 @@ export default function UserDashboard() {
                       onClick={() => toggleTemplateSelection(tpl)}
                     >
                       <div className="template-main">
-                        <div className="template-name">{tpl.name}</div>
+                        <div className="template-name">
+                          {tpl.name}
+                          <span className={`template-badge ${tpl.is_mine ? 'mine' : 'shared'}`}>
+                            {tpl.is_mine ? 'мой' : 'общий'}
+                          </span>
+                        </div>
                         {tpl.description && (
                           <div className="template-description">{tpl.description}</div>
                         )}
@@ -725,6 +888,216 @@ export default function UserDashboard() {
                 disabled={selectedTemplateIds.length === 0}
               >
                 Применить выбранные
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showManageTemplates && (
+        <div className="modal-overlay" onClick={() => setShowManageTemplates(false)}>
+          <div className="modal templates-manage-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="templates-header">
+              <h3>Мои шаблоны</h3>
+              <div className="templates-tabs">
+                <button
+                  type="button"
+                  className={templatesTab === 'body' ? 'active' : ''}
+                  onClick={() => {
+                    setTemplatesTab('body')
+                    openCreateTemplate('body')
+                  }}
+                >
+                  Основное письмо
+                </button>
+                <button
+                  type="button"
+                  className={templatesTab === 'signature' ? 'active' : ''}
+                  onClick={() => {
+                    setTemplatesTab('signature')
+                    openCreateTemplate('signature')
+                  }}
+                >
+                  Подпись
+                </button>
+                <button
+                  type="button"
+                  className={templatesTab === 'other' ? 'active' : ''}
+                  onClick={() => {
+                    setTemplatesTab('other')
+                    openCreateTemplate('other')
+                  }}
+                >
+                  Другое
+                </button>
+              </div>
+            </div>
+
+            <div className="templates-manage-content">
+              <div className="templates-list">
+                {myTemplates.length === 0 ? (
+                  <p className="empty-state-text">Пока нет ваших шаблонов. Создайте справа.</p>
+                ) : (
+                  myTemplates.map((tpl) => (
+                    <div key={tpl.id} className="template-item-row">
+                      <div className="template-main">
+                        <div className="template-name">{tpl.name}</div>
+                        {tpl.description && (
+                          <div className="template-description">{tpl.description}</div>
+                        )}
+                      </div>
+                      <div className="template-actions">
+                        <button
+                          type="button"
+                          className="icon-button"
+                          title="Редактировать"
+                          onClick={() => startEditTemplate(tpl)}
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-button danger"
+                          title="Удалить"
+                          onClick={() => {
+                            if (confirm(`Удалить шаблон "${tpl.name}"?`)) {
+                              deleteTemplateMutation.mutate(tpl.id)
+                            }
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="template-form">
+                <h4>{editingTemplate ? 'Редактировать шаблон' : 'Новый шаблон'}</h4>
+                <form onSubmit={handleTemplateSubmit}>
+                  <div className="form-group">
+                    <label>Название</label>
+                    <input
+                      type="text"
+                      value={templateForm.name}
+                      onChange={(e) =>
+                        setTemplateForm({ ...templateForm, name: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Тип шаблона</label>
+                    <div className="template-type-group">
+                      {(['body', 'signature', 'other'] as TemplateType[]).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          className={`type-pill ${templateForm.type === type ? 'active' : ''}`}
+                          onClick={() =>
+                            setTemplateForm({
+                              ...templateForm,
+                              type,
+                              html_content:
+                                templateForm.html_content.trim()
+                                  ? templateForm.html_content
+                                  : starterHtml(type),
+                            })
+                          }
+                        >
+                          {type === 'body'
+                            ? 'Основное письмо'
+                            : type === 'signature'
+                              ? 'Подпись'
+                              : 'Другое'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Описание (необязательно)</label>
+                    <input
+                      type="text"
+                      value={templateForm.description}
+                      onChange={(e) =>
+                        setTemplateForm({ ...templateForm, description: e.target.value })
+                      }
+                      placeholder="Например: шаблон коммерческого предложения"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <div className="compose-header-row">
+                      <label>HTML содержимое</label>
+                      <button
+                        type="button"
+                        className="btn-link"
+                        onClick={() =>
+                          setTemplateForm({
+                            ...templateForm,
+                            html_content: starterHtml(templateForm.type),
+                          })
+                        }
+                      >
+                        Вставить заготовку
+                      </button>
+                    </div>
+                    <textarea
+                      value={templateForm.html_content}
+                      onChange={(e) =>
+                        setTemplateForm({
+                          ...templateForm,
+                          html_content: e.target.value,
+                        })
+                      }
+                      rows={8}
+                      required
+                    />
+                    {templateForm.html_content && (
+                      <div className="html-preview">
+                        <div className="html-preview-label">Предпросмотр</div>
+                        <div
+                          className="html-preview-body email-preview-shell"
+                          dangerouslySetInnerHTML={{ __html: templateForm.html_content }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => openCreateTemplate(templatesTab)}
+                    >
+                      Очистить форму
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={
+                        createTemplateMutation.isPending || updateTemplateMutation.isPending
+                      }
+                    >
+                      {editingTemplate
+                        ? updateTemplateMutation.isPending
+                          ? 'Сохранение...'
+                          : 'Сохранить'
+                        : createTemplateMutation.isPending
+                          ? 'Создание...'
+                          : 'Создать шаблон'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowManageTemplates(false)}
+              >
+                Закрыть
               </button>
             </div>
           </div>

@@ -55,6 +55,8 @@ class EmailTemplate(Base):
     type = Column(String, nullable=False)  # e.g. 'body', 'signature', 'other'
     description = Column(String, nullable=True)
     html_content = Column(Text, nullable=False)
+    # Shared org templates visible to everyone; private = owner only
+    is_shared = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

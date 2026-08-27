@@ -136,6 +136,8 @@ class EmailTemplateBase(BaseModel):
     type: str  # 'body' | 'signature' | 'other'
     description: Optional[str] = None
     html_content: str
+    # Only admins may set True; regular users always get private templates
+    is_shared: bool = False
 
 
 class EmailTemplateCreate(EmailTemplateBase):
@@ -147,14 +149,18 @@ class EmailTemplateUpdate(BaseModel):
     type: Optional[str] = None
     description: Optional[str] = None
     html_content: Optional[str] = None
+    is_shared: Optional[bool] = None
 
 
 class EmailTemplateResponse(BaseModel):
     id: int
+    user_id: int
     name: str
     type: str
     description: Optional[str]
     html_content: str
+    is_shared: bool = False
+    is_mine: bool = False
     created_at: datetime
     updated_at: datetime
 
