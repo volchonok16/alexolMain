@@ -44,7 +44,6 @@ export class UserService {
     const existing = await this.userRepo.findByLogin(login);
     if (existing) throw new Error('Login already exists');
 
-    // Prefer explicit email; otherwise assign mailbox login@MAIL_DOMAIN
     let email = normalizeEmail(data.email);
     if (!email) {
       email = MailSyncService.mailboxEmail(login, config.mail.domain).toLowerCase();
@@ -56,7 +55,21 @@ export class UserService {
     const photoUrl = data.photo ? await saveFile(data.photo) : null;
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    const user = await this.userRepo.create({
+    // Mail first: if sync fails, admin user is not created half-synced.
+    const mailOk = await this.mailSync.ensureMailbox({
+      username: login,
+      full_name: data.name,
+      password: data.password,
+      is_admin: data.role === 'admin',
+      is_active: true,
+    });
+    if (!mailOk) {
+      throw new Error(
+        'Не удалось создать ящик на mail.alexol.io. Проверьте MAIL_API_URL, MAIL_SYNC_SECRET и контейнер mail_backend.'
+      );
+    }
+
+    return this.userRepo.create({
       login,
       password: hashedPassword,
       name: data.name,
@@ -65,16 +78,6 @@ export class UserService {
       birthDate: parseBirthDate(data.birthDate),
       photo: photoUrl,
     });
-
-    await this.mailSync.createMailbox({
-      username: login,
-      full_name: data.name,
-      password: data.password,
-      is_admin: data.role === 'admin',
-      is_active: true,
-    });
-
-    return user;
   }
 
   async update(
@@ -120,7 +123,25 @@ export class UserService {
       photoUrl = await saveFile(data.photo);
     }
 
-    const updated = await this.userRepo.update(id, {
+    const nextLogin = (data.login || previousLogin).toLowerCase();
+    const nextName = data.name ?? user.name;
+    const nextIsAdmin = (data.role ?? user.role) === 'admin';
+
+    // Always upsert mailbox (role/password/name), then update admin DB.
+    const mailOk = await this.mailSync.updateMailbox(previousLogin, {
+      full_name: nextName,
+      password: data.password,
+      is_admin: nextIsAdmin,
+      is_active: true,
+      new_username: data.login && data.login !== previousLogin ? data.login : undefined,
+    });
+    if (!mailOk) {
+      throw new Error(
+        'Ящик на mail не найден или sync не удался. Задайте пароль ещё раз и сохраните — так ящик создастся/обновится. Проверьте также MAIL_SYNC_SECRET.'
+      );
+    }
+
+    return this.userRepo.update(id, {
       login: data.login,
       name: data.name,
       role: data.role,
@@ -129,33 +150,6 @@ export class UserService {
       photo: photoUrl,
       ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),
     });
-
-    const nextLogin = (data.login || previousLogin).toLowerCase();
-    const syncPayload: {
-      full_name?: string;
-      password?: string;
-      is_admin?: boolean;
-      new_username?: string;
-    } = {
-      full_name: data.name ?? user.name,
-      is_admin: (data.role ?? user.role) === 'admin',
-    };
-    if (data.password) syncPayload.password = data.password;
-    if (data.login && data.login !== previousLogin) syncPayload.new_username = data.login;
-
-    // Always ensure mailbox stays in sync (create if missing; set password when provided).
-    if (data.password || data.name !== undefined || data.role !== undefined || data.login) {
-      await this.mailSync.updateMailbox(previousLogin, syncPayload);
-    } else {
-      await this.mailSync.ensureMailbox({
-        username: nextLogin,
-        full_name: user.name,
-        is_admin: user.role === 'admin',
-        is_active: true,
-      });
-    }
-
-    return updated;
   }
 
   async delete(id: string, currentUserId: string) {

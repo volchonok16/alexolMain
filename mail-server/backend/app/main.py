@@ -131,11 +131,13 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
     if "@" not in identity:
         identity = f"{identity}@{settings.MAIL_DOMAIN}"
 
-    result = await db.execute(select(User).where(User.email == identity))
+    identity = identity.lower()
+    username = identity.split("@", 1)[0]
+
+    result = await db.execute(select(User).where(func.lower(User.email) == identity))
     user = result.scalar_one_or_none()
     if not user:
-        username = identity.split("@", 1)[0]
-        result = await db.execute(select(User).where(User.username == username))
+        result = await db.execute(select(User).where(func.lower(User.username) == username))
         user = result.scalar_one_or_none()
 
     if not user or not verify_password(login_data.password, user.hashed_password):
@@ -276,10 +278,11 @@ async def create_user(
             detail="User already exists"
         )
     
-    email = f"{user_data.username}@{settings.MAIL_DOMAIN}"
+    email = f"{user_data.username.strip().lower()}@{settings.MAIL_DOMAIN}".lower()
+    username = user_data.username.strip().lower()
     user = User(
         email=email,
-        username=user_data.username,
+        username=username,
         full_name=user_data.full_name,
         phone=user_data.phone,
         hashed_password=get_password_hash(user_data.password),
@@ -923,16 +926,20 @@ async def health_check():
 async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends(get_db)):
     """Create mailbox if missing; update profile/flags; set password when provided."""
     username = user_data.username.strip().lower()
-    email = f"{username}@{settings.MAIL_DOMAIN}"
+    email = f"{username}@{settings.MAIL_DOMAIN}".lower()
 
     result = await db.execute(
-        select(User).where((User.email == email) | (User.username == username))
+        select(User).where(
+            (func.lower(User.email) == email) | (func.lower(User.username) == username)
+        )
     )
     existing = result.scalar_one_or_none()
     if existing:
+        existing.username = username
+        existing.email = email
         existing.full_name = user_data.full_name
-        existing.is_admin = user_data.is_admin
-        existing.is_active = user_data.is_active
+        existing.is_admin = bool(user_data.is_admin)
+        existing.is_active = bool(user_data.is_active)
         if user_data.phone is not None:
             existing.phone = user_data.phone
         if user_data.password:
@@ -941,15 +948,20 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         await db.refresh(existing)
         return existing
 
-    password = user_data.password or secrets.token_urlsafe(32)
+    if not user_data.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="password is required to create a new mailbox",
+        )
+
     user = User(
         email=email,
         username=username,
         full_name=user_data.full_name,
         phone=user_data.phone,
-        hashed_password=get_password_hash(password),
-        is_admin=user_data.is_admin,
-        is_active=user_data.is_active,
+        hashed_password=get_password_hash(user_data.password),
+        is_admin=bool(user_data.is_admin),
+        is_active=bool(user_data.is_active),
     )
     db.add(user)
     await db.commit()
@@ -960,37 +972,18 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
 @app.post("/api/internal/users", response_model=UserResponse, dependencies=[Depends(verify_mail_sync_key)])
 async def sync_create_user(user_data: SyncUserCreate, db: AsyncSession = Depends(get_db)):
     """Create mailbox user from alexolMain (idempotent if username already exists)."""
-    username = user_data.username.strip()
-    email = f"{username}@{settings.MAIL_DOMAIN}"
-
-    result = await db.execute(
-        select(User).where((User.email == email) | (User.username == username))
+    # Delegate to ensure so username/email are always normalized.
+    return await sync_ensure_user(
+        SyncUserEnsure(
+            username=user_data.username,
+            full_name=user_data.full_name,
+            password=user_data.password,
+            is_admin=user_data.is_admin,
+            is_active=user_data.is_active,
+            phone=user_data.phone,
+        ),
+        db,
     )
-    existing = result.scalar_one_or_none()
-    if existing:
-        existing.full_name = user_data.full_name
-        existing.hashed_password = get_password_hash(user_data.password)
-        existing.is_admin = user_data.is_admin
-        existing.is_active = user_data.is_active
-        if user_data.phone is not None:
-            existing.phone = user_data.phone
-        await db.commit()
-        await db.refresh(existing)
-        return existing
-
-    user = User(
-        email=email,
-        username=username,
-        full_name=user_data.full_name,
-        phone=user_data.phone,
-        hashed_password=get_password_hash(user_data.password),
-        is_admin=user_data.is_admin,
-        is_active=user_data.is_active,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
 
 
 @app.put("/api/internal/users/{username}", response_model=UserResponse, dependencies=[Depends(verify_mail_sync_key)])
@@ -1000,17 +993,18 @@ async def sync_update_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Update mailbox user by username (login from alexolMain)."""
-    result = await db.execute(select(User).where(User.username == username))
+    login = username.strip().lower()
+    result = await db.execute(select(User).where(func.lower(User.username) == login))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Mail user not found")
 
-    if user_data.new_username and user_data.new_username != username:
-        new_username = user_data.new_username.strip()
-        new_email = f"{new_username}@{settings.MAIL_DOMAIN}"
+    if user_data.new_username and user_data.new_username.strip().lower() != login:
+        new_username = user_data.new_username.strip().lower()
+        new_email = f"{new_username}@{settings.MAIL_DOMAIN}".lower()
         clash = await db.execute(
             select(User).where(
-                ((User.username == new_username) | (User.email == new_email))
+                ((func.lower(User.username) == new_username) | (func.lower(User.email) == new_email))
                 & (User.id != user.id)
             )
         )
@@ -1024,9 +1018,9 @@ async def sync_update_user(
     if user_data.password is not None:
         user.hashed_password = get_password_hash(user_data.password)
     if user_data.is_admin is not None:
-        user.is_admin = user_data.is_admin
+        user.is_admin = bool(user_data.is_admin)
     if user_data.is_active is not None:
-        user.is_active = user_data.is_active
+        user.is_active = bool(user_data.is_active)
     if user_data.phone is not None:
         user.phone = user_data.phone
 
@@ -1038,7 +1032,8 @@ async def sync_update_user(
 @app.delete("/api/internal/users/{username}", dependencies=[Depends(verify_mail_sync_key)])
 async def sync_delete_user(username: str, db: AsyncSession = Depends(get_db)):
     """Delete mailbox user by username."""
-    result = await db.execute(select(User).where(User.username == username))
+    login = username.strip().lower()
+    result = await db.execute(select(User).where(func.lower(User.username) == login))
     user = result.scalar_one_or_none()
     if not user:
         return {"message": "Mail user not found (already absent)"}

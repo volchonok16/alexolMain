@@ -1,14 +1,5 @@
 import { config } from '../config/env.js';
 
-type SyncCreatePayload = {
-  username: string;
-  full_name: string;
-  password: string;
-  is_admin?: boolean;
-  is_active?: boolean;
-  phone?: string | null;
-};
-
 type SyncEnsurePayload = {
   username: string;
   full_name: string;
@@ -18,16 +9,7 @@ type SyncEnsurePayload = {
   phone?: string | null;
 };
 
-type SyncUpdatePayload = {
-  full_name?: string;
-  password?: string;
-  is_admin?: boolean;
-  is_active?: boolean;
-  phone?: string | null;
-  new_username?: string;
-};
-
-const FETCH_TIMEOUT_MS = 8_000;
+const FETCH_TIMEOUT_MS = 12_000;
 
 const log = (message: string, detail?: unknown) => {
   if (detail !== undefined) {
@@ -52,6 +34,9 @@ const formatFetchError = (err: unknown): string => {
 /**
  * Provisions / updates / deletes mailboxes on mail.alexol.io
  * when users change in the alexolMain admin panel.
+ *
+ * Always uses POST /api/internal/users/ensure (upsert) so role/password
+ * updates work even if the mailbox was missing.
  */
 export class MailSyncService {
   private enabled() {
@@ -76,108 +61,85 @@ export class MailSyncService {
     };
   }
 
-  /** Ensure mailbox exists (creates with random password if missing and no password given). */
+  /** Upsert mailbox. Returns true on success. */
   async ensureMailbox(payload: SyncEnsurePayload): Promise<boolean> {
     if (!this.enabled()) {
       log('skipped: MAIL_API_URL / MAIL_SYNC_SECRET not set');
       return false;
     }
-    try {
-      const res = await fetch(
-        this.url('/api/internal/users/ensure'),
-        this.fetchOpts({
-          method: 'POST',
-          headers: this.headers(),
-          body: JSON.stringify({
-            username: payload.username,
-            full_name: payload.full_name,
-            password: payload.password,
-            is_admin: payload.is_admin ?? false,
-            is_active: payload.is_active ?? true,
-            phone: payload.phone ?? undefined,
-          }),
-        })
-      );
-      if (!res.ok) {
+
+    const body = {
+      username: payload.username.trim().toLowerCase(),
+      full_name: payload.full_name,
+      password: payload.password,
+      is_admin: Boolean(payload.is_admin),
+      is_active: payload.is_active ?? true,
+      phone: payload.phone ?? undefined,
+    };
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch(
+          this.url('/api/internal/users/ensure'),
+          this.fetchOpts({
+            method: 'POST',
+            headers: this.headers(),
+            body: JSON.stringify(body),
+          })
+        );
+        if (res.ok) {
+          log(`ensure ok for ${body.username} (admin=${body.is_admin})`);
+          return true;
+        }
         const text = await res.text().catch(() => '');
-        log(`ensure failed (${res.status})`, text);
-        return false;
+        log(`ensure failed (${res.status}) attempt ${attempt}`, text);
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 400));
+      } catch (err) {
+        log(`ensure request error attempt ${attempt}`, formatFetchError(err));
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 400));
       }
-      return true;
-    } catch (err) {
-      log('ensure request error', formatFetchError(err));
-      return false;
     }
+    return false;
   }
 
-  async createMailbox(payload: SyncCreatePayload): Promise<boolean> {
-    if (!this.enabled()) return false;
-    try {
-      const res = await fetch(
-        this.url('/api/internal/users'),
-        this.fetchOpts({
-          method: 'POST',
-          headers: this.headers(),
-          body: JSON.stringify({
-            username: payload.username,
-            full_name: payload.full_name,
-            password: payload.password,
-            is_admin: payload.is_admin ?? false,
-            is_active: payload.is_active ?? true,
-            phone: payload.phone ?? undefined,
-          }),
-        })
-      );
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        log(`create failed (${res.status})`, text);
-        return false;
-      }
-      return true;
-    } catch (err) {
-      log('create request error', formatFetchError(err));
-      return false;
-    }
+  async createMailbox(payload: SyncEnsurePayload & { password: string }): Promise<boolean> {
+    return this.ensureMailbox(payload);
   }
 
-  async updateMailbox(username: string, payload: SyncUpdatePayload): Promise<boolean> {
-    if (!this.enabled()) return false;
-    try {
-      const res = await fetch(
-        this.url(`/api/internal/users/${encodeURIComponent(username)}`),
-        this.fetchOpts({
-          method: 'PUT',
-          headers: this.headers(),
-          body: JSON.stringify(payload),
-        })
-      );
-      if (res.status === 404) {
-        return this.ensureMailbox({
-          username: payload.new_username || username,
-          full_name: payload.full_name || username,
-          password: payload.password,
-          is_admin: payload.is_admin,
-          is_active: payload.is_active,
-          phone: payload.phone,
-        });
-      }
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        log(`update failed (${res.status})`, text);
-        return false;
-      }
-      return true;
-    } catch (err) {
-      log('update request error', formatFetchError(err));
-      return false;
+  async updateMailbox(
+    username: string,
+    payload: {
+      full_name?: string;
+      password?: string;
+      is_admin?: boolean;
+      is_active?: boolean;
+      phone?: string | null;
+      new_username?: string;
     }
+  ): Promise<boolean> {
+    const nextUsername = (payload.new_username || username).trim().toLowerCase();
+    const ok = await this.ensureMailbox({
+      username: nextUsername,
+      full_name: payload.full_name || nextUsername,
+      password: payload.password,
+      is_admin: payload.is_admin,
+      is_active: payload.is_active,
+      phone: payload.phone,
+    });
+
+    const prev = username.trim().toLowerCase();
+    if (ok && payload.new_username && prev !== nextUsername) {
+      await this.deleteMailbox(prev);
+    }
+    return ok;
   }
 
   async deleteMailbox(username: string): Promise<void> {
     if (!this.enabled()) return;
+    const login = username.trim().toLowerCase();
     try {
       const res = await fetch(
-        this.url(`/api/internal/users/${encodeURIComponent(username)}`),
+        this.url(`/api/internal/users/${encodeURIComponent(login)}`),
         this.fetchOpts({
           method: 'DELETE',
           headers: this.headers(),
@@ -192,7 +154,6 @@ export class MailSyncService {
     }
   }
 
-  /** Default mailbox address for a given login. */
   static mailboxEmail(login: string, domain = config.mail.domain): string {
     return `${login}@${domain}`;
   }
