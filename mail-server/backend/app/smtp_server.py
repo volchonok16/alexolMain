@@ -8,6 +8,7 @@ import tempfile
 import os
 from email import policy
 from email.parser import BytesParser
+from email.utils import parseaddr
 from aiosmtpd.smtp import SMTP, AuthResult, LoginPassword
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker, Session
@@ -113,7 +114,10 @@ class CustomSMTPHandler:
         try:
             msg = BytesParser(policy=policy.default).parsebytes(envelope.content)
             subject = msg.get("subject", "No Subject")
-            from_address = envelope.mail_from or ""
+            # Prefer RFC From header (may include display name); fall back to envelope
+            header_name, header_addr = parseaddr(msg.get("From") or "")
+            from_address = (header_addr or envelope.mail_from or "").strip().lower()
+            from_name = (header_name or "").strip() or None
             body = ""
             html_body = ""
             if msg.is_multipart():
@@ -127,13 +131,21 @@ class CustomSMTPHandler:
                 body = msg.get_content() or ""
             async with self._async_session_factory() as db:
                 for to_address in envelope.rcpt_tos:
-                    result = await db.execute(select(User).where(User.email == to_address))
+                    to_norm = (to_address or "").strip().lower()
+                    result = await db.execute(select(User).where(User.email == to_norm))
                     user = result.scalar_one_or_none()
+                    if not user:
+                        result = await db.execute(
+                            select(User).where(User.email == to_address)
+                        )
+                        user = result.scalar_one_or_none()
                     if user:
                         email_obj = Email(
                             user_id=user.id,
-                            from_address=from_address,
-                            to_address=to_address,
+                            from_address=from_address or (envelope.mail_from or ""),
+                            to_address=user.email,
+                            from_name=from_name,
+                            to_name=user.full_name,
                             subject=subject,
                             body=body,
                             html_body=html_body,
@@ -141,7 +153,7 @@ class CustomSMTPHandler:
                         )
                         db.add(email_obj)
                         await db.commit()
-                        logger.info("Email saved for user %s", to_address)
+                        logger.info("Email saved for user %s from %s (%s)", user.email, from_address, from_name)
                     else:
                         logger.warning("User not found: %s", to_address)
             return "250 OK"

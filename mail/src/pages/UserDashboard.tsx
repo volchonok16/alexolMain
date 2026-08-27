@@ -21,6 +21,8 @@ interface Email {
   received_at: string
   from_avatar_url?: string | null
   to_avatar_url?: string | null
+  from_name?: string | null
+  to_name?: string | null
 }
 
 type TemplateType = 'body' | 'signature' | 'other'
@@ -388,6 +390,7 @@ export default function UserDashboard() {
               emails.map((email) => {
                 const peerAddress = email.is_sent ? email.to_address : email.from_address
                 const peerAvatar = email.is_sent ? email.to_avatar_url : email.from_avatar_url
+                const peerName = email.is_sent ? email.to_name : email.from_name
                 return (
                 <div
                   key={email.id}
@@ -398,7 +401,14 @@ export default function UserDashboard() {
                   <div className="email-item-body">
                   <div className="email-item-top">
                     <div className="email-from">
-                      {peerAddress}
+                      {peerName ? (
+                        <>
+                          <span className="email-peer-name">{peerName}</span>
+                          <span className="email-peer-email">{peerAddress}</span>
+                        </>
+                      ) : (
+                        peerAddress
+                      )}
                     </div>
                     <div className="email-date">
                       {new Date(email.received_at).toLocaleString('ru-RU', {
@@ -637,7 +647,12 @@ export default function UserDashboard() {
                     />
                     <div>
                       <div className="email-peer-label">От</div>
-                      <div className="email-peer-address">{selectedEmail.from_address}</div>
+                      {selectedEmail.from_name && (
+                        <div className="email-peer-address">{selectedEmail.from_name}</div>
+                      )}
+                      <div className={selectedEmail.from_name ? 'email-peer-email' : 'email-peer-address'}>
+                        {selectedEmail.from_address}
+                      </div>
                     </div>
                   </div>
                   <div className="email-peer-row">
@@ -648,7 +663,12 @@ export default function UserDashboard() {
                     />
                     <div>
                       <div className="email-peer-label">Кому</div>
-                      <div className="email-peer-address">{selectedEmail.to_address}</div>
+                      {selectedEmail.to_name && (
+                        <div className="email-peer-address">{selectedEmail.to_name}</div>
+                      )}
+                      <div className={selectedEmail.to_name ? 'email-peer-email' : 'email-peer-address'}>
+                        {selectedEmail.to_address}
+                      </div>
                     </div>
                   </div>
                 </div>

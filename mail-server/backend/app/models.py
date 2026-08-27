@@ -34,6 +34,8 @@ class Email(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     from_address = Column(String, nullable=False)
     to_address = Column(String, nullable=False)
+    from_name = Column(String, nullable=True)
+    to_name = Column(String, nullable=True)
     subject = Column(String, nullable=True)
     body = Column(Text, nullable=True)
     html_body = Column(Text, nullable=True)

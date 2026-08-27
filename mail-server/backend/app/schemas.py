@@ -124,6 +124,8 @@ class EmailResponse(BaseModel):
     received_at: datetime
     from_avatar_url: Optional[str] = None
     to_avatar_url: Optional[str] = None
+    from_name: Optional[str] = None
+    to_name: Optional[str] = None
 
     class Config:
         from_attributes = True

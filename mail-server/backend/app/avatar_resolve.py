@@ -1,15 +1,23 @@
-"""Resolve avatar URLs for mailbox users and external addresses."""
+"""Resolve avatar URLs and display names for mailbox users and external addresses."""
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 from typing import Iterable, Optional
 from urllib.parse import quote
 
+from email.utils import parseaddr
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models import User
+
+
+@dataclass
+class PeerInfo:
+    avatar_url: str
+    name: Optional[str] = None
 
 
 def gravatar_url(email: str, size: int = 128) -> str:
@@ -33,17 +41,24 @@ def to_browser_avatar_url(url: Optional[str]) -> Optional[str]:
         object_name = url.split(marker, 1)[1].split("?", 1)[0]
         return f"/api/media/{bucket}/{quote(object_name, safe='._-')}"
     if "minio:9000" in url or url.startswith("http://minio/"):
-        # Fallback: last path segment under bucket guess
         parts = url.rstrip("/").split("/")
         if parts:
             return f"/api/media/{bucket}/{quote(parts[-1], safe='._-')}"
     return url
 
 
-async def avatar_map_for_emails(
+def parse_from_header(raw: Optional[str]) -> tuple[str, Optional[str]]:
+    """Return (email, display_name) from a From/To header value."""
+    name, addr = parseaddr(raw or "")
+    addr = (addr or "").strip().lower()
+    name = (name or "").strip() or None
+    return addr, name
+
+
+async def peer_info_map(
     db: AsyncSession, emails: Iterable[str]
-) -> dict[str, str]:
-    """email(lower) → browser-usable avatar URL (local user or Gravatar)."""
+) -> dict[str, PeerInfo]:
+    """email(lower) → avatar + full_name when local user exists."""
     unique = {((e or "").strip().lower()) for e in emails if (e or "").strip()}
     unique.discard("")
     if not unique:
@@ -54,12 +69,22 @@ async def avatar_map_for_emails(
     )
     users = {u.email.lower(): u for u in result.scalars().all()}
 
-    out: dict[str, str] = {}
+    out: dict[str, PeerInfo] = {}
     for addr in unique:
         user = users.get(addr)
         if user and user.avatar_url:
             browser = to_browser_avatar_url(user.avatar_url)
-            out[addr] = browser or gravatar_url(addr)
+            avatar = browser or gravatar_url(addr)
         else:
-            out[addr] = gravatar_url(addr)
+            avatar = gravatar_url(addr)
+        name = (user.full_name.strip() if user and user.full_name else None) or None
+        out[addr] = PeerInfo(avatar_url=avatar, name=name)
     return out
+
+
+async def avatar_map_for_emails(
+    db: AsyncSession, emails: Iterable[str]
+) -> dict[str, str]:
+    """Backward-compatible email → avatar URL map."""
+    peers = await peer_info_map(db, emails)
+    return {k: v.avatar_url for k, v in peers.items()}

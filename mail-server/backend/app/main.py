@@ -41,14 +41,16 @@ from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.minio_client import minio_client
 from app.dkim_signer import sign_message
-from app.avatar_resolve import avatar_map_for_emails, to_browser_avatar_url
+from app.avatar_resolve import peer_info_map, to_browser_avatar_url
 from app import admin_sync
 import smtplib
 import httpx
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from email.utils import formataddr
 from fastapi.responses import StreamingResponse
+from sqlalchemy import text
 
 app = FastAPI(title="Mail Server API")
 
@@ -89,6 +91,13 @@ async def startup_event():
     """Initialize database and create default admin"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Existing DBs: create_all does not add new columns
+        await conn.execute(
+            text("ALTER TABLE emails ADD COLUMN IF NOT EXISTS from_name VARCHAR")
+        )
+        await conn.execute(
+            text("ALTER TABLE emails ADD COLUMN IF NOT EXISTS to_name VARCHAR")
+        )
     
     # Create default admin
     async with AsyncSessionLocal() as db:
@@ -303,10 +312,15 @@ async def exchange_sso_ticket(body: SsoExchangeRequest, db: AsyncSession = Depen
         )
 
     access_token = create_access_token(data={"sub": user.email.lower()})
+    user_out = UserResponse.model_validate(user).model_copy(
+        update={
+            "avatar_url": to_browser_avatar_url(user.avatar_url) or user.avatar_url
+        }
+    )
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": user,
+        "user": user_out,
     }
 
 
@@ -590,14 +604,24 @@ async def upload_avatar(
 
 
 async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:
-    """Attach from/to avatar URLs (local MinIO or Gravatar)."""
+    """Attach from/to avatar URLs and display names."""
     rows = list(emails)
-    avatars = await avatar_map_for_emails(
+    peers = await peer_info_map(
         db,
         [e.from_address for e in rows] + [e.to_address for e in rows],
     )
     out: List[EmailResponse] = []
     for e in rows:
+        from_key = (e.from_address or "").lower()
+        to_key = (e.to_address or "").lower()
+        from_peer = peers.get(from_key)
+        to_peer = peers.get(to_key)
+        from_name = (getattr(e, "from_name", None) or "").strip() or (
+            from_peer.name if from_peer else None
+        )
+        to_name = (getattr(e, "to_name", None) or "").strip() or (
+            to_peer.name if to_peer else None
+        )
         out.append(
             EmailResponse(
                 id=e.id,
@@ -609,8 +633,10 @@ async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:
                 is_read=e.is_read,
                 is_sent=e.is_sent,
                 received_at=e.received_at,
-                from_avatar_url=avatars.get((e.from_address or "").lower()),
-                to_avatar_url=avatars.get((e.to_address or "").lower()),
+                from_avatar_url=from_peer.avatar_url if from_peer else None,
+                to_avatar_url=to_peer.avatar_url if to_peer else None,
+                from_name=from_name,
+                to_name=to_name,
             )
         )
     return out
@@ -668,7 +694,9 @@ def _build_and_send_email_message(
         msg = MIMEMultipart("alternative")
         alternative = msg
 
-    msg["From"] = current_user.email
+    msg["From"] = formataddr(
+        (current_user.full_name or current_user.email, current_user.email)
+    )
     msg["To"] = to_address
     msg["Subject"] = subject
 
@@ -833,11 +861,16 @@ async def send_email(
     db: AsyncSession = Depends(get_db),
 ):
     """Send email without attachments (JSON payload)"""
+    to_addr = (email_data.to_address or "").strip().lower()
+    peers = await peer_info_map(db, [to_addr])
+    to_peer = peers.get(to_addr)
     # Save to database as sent
     email_obj = Email(
         user_id=current_user.id,
         from_address=current_user.email,
         to_address=email_data.to_address,
+        from_name=current_user.full_name,
+        to_name=to_peer.name if to_peer else None,
         subject=email_data.subject,
         body=email_data.body,
         html_body=email_data.html_body,
@@ -956,10 +989,15 @@ async def send_email_with_attachments(
     db: AsyncSession = Depends(get_db),
 ):
     """Send email with optional file attachments (multipart/form-data)."""
+    to_norm = (to_address or "").strip().lower()
+    peers = await peer_info_map(db, [to_norm])
+    to_peer = peers.get(to_norm)
     email_obj = Email(
         user_id=current_user.id,
         from_address=current_user.email,
         to_address=to_address,
+        from_name=current_user.full_name,
+        to_name=to_peer.name if to_peer else None,
         subject=subject,
         body=body,
         html_body=html_body,
