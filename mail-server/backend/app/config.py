@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     @property
     def smtp_hostname(self) -> str:
         return self.MAIL_HOSTNAME or f"mail.{self.MAIL_DOMAIN}"
+
+    # DKIM (own signing; TXT at {selector}._domainkey.{MAIL_DOMAIN})
+    DKIM_ENABLED: bool = True
+    DKIM_SELECTOR: str = "default"
+    # Path inside container, e.g. /etc/dkim/private.pem
+    DKIM_PRIVATE_KEY_PATH: Optional[str] = "/etc/dkim/private.pem"
+    # Or paste PEM in env (use \n for newlines). Path takes precedence if file exists.
+    DKIM_PRIVATE_KEY: Optional[str] = None
     
     # Default Admin
     DEFAULT_ADMIN_EMAIL: str = "admin@alexol.io"

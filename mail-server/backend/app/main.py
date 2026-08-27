@@ -40,6 +40,7 @@ from app.config import settings
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.minio_client import minio_client
+from app.dkim_signer import sign_message
 from app import admin_sync
 import smtplib
 import httpx
@@ -615,6 +616,8 @@ def _build_and_send_email_message(
             if content_type:
                 part.add_header("Content-Type", content_type)
             msg.attach(part)
+
+    msg = sign_message(msg)
 
     print(f"[EMAIL] Starting send process: from={current_user.email}, to={to_address}")
     try:

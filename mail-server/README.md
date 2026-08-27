@@ -23,6 +23,39 @@ Header: `X-Mail-Sync-Key: <MAIL_SYNC_SECRET>`
 
 Mailbox: `{login}@alexol.io`, пароль синхронизируется при создании/смене.
 
+## DKIM
+
+Своя подпись исходящих (direct SMTP / SMTP relay). SendGrid HTTP API подписывает сам.
+
+```bash
+# на машине с cryptography (или в venv mail-server)
+cd mail-server
+pip install cryptography   # если ещё нет
+python3 scripts/generate_dkim.py --out-dir ./dkim --selector default --domain alexol.io
+```
+
+Скрипт создаст `dkim/private.pem` и напечатает TXT для Cloudflare:
+
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| TXT | `default._domainkey` | `v=DKIM1; k=rsa; p=...` | DNS only |
+
+На сервере: каталог `./dkim` смонтирован в контейнер как `/etc/dkim` (см. `docker-compose.yml`).  
+Приватный ключ в git не коммитить.
+
+### Деплой через GitHub Actions
+
+1. На Mac:
+   ```bash
+   base64 -i mail-server/dkim/private.pem | pbcopy
+   ```
+2. Repo → Settings → Secrets → Actions → New secret:
+   - Name: `MAIL_DKIM_PRIVATE_KEY_B64`
+   - Value: вставить из буфера
+3. При деплое workflow пишет `mail-server/dkim/private.pem` и копирует на `/var/www/mail/dkim/`.
+
+Проверка DNS: `dig +short TXT default._domainkey.alexol.io`
+
 ## Run
 
 ```bash

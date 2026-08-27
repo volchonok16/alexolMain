@@ -62,3 +62,6 @@ Thumbs.db
 *.sqlite
 *.db
 
+
+# DKIM private keys (keep private.pem off git)
+dkim/*.pem

@@ -146,6 +146,18 @@ jobs:
               run: |
                   echo "${{ secrets.MAIL_ENV }}" > mail-server/.env
 
+            # DKIM: secret MAIL_DKIM_PRIVATE_KEY_B64 = base64 of private.pem (do not commit PEM)
+            - name: Write DKIM private key from secret
+              run: |
+                  mkdir -p mail-server/dkim
+                  if [ -z "${{ secrets.MAIL_DKIM_PRIVATE_KEY_B64 }}" ]; then
+                    echo "::warning::MAIL_DKIM_PRIVATE_KEY_B64 not set — outbound mail will be unsigned"
+                    exit 0
+                  fi
+                  echo "${{ secrets.MAIL_DKIM_PRIVATE_KEY_B64 }}" | base64 -d > mail-server/dkim/private.pem
+                  chmod 600 mail-server/dkim/private.pem
+                  head -1 mail-server/dkim/private.pem | grep -q 'BEGIN.*PRIVATE KEY'
+
             - name: Prepare server directory
               uses: appleboy/ssh-action@v1.0.3
               with:
@@ -154,7 +166,7 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/mail/backend
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/mail/backend /var/www/mail/dkim
                       echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/mail
                       echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/mail
 
@@ -180,6 +192,11 @@ jobs:
                   script_stop: true
                   script: |
                       cd /var/www/mail
+                      if [ -f dkim/private.pem ]; then
+                        chmod 600 dkim/private.pem
+                      else
+                        echo "WARNING: dkim/private.pem missing on server"
+                      fi
                       echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
                       if docker compose version >/dev/null 2>&1; then
                         docker compose up -d --build
