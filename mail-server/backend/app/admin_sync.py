@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -27,6 +28,29 @@ def _base() -> str:
     return (settings.ALEXOL_API_URL or "").rstrip("/")
 
 
+async def _avatar_fields(avatar_url: Optional[str]) -> dict[str, Any]:
+    """Prefer base64 for internal MinIO URLs; pass through public https URLs."""
+    if not avatar_url:
+        return {}
+    if avatar_url.startswith("https://") or avatar_url.startswith("http://api.") or "/uploads/" in avatar_url:
+        # Public admin CDN / already-absolute usable URL
+        if avatar_url.startswith("https://") or avatar_url.startswith("/uploads/"):
+            return {"avatar_url": avatar_url}
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            res = await client.get(avatar_url)
+            if res.status_code >= 400:
+                logger.warning("[admin-sync] avatar fetch %s -> %s", avatar_url, res.status_code)
+                return {"avatar_url": avatar_url}
+            return {
+                "avatar_base64": base64.b64encode(res.content).decode("ascii"),
+                "avatar_content_type": res.headers.get("content-type") or "image/jpeg",
+            }
+    except Exception as exc:
+        logger.warning("[admin-sync] avatar fetch error: %s", exc)
+        return {"avatar_url": avatar_url}
+
+
 async def push_user_ensure(
     *,
     username: str,
@@ -34,10 +58,12 @@ async def push_user_ensure(
     password: Optional[str] = None,
     is_admin: bool = False,
     is_active: bool = True,
+    phone: Optional[str] = None,
+    avatar_url: Optional[str] = None,
 ) -> None:
     if not _enabled():
         return
-    payload = {
+    payload: dict[str, Any] = {
         "username": username.strip().lower(),
         "full_name": full_name,
         "is_admin": is_admin,
@@ -45,8 +71,11 @@ async def push_user_ensure(
     }
     if password:
         payload["password"] = password
+    if phone is not None:
+        payload["phone"] = phone
+    payload.update(await _avatar_fields(avatar_url))
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             res = await client.post(
                 f"{_base()}/api/internal/mail-sync/users/ensure",
                 headers=_headers(),

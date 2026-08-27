@@ -14,13 +14,23 @@ export class MailInboundSyncController {
           : undefined;
       const is_admin = Boolean(req.body?.is_admin);
       const is_active = req.body?.is_active === undefined ? true : Boolean(req.body.is_active);
+      const phone =
+        typeof req.body?.phone === 'string' ? req.body.phone : req.body?.phone === null ? null : undefined;
+      const avatar_url =
+        typeof req.body?.avatar_url === 'string' && req.body.avatar_url
+          ? req.body.avatar_url
+          : undefined;
+      const avatar_base64 =
+        typeof req.body?.avatar_base64 === 'string' && req.body.avatar_base64
+          ? req.body.avatar_base64
+          : undefined;
+      const avatar_content_type =
+        typeof req.body?.avatar_content_type === 'string'
+          ? req.body.avatar_content_type
+          : undefined;
 
       if (!username || !full_name) {
         return res.status(400).json({ error: 'username and full_name are required' });
-      }
-      if (!is_active) {
-        // Soft-disable in mail → keep admin user but demote isn't enough; skip create
-        // Still upsert profile without forcing active flag (admin panel has no is_active).
       }
 
       const user = await this.service.ensureFromMail({
@@ -29,6 +39,10 @@ export class MailInboundSyncController {
         password,
         is_admin,
         is_active,
+        phone,
+        avatar_url,
+        avatar_base64,
+        avatar_content_type,
       });
       res.json({ user });
     } catch (error: any) {

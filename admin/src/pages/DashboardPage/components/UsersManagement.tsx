@@ -52,6 +52,7 @@ export const UsersManagement = () => {
     name: string;
     role: 'admin' | 'user';
     email?: string;
+    phone?: string;
     birthDate?: string;
     photo?: File;
   }) => {

@@ -7,9 +7,10 @@ type SyncEnsurePayload = {
   is_admin?: boolean;
   is_active?: boolean;
   phone?: string | null;
+  avatar_url?: string | null;
 };
 
-const FETCH_TIMEOUT_MS = 12_000;
+const FETCH_TIMEOUT_MS = 15_000;
 
 const log = (message: string, detail?: unknown) => {
   if (detail !== undefined) {
@@ -31,13 +32,14 @@ const formatFetchError = (err: unknown): string => {
   return err.message;
 };
 
-/**
- * Provisions / updates / deletes mailboxes on mail.alexol.io
- * when users change in the alexolMain admin panel.
- *
- * Always uses POST /api/internal/users/ensure (upsert) so role/password
- * updates work even if the mailbox was missing.
- */
+/** Build absolute public URL for admin-uploaded photo. */
+export function toAbsolutePhotoUrl(photo: string | null | undefined): string | undefined {
+  if (!photo) return undefined;
+  if (/^https?:\/\//i.test(photo)) return photo;
+  const base = (config.publicApiUrl || 'https://api.alexol.io').replace(/\/$/, '').replace(/\/api$/i, '');
+  return `${base}${photo.startsWith('/') ? photo : `/${photo}`}`;
+}
+
 export class MailSyncService {
   private enabled() {
     return Boolean(config.mail.apiUrl && config.mail.syncSecret);
@@ -61,21 +63,21 @@ export class MailSyncService {
     };
   }
 
-  /** Upsert mailbox. Returns true on success. */
   async ensureMailbox(payload: SyncEnsurePayload): Promise<boolean> {
     if (!this.enabled()) {
       log('skipped: MAIL_API_URL / MAIL_SYNC_SECRET not set');
       return false;
     }
 
-    const body = {
+    const body: Record<string, unknown> = {
       username: payload.username.trim().toLowerCase(),
       full_name: payload.full_name,
-      password: payload.password,
       is_admin: Boolean(payload.is_admin),
       is_active: payload.is_active ?? true,
-      phone: payload.phone ?? undefined,
     };
+    if (payload.password) body.password = payload.password;
+    if (payload.phone !== undefined) body.phone = payload.phone;
+    if (payload.avatar_url) body.avatar_url = payload.avatar_url;
 
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
@@ -88,7 +90,7 @@ export class MailSyncService {
           })
         );
         if (res.ok) {
-          log(`ensure ok for ${body.username} (admin=${body.is_admin})`);
+          log(`ensure ok for ${body.username} (admin=${body.is_admin}, avatar=${Boolean(payload.avatar_url)})`);
           return true;
         }
         const text = await res.text().catch(() => '');
@@ -114,6 +116,7 @@ export class MailSyncService {
       is_admin?: boolean;
       is_active?: boolean;
       phone?: string | null;
+      avatar_url?: string | null;
       new_username?: string;
     }
   ): Promise<boolean> {
@@ -125,6 +128,7 @@ export class MailSyncService {
       is_admin: payload.is_admin,
       is_active: payload.is_active,
       phone: payload.phone,
+      avatar_url: payload.avatar_url,
     });
 
     const prev = username.trim().toLowerCase();

@@ -12,6 +12,7 @@ interface UserModalProps {
     name: string;
     role: 'admin' | 'user';
     email?: string;
+    phone?: string;
     birthDate?: string;
     photo?: File;
   }) => void;
@@ -29,6 +30,7 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
   const [role, setRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
   const [birthDate, setBirthDate] = useState(toDateInput(user?.birthDate));
   const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [photo, setPhoto] = useState<File | undefined>();
   const [preview, setPreview] = useState(user?.photo ? resolveApiAssetUrl(user.photo) : '');
 
@@ -46,6 +48,7 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
       login,
       role,
       email,
+      phone,
       birthDate,
       photo,
       ...(password ? { password } : {}),
@@ -111,6 +114,17 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
           </div>
 
           <div className="modal__field">
+            <label>Телефон</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+7 900 123-45-67"
+              disabled={isSaving}
+            />
+          </div>
+
+          <div className="modal__field">
             <label>Дата рождения</label>
             <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} disabled={isSaving} />
           </div>
@@ -119,6 +133,7 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
             <label>Фотография</label>
             <input type="file" accept="image/*" onChange={handlePhotoChange} className="modal__file" disabled={isSaving} />
             {preview && <img src={preview} alt="Preview" className="modal__preview modal__preview--avatar" />}
+            <p className="modal__hint">Фото синхронизируется с mail.alexol.io</p>
           </div>
 
           <div className="modal__actions">

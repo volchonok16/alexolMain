@@ -16,6 +16,10 @@ export const createUserSchema = z.object({
   name: z.string().min(1),
   role: z.enum(['admin', 'user']),
   email: optionalEmail,
+  phone: z.preprocess(
+    value => (typeof value === 'string' && value.trim() === '' ? null : value),
+    z.string().trim().nullable().optional()
+  ),
   birthDate: optionalBirthDate,
 });
 
@@ -25,5 +29,9 @@ export const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
   role: z.enum(['admin', 'user']).optional(),
   email: optionalEmail,
+  phone: z.preprocess(
+    value => (typeof value === 'string' && value.trim() === '' ? null : value),
+    z.string().trim().nullable().optional()
+  ),
   birthDate: optionalBirthDate,
 });

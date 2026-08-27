@@ -5,6 +5,7 @@ export interface User {
   login: string;
   name: string;
   email?: string | null;
+  phone?: string | null;
   role: 'admin' | 'user';
   photo?: string | null;
   birthDate?: string | null;
@@ -28,6 +29,7 @@ export interface UserPayload {
   name: string;
   role: 'admin' | 'user';
   email?: string;
+  phone?: string;
   birthDate?: string;
   photo?: File;
 }
@@ -52,6 +54,7 @@ export const usersApi = {
     formData.append('name', data.name);
     formData.append('role', data.role);
     if (data.email) formData.append('email', data.email);
+    if (data.phone) formData.append('phone', data.phone);
     if (data.birthDate) formData.append('birthDate', data.birthDate);
     if (data.photo) formData.append('photo', data.photo);
 
@@ -67,6 +70,7 @@ export const usersApi = {
     formData.append('name', data.name);
     formData.append('role', data.role);
     formData.append('email', data.email || '');
+    formData.append('phone', data.phone || '');
     formData.append('birthDate', data.birthDate || '');
     if (data.password) formData.append('password', data.password);
     if (data.photo) formData.append('photo', data.photo);

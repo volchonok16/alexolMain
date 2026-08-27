@@ -38,16 +38,20 @@ class SyncUserCreate(BaseModel):
     is_admin: bool = False
     is_active: bool = True
     phone: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 class SyncUserEnsure(BaseModel):
-    """Ensure mailbox exists (password optional — random if creating without one)."""
+    """Ensure mailbox exists (password required only when creating)."""
     username: str
     full_name: str
     password: Optional[str] = None
     is_admin: bool = False
     is_active: bool = True
     phone: Optional[str] = None
+    avatar_url: Optional[str] = None
+    avatar_base64: Optional[str] = None
+    avatar_content_type: Optional[str] = None
 
 
 class SyncUserUpdate(BaseModel):
@@ -57,6 +61,7 @@ class SyncUserUpdate(BaseModel):
     is_admin: Optional[bool] = None
     is_active: Optional[bool] = None
     phone: Optional[str] = None
+    avatar_url: Optional[str] = None
     new_username: Optional[str] = None
 
 

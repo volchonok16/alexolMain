@@ -8,6 +8,7 @@ import io
 import uuid
 import asyncio
 import secrets
+import base64
 
 from jose import JWTError, jwt
 
@@ -300,6 +301,8 @@ async def create_user(
         password=user_data.password,
         is_admin=user.is_admin,
         is_active=user.is_active,
+        phone=user.phone,
+        avatar_url=user.avatar_url,
     )
 
     return user
@@ -379,6 +382,8 @@ async def update_user_by_admin(
         password=user_data.password,
         is_admin=user.is_admin,
         is_active=user.is_active,
+        phone=user.phone,
+        avatar_url=user.avatar_url,
     )
 
     return user
@@ -408,6 +413,8 @@ async def make_user_admin(
         full_name=user.full_name,
         is_admin=True,
         is_active=user.is_active,
+        phone=user.phone,
+        avatar_url=user.avatar_url,
     )
 
     return {"message": f"User {user.email} is now an admin", "user": user}
@@ -444,6 +451,8 @@ async def remove_user_admin(
         full_name=user.full_name,
         is_admin=False,
         is_active=user.is_active,
+        phone=user.phone,
+        avatar_url=user.avatar_url,
     )
 
     return {"message": f"Admin privileges removed from {user.email}", "user": user}
@@ -472,6 +481,8 @@ async def update_profile(
         password=user_data.password,
         is_admin=current_user.is_admin,
         is_active=current_user.is_active,
+        phone=current_user.phone,
+        avatar_url=current_user.avatar_url,
     )
 
     return current_user
@@ -500,6 +511,15 @@ async def upload_avatar(
     # Update user
     current_user.avatar_url = avatar_url
     await db.commit()
+
+    await admin_sync.push_user_ensure(
+        username=current_user.username,
+        full_name=current_user.full_name,
+        is_admin=current_user.is_admin,
+        is_active=current_user.is_active,
+        phone=current_user.phone,
+        avatar_url=avatar_url,
+    )
     
     return {"avatar_url": avatar_url}
 
@@ -922,9 +942,33 @@ async def health_check():
 
 # ── Internal sync API (alexolMain admin → mailbox provisioning) ──────────────
 
+def _apply_avatar_from_sync(user: User, user_data: SyncUserEnsure | SyncUserUpdate | SyncUserCreate) -> None:
+    """Set avatar_url from sync payload (absolute URL or base64 → MinIO)."""
+    avatar_url = getattr(user_data, "avatar_url", None)
+    avatar_b64 = getattr(user_data, "avatar_base64", None)
+    content_type = getattr(user_data, "avatar_content_type", None) or "image/jpeg"
+    if avatar_b64:
+        try:
+            raw = base64.b64decode(avatar_b64)
+            ext = "jpg"
+            if "png" in content_type:
+                ext = "png"
+            elif "webp" in content_type:
+                ext = "webp"
+            elif "gif" in content_type:
+                ext = "gif"
+            file_name = f"{user.username}_{uuid.uuid4()}.{ext}"
+            url = minio_client.upload_file(io.BytesIO(raw), file_name, content_type)
+            user.avatar_url = url
+        except Exception as exc:
+            print(f"[sync] avatar base64 upload failed: {exc}")
+    elif avatar_url:
+        user.avatar_url = avatar_url
+
+
 @app.post("/api/internal/users/ensure", response_model=UserResponse, dependencies=[Depends(verify_mail_sync_key)])
 async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends(get_db)):
-    """Create mailbox if missing; update profile/flags; set password when provided."""
+    """Create mailbox if missing; update profile/flags/avatar; set password when provided."""
     username = user_data.username.strip().lower()
     email = f"{username}@{settings.MAIL_DOMAIN}".lower()
 
@@ -944,6 +988,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
             existing.phone = user_data.phone
         if user_data.password:
             existing.hashed_password = get_password_hash(user_data.password)
+        _apply_avatar_from_sync(existing, user_data)
         await db.commit()
         await db.refresh(existing)
         return existing
@@ -963,6 +1008,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         is_admin=bool(user_data.is_admin),
         is_active=bool(user_data.is_active),
     )
+    _apply_avatar_from_sync(user, user_data)
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -981,6 +1027,7 @@ async def sync_create_user(user_data: SyncUserCreate, db: AsyncSession = Depends
             is_admin=user_data.is_admin,
             is_active=user_data.is_active,
             phone=user_data.phone,
+            avatar_url=user_data.avatar_url,
         ),
         db,
     )
@@ -1023,6 +1070,8 @@ async def sync_update_user(
         user.is_active = bool(user_data.is_active)
     if user_data.phone is not None:
         user.phone = user_data.phone
+    if getattr(user_data, "avatar_url", None):
+        user.avatar_url = user_data.avatar_url
 
     await db.commit()
     await db.refresh(user)

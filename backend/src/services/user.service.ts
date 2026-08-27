@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/user.repository.js';
 import { saveFile, deleteFile } from '../utils/fileUpload.js';
 import { normalizeLogin } from '../utils/login.js';
-import { MailSyncService } from './mailSync.service.js';
+import { MailSyncService, toAbsolutePhotoUrl } from './mailSync.service.js';
 import { config } from '../config/env.js';
 
 const parseBirthDate = (value?: string | null) => {
@@ -14,6 +14,11 @@ const parseBirthDate = (value?: string | null) => {
 
 const normalizeEmail = (email?: string | null) => {
   const value = email?.trim().toLowerCase();
+  return value || null;
+};
+
+const normalizePhone = (phone?: string | null) => {
+  const value = phone?.trim();
   return value || null;
 };
 
@@ -37,6 +42,7 @@ export class UserService {
     name: string;
     role: 'admin' | 'user';
     email?: string | null;
+    phone?: string | null;
     birthDate?: string | null;
     photo?: Express.Multer.File;
   }) {
@@ -52,18 +58,21 @@ export class UserService {
     const existingEmail = await this.userRepo.findByEmail(email);
     if (existingEmail) throw new Error('Email already exists');
 
+    const phone = normalizePhone(data.phone);
     const photoUrl = data.photo ? await saveFile(data.photo) : null;
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    // Mail first: if sync fails, admin user is not created half-synced.
     const mailOk = await this.mailSync.ensureMailbox({
       username: login,
       full_name: data.name,
       password: data.password,
       is_admin: data.role === 'admin',
       is_active: true,
+      phone,
+      avatar_url: toAbsolutePhotoUrl(photoUrl),
     });
     if (!mailOk) {
+      if (photoUrl) await deleteFile(photoUrl);
       throw new Error(
         'Не удалось создать ящик на mail.alexol.io. Проверьте MAIL_API_URL, MAIL_SYNC_SECRET и контейнер mail_backend.'
       );
@@ -75,6 +84,7 @@ export class UserService {
       name: data.name,
       role: data.role,
       email,
+      phone,
       birthDate: parseBirthDate(data.birthDate),
       photo: photoUrl,
     });
@@ -88,6 +98,7 @@ export class UserService {
       name?: string;
       role?: 'admin' | 'user';
       email?: string | null;
+      phone?: string | null;
       birthDate?: string | null;
       photo?: Express.Multer.File;
     }
@@ -123,16 +134,18 @@ export class UserService {
       photoUrl = await saveFile(data.photo);
     }
 
-    const nextLogin = (data.login || previousLogin).toLowerCase();
     const nextName = data.name ?? user.name;
     const nextIsAdmin = (data.role ?? user.role) === 'admin';
+    const nextPhone =
+      data.phone !== undefined ? normalizePhone(data.phone) : user.phone ?? null;
 
-    // Always upsert mailbox (role/password/name), then update admin DB.
     const mailOk = await this.mailSync.updateMailbox(previousLogin, {
       full_name: nextName,
       password: data.password,
       is_admin: nextIsAdmin,
       is_active: true,
+      phone: nextPhone,
+      avatar_url: toAbsolutePhotoUrl(photoUrl),
       new_username: data.login && data.login !== previousLogin ? data.login : undefined,
     });
     if (!mailOk) {
@@ -146,6 +159,7 @@ export class UserService {
       name: data.name,
       role: data.role,
       email,
+      phone: data.phone !== undefined ? nextPhone : undefined,
       birthDate: data.birthDate === undefined ? undefined : parseBirthDate(data.birthDate),
       photo: photoUrl,
       ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),

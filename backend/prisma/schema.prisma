@@ -13,6 +13,7 @@ model User {
   password  String
   name      String
   email     String?   @unique
+  phone     String?
   role      String    @default("user")
   photo     String?
   birthDate DateTime? @db.Date
