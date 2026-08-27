@@ -78,19 +78,48 @@ jobs:
                       if [ -d "$LIVE" ]; then mv "$LIVE" "${LIVE}.old"; fi
                       mv "$STAGING" "$LIVE"
                       chown -R $SUDO_USER:$SUDO_USER "$LIVE"
+                      grep -qi "^User-agent:" "$LIVE/robots.txt"
+                      grep -qi "urlset" "$LIVE/sitemap.xml"
+                      curl -fsS --max-time 10 http://127.0.0.1/robots.txt -H "Host: alexol.io" | grep -qi "^User-agent:"
+                      curl -fsS --max-time 10 http://127.0.0.1/sitemap.xml -H "Host: alexol.io" | grep -qi "urlset"
                       echo "frontend activated: $js"'
 
-            - name: Smoke test frontend via Cloudflare
+            - name: Smoke test frontend
               run: |
-                  curl -fsS --max-time 15 https://alexol.io/robots.txt | grep -qi 'User-agent'
-                  curl -fsS --max-time 15 https://alexol.io/sitemap.xml | grep -qi 'urlset'
+                  set -euo pipefail
+
+                  fetch() {
+                    local url="$1"
+                    local attempt=1
+                    while [ "$attempt" -le 5 ]; do
+                      if out=$(curl -fsS --max-time 15 "$url" 2>/dev/null); then
+                        printf '%s' "$out"
+                        return 0
+                      fi
+                      echo "curl attempt $attempt failed: $url"
+                      attempt=$((attempt + 1))
+                      sleep 5
+                    done
+                    echo "curl failed after 5 attempts: $url" >&2
+                    curl -v --max-time 15 "$url" || true
+                    return 1
+                  }
+
+                  robots=$(fetch "https://alexol.io/robots.txt")
+                  echo "$robots" | grep -qi '^User-agent:' || { echo "robots.txt invalid:"; echo "$robots" | head -5; exit 1; }
+
+                  sitemap=$(fetch "https://alexol.io/sitemap.xml")
+                  echo "$sitemap" | grep -qi 'urlset' || { echo "sitemap.xml invalid:"; echo "$sitemap" | head -5; exit 1; }
+
                   curl -fsSI --max-time 15 http://alexol.io/robots.txt | grep -qi '301'
                   www_status=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' https://www.alexol.io/robots.txt)
                   test "$www_status" = "301" -o "$www_status" = "200"
-                  js=$(curl -fsS --max-time 15 https://alexol.io/ | grep -oE '/assets/[^"]+\.js' | head -1)
+
+                  html=$(fetch "https://alexol.io/")
+                  js=$(echo "$html" | grep -oE '/assets/[^"]+\.js' | head -1)
                   test -n "$js"
-                  curl -fsS --max-time 30 "https://alexol.io${js}" -o /dev/null
-                  echo "Cloudflare OK: https://alexol.io${js} (www robots: HTTP $www_status)"
+                  fetch "https://alexol.io${js}" > /dev/null
+                  echo "frontend OK: https://alexol.io${js} (www robots: HTTP $www_status)"
 
     deploy-lang:
         runs-on: ubuntu-latest
