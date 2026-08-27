@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Tuple
 from urllib.parse import quote
 
 from email.utils import parseaddr
@@ -13,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import User
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class PeerInfo:
@@ -21,10 +24,23 @@ class PeerInfo:
 
 
 def gravatar_url(email: str, size: int = 128) -> str:
-    """Deterministic avatar for any address (mp = mystery-person silhouette)."""
     addr = (email or "").strip().lower()
     digest = hashlib.md5(addr.encode("utf-8")).hexdigest()
     return f"https://www.gravatar.com/avatar/{digest}?s={size}&d=mp"
+
+
+def unavatar_url(email: str) -> str:
+    """
+    Aggregator (Gravatar / Google / GitHub / …). Better chance for Gmail faces
+    than Gravatar-alone. SPA onError still falls back to initials.
+    """
+    addr = (email or "").strip().lower()
+    return f"https://unavatar.io/{quote(addr, safe='@.')}?fallback=https://www.gravatar.com/avatar/{hashlib.md5(addr.encode()).hexdigest()}?d=mp"
+
+
+def public_media_url(object_name: str) -> str:
+    base = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
+    return f"{base}/api/media/{settings.MINIO_BUCKET}/{object_name.lstrip('/')}"
 
 
 def to_browser_avatar_url(url: Optional[str]) -> Optional[str]:
@@ -39,13 +55,77 @@ def to_browser_avatar_url(url: Optional[str]) -> Optional[str]:
     marker = f"/{bucket}/"
     if marker in url:
         object_name = url.split(marker, 1)[1].split("?", 1)[0]
-        # Keep filename as-is (uuid/jpg); FastAPI path param + unquote on read
         return f"/api/media/{bucket}/{object_name}"
     if "minio:9000" in url or url.startswith("http://minio/"):
         parts = url.rstrip("/").split("/")
         if parts:
             return f"/api/media/{bucket}/{quote(parts[-1], safe='._-')}"
     return url
+
+
+def to_public_avatar_url(url: Optional[str]) -> Optional[str]:
+    """Absolute HTTPS URL for embedding in outbound mail (Gmail must fetch it)."""
+    if not url:
+        return None
+    browser = to_browser_avatar_url(url)
+    if not browser:
+        return None
+    if browser.startswith("http://") or browser.startswith("https://"):
+        return browser
+    base = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
+    if browser.startswith("/"):
+        return f"{base}{browser}"
+    return f"{base}/{browser}"
+
+
+def minio_object_name_from_avatar_url(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    bucket = settings.MINIO_BUCKET
+    marker = f"/{bucket}/"
+    if marker in url:
+        return url.split(marker, 1)[1].split("?", 1)[0]
+    if url.startswith("/api/media/"):
+        # /api/media/avatars/file.jpg
+        parts = url.split("/")
+        try:
+            i = parts.index(bucket)
+            return "/".join(parts[i + 1 :]).split("?", 1)[0]
+        except ValueError:
+            return None
+    return None
+
+
+def load_avatar_bytes(avatar_url: Optional[str]) -> Optional[Tuple[bytes, str, str]]:
+    """
+    Load avatar from MinIO for CID embedding.
+    Returns (bytes, content_type, filename) or None.
+    """
+    object_name = minio_object_name_from_avatar_url(avatar_url)
+    if not object_name:
+        return None
+    try:
+        from app.minio_client import minio_client
+
+        minio_client._ensure_bucket()
+        obj = minio_client.client.get_object(settings.MINIO_BUCKET, object_name)
+        try:
+            data = obj.read()
+        finally:
+            obj.close()
+            obj.release_conn()
+        content_type = "image/jpeg"
+        lower = object_name.lower()
+        if lower.endswith(".png"):
+            content_type = "image/png"
+        elif lower.endswith(".webp"):
+            content_type = "image/webp"
+        elif lower.endswith(".gif"):
+            content_type = "image/gif"
+        return data, content_type, object_name.split("/")[-1]
+    except Exception as e:
+        logger.warning("Could not load avatar bytes for CID: %s", e)
+        return None
 
 
 def parse_from_header(raw: Optional[str]) -> tuple[str, Optional[str]]:
@@ -75,9 +155,10 @@ async def peer_info_map(
         user = users.get(addr)
         if user and user.avatar_url:
             browser = to_browser_avatar_url(user.avatar_url)
-            avatar = browser or gravatar_url(addr)
+            avatar = browser or unavatar_url(addr)
         else:
-            avatar = gravatar_url(addr)
+            # External (e.g. Gmail): Unavatar may resolve Google/Gravatar photo
+            avatar = unavatar_url(addr)
         name = (user.full_name.strip() if user and user.full_name else None) or None
         out[addr] = PeerInfo(avatar_url=avatar, name=name)
     return out

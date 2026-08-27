@@ -41,17 +41,24 @@ from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.minio_client import minio_client
 from app.dkim_signer import sign_message
-from app.avatar_resolve import peer_info_map, to_browser_avatar_url
+from app.avatar_resolve import (
+    peer_info_map,
+    to_browser_avatar_url,
+    load_avatar_bytes,
+    to_public_avatar_url,
+)
 from app import admin_sync
 import smtplib
 import httpx
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 from email.utils import formataddr
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from urllib.parse import unquote
+from html import escape as html_escape
 
 app = FastAPI(title="Mail Server API")
 
@@ -714,27 +721,85 @@ def _build_and_send_email_message(
     """
     Build MIME message (with optional attachments) and return (msg, sender_callable_or_coroutine).
     attachments: list of tuples (filename, content_type, bytes_content).
+
+    If the sender has an avatar, embed it as CID so Gmail/clients show the photo
+    in the message body (Gmail's list avatar is Google-side only — not controllable via SMTP).
     """
-    if attachments:
+    avatar_blob = load_avatar_bytes(current_user.avatar_url)
+    public_avatar = to_public_avatar_url(current_user.avatar_url)
+    display_name = current_user.full_name or current_user.email
+
+    # Build HTML: user content + signature with photo
+    if html_body and html_body.strip():
+        content_html = html_body
+    else:
+        content_html = f"<pre style='font-family:inherit;white-space:pre-wrap;margin:0'>{html_escape(body or '')}</pre>"
+
+    if avatar_blob:
+        cid = "avatar@alexol"
+        img_src = f"cid:{cid}"
+    elif public_avatar:
+        cid = None
+        img_src = public_avatar
+    else:
+        cid = None
+        img_src = None
+
+    if img_src:
+        signature_html = (
+            "<div style='margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;"
+            "font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'>"
+            f"<img src='{html_escape(img_src)}' width='64' height='64' alt='' "
+            "style='border-radius:50%;object-fit:cover;display:block;margin-bottom:8px'/>"
+            f"<div style='font-weight:600;color:#0f172a'>{html_escape(display_name)}</div>"
+            f"<div style='color:#64748b;font-size:13px'>{html_escape(current_user.email)}</div>"
+            "</div>"
+        )
+        signature_text = f"\n\n--\n{display_name}\n{current_user.email}\n"
+    else:
+        signature_html = (
+            "<div style='margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;"
+            "font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'>"
+            f"<div style='font-weight:600'>{html_escape(display_name)}</div>"
+            f"<div style='color:#64748b;font-size:13px'>{html_escape(current_user.email)}</div>"
+            "</div>"
+        )
+        signature_text = f"\n\n--\n{display_name}\n{current_user.email}\n"
+
+    full_html = content_html + signature_html
+    full_text = (body or "") + signature_text
+
+    # MIME structure: mixed → related(alternative + image) → attachments
+    if attachments or avatar_blob:
         msg = MIMEMultipart("mixed")
-        alternative = MIMEMultipart("alternative")
-        msg.attach(alternative)
+        if avatar_blob:
+            related = MIMEMultipart("related")
+            msg.attach(related)
+            alternative = MIMEMultipart("alternative")
+            related.attach(alternative)
+        else:
+            related = None
+            alternative = MIMEMultipart("alternative")
+            msg.attach(alternative)
     else:
         msg = MIMEMultipart("alternative")
         alternative = msg
+        related = None
 
-    msg["From"] = formataddr(
-        (current_user.full_name or current_user.email, current_user.email)
-    )
+    msg["From"] = formataddr((display_name, current_user.email))
     msg["To"] = to_address
     msg["Subject"] = subject
 
-    text_part = MIMEText(body, "plain")
-    alternative.attach(text_part)
+    alternative.attach(MIMEText(full_text, "plain", "utf-8"))
+    alternative.attach(MIMEText(full_html, "html", "utf-8"))
 
-    if html_body:
-        html_part = MIMEText(html_body, "html")
-        alternative.attach(html_part)
+    if avatar_blob and related is not None and cid:
+        data, content_type, filename = avatar_blob
+        subtype = content_type.split("/", 1)[-1] if "/" in content_type else "jpeg"
+        img = MIMEImage(data, _subtype=subtype)
+        img.add_header("Content-ID", f"<{cid}>")
+        img.add_header("Content-Disposition", "inline", filename=filename)
+        related.attach(img)
 
     if attachments:
         for filename, content_type, content in attachments:
