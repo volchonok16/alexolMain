@@ -180,6 +180,11 @@
     max-width: 48rem;
   }
 
+  &--embedded {
+    max-height: none;
+    margin: 0 auto;
+  }
+
   &__title {
     margin-bottom: 1.5rem;
     color: #0AE3FF;

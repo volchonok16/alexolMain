@@ -9,6 +9,7 @@ import { CoursesManagement } from '@/pages/DashboardPage/components/CoursesManag
 import { PortfolioManagement } from '@/pages/DashboardPage/components/PortfolioManagement';
 import { UsersManagement } from '@/pages/DashboardPage/components/UsersManagement';
 import { LeadsManagement } from '@/pages/DashboardPage/components/LeadsManagement';
+import { SettingsPage } from '@/pages/DashboardPage/components/SettingsPage';
 import '@/styles/globals.scss';
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => {
                 <Route path="/portfolio" element={<PortfolioManagement />} />
                 <Route path="/users" element={<UsersManagement />} />
                 <Route path="/leads" element={<LeadsManagement />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
           </Routes>

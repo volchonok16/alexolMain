@@ -55,17 +55,24 @@ export const Header = ({ title, onMenuClick }: HeaderProps) => {
       </div>
 
       <div className="admin-header__user">
-        <Avatar
-          src={user?.photo}
-          alt={user?.name || ''}
-          className="admin-header__avatar"
-          emptyClassName="admin-header__avatar admin-header__avatar--fallback"
-          fallback={initials(user?.name)}
-        />
-        <div className="admin-header__meta">
-          <span className="admin-header__name">{user?.name || 'Администратор'}</span>
-          <span className="admin-header__login">{user?.login}</span>
-        </div>
+        <button
+          type="button"
+          className="admin-header__profile"
+          onClick={() => navigate('/settings')}
+          title="Мои настройки"
+        >
+          <Avatar
+            src={user?.photo}
+            alt={user?.name || ''}
+            className="admin-header__avatar"
+            emptyClassName="admin-header__avatar admin-header__avatar--fallback"
+            fallback={initials(user?.name)}
+          />
+          <div className="admin-header__meta">
+            <span className="admin-header__name">{user?.name || 'Администратор'}</span>
+            <span className="admin-header__login">{user?.login}</span>
+          </div>
+        </button>
         <button
           type="button"
           className="admin-header__mail"

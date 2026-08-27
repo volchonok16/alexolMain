@@ -51,6 +51,26 @@
     min-width: 0;
   }
 
+  &__profile {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.2rem 0.45rem 0.2rem 0.2rem;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      background: rgba(10, 227, 255, 0.08);
+      border-color: rgba(10, 227, 255, 0.22);
+    }
+  }
+
   &__avatar {
     width: 2.5rem;
     height: 2.5rem;
@@ -153,6 +173,18 @@
   .admin-header {
     &__meta {
       display: none;
+    }
+
+    &__profile {
+      padding: 0.15rem;
+    }
+
+    &__mail span {
+      display: none;
+    }
+
+    &__mail {
+      padding: 0.55rem;
     }
 
     &__logout span {
