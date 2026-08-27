@@ -250,6 +250,7 @@ jobs:
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
                       echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/admin/html
+                      echo "${{ secrets.PWD }}" | sudo -S rm -rf /var/www/alexol.io/admin/html/*
                       echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/admin/html
                       echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/admin/html
 
