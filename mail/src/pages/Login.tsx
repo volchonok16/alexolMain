@@ -29,11 +29,18 @@ export default function Login() {
         password,
       })
 
-      // Сразу кладём новый токен, чтобы /auth/me не ушёл со старым JWT из persist.
-      useAuthStore.setState({ token: tokenData.access_token, user: null })
+      const accessToken = tokenData.access_token as string
+      useAuthStore.setState({ token: accessToken, user: null })
 
-      const { data: userData } = await api.get('/auth/me')
-      setAuth(userData, tokenData.access_token)
+      let userData = tokenData.user
+      if (!userData) {
+        const me = await api.get('/auth/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        userData = me.data
+      }
+
+      setAuth(userData, accessToken)
 
       if (userData.is_admin) {
         setShowAdminChoice(true)
@@ -46,7 +53,9 @@ export default function Login() {
         typeof detail === 'string'
           ? detail === 'Incorrect email or password'
             ? 'Неверный email или пароль'
-            : detail
+            : detail === 'Could not validate credentials'
+              ? 'Сессия не подтвердилась. Попробуйте ещё раз.'
+              : detail
           : 'Ошибка входа'
       )
     } finally {

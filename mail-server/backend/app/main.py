@@ -128,23 +128,28 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Incorrect email or password",
         )
 
-    # Allow "user" as well as "user@alexol.io"
-    if "@" not in identity:
-        identity = f"{identity}@{settings.MAIL_DOMAIN}"
+    # Allow "user" as well as "user@alexol.io" (any domain → try local username too)
+    username = identity.split("@", 1)[0] if "@" in identity else identity
+    email_identity = identity if "@" in identity else f"{identity}@{settings.MAIL_DOMAIN}".lower()
 
-    identity = identity.lower()
-    username = identity.split("@", 1)[0]
-
-    result = await db.execute(select(User).where(func.lower(User.email) == identity))
+    result = await db.execute(select(User).where(func.lower(User.email) == email_identity))
     user = result.scalar_one_or_none()
     if not user:
         result = await db.execute(select(User).where(func.lower(User.username) == username))
         user = result.scalar_one_or_none()
 
-    if not user or not verify_password(login_data.password, user.hashed_password):
+    if not user:
+        print(f"[auth] login failed: user not found for {identity!r}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
+        )
+
+    if not verify_password(login_data.password, user.hashed_password):
+        print(f"[auth] login failed: bad password for {user.email!r}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
         )
     
     if not user.is_active:
@@ -152,9 +157,19 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is inactive"
         )
+
+    # Normalize stored email to lowercase so JWT ↔ DB lookups stay consistent
+    if user.email != user.email.lower():
+        user.email = user.email.lower()
+        await db.commit()
+        await db.refresh(user)
     
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token(data={"sub": user.email.lower()})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user,
+    }
 
 @app.get("/api/auth/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
@@ -227,10 +242,10 @@ async def exchange_sso_ticket(body: SsoExchangeRequest, db: AsyncSession = Depen
             detail="Invalid SSO ticket",
         )
 
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(select(User).where(func.lower(User.email) == email.lower()))
     user = result.scalar_one_or_none()
     if not user:
-        result = await db.execute(select(User).where(User.username == login))
+        result = await db.execute(select(User).where(func.lower(User.username) == login))
         user = result.scalar_one_or_none()
 
     if not user:
@@ -253,8 +268,12 @@ async def exchange_sso_ticket(body: SsoExchangeRequest, db: AsyncSession = Depen
             detail="Mailbox not found or inactive",
         )
 
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token(data={"sub": user.email.lower()})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user,
+    }
 
 
 # Admin endpoints
@@ -266,10 +285,11 @@ async def create_user(
 ):
     """Create new user (admin only)"""
     # Check if user already exists
+    username = user_data.username.strip().lower()
+    email = f"{username}@{settings.MAIL_DOMAIN}".lower()
     result = await db.execute(
         select(User).where(
-            (User.email == f"{user_data.username}@{settings.MAIL_DOMAIN}") |
-            (User.username == user_data.username)
+            (func.lower(User.email) == email) | (func.lower(User.username) == username)
         )
     )
     existing_user = result.scalar_one_or_none()
@@ -279,8 +299,6 @@ async def create_user(
             detail="User already exists"
         )
     
-    email = f"{user_data.username.strip().lower()}@{settings.MAIL_DOMAIN}".lower()
-    username = user_data.username.strip().lower()
     user = User(
         email=email,
         username=username,

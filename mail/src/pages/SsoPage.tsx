@@ -49,13 +49,18 @@ async function exchangeTicketOnce(ticket: string): Promise<SsoResult> {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const { data: tokenData } = await api.post('/auth/sso/exchange', { ticket })
-        useAuthStore.setState({ token: tokenData.access_token, user: null })
+        const accessToken = tokenData.access_token as string
+        useAuthStore.setState({ token: accessToken, user: null })
 
-        const { data: userData } = await api.get('/auth/me', {
-          headers: { Authorization: `Bearer ${tokenData.access_token}` },
-        })
+        let userData = tokenData.user
+        if (!userData) {
+          const me = await api.get('/auth/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          userData = me.data
+        }
 
-        return { userData, accessToken: tokenData.access_token as string }
+        return { userData, accessToken }
       } catch (err) {
         lastError = err
         if (attempt < 2) {
