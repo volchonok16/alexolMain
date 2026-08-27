@@ -78,6 +78,13 @@ jobs:
                       chown -R $SUDO_USER:$SUDO_USER "$LIVE"
                       echo "frontend activated: $js"'
 
+            - name: Smoke test frontend via Cloudflare
+              run: |
+                  js=$(curl -fsS --max-time 15 https://alexol.io/ | grep -oE '/assets/[^"]+\.js' | head -1)
+                  test -n "$js"
+                  curl -fsS --max-time 30 "https://alexol.io${js}" -o /dev/null
+                  echo "Cloudflare OK: https://alexol.io${js}"
+
     deploy-lang:
         runs-on: ubuntu-latest
         steps:
@@ -358,6 +365,13 @@ jobs:
                       mv "$STAGING" "$LIVE"
                       chown -R $SUDO_USER:$SUDO_USER "$LIVE"
                       echo "admin activated: $js"'
+
+            - name: Smoke test admin via Cloudflare
+              run: |
+                  js=$(curl -fsS --max-time 15 https://admin.alexol.io/ | grep -oE '/assets/[^"]+\.js' | head -1)
+                  test -n "$js"
+                  curl -fsS --max-time 30 "https://admin.alexol.io${js}" -o /dev/null
+                  echo "Cloudflare OK: https://admin.alexol.io${js}"
 
     deploy-backend:
         runs-on: ubuntu-latest
