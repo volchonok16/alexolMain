@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { User } from '@/api/users';
-import { resolveApiAssetUrl } from '@/api/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Avatar } from '@/shared/ui/Avatar';
 import { useUsers } from '../hooks/useUsers';
 import { Pagination } from './Pagination';
 import { UserModal } from './UserModal';
@@ -40,9 +40,20 @@ export const UsersManagement = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Удалить пользователя?')) {
-      deleteUser(id);
+  const handleDelete = async (id: string) => {
+    if (!confirm('Удалить пользователя и в админке, и в почте?')) return;
+    setSaveError(null);
+    try {
+      await deleteUser(id);
+    } catch (err) {
+      const apiError =
+        typeof err === 'object' &&
+        err !== null &&
+        'response' in err &&
+        typeof (err as { response?: { data?: { error?: string } } }).response?.data?.error === 'string'
+          ? (err as { response: { data: { error: string } } }).response.data.error
+          : 'Не удалось удалить пользователя';
+      setSaveError(apiError);
     }
   };
 
@@ -52,6 +63,7 @@ export const UsersManagement = () => {
     name: string;
     role: 'admin' | 'user';
     email?: string;
+    phone?: string;
     birthDate?: string;
     photo?: File;
   }) => {
@@ -117,21 +129,17 @@ export const UsersManagement = () => {
               {users.map(user => (
                 <tr key={user.id}>
                   <td>
-                    {user.photo ? (
-                      <img
-                        src={resolveApiAssetUrl(user.photo)}
-                        alt={user.name}
-                        className="users-management__photo"
-                      />
-                    ) : (
-                      <span className="users-management__photo users-management__photo--empty">
-                        {user.name.slice(0, 1).toUpperCase()}
-                      </span>
-                    )}
+                    <Avatar
+                      src={user.photo}
+                      alt={user.name}
+                      className="users-management__photo"
+                      emptyClassName="users-management__photo users-management__photo--empty"
+                      fallback={user.name.slice(0, 1).toUpperCase()}
+                    />
                   </td>
                   <td>{user.name}</td>
                   <td>{user.login}</td>
-                  <td>{user.email || '—'}</td>
+                  <td>{user.email || '-'}</td>
                   <td>
                     <span className={`users-management__role users-management__role--${user.role}`}>
                       {roleLabel(user.role)}
@@ -140,15 +148,28 @@ export const UsersManagement = () => {
                   <td>
                     {user.birthDate
                       ? new Date(user.birthDate).toLocaleDateString('ru-RU')
-                      : '—'}
+                      : '-'}
                   </td>
                   <td>
                     <div className="dashboard__row-actions">
-                      <button onClick={() => handleEdit(user)} className="dashboard__edit">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(user)}
+                        className="dashboard__edit"
+                        title="Редактировать"
+                      >
                         <Edit2 />
+                        <span>Изменить</span>
                       </button>
-                      <button onClick={() => handleDelete(user.id)} className="dashboard__delete">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(user.id)}
+                        className="dashboard__delete"
+                        title="Удалить в админке и в почте"
+                        disabled={user.id === currentUser?.id}
+                      >
                         <Trash2 />
+                        <span>Удалить</span>
                       </button>
                     </div>
                   </td>

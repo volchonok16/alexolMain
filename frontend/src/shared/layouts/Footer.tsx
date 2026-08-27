@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { Mail, Phone } from 'lucide-react';
 import { OfferModal, BrandLogo, WhatsAppIcon, TelegramIcon } from '../ui';
 import './Footer.scss';
 import { useTranslation } from '../utils/translations';
-import { Icon3D } from '@/shared/ui/Icon3D';
 
 export const Footer = () => {
   const { t } = useTranslation();
@@ -66,16 +66,16 @@ export const Footer = () => {
             <h4 className="footer__title">{t('footer.contacts')}</h4>
             <ul className="footer__contacts">
               <li className="footer__contact">
-                <div className="footer__contact-icon">
-                  <Icon3D type="mail" spin={false} />
+                <div className="footer__contact-icon" aria-hidden>
+                  <Mail size={22} strokeWidth={1.75} />
                 </div>
                 <a href="mailto:support@alexol.io" className="footer__contact-link">
                   support@alexol.io
                 </a>
               </li>
               <li className="footer__contact">
-                <div className="footer__contact-icon">
-                  <Icon3D type="phone" spin={false} />
+                <div className="footer__contact-icon" aria-hidden>
+                  <Phone size={22} strokeWidth={1.75} />
                 </div>
                 <a href="tel:+79095175557" className="footer__contact-link">
                   +7 (909) 517-55-57

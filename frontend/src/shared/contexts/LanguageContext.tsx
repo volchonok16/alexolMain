@@ -4,16 +4,20 @@ import type { Language } from '@/shared/utils/translations';
 
 const meta = {
   ru: {
-    title: 'Alexol — Разработка ПО на заказ',
-    description: 'Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов.',
-    keywords: 'разработка ПО на заказ, веб-разработка, мобильные приложения, enterprise решения, аутсорсинг разработки, UI/UX дизайн, AI/ML интеграции, alexol, алексол',
+    title: 'Alexol - Разработка ПО на заказ',
+    description:
+      'Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов.',
+    keywords:
+      'разработка ПО на заказ, веб-разработка, мобильные приложения, enterprise решения, аутсорсинг разработки, UI/UX дизайн, AI/ML интеграции, alexol, алексол',
     lang: 'ru',
     ogLocale: 'ru_RU',
   },
   en: {
-    title: 'Alexol — Custom Software Development',
-    description: 'Professional development of Web, Mobile, Enterprise solutions. Full cycle from analysis to implementation. 7+ years of experience, 150+ projects.',
-    keywords: 'custom software development, web development, mobile apps, enterprise solutions, outsourcing, UI/UX design, AI/ML integrations, alexol',
+    title: 'Alexol - Custom Software Development',
+    description:
+      'Professional development of Web, Mobile, Enterprise solutions. Full cycle from analysis to implementation. 7+ years of experience, 150+ projects.',
+    keywords:
+      'custom software development, web development, mobile apps, enterprise solutions, outsourcing, UI/UX design, AI/ML integrations, alexol',
     lang: 'en',
     ogLocale: 'en_US',
   },

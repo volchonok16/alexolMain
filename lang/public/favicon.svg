@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <style>
+    .bg { fill: #0C0F16; }
+    .ring { fill: #0AE3FF; }
+    .dot { fill: #FFFFFF; }
+  </style>
+  <circle class="bg" cx="40" cy="40" r="40" />
+  <path
+    class="ring"
+    d="M40,12 L66.5,27.25 L66.5,52.75 L40,68 L13.5,52.75 L13.5,27.25 Z M40,24 L24.5,32.9 L24.5,47.1 L40,56 L55.5,47.1 L55.5,32.9 Z"
+  />
+  <circle class="dot" cx="40" cy="40" r="6" />
+</svg>

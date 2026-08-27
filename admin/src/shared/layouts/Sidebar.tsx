@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { Newspaper, GraduationCap, Users, Briefcase, Inbox } from 'lucide-react';
+import { Newspaper, GraduationCap, Users, Briefcase, Inbox, Mail } from 'lucide-react';
+import { useState } from 'react';
+import { openMailApp } from '@/api/auth';
 import './Sidebar.scss';
 
 interface SidebarProps {
@@ -8,6 +10,22 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ open, onClose }: SidebarProps) => {
+  const [mailLoading, setMailLoading] = useState(false);
+
+  const handleMail = async () => {
+    onClose();
+    setMailLoading(true);
+    try {
+      await openMailApp();
+    } catch (err: unknown) {
+      setMailLoading(false);
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        'Не удалось открыть почту через SSO. Проверьте MAIL_SYNC_SECRET.';
+      window.alert(msg);
+    }
+  };
+
   return (
     <aside className={`sidebar ${open ? 'sidebar--open' : ''}`}>
       <div className="sidebar__logo">
@@ -36,6 +54,10 @@ export const Sidebar = ({ open, onClose }: SidebarProps) => {
           <Users />
           <span>Пользователи</span>
         </NavLink>
+        <button type="button" className="sidebar__link sidebar__link--btn" onClick={handleMail} disabled={mailLoading}>
+          <Mail />
+          <span>{mailLoading ? 'Почта…' : 'Почта'}</span>
+        </button>
       </nav>
     </aside>
   );

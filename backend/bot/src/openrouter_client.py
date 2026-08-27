@@ -4,6 +4,12 @@ import re
 
 import config
 from src.emoji_handler import EmojiHandler
+from src.http_utils import (
+    format_openrouter_error_body,
+    is_openrouter_security_block,
+    openrouter_client_kwargs,
+    openrouter_unavailable_hints,
+)
 
 
 class OpenRouterClient:
@@ -13,6 +19,7 @@ class OpenRouterClient:
         self.model = config.OPENROUTER_MODEL
         self.emoji_handler = EmojiHandler()
         self.fallback_models = config.OPENROUTER_FALLBACK_MODELS
+        self._security_block = False
 
     def _normalize_markdown_formatting(self, text: str) -> str:
         """Приводит частые Markdown-ответы моделей к HTML, который понимает Telegram."""
@@ -278,13 +285,11 @@ class OpenRouterClient:
                 print("      ⚠️ Лимит запросов, пробуем другую модель...")
                 return None
             else:
-                try:
-                    error_data = response.json()
-                    if "error" in error_data:
-                        error_msg = error_data["error"].get("message", "Unknown error")
-                        print(f"      ⚠️ {response.status_code}: {error_msg[:80]}")
-                except Exception:
-                    print(f"      ⚠️ HTTP {response.status_code}: {response.text[:80]}")
+                error_msg = format_openrouter_error_body(response)
+                print(f"      ⚠️ HTTP {response.status_code}: {error_msg[:120]}")
+                if is_openrouter_security_block(response.status_code, error_msg):
+                    self._security_block = True
+                    print("      🚫 Cloudflare/geo block - дальше модели не перебираем")
                 return None
         except httpx.TimeoutException:
             print(f"      ⚠️ Таймаут запроса к {model}")
@@ -292,6 +297,26 @@ class OpenRouterClient:
         except Exception as e:
             print(f"      ⚠️ Ошибка: {str(e)[:80]}")
             return None
+
+    async def _try_models(self, prompt: str, timeout: float, label: str = "") -> Optional[str]:
+        models_to_try = [self.model] + [m for m in self.fallback_models if m != self.model]
+        self._security_block = False
+        prefix = f"{label} " if label else ""
+
+        async with httpx.AsyncClient(**openrouter_client_kwargs(timeout)) as client:
+            for i, model in enumerate(models_to_try, 1):
+                print(f"   {prefix}Попытка {i}/{len(models_to_try)}: {model}")
+                result = await self._try_model(client, model, prompt)
+                if result:
+                    print(f"   {prefix}✅ Успешно использована модель: {model}")
+                    return result
+                print(f"   {prefix}❌ Модель {model} не доступна")
+                if self._security_block:
+                    break
+
+        openrouter_unavailable_hints(saw_security_block=self._security_block)
+        return None
+
 
     async def rewrite_article(self, title: str, description: str, source: str) -> Optional[str]:
         emoji_list = self.emoji_handler.get_emoji_list_for_prompt()
@@ -336,25 +361,7 @@ class OpenRouterClient:
 
 Ответ - только готовый пост или SKIP:"""
 
-        models_to_try = [self.model] + [m for m in self.fallback_models if m != self.model]
-
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            for model in models_to_try:
-                print(f"   Попытка модели: {model}")
-                result = await self._try_model(client, model, prompt)
-                if result:
-                    print(f"   ✅ Успешно использована модель: {model}")
-                    return result
-                else:
-                    print(f"   ❌ Модель {model} не доступна")
-
-            print("\n❌ Все модели недоступны!")
-            print("   💡 Проверь:")
-            print("      1. Актуальные бесплатные модели на https://openrouter.ai/models")
-            print("      2. Правильность API ключа в .env файле")
-            print("      3. Баланс на OpenRouter (даже бесплатные модели требуют регистрации)")
-            print("      4. Попробуй обновить OPENROUTER_MODEL в .env на актуальную модель")
-            return None
+        return await self._try_models(prompt, timeout=90.0)
 
     async def rewrite_article_from_multiple(self, posts: list[dict]) -> Optional[tuple[dict, str]]:
         emoji_list = self.emoji_handler.get_emoji_list_for_prompt()
@@ -422,8 +429,9 @@ class OpenRouterClient:
 """
 
         models_to_try = [self.model] + [m for m in self.fallback_models if m != self.model]
+        self._security_block = False
 
-        async with httpx.AsyncClient(timeout=150.0) as client:
+        async with httpx.AsyncClient(**openrouter_client_kwargs(150.0)) as client:
             for i, model in enumerate(models_to_try, 1):
                 print(f"   Попытка {i}/{len(models_to_try)}: {model}")
                 result = await self._try_model(client, model, prompt)
@@ -475,15 +483,12 @@ class OpenRouterClient:
                         return (selected_post, rewritten_text)
 
                     return (selected_post, result_clean)
-                else:
-                    print(f"   ❌ Модель {model} не доступна")
 
-            print("\n❌ Все модели недоступны!")
-            print("   💡 Проверь:")
-            print("      1. Актуальные бесплатные модели на https://openrouter.ai/models")
-            print("      2. Правильность API ключа в .env файле")
-            print("      3. Баланс на OpenRouter (даже бесплатные модели требуют регистрации)")
-            print("      4. Попробуй обновить OPENROUTER_MODEL в .env на актуальную модель")
+                print(f"   ❌ Модель {model} не доступна")
+                if self._security_block:
+                    break
+
+            openrouter_unavailable_hints(saw_security_block=self._security_block)
             return None
 
     async def generate_image_prompt(
@@ -509,7 +514,7 @@ class OpenRouterClient:
 Ответ - только запрос:"""
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(**openrouter_client_kwargs(30.0)) as client:
                 response = await client.post(
                     f"{self.base_url}/chat/completions",
                     headers={
@@ -537,6 +542,9 @@ class OpenRouterClient:
                     raw_text = (raw_text or "").strip()
                     cleaned_text = self._clean_ai_response(raw_text)
                     return cleaned_text if cleaned_text else None
+                body = format_openrouter_error_body(response)
+                if is_openrouter_security_block(response.status_code, body):
+                    print(f"🚫 OpenRouter image prompt: {body}")
                 return None
 
         except Exception as e:
@@ -615,18 +623,5 @@ class OpenRouterClient:
 
 Ответ: только готовый текст поста, без пояснений."""
 
-        models_to_try = [self.model] + [m for m in self.fallback_models if m != self.model]
-
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            for i, model in enumerate(models_to_try, 1):
-                print(f"   [lead] Попытка {i}/{len(models_to_try)}: {model}")
-                result = await self._try_model(client, model, prompt)
-                if result:
-                    print(f"   [lead] ✅ Успешно использована модель: {model}")
-                    return result
-                else:
-                    print(f"   [lead] ❌ Модель {model} не доступна")
-
-        print("[lead] ❌ Не удалось сгенерировать промо-пост (все модели недоступны)")
-        return None
+        return await self._try_models(prompt, timeout=90.0, label="[lead]")
 

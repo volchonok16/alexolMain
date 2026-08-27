@@ -92,7 +92,7 @@ export const CoursesManagement = () => {
               {courses.map(course => (
                 <tr key={course.id}>
                   <td>{course.title}</td>
-                  <td>{course.topic || '—'}</td>
+                  <td>{course.topic || '-'}</td>
                   <td className="dashboard__description">{course.description}</td>
                   <td>
                     {course.createdAt

@@ -16,6 +16,7 @@ import edge_tts
 import httpx
 
 import config
+from src.http_utils import openrouter_client_kwargs
 from src.speak_settings import WHISPER_LANGUAGE_PROMPTS
 
 EDGE_VOICE_BY_LANG = {
@@ -165,7 +166,7 @@ async def _transcribe_openrouter(audio_bytes: bytes, language: Optional[str] = N
         payload["language"] = language
 
     try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        async with httpx.AsyncClient(**openrouter_client_kwargs(45.0)) as client:
             response = await client.post(
                 f"{config.OPENROUTER_BASE_URL}/audio/transcriptions",
                 headers={
@@ -324,7 +325,7 @@ async def _synthesize_openrouter_one(
     tmp.close()
 
     try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        async with httpx.AsyncClient(**openrouter_client_kwargs(45.0)) as client:
             response = await client.post(
                 f"{config.OPENROUTER_BASE_URL}/audio/speech",
                 headers={

@@ -142,18 +142,20 @@
   }
 
   &__contact-icon {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: visible;
+    color: #0AE3FF;
 
-    .icon3d {
-      width: 2.5rem;
-      height: 2.5rem;
-      filter: none;
+    [data-theme="light"] & {
+      color: #0891B2;
+    }
+
+    svg {
+      display: block;
     }
   }
 

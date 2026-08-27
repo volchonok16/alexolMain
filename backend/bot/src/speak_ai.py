@@ -13,6 +13,11 @@ from typing import Any, Optional
 import httpx
 
 import config
+from src.http_utils import (
+    format_openrouter_error_body,
+    is_openrouter_security_block,
+    openrouter_client_kwargs,
+)
 
 LANG_META = {
     "en": {"name_ru": "английский", "name_en": "English", "code": "en"},
@@ -453,7 +458,7 @@ class SpeakTutorAI:
             return None
 
         models = [self.model] + [m for m in self.fallback_models if m != self.model]
-        async with httpx.AsyncClient(timeout=75.0) as client:
+        async with httpx.AsyncClient(**openrouter_client_kwargs(75.0)) as client:
             for model in models:
                 try:
                     payload: dict[str, Any] = {
@@ -475,8 +480,14 @@ class SpeakTutorAI:
                         json=payload,
                     )
                     if response.status_code != 200:
-                        body = response.text[:300]
+                        body = format_openrouter_error_body(response)
                         print(f"⚠️ Speak AI {model}: HTTP {response.status_code} {body}")
+                        if is_openrouter_security_block(response.status_code, body):
+                            print(
+                                "🚫 OpenRouter security policy (часто RU IP). "
+                                "Задай OPENROUTER_HTTP_PROXY или HTTPS_PROXY вне РФ."
+                            )
+                            break
                         continue
                     data = response.json()
                     choices = data.get("choices") or []

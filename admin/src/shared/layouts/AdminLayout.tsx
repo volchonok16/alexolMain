@@ -11,6 +11,7 @@ const titles: Record<string, string> = {
   '/portfolio': 'Портфолио',
   '/leads': 'Заявки',
   '/users': 'Пользователи',
+  '/settings': 'Мои настройки',
 };
 
 export const AdminLayout = () => {

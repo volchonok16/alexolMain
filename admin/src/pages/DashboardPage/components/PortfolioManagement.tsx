@@ -111,7 +111,7 @@ export const PortfolioManagement = () => {
                         Открыть
                       </a>
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </td>
                   <td>

@@ -23,7 +23,7 @@ export const LoginPage = () => {
     } else if (result === 'forbidden') {
       setError('Нет доступа в админ-панель');
     } else {
-      setError('Неверный логин или пароль');
+      setError('Неверный логин/почта или пароль');
     }
   };
 
@@ -37,13 +37,14 @@ export const LoginPage = () => {
           
           <form onSubmit={handleSubmit} className="login-page__form">
             <div className="login-page__field">
-              <label className="login-page__label">Логин</label>
+              <label className="login-page__label">Логин или почта</label>
               <input
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 className="login-page__input"
-                placeholder="admin"
+                placeholder="admin или admin@alexol.io"
+                autoComplete="username"
                 required
               />
             </div>

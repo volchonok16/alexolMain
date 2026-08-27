@@ -61,7 +61,7 @@ export const LeadsManagement = () => {
                 <tr key={lead.id}>
                   <td>{lead.name}</td>
                   <td>{lead.email}</td>
-                  <td>{lead.phone || '—'}</td>
+                  <td>{lead.phone || '-'}</td>
                   <td>{formatSource(lead.source)}</td>
                   <td>
                     <select

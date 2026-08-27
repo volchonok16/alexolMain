@@ -12,9 +12,16 @@ interface UserModalProps {
     name: string;
     role: 'admin' | 'user';
     email?: string;
+    phone?: string;
     birthDate?: string;
     photo?: File;
   }) => void;
+  /** Render as page card instead of overlay dialog */
+  embedded?: boolean;
+  title?: string;
+  /** Hide role field (e.g. own settings) */
+  lockRole?: boolean;
+  cancelLabel?: string;
 }
 
 const toDateInput = (value?: string | null) => {
@@ -22,15 +29,28 @@ const toDateInput = (value?: string | null) => {
   return value.slice(0, 10);
 };
 
-export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) => {
+export const UserModal = ({
+  user,
+  isSaving,
+  onClose,
+  onSave,
+  embedded = false,
+  title,
+  lockRole = false,
+  cancelLabel = 'Отмена',
+}: UserModalProps) => {
   const [name, setName] = useState(user?.name || '');
   const [login, setLogin] = useState(user?.login || '');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
   const [birthDate, setBirthDate] = useState(toDateInput(user?.birthDate));
-  const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [photo, setPhoto] = useState<File | undefined>();
   const [preview, setPreview] = useState(user?.photo ? resolveApiAssetUrl(user.photo) : '');
+
+  const mailboxEmail = login ? `${login.toLowerCase()}@alexol.io` : '';
+  const heading =
+    title || (user ? 'Редактировать пользователя' : 'Добавить пользователя');
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,42 +64,43 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
     onSave({
       name,
       login,
-      role,
-      email,
+      role: lockRole ? (user?.role === 'admin' ? 'admin' : 'user') : role,
+      email: mailboxEmail || undefined,
+      phone,
       birthDate,
       photo,
       ...(password ? { password } : {}),
     });
   };
 
-  return (
-    <div className="modal-overlay" onClick={isSaving ? undefined : onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <h2 className="modal__title">{user ? 'Редактировать' : 'Добавить'} пользователя</h2>
+  const panel = (
+    <div className={`modal ${embedded ? 'modal--embedded' : ''}`} onClick={e => e.stopPropagation()}>
+      <h2 className="modal__title">{heading}</h2>
 
-        <form onSubmit={handleSubmit} className="modal__form">
-          <div className="modal__field">
-            <label>ФИО</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} required disabled={isSaving} />
-          </div>
+      <form onSubmit={handleSubmit} className="modal__form">
+        <div className="modal__field">
+          <label>ФИО</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} required disabled={isSaving} />
+        </div>
 
-          <div className="modal__field">
-            <label>Логин</label>
-            <input type="text" value={login} onChange={e => setLogin(e.target.value)} required disabled={isSaving} />
-          </div>
+        <div className="modal__field">
+          <label>Логин</label>
+          <input type="text" value={login} onChange={e => setLogin(e.target.value)} required disabled={isSaving} />
+        </div>
 
-          <div className="modal__field">
-            <label>{user ? 'Новый пароль (оставьте пустым, чтобы не менять)' : 'Пароль'}</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required={!user}
-              minLength={user ? undefined : 6}
-              disabled={isSaving}
-            />
-          </div>
+        <div className="modal__field">
+          <label>{user ? 'Новый пароль (оставьте пустым, чтобы не менять)' : 'Пароль'}</label>
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required={!user}
+            minLength={user ? undefined : 6}
+            disabled={isSaving}
+          />
+        </div>
 
+        {!lockRole && (
           <div className="modal__field">
             <label>Роль</label>
             <select value={role} onChange={e => setRole(e.target.value as 'admin' | 'user')} disabled={isSaving}>
@@ -87,39 +108,64 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
               <option value="admin">Админ</option>
             </select>
           </div>
+        )}
 
-          <div className="modal__field">
-            <label>Почта</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="Необязательно"
-              disabled={isSaving}
-            />
-          </div>
+        <div className="modal__field">
+          <label>Почта (ящик)</label>
+          <input type="email" value={mailboxEmail} readOnly disabled={isSaving} />
+          <p className="modal__hint">
+            Вход на{' '}
+            <a href="https://mail.alexol.io" target="_blank" rel="noreferrer">
+              mail.alexol.io
+            </a>
+            : логин <strong>{(login || 'login').toLowerCase()}</strong> или{' '}
+            <strong>{(login || 'login').toLowerCase()}@alexol.io</strong> и тот же пароль.
+            {user
+              ? ' Если вход в почту не работает - задайте новый пароль и сохраните (ящик пересоздастся/обновится).'
+              : ' Пароль сразу синхронизируется с почтой.'}
+          </p>
+        </div>
 
-          <div className="modal__field">
-            <label>Дата рождения</label>
-            <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} disabled={isSaving} />
-          </div>
+        <div className="modal__field">
+          <label>Телефон</label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            placeholder="+7 900 123-45-67"
+            disabled={isSaving}
+          />
+        </div>
 
-          <div className="modal__field">
-            <label>Фотография</label>
-            <input type="file" accept="image/*" onChange={handlePhotoChange} className="modal__file" disabled={isSaving} />
-            {preview && <img src={preview} alt="Preview" className="modal__preview modal__preview--avatar" />}
-          </div>
+        <div className="modal__field">
+          <label>Дата рождения</label>
+          <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} disabled={isSaving} />
+        </div>
 
-          <div className="modal__actions">
-            <button type="button" onClick={onClose} className="modal__cancel" disabled={isSaving}>
-              Отмена
-            </button>
-            <button type="submit" className="modal__submit" disabled={isSaving}>
-              {isSaving ? 'Сохранение...' : 'Сохранить'}
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="modal__field">
+          <label>Фотография</label>
+          <input type="file" accept="image/*" onChange={handlePhotoChange} className="modal__file" disabled={isSaving} />
+          {preview && <img src={preview} alt="Preview" className="modal__preview modal__preview--avatar" />}
+          <p className="modal__hint">Фото синхронизируется с mail.alexol.io</p>
+        </div>
+
+        <div className="modal__actions">
+          <button type="button" onClick={onClose} className="modal__cancel" disabled={isSaving}>
+            {cancelLabel}
+          </button>
+          <button type="submit" className="modal__submit" disabled={isSaving}>
+            {isSaving ? 'Сохранение...' : 'Сохранить'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
+  if (embedded) return panel;
+
+  return (
+    <div className="modal-overlay" onClick={isSaving ? undefined : onClose}>
+      {panel}
     </div>
   );
 };

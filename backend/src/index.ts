@@ -13,6 +13,7 @@ import { courseRouter } from './routes/course.routes.js';
 import { contactRouter } from './routes/contact.routes.js';
 import { leadRouter } from './routes/lead.routes.js';
 import { portfolioRouter } from './routes/portfolio.routes.js';
+import { mailSyncRouter } from './routes/mailSync.routes.js';
 import { initAdmin } from './utils/initAdmin.js';
 import { seedPortfolio } from './utils/seedPortfolio.js';
 import { initMinio } from './config/minio.js';
@@ -59,6 +60,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
+app.use('/api/internal/mail-sync', mailSyncRouter);
 app.use('/api/news', newsRouter);
 app.use('/api/courses', courseRouter);
 app.use('/api/portfolio', portfolioRouter);

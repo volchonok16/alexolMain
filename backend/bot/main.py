@@ -103,6 +103,10 @@ async def run_bot():
     print(f"📢 Канал: {config.TELEGRAM_CHANNEL_ID}")
     print(f"⏰ Публикация новостей: {len(windows)} раза в день | окна: {windows_str} ({config.TIMEZONE})")
     print(f"🧠 AI модель: {config.OPENROUTER_MODEL}")
+    if config.OPENROUTER_HTTP_PROXY:
+        print(f"🌐 OpenRouter proxy: {config.OPENROUTER_HTTP_PROXY.split('@')[-1]}")
+    else:
+        print("🌐 OpenRouter proxy: не задан (при 403 security policy нужен прокси вне РФ)")
     print("=" * 60)
 
     print("\n🚀 Публикация первого поста при запуске...")

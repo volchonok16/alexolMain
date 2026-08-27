@@ -52,6 +52,172 @@ jobs:
                   overwrite: true
                   strip_components: 2
 
+    deploy-lang:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Install dependencies and build lang Mini App
+              working-directory: ./lang
+              run: |
+                  npm install
+                  npm run build
+                  ls -la dist/
+
+            - name: Prepare server directory
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/lang/html
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/lang/html
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/lang/html
+
+            - name: Deploy lang Mini App to server
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "lang/dist/**"
+                  target: "/var/www/alexol.io/lang/html"
+                  overwrite: true
+                  strip_components: 2
+
+    deploy-mail:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Install dependencies and build mail client
+              working-directory: ./mail
+              run: |
+                  npm install
+                  npm run build
+                  ls -la dist/
+
+            - name: Prepare server directory
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/mail/html
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/mail/html
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/mail/html
+
+            - name: Deploy mail client to server
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "mail/dist/**"
+                  target: "/var/www/alexol.io/mail/html"
+                  overwrite: true
+                  strip_components: 2
+
+    deploy-mail-server:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Create mail-server .env from secret
+              run: |
+                  echo "${{ secrets.MAIL_ENV }}" > mail-server/.env
+
+            # DKIM: secret MAIL_DKIM_PRIVATE_KEY_B64 = base64 of private.pem (do not commit PEM)
+            # Also accepts raw PEM if the secret starts with BEGIN.
+            - name: Write DKIM private key from secret
+              env:
+                  DKIM_B64: ${{ secrets.MAIL_DKIM_PRIVATE_KEY_B64 }}
+              run: |
+                  mkdir -p mail-server/dkim
+                  if [ -z "$DKIM_B64" ]; then
+                    echo "::warning::MAIL_DKIM_PRIVATE_KEY_B64 not set - outbound mail will be unsigned"
+                    exit 0
+                  fi
+                  if printf '%s' "$DKIM_B64" | grep -q 'BEGIN.*PRIVATE KEY'; then
+                    printf '%s\n' "$DKIM_B64" > mail-server/dkim/private.pem
+                  else
+                    # Strip whitespace/newlines (GitHub UI / macOS base64 wrapping)
+                    printf '%s' "$DKIM_B64" | tr -d ' \n\r\t' | base64 -d > mail-server/dkim/private.pem
+                  fi
+                  chmod 600 mail-server/dkim/private.pem
+                  head -1 mail-server/dkim/private.pem | grep -q 'BEGIN.*PRIVATE KEY'
+                  echo "DKIM private key written ($(wc -c < mail-server/dkim/private.pem) bytes)"
+
+            - name: Prepare server directory
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/mail/backend /var/www/mail/dkim
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/mail
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/mail
+
+            - name: Deploy mail-server backend
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "mail-server/**"
+                  target: "/var/www/mail"
+                  overwrite: true
+                  strip_components: 1
+
+            - name: Start mail-server with Docker Compose
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script_stop: true
+                  script: |
+                      cd /var/www/mail
+                      if [ -f dkim/private.pem ]; then
+                        chmod 600 dkim/private.pem
+                      else
+                        echo "WARNING: dkim/private.pem missing on server"
+                      fi
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      if docker compose version >/dev/null 2>&1; then
+                        docker compose up -d --build
+                        docker compose ps
+                      elif command -v docker-compose >/dev/null 2>&1; then
+                        docker-compose up -d --build
+                        docker-compose ps
+                      else
+                        echo "Docker Compose not found"
+                        exit 1
+                      fi'
+
     deploy-admin:
         runs-on: ubuntu-latest
         steps:
@@ -84,6 +250,7 @@ jobs:
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
                       echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/alexol.io/admin/html
+                      echo "${{ secrets.PWD }}" | sudo -S rm -rf /var/www/alexol.io/admin/html/*
                       echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/alexol.io/admin/html
                       echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/alexol.io/admin/html
 
@@ -141,6 +308,7 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script_stop: true
+                  command_timeout: 30m
                   script: |
                       cd /var/www/alexol.io/back
                       echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
