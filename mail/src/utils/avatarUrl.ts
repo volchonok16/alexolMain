@@ -11,7 +11,7 @@ export function resolveAvatarUrl(url?: string | null): string | null {
   if (trimmed.includes(bucketMarker)) {
     const objectName = trimmed.split(bucketMarker, 2)[1]?.split('?', 1)[0]
     if (objectName) {
-      return `/api/media/avatars/${encodeURIComponent(objectName).replace(/%2F/gi, '/')}`
+      return `/api/media/avatars/${objectName}`
     }
   }
 
@@ -24,7 +24,7 @@ export function resolveAvatarUrl(url?: string | null): string | null {
   ) {
     const parts = trimmed.split('/').filter(Boolean)
     const file = parts[parts.length - 1]
-    if (file) return `/api/media/avatars/${encodeURIComponent(file)}`
+    if (file) return `/api/media/avatars/${file}`
     return null
   }
 
