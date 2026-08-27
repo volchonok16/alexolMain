@@ -1,5 +1,11 @@
 export type TemplateType = 'body' | 'signature' | 'other'
 
+export function templateTypeLabel(type: TemplateType): string {
+  if (type === 'signature') return 'Подпись'
+  if (type === 'other') return 'Другое'
+  return 'Основное письмо'
+}
+
 export interface EmailTemplate {
   id: number
   user_id: number

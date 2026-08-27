@@ -1,4 +1,14 @@
+User-agent: Yandex
+Allow: /
+Disallow: /api/
+
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+
 User-agent: *
 Allow: /
+Disallow: /api/
 
+Host: alexol.io
 Sitemap: https://alexol.io/sitemap.xml

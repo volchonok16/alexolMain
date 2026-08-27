@@ -7,7 +7,12 @@ import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileTex
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { useToast } from '../components/Toast'
 import { openSiteAdmin } from '../sso'
-import { starterHtml, type EmailTemplate, type TemplateType } from '../utils/templateStarters'
+import {
+  starterHtml,
+  templateTypeLabel,
+  type EmailTemplate,
+  type TemplateType,
+} from '../utils/templateStarters'
 import './AdminDashboard.css'
 
 interface User {
@@ -50,7 +55,6 @@ export default function AdminDashboard() {
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null)
   const [templateForm, setTemplateForm] = useState({
     name: '',
-    type: 'body' as TemplateType,
     description: '',
     html_content: '',
     is_shared: true,
@@ -154,13 +158,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
       setEditingTemplate(null)
-      setTemplateForm({
-        name: '',
-        type: 'body',
-        description: '',
-        html_content: starterHtml('body'),
-        is_shared: true,
-      })
+      openCreateTemplate(templatesTab)
       toast.success('Шаблон сохранён')
     },
     onError: (error: any) => {
@@ -185,13 +183,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
       setEditingTemplate(null)
-      setTemplateForm({
-        name: '',
-        type: 'body',
-        description: '',
-        html_content: starterHtml('body'),
-        is_shared: true,
-      })
+      openCreateTemplate(templatesTab)
       toast.success('Шаблон обновлён')
     },
     onError: (error: any) => {
@@ -252,18 +244,22 @@ export default function AdminDashboard() {
     setEditingTemplate(null)
     setTemplateForm({
       name: '',
-      type,
       description: '',
       html_content: starterHtml(type),
       is_shared: true,
     })
   }
 
+  const switchTemplatesTab = (type: TemplateType) => {
+    setTemplatesTab(type)
+    openCreateTemplate(type)
+  }
+
   const startEditTemplate = (template: EmailTemplate) => {
+    setTemplatesTab(template.type)
     setEditingTemplate(template)
     setTemplateForm({
       name: template.name,
-      type: template.type,
       description: template.description || '',
       html_content: template.html_content,
       is_shared: Boolean(template.is_shared),
@@ -272,12 +268,13 @@ export default function AdminDashboard() {
 
   const handleTemplateSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const templateType = editingTemplate ? editingTemplate.type : templatesTab
     if (editingTemplate) {
       updateTemplateMutation.mutate({
         id: editingTemplate.id,
         data: {
           name: templateForm.name,
-          type: templateForm.type,
+          type: templateType,
           description: templateForm.description,
           html_content: templateForm.html_content,
           is_shared: templateForm.is_shared,
@@ -286,7 +283,7 @@ export default function AdminDashboard() {
     } else {
       createTemplateMutation.mutate({
         name: templateForm.name,
-        type: templateForm.type,
+        type: templateType,
         description: templateForm.description,
         html_content: templateForm.html_content,
         is_shared: templateForm.is_shared,
@@ -601,48 +598,48 @@ export default function AdminDashboard() {
           <div className="modal-overlay" onClick={() => setShowTemplatesModal(false)}>
             <div className="modal templates-manage-modal" onClick={(e) => e.stopPropagation()}>
               <div className="templates-header">
-                <h3>Шаблоны писем</h3>
-                <div className="templates-tabs">
-                  <button
-                    type="button"
-                    className={templatesTab === 'body' ? 'active' : ''}
-                    onClick={() => {
-                      setTemplatesTab('body')
-                      openCreateTemplate('body')
-                    }}
-                  >
-                    Основное письмо
-                  </button>
-                  <button
-                    type="button"
-                    className={templatesTab === 'signature' ? 'active' : ''}
-                    onClick={() => {
-                      setTemplatesTab('signature')
-                      openCreateTemplate('signature')
-                    }}
-                  >
-                    Подпись
-                  </button>
-                  <button
-                    type="button"
-                    className={templatesTab === 'other' ? 'active' : ''}
-                    onClick={() => {
-                      setTemplatesTab('other')
-                      openCreateTemplate('other')
-                    }}
-                  >
-                    Другое
-                  </button>
+                <div className="templates-header-top">
+                  <h3>Шаблоны писем</h3>
+                  <div className="templates-tabs">
+                    <button
+                      type="button"
+                      className={templatesTab === 'body' ? 'active' : ''}
+                      onClick={() => switchTemplatesTab('body')}
+                    >
+                      Основное письмо
+                    </button>
+                    <button
+                      type="button"
+                      className={templatesTab === 'signature' ? 'active' : ''}
+                      onClick={() => switchTemplatesTab('signature')}
+                    >
+                      Подпись
+                    </button>
+                    <button
+                      type="button"
+                      className={templatesTab === 'other' ? 'active' : ''}
+                      onClick={() => switchTemplatesTab('other')}
+                    >
+                      Другое
+                    </button>
+                  </div>
                 </div>
+                <p className="templates-header-hint">
+                  {templateTypeLabel(templatesTab)}
+                  {filteredTemplates.length > 0 && ` · ${filteredTemplates.length} шт.`}
+                </p>
               </div>
 
               <div className="templates-manage-content">
                 <div className="templates-list">
                   {filteredTemplates.length === 0 ? (
-                    <p className="empty-state-text">Пока нет шаблонов.</p>
+                    <p className="empty-state-text">Пока нет шаблонов в этой категории. Создайте справа.</p>
                   ) : (
                     filteredTemplates.map((tpl) => (
-                      <div key={tpl.id} className="template-item-row">
+                      <div
+                        key={tpl.id}
+                        className={`template-item-row ${editingTemplate?.id === tpl.id ? 'selected' : ''}`}
+                      >
                         <div className="template-main">
                           <div className="template-name">
                             {tpl.name}
@@ -682,7 +679,12 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="template-form">
-                  <h4>{editingTemplate ? 'Редактировать шаблон' : 'Новый шаблон'}</h4>
+                  <div className="template-form-heading">
+                    <h4>{editingTemplate ? `Редактирование: ${editingTemplate.name}` : 'Новый шаблон'}</h4>
+                    {!editingTemplate && (
+                      <span className="template-form-category">{templateTypeLabel(templatesTab)}</span>
+                    )}
+                  </div>
                   <form onSubmit={handleTemplateSubmit}>
                     <div className="form-group">
                       <label>Название</label>
@@ -694,32 +696,6 @@ export default function AdminDashboard() {
                         }
                         required
                       />
-                    </div>
-                    <div className="form-group">
-                      <label>Тип шаблона</label>
-                      <div className="template-type-group">
-                        <button
-                          type="button"
-                          className={`type-pill ${templateForm.type === 'body' ? 'active' : ''}`}
-                          onClick={() => setTemplateForm({ ...templateForm, type: 'body' })}
-                        >
-                          Основное письмо
-                        </button>
-                        <button
-                          type="button"
-                          className={`type-pill ${templateForm.type === 'signature' ? 'active' : ''}`}
-                          onClick={() => setTemplateForm({ ...templateForm, type: 'signature' })}
-                        >
-                          Подпись
-                        </button>
-                        <button
-                          type="button"
-                          className={`type-pill ${templateForm.type === 'other' ? 'active' : ''}`}
-                          onClick={() => setTemplateForm({ ...templateForm, type: 'other' })}
-                        >
-                          Другое
-                        </button>
-                      </div>
                     </div>
                     <div className="form-group">
                       <label>Описание (необязательно)</label>
@@ -754,7 +730,9 @@ export default function AdminDashboard() {
                           onClick={() =>
                             setTemplateForm({
                               ...templateForm,
-                              html_content: starterHtml(templateForm.type),
+                              html_content: starterHtml(
+                                editingTemplate ? editingTemplate.type : templatesTab
+                              ),
                             })
                           }
                         >
@@ -787,7 +765,6 @@ export default function AdminDashboard() {
                         type="button"
                         className="btn-secondary"
                         onClick={() => {
-                          setEditingTemplate(null)
                           openCreateTemplate(templatesTab)
                         }}
                       >

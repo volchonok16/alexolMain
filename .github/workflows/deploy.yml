@@ -67,6 +67,8 @@ jobs:
                       LIVE=/var/www/alexol.io/html
                       STAGING=/var/www/alexol.io/html.staging
                       test -f "$STAGING/index.html"
+                      test -f "$STAGING/robots.txt"
+                      test -f "$STAGING/sitemap.xml"
                       js=$(grep -oE "/assets/[^\"]+\.js" "$STAGING/index.html" | head -1)
                       css=$(grep -oE "/assets/[^\"]+\.css" "$STAGING/index.html" | head -1 || true)
                       test -n "$js"
@@ -80,6 +82,10 @@ jobs:
 
             - name: Smoke test frontend via Cloudflare
               run: |
+                  curl -fsS --max-time 15 https://alexol.io/robots.txt | grep -qi 'User-agent'
+                  curl -fsS --max-time 15 https://alexol.io/sitemap.xml | grep -qi 'urlset'
+                  curl -fsSI --max-time 15 http://alexol.io/robots.txt | grep -qi '301'
+                  curl -fsSI --max-time 15 https://www.alexol.io/robots.txt | grep -qi '301'
                   js=$(curl -fsS --max-time 15 https://alexol.io/ | grep -oE '/assets/[^"]+\.js' | head -1)
                   test -n "$js"
                   curl -fsS --max-time 30 "https://alexol.io${js}" -o /dev/null
