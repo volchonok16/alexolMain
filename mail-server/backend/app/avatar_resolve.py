@@ -39,7 +39,8 @@ def to_browser_avatar_url(url: Optional[str]) -> Optional[str]:
     marker = f"/{bucket}/"
     if marker in url:
         object_name = url.split(marker, 1)[1].split("?", 1)[0]
-        return f"/api/media/{bucket}/{quote(object_name, safe='._-')}"
+        # Keep filename as-is (uuid/jpg); FastAPI path param + unquote on read
+        return f"/api/media/{bucket}/{object_name}"
     if "minio:9000" in url or url.startswith("http://minio/"):
         parts = url.rstrip("/").split("/")
         if parts:

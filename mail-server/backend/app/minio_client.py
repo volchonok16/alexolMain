@@ -48,13 +48,22 @@ class MinioClient:
         """Upload file to MinIO."""
         self._ensure_bucket()
         try:
+            if hasattr(file_data, "getbuffer"):
+                length = file_data.getbuffer().nbytes
+                file_data.seek(0)
+            elif hasattr(file_data, "seek") and hasattr(file_data, "tell"):
+                file_data.seek(0, 2)
+                length = file_data.tell()
+                file_data.seek(0)
+            else:
+                length = -1
             self.client.put_object(
                 settings.MINIO_BUCKET,
                 file_name,
                 file_data,
-                length=-1,
+                length=length if length > 0 else -1,
                 part_size=10 * 1024 * 1024,
-                content_type=content_type,
+                content_type=content_type or "application/octet-stream",
             )
             url = f"http://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{file_name}"
             return url

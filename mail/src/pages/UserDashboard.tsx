@@ -6,6 +6,7 @@ import api from '../api/axios'
 import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
+import { useToast } from '../components/Toast'
 import { openSiteAdmin } from '../sso'
 import { resolveAvatarUrl } from '../utils/avatarUrl'
 import './UserDashboard.css'
@@ -40,6 +41,7 @@ interface EmailTemplate {
 
 export default function UserDashboard() {
   const navigate = useNavigate()
+  const toast = useToast()
   const logout = useAuthStore((state) => state.logout)
   const user = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
@@ -123,10 +125,10 @@ export default function UserDashboard() {
       setShowCompose(false)
       setComposeData({ to_address: '', subject: '', body: '', html_body: '' })
       setAttachments([])
-      alert('Письмо отправлено!')
+      toast.success('Письмо отправлено')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка отправки')
+      toast.error(error.response?.data?.detail || 'Ошибка отправки')
     },
   })
 
@@ -139,7 +141,7 @@ export default function UserDashboard() {
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
       queryClient.invalidateQueries({ queryKey: ['sent'] })
       setSelectedEmail(null)
-      alert('Письмо удалено')
+      toast.success('Письмо удалено')
     },
   })
 
@@ -149,7 +151,7 @@ export default function UserDashboard() {
     let currentHtml = composeData.html_body
 
     if (!composeData.body && !currentHtml) {
-      alert('Нужно указать либо текст письма, либо HTML (шаблон).')
+      toast.error('Нужно указать либо текст письма, либо HTML (шаблон).')
       return
     }
 

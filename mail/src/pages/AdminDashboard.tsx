@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileText, LayoutDashboard } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { useToast } from '../components/Toast'
 import { openSiteAdmin } from '../sso'
 import './AdminDashboard.css'
 
@@ -32,6 +33,7 @@ interface EmailTemplate {
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
+  const toast = useToast()
   const logout = useAuthStore((state) => state.logout)
   const currentUser = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
@@ -92,10 +94,10 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowCreateForm(false)
       setFormData({ full_name: '', username: '', phone: '', password: '', is_admin: false })
-      alert('Пользователь создан успешно!')
+      toast.success('Пользователь создан')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка создания пользователя')
+      toast.error(error.response?.data?.detail || 'Ошибка создания пользователя')
     },
   })
 
@@ -106,10 +108,10 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-      alert('Пользователь удалён в почте и в админке')
+      toast.success('Пользователь удалён в почте и в админке')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка удаления пользователя')
+      toast.error(error.response?.data?.detail || 'Ошибка удаления пользователя')
     },
   })
 
@@ -123,10 +125,10 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowEditForm(false)
       setEditingUser(null)
-      alert('Пользователь обновлен!')
+      toast.success('Пользователь обновлён')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка обновления пользователя')
+      toast.error(error.response?.data?.detail || 'Ошибка обновления пользователя')
     },
   })
 
@@ -143,7 +145,7 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка изменения статуса админа')
+      toast.error(error.response?.data?.detail || 'Ошибка изменения статуса админа')
     },
   })
 
@@ -157,10 +159,10 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
       setEditingTemplate(null)
       setTemplateForm({ name: '', type: 'body', description: '', html_content: '' })
-      alert('Шаблон сохранён')
+      toast.success('Шаблон сохранён')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка сохранения шаблона')
+      toast.error(error.response?.data?.detail || 'Ошибка сохранения шаблона')
     },
   })
 
@@ -173,10 +175,10 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
       setEditingTemplate(null)
       setTemplateForm({ name: '', type: 'body', description: '', html_content: '' })
-      alert('Шаблон обновлён')
+      toast.success('Шаблон обновлён')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка обновления шаблона')
+      toast.error(error.response?.data?.detail || 'Ошибка обновления шаблона')
     },
   })
 
@@ -186,10 +188,10 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] })
-      alert('Шаблон удалён')
+      toast.success('Шаблон удалён')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка удаления шаблона')
+      toast.error(error.response?.data?.detail || 'Ошибка удаления шаблона')
     },
   })
 

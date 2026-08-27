@@ -5,75 +5,91 @@ import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { ArrowLeft, Upload, Save } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { useToast } from '../components/Toast'
 import { resolveAvatarUrl } from '../utils/avatarUrl'
 import './Profile.css'
 
 export default function Profile() {
   const navigate = useNavigate()
+  const toast = useToast()
   const { user, setUser } = useAuthStore()
-  
+
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
     phone: user?.phone || '',
     password: '',
     confirmPassword: '',
   })
-  
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarBroken, setAvatarBroken] = useState(false)
 
-  const avatarSrc = avatarPreview || resolveAvatarUrl(user?.avatar_url)
+  const remoteAvatar = resolveAvatarUrl(user?.avatar_url)
+  const avatarSrc = avatarPreview || remoteAvatar
 
-  // Update profile mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, string>) => {
       const { data: updatedUser } = await api.put('/profile', data)
       return updatedUser
     },
     onSuccess: (updatedUser) => {
       setUser(updatedUser)
-      alert('Профиль обновлен!')
-      setFormData({ ...formData, password: '', confirmPassword: '' })
+      toast.success('Профиль обновлён')
+      setFormData((prev) => ({ ...prev, password: '', confirmPassword: '' }))
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка обновления профиля')
+      toast.error(error.response?.data?.detail || 'Ошибка обновления профиля')
     },
   })
 
-  // Upload avatar mutation
   const uploadAvatarMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData()
-      formData.append('file', file)
-      const { data } = await api.post('/profile/avatar', formData, {
+      const body = new FormData()
+      body.append('file', file)
+      const { data } = await api.post('/profile/avatar', body, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      return data
+      return data as { avatar_url: string }
     },
     onSuccess: (data) => {
+      const nextUrl = resolveAvatarUrl(data.avatar_url) || data.avatar_url
+      const busted = nextUrl.includes('?')
+        ? `${nextUrl}&t=${Date.now()}`
+        : `${nextUrl}?t=${Date.now()}`
       if (user) {
-        setUser({ ...user, avatar_url: resolveAvatarUrl(data.avatar_url) || data.avatar_url })
+        setUser({ ...user, avatar_url: busted })
       }
       setAvatarBroken(false)
-      alert('Аватар обновлен!')
       setAvatarFile(null)
-      setAvatarPreview(null)
+      toast.success('Аватар обновлён')
+
+      // Drop local preview only after remote image actually loads
+      const probe = new Image()
+      probe.onload = () => {
+        setAvatarPreview(null)
+        setAvatarBroken(false)
+      }
+      probe.onerror = () => {
+        // Keep data-URL preview so UI doesn't fall back to "A"
+        toast.info('Фото сохранено. Если картинка не появится — обновите страницу.')
+      }
+      probe.src = busted
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Ошибка загрузки аватара')
+      toast.error(error.response?.data?.detail || 'Ошибка загрузки аватара')
     },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (formData.password && formData.password !== formData.confirmPassword) {
-      alert('Пароли не совпадают')
+      toast.error('Пароли не совпадают')
       return
     }
 
-    const updateData: any = {
+    const updateData: Record<string, string> = {
       full_name: formData.full_name,
       phone: formData.phone,
     }
@@ -87,14 +103,22 @@ export default function Profile() {
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      setAvatarFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Выберите файл изображения (JPG, PNG, WebP)')
+      return
     }
+    if (file.type.includes('heic') || file.type.includes('heif')) {
+      toast.error('HEIC не поддерживается. Сохраните как JPG или PNG.')
+      return
+    }
+    setAvatarBroken(false)
+    setAvatarFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleAvatarUpload = () => {
@@ -122,10 +146,13 @@ export default function Profile() {
             <div className="avatar-wrapper">
               {avatarSrc && !avatarBroken ? (
                 <img
+                  key={avatarSrc}
                   src={avatarSrc}
                   alt="Avatar"
                   className="profile-avatar"
-                  onError={() => setAvatarBroken(true)}
+                  onError={() => {
+                    if (!avatarPreview) setAvatarBroken(true)
+                  }}
                 />
               ) : (
                 <div className="avatar-placeholder">
@@ -133,7 +160,7 @@ export default function Profile() {
                 </div>
               )}
             </div>
-            
+
             <div className="avatar-actions">
               <label htmlFor="avatar-input" className="btn-upload">
                 <Upload size={20} />
@@ -142,11 +169,11 @@ export default function Profile() {
               <input
                 id="avatar-input"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleAvatarChange}
                 style={{ display: 'none' }}
               />
-              
+
               {avatarFile && (
                 <button
                   onClick={handleAvatarUpload}
@@ -210,7 +237,9 @@ export default function Profile() {
               <input
                 type="password"
                 value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, confirmPassword: e.target.value })
+                }
                 placeholder="••••••••"
               />
             </div>
@@ -229,4 +258,3 @@ export default function Profile() {
     </div>
   )
 }
-

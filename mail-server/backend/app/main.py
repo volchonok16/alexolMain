@@ -51,6 +51,7 @@ from email.mime.application import MIMEApplication
 from email.utils import formataddr
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
+from urllib.parse import unquote
 
 app = FastAPI(title="Mail Server API")
 
@@ -578,21 +579,30 @@ async def upload_avatar(
     db: AsyncSession = Depends(get_db)
 ):
     """Upload user avatar"""
-    # Validate file type
-    if not file.content_type.startswith('image/'):
+    content_type = (file.content_type or "").lower()
+    if not content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
-    
-    # Generate unique filename
-    file_extension = file.filename.split('.')[-1]
-    file_name = f"{current_user.username}_{uuid.uuid4()}.{file_extension}"
-    
-    # Upload to MinIO
+    if content_type in ("image/heic", "image/heif"):
+        raise HTTPException(
+            status_code=400,
+            detail="HEIC не поддерживается. Сохраните фото как JPG или PNG.",
+        )
+
+    raw_name = file.filename or "avatar.jpg"
+    file_extension = raw_name.rsplit(".", 1)[-1].lower() if "." in raw_name else "jpg"
+    if file_extension not in ("jpg", "jpeg", "png", "webp", "gif"):
+        file_extension = "jpg"
+    file_name = f"{current_user.username}_{uuid.uuid4().hex}.{file_extension}"
+
     file_data = await file.read()
+    if not file_data:
+        raise HTTPException(status_code=400, detail="Empty file")
     file_stream = io.BytesIO(file_data)
-    
-    avatar_url = minio_client.upload_file(file_stream, file_name, file.content_type)
-    
-    # Update user
+
+    avatar_url = minio_client.upload_file(
+        file_stream, file_name, content_type or "image/jpeg"
+    )
+
     current_user.avatar_url = avatar_url
     await db.commit()
 
@@ -604,8 +614,9 @@ async def upload_avatar(
         phone=current_user.phone,
         avatar_url=avatar_url,
     )
-    
-    return {"avatar_url": to_browser_avatar_url(avatar_url) or avatar_url}
+
+    browser_url = to_browser_avatar_url(avatar_url) or avatar_url
+    return {"avatar_url": browser_url}
 
 
 async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:
@@ -655,13 +666,26 @@ async def media_proxy(
     """Public read of MinIO avatars (SPA <img> cannot send Bearer)."""
     if bucket != settings.MINIO_BUCKET:
         raise HTTPException(status_code=404, detail="Not found")
+    object_name = unquote(object_name or "").lstrip("/")
+    if not object_name or ".." in object_name:
+        raise HTTPException(status_code=404, detail="Not found")
     try:
         minio_client._ensure_bucket()
         obj = minio_client.client.get_object(bucket, object_name)
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Object not found: {e}") from e
 
-    content_type = obj.headers.get("Content-Type", "application/octet-stream")
+    content_type = obj.headers.get("Content-Type") or "application/octet-stream"
+    if content_type == "application/octet-stream":
+        lower = object_name.lower()
+        if lower.endswith((".jpg", ".jpeg")):
+            content_type = "image/jpeg"
+        elif lower.endswith(".png"):
+            content_type = "image/png"
+        elif lower.endswith(".webp"):
+            content_type = "image/webp"
+        elif lower.endswith(".gif"):
+            content_type = "image/gif"
 
     def iter_file():
         try:
@@ -674,7 +698,7 @@ async def media_proxy(
     return StreamingResponse(
         iter_file(),
         media_type=content_type,
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={"Cache-Control": "public, max-age=3600"},
     )
 
 
