@@ -29,7 +29,7 @@ export const Footer = () => {
                 <WhatsAppIcon size={40} />
               </a>
               <a
-                href="https://t.me/alexolcorp"
+                href="https://t.me/+Pa6BxvSbBUI0NjIy"
                 className="footer__social-link"
                 target="_blank"
                 rel="noopener noreferrer"

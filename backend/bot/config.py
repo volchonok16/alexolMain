@@ -280,10 +280,10 @@ MAX_POST_LENGTH = 3000
 
 # Подпись с ссылкой на канал, которая будет добавляться в конец каждого поста.
 # Формат по умолчанию - HTML-ссылка для Telegram:
-# <a href="https://t.me/+B3Ru2nZS8K82MDc6">Alexol | Подписаться</a>
-# VK и Instagram получают тот же текст, но без HTML (в VK будет "Alexol | Подписаться (https://t.me/+B3Ru2nZS8K82MDc6)").
+# <a href="https://t.me/+Pa6BxvSbBUI0NjIy">Alexol | Подписаться</a>
+# VK и Instagram получают тот же текст, но без HTML (в VK будет "Alexol | Подписаться (https://t.me/+Pa6BxvSbBUI0NjIy)").
 SUBSCRIBE_FOOTER = os.getenv(
     "SUBSCRIBE_FOOTER",
-    '<a href="https://t.me/+B3Ru2nZS8K82MDc6">Alexol | Подписаться</a>',
+    '<a href="https://t.me/+Pa6BxvSbBUI0NjIy">Alexol | Подписаться</a>',
 )
 
