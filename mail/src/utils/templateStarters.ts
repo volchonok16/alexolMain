@@ -1,3 +1,5 @@
+import { ALEXOL_SIGNATURE_HTML } from './alexolSignature'
+
 export type TemplateType = 'body' | 'signature' | 'other'
 
 export function templateTypeLabel(type: TemplateType): string {
@@ -22,17 +24,7 @@ export interface EmailTemplate {
 /** Starter HTML fragments - outbound mail wraps them in a 600px email shell. */
 export function starterHtml(type: TemplateType): string {
   if (type === 'signature') {
-    return [
-      '<div data-alexol-sig="1" style="margin-top:8px;padding-top:16px;border-top:1px solid #e2e8f0;">',
-      '  <div style="font-weight:600;color:#0f172a;font-size:14px;">Ваше Имя</div>',
-      '  <div style="color:#64748b;font-size:13px;margin-top:2px;">Должность · alexol.io</div>',
-      '  <div style="margin-top:8px;">',
-      '    <a href="https://alexol.io" style="color:#0891b2;text-decoration:none;font-size:13px;">alexol.io</a>',
-      '    <span style="color:#94a3b8;"> · </span>',
-      '    <a href="mailto:support@alexol.io" style="color:#0891b2;text-decoration:none;font-size:13px;">support@alexol.io</a>',
-      '  </div>',
-      '</div>',
-    ].join('\n')
+    return ALEXOL_SIGNATURE_HTML
   }
 
   if (type === 'other') {

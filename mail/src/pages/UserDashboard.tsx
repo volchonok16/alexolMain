@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2 } from 'lucide-react'
+import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
@@ -15,6 +15,15 @@ import {
   type EmailTemplate,
   type TemplateType,
 } from '../utils/templateStarters'
+import { ALEXOL_SIGNATURE_HTML } from '../utils/alexolSignature'
+import {
+  applyTemplatesToHtml,
+  buildComposePreviewHtml,
+  buildForwardCompose,
+  buildReplyCompose,
+  normalizeComposeLinks,
+  replaceOrAppendSignature,
+} from '../utils/composeEmail'
 import './UserDashboard.css'
 
 interface Email {
@@ -262,49 +271,20 @@ export default function UserDashboard() {
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
 
-    let currentHtml = composeData.html_body
+    const mergedHtml = buildComposePreviewHtml(composeData.body, composeData.html_body)
 
-    if (!composeData.body && !currentHtml) {
-      toast.error('Нужно указать либо текст письма, либо HTML (шаблон).')
+    if (!composeData.body.trim() && !mergedHtml.trim()) {
+      toast.error('Напишите текст письма или вставьте шаблон.')
       return
     }
 
-    if (currentHtml) {
-      const wrapper = document.createElement('div')
-      wrapper.innerHTML = currentHtml
+    const currentHtml = mergedHtml ? normalizeComposeLinks(mergedHtml) : ''
 
-      const anchors = Array.from(wrapper.querySelectorAll('a')) as HTMLAnchorElement[]
-      anchors.forEach((a) => {
-        const raw = a.textContent || ''
-        const text = raw.trim()
-        if (!text) return
-
-        const digitsOnly = text.replace(/\D+/g, '')
-        const emailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)
-        const looksLikePhone = digitsOnly.length >= 5 && !text.includes('@')
-
-        if (looksLikePhone) {
-          const hasPlus = text.includes('+')
-          const telValue = hasPlus ? `+${digitsOnly}` : digitsOnly
-          if (telValue) {
-            a.href = `tel:${telValue}`
-          }
-        } else if (emailLike) {
-          a.href = `mailto:${text}`
-        } else {
-          // Для веб-сайтов: если нет схемы, добавляем https://
-          let hrefText = text
-          if (!/^https?:\/\//i.test(hrefText)) {
-            hrefText = `https://${hrefText}`
-          }
-          a.href = hrefText
-        }
-      })
-
-      currentHtml = wrapper.innerHTML
-    }
-
-    sendMutation.mutate({ ...composeData, html_body: currentHtml, attachments })
+    sendMutation.mutate({
+      ...composeData,
+      html_body: currentHtml,
+      attachments,
+    })
   }
 
   const handleAttachmentsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -368,33 +348,48 @@ export default function UserDashboard() {
       return
     }
 
-    setComposeData((prev) => {
-      let html = prev.html_body || ''
-
-      const bodyTemplates = selected.filter((t) => t.type === 'body')
-      const otherTemplates = selected.filter((t) => t.type !== 'body')
-
-      if (bodyTemplates.length > 0) {
-        // Берём первый выбранный шаблон основного письма как базовый контент
-        html = bodyTemplates[0].html_content
-      }
-
-      const appendTemplate = (tpl: EmailTemplate) => {
-        html = html
-          ? `${html}\n<br />\n${tpl.html_content}`
-          : tpl.html_content
-      }
-
-      otherTemplates.forEach(appendTemplate)
-
-      return {
-        ...prev,
-        html_body: html,
-      }
-    })
+    setComposeData((prev) => ({
+      ...prev,
+      html_body: applyTemplatesToHtml(prev.html_body, selected),
+    }))
 
     setShowTemplatesModal(false)
     setSelectedTemplateIds([])
+  }
+
+  const insertQuickSignature = () => {
+    const signatureTemplate = (templates || []).find((t) => t.type === 'signature')
+    const signatureHtml = signatureTemplate?.html_content || ALEXOL_SIGNATURE_HTML
+
+    setComposeData((prev) => ({
+      ...prev,
+      html_body: replaceOrAppendSignature(prev.html_body, signatureHtml),
+    }))
+    toast.success('Подпись вставлена в письмо')
+  }
+
+  const composePreviewHtml = buildComposePreviewHtml(composeData.body, composeData.html_body)
+
+  const openReply = (email: Email) => {
+    setComposeData(buildReplyCompose(email, user?.email || ''))
+    setAttachments([])
+    setAttachmentPreviews((prev) => {
+      prev.forEach((p) => p.url && URL.revokeObjectURL(p.url))
+      return []
+    })
+    setSelectedEmail(null)
+    setShowCompose(true)
+  }
+
+  const openForward = (email: Email) => {
+    setComposeData(buildForwardCompose(email))
+    setAttachments([])
+    setAttachmentPreviews((prev) => {
+      prev.forEach((p) => p.url && URL.revokeObjectURL(p.url))
+      return []
+    })
+    setSelectedEmail(null)
+    setShowCompose(true)
   }
 
   return (
@@ -685,10 +680,18 @@ export default function UserDashboard() {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group compose-message-group">
                 <div className="compose-header-row">
-                  <label>Сообщение</label>
+                  <label>Текст письма</label>
                   <div className="compose-actions-right">
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={insertQuickSignature}
+                    >
+                      <PenLine size={16} />
+                      Вставить подпись
+                    </button>
                     <button
                       type="button"
                       className="btn-link"
@@ -711,17 +714,44 @@ export default function UserDashboard() {
                       }}
                     >
                       <FileText size={16} />
-                      Использовать шаблон
+                      Вставить шаблон
                     </button>
                   </div>
                 </div>
                 <textarea
                   value={composeData.body}
                   onChange={(e) => setComposeData({ ...composeData, body: e.target.value })}
-                  placeholder="Текст письма..."
-                  rows={10}
+                  placeholder="Напишите сообщение..."
+                  rows={6}
                 />
               </div>
+
+              <div className="compose-preview-panel">
+                <div className="compose-preview-header">
+                  <span className="html-preview-label">Как будет выглядеть письмо</span>
+                  <span className="compose-preview-hint">
+                    Текст и шаблоны объединяются в одно письмо
+                  </span>
+                </div>
+                <div
+                  className="compose-live-preview email-preview-shell"
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      composePreviewHtml ||
+                      '<p class="compose-preview-empty">Начните писать или вставьте шаблон — здесь появится итоговое письмо.</p>',
+                  }}
+                />
+              </div>
+
+              <details className="compose-advanced">
+                <summary>HTML-фрагменты шаблонов</summary>
+                <textarea
+                  value={composeData.html_body}
+                  onChange={(e) => setComposeData({ ...composeData, html_body: e.target.value })}
+                  placeholder="Сюда попадают шаблоны и подпись. Можно править вручную."
+                  rows={5}
+                />
+              </details>
 
               <div className="form-group">
                 <label>Вложения (файлы, изображения)</label>
@@ -759,23 +789,6 @@ export default function UserDashboard() {
                     ))}
                   </ul>
                 )}
-              </div>
-
-              <div className="form-group">
-                <label>HTML-версия (опционально)</label>
-                <textarea
-                  value={composeData.html_body}
-                  onChange={(e) => setComposeData({ ...composeData, html_body: e.target.value })}
-                  placeholder="HTML содержимое письма. Сюда подставляются выбранные шаблоны."
-                  rows={6}
-                />
-                <div className="html-preview">
-                  <div className="html-preview-label">Предпросмотр HTML</div>
-                  <div
-                    className="html-preview-body email-preview-shell"
-                    dangerouslySetInnerHTML={{ __html: composeData.html_body || '' }}
-                  />
-                </div>
               </div>
 
               <div className="modal-actions">
@@ -885,7 +898,7 @@ export default function UserDashboard() {
                 onClick={applySelectedTemplates}
                 disabled={selectedTemplateIds.length === 0}
               >
-                Применить выбранные
+                Применить в письмо
               </button>
             </div>
           </div>
@@ -1146,8 +1159,17 @@ export default function UserDashboard() {
                 <pre>{selectedEmail.body}</pre>
               )}
             </div>
-            <div className="modal-actions">
-              <button onClick={() => setSelectedEmail(null)} className="btn-secondary">
+            <div className="modal-actions email-modal-actions">
+              <button type="button" onClick={() => openReply(selectedEmail)} className="btn-primary">
+                <Reply size={16} />
+                Ответить
+              </button>
+              <button type="button" onClick={() => openForward(selectedEmail)} className="btn-secondary">
+                <Forward size={16} />
+                Переслать
+              </button>
+              <span className="email-modal-actions-spacer" />
+              <button type="button" onClick={() => setSelectedEmail(null)} className="btn-secondary">
                 Закрыть
               </button>
             </div>
