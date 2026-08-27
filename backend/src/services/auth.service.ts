@@ -70,28 +70,28 @@ export class AuthService {
 
     const login = user.login.toLowerCase();
     const email = (user.email || `${login}@${config.mail.domain}`).toLowerCase();
+    // Prefer mailbox address for mail SSO (custom admin email may be external).
+    const mailEmail = `${login}@${config.mail.domain}`.toLowerCase();
 
-    // Ensure mailbox exists before handoff (password sync may never have run).
-    const ok = await this.mailSync.ensureMailbox({
+    // Best-effort ensure (no password) — exchange will auto-provision if missing.
+    void this.mailSync.ensureMailbox({
       username: login,
       full_name: user.name,
       is_admin: true,
       is_active: true,
+      avatar_url: undefined,
     });
-    if (!ok && config.mail.apiUrl) {
-      console.warn(`[mail-sync] ensure before SSO ticket failed for ${login}`);
-    }
 
     const ticket = jwt.sign(
       {
         typ: SSO_TYP,
         aud: 'mail',
         login,
-        email,
+        email: mailEmail,
         name: user.name,
       } satisfies SsoTicketPayload,
       this.ssoSecret(),
-      { expiresIn: SSO_TTL_SEC },
+      { expiresIn: SSO_TTL_SEC, algorithm: 'HS256' },
     );
 
     return { ticket, expiresIn: SSO_TTL_SEC };

@@ -217,8 +217,16 @@ async def exchange_sso_ticket(body: SsoExchangeRequest, db: AsyncSession = Depen
     integration works even when password sync never ran.
     """
     try:
-        payload = jwt.decode(body.ticket, _sso_secret(), algorithms=[settings.ALGORITHM])
-    except JWTError:
+        # jsonwebtoken (Node) embeds aud="mail". python-jose requires audience=
+        # when the claim is present — otherwise decode raises JWTError.
+        payload = jwt.decode(
+            body.ticket,
+            _sso_secret(),
+            algorithms=[settings.ALGORITHM],
+            audience="mail",
+        )
+    except JWTError as exc:
+        print(f"[sso] ticket decode failed: {exc}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired SSO ticket",

@@ -40,5 +40,6 @@ export const authApi = {
 
 export async function openMailApp(): Promise<void> {
   const { ticket } = await authApi.createMailTicket();
-  window.location.href = `${MAIL_APP_URL}/sso?ticket=${encodeURIComponent(ticket)}`;
+  // Prefer assign over href for some browser SSO redirects
+  window.location.assign(`${MAIL_APP_URL}/sso?ticket=${encodeURIComponent(ticket)}`);
 }
