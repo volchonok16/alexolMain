@@ -17,9 +17,12 @@ export const Sidebar = ({ open, onClose }: SidebarProps) => {
     setMailLoading(true);
     try {
       await openMailApp();
-    } catch {
+    } catch (err: unknown) {
       setMailLoading(false);
-      window.open('https://mail.alexol.io', '_blank', 'noopener,noreferrer');
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        'Не удалось открыть почту через SSO. Проверьте MAIL_SYNC_SECRET.';
+      window.alert(msg);
     }
   };
 

@@ -98,12 +98,15 @@ export const UserModal = ({ user, isSaving, onClose, onSave }: UserModalProps) =
               disabled={isSaving}
             />
             <p className="modal__hint">
-              При создании автоматически появится ящик{' '}
+              Ящик{' '}
               <strong>{(login || 'login').toLowerCase()}@alexol.io</strong> на{' '}
               <a href="https://mail.alexol.io" target="_blank" rel="noreferrer">
                 mail.alexol.io
               </a>
               {email ? '' : ' (если поле пустое — подставится этот адрес)'}.
+              {user
+                ? ' Чтобы пароль совпадал с почтой — задайте новый пароль и сохраните. Или откройте «Почта» в шапке (SSO без пароля).'
+                : ' Пароль сразу синхронизируется с почтой.'}
             </p>
           </div>
 

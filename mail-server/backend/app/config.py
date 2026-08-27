@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # Sync with alexolMain admin (X-Mail-Sync-Key) + SSO ticket signing
     MAIL_SYNC_SECRET: Optional[str] = None
 
+    # alexolMain backend URL for reverse sync (mail → admin users)
+    # Docker: http://alexol_backend:3000  (shared network alexol_mail_sync)
+    ALEXOL_API_URL: Optional[str] = None
+
     # Site admin panel URL (for UI redirects / docs)
     ADMIN_PUBLIC_URL: str = "https://admin.alexol.io"
     

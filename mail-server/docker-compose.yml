@@ -60,6 +60,8 @@ services:
       # Shared secret with alexolMain backend (MAIL_SYNC_SECRET) for user provisioning
       MAIL_SYNC_SECRET: ${MAIL_SYNC_SECRET:-change-me-mail-sync-secret}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      # Reverse sync mail → admin (same Docker network alexol_mail_sync)
+      ALEXOL_API_URL: ${ALEXOL_API_URL:-http://alexol_backend:3000}
       # Свой SMTP: отправка напрямую по MX (без SendGrid). Для relay задайте в .env:
       # SMTP_RELAY_ENABLED=true, SMTP_RELAY_HOST=..., SMTP_RELAY_PASSWORD=...
       SMTP_RELAY_ENABLED: "false"

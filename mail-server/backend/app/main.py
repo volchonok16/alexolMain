@@ -19,6 +19,7 @@ from app.schemas import (
     UserUpdate,
     UserAdminUpdate,
     SyncUserCreate,
+    SyncUserEnsure,
     SyncUserUpdate,
     LoginRequest,
     Token,
@@ -38,6 +39,7 @@ from app.config import settings
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.minio_client import minio_client
+from app import admin_sync
 import smtplib
 import httpx
 from email.mime.text import MIMEText
@@ -191,7 +193,11 @@ async def create_admin_sso_ticket(current_user: User = Depends(get_current_admin
 
 @app.post("/api/auth/sso/exchange", response_model=Token)
 async def exchange_sso_ticket(body: SsoExchangeRequest, db: AsyncSession = Depends(get_db)):
-    """Accept SSO ticket from site admin → mail access_token."""
+    """Accept SSO ticket from site admin → mail access_token.
+
+    If mailbox is missing, provision it from the ticket so admin↔mail
+    integration works even when password sync never ran.
+    """
     try:
         payload = jwt.decode(body.ticket, _sso_secret(), algorithms=[settings.ALGORITHM])
     except JWTError:
@@ -206,12 +212,13 @@ async def exchange_sso_ticket(body: SsoExchangeRequest, db: AsyncSession = Depen
             detail="Invalid SSO ticket",
         )
 
-    email = (payload.get("email") or "").lower().strip()
     login = (payload.get("login") or "").lower().strip()
+    email = (payload.get("email") or "").lower().strip()
+    name = (payload.get("name") or login or "User").strip()
     if not email and login:
         email = f"{login}@{settings.MAIL_DOMAIN}"
 
-    if not email:
+    if not email or not login:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid SSO ticket",
@@ -219,11 +226,25 @@ async def exchange_sso_ticket(body: SsoExchangeRequest, db: AsyncSession = Depen
 
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    if not user and login:
+    if not user:
         result = await db.execute(select(User).where(User.username == login))
         user = result.scalar_one_or_none()
 
-    if not user or not user.is_active:
+    if not user:
+        # Auto-create mailbox for SSO (password unknown — random; use SSO or reset in admin)
+        user = User(
+            email=email,
+            username=login,
+            full_name=name,
+            hashed_password=get_password_hash(secrets.token_urlsafe(32)),
+            is_admin=True,
+            is_active=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        print(f"[sso] auto-provisioned mailbox {email}")
+    elif not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Mailbox not found or inactive",
@@ -269,7 +290,15 @@ async def create_user(
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    
+
+    await admin_sync.push_user_ensure(
+        username=user.username,
+        full_name=user.full_name,
+        password=user_data.password,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+    )
+
     return user
 
 @app.get("/api/admin/users", response_model=List[UserResponse])
@@ -297,10 +326,13 @@ async def delete_user(
     
     if user.is_admin:
         raise HTTPException(status_code=400, detail="Cannot delete admin user")
-    
+
+    username = user.username
     await db.delete(user)
     await db.commit()
-    
+
+    await admin_sync.push_user_delete(username)
+
     return {"message": "User deleted successfully"}
 
 @app.put("/api/admin/users/{user_id}", response_model=UserResponse)
@@ -337,7 +369,15 @@ async def update_user_by_admin(
     
     await db.commit()
     await db.refresh(user)
-    
+
+    await admin_sync.push_user_ensure(
+        username=user.username,
+        full_name=user.full_name,
+        password=user_data.password,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+    )
+
     return user
 
 @app.post("/api/admin/users/{user_id}/make-admin")
@@ -359,7 +399,14 @@ async def make_user_admin(
     user.is_admin = True
     await db.commit()
     await db.refresh(user)
-    
+
+    await admin_sync.push_user_ensure(
+        username=user.username,
+        full_name=user.full_name,
+        is_admin=True,
+        is_active=user.is_active,
+    )
+
     return {"message": f"User {user.email} is now an admin", "user": user}
 
 @app.post("/api/admin/users/{user_id}/remove-admin")
@@ -388,7 +435,14 @@ async def remove_user_admin(
     user.is_admin = False
     await db.commit()
     await db.refresh(user)
-    
+
+    await admin_sync.push_user_ensure(
+        username=user.username,
+        full_name=user.full_name,
+        is_admin=False,
+        is_active=user.is_active,
+    )
+
     return {"message": f"Admin privileges removed from {user.email}", "user": user}
 
 # User profile endpoints
@@ -408,7 +462,15 @@ async def update_profile(
     
     await db.commit()
     await db.refresh(current_user)
-    
+
+    await admin_sync.push_user_ensure(
+        username=current_user.username,
+        full_name=current_user.full_name,
+        password=user_data.password,
+        is_admin=current_user.is_admin,
+        is_active=current_user.is_active,
+    )
+
     return current_user
 
 @app.post("/api/profile/avatar")
@@ -856,6 +918,44 @@ async def health_check():
 
 
 # ── Internal sync API (alexolMain admin → mailbox provisioning) ──────────────
+
+@app.post("/api/internal/users/ensure", response_model=UserResponse, dependencies=[Depends(verify_mail_sync_key)])
+async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends(get_db)):
+    """Create mailbox if missing; update profile/flags; set password when provided."""
+    username = user_data.username.strip().lower()
+    email = f"{username}@{settings.MAIL_DOMAIN}"
+
+    result = await db.execute(
+        select(User).where((User.email == email) | (User.username == username))
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        existing.full_name = user_data.full_name
+        existing.is_admin = user_data.is_admin
+        existing.is_active = user_data.is_active
+        if user_data.phone is not None:
+            existing.phone = user_data.phone
+        if user_data.password:
+            existing.hashed_password = get_password_hash(user_data.password)
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+
+    password = user_data.password or secrets.token_urlsafe(32)
+    user = User(
+        email=email,
+        username=username,
+        full_name=user_data.full_name,
+        phone=user_data.phone,
+        hashed_password=get_password_hash(password),
+        is_admin=user_data.is_admin,
+        is_active=user_data.is_active,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
 
 @app.post("/api/internal/users", response_model=UserResponse, dependencies=[Depends(verify_mail_sync_key)])
 async def sync_create_user(user_data: SyncUserCreate, db: AsyncSession = Depends(get_db)):

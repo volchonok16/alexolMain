@@ -130,19 +130,29 @@ export class UserService {
       ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),
     });
 
+    const nextLogin = (data.login || previousLogin).toLowerCase();
     const syncPayload: {
       full_name?: string;
       password?: string;
       is_admin?: boolean;
       new_username?: string;
-    } = {};
-    if (data.name !== undefined) syncPayload.full_name = data.name;
+    } = {
+      full_name: data.name ?? user.name,
+      is_admin: (data.role ?? user.role) === 'admin',
+    };
     if (data.password) syncPayload.password = data.password;
-    if (data.role !== undefined) syncPayload.is_admin = data.role === 'admin';
     if (data.login && data.login !== previousLogin) syncPayload.new_username = data.login;
 
-    if (Object.keys(syncPayload).length > 0) {
+    // Always ensure mailbox stays in sync (create if missing; set password when provided).
+    if (data.password || data.name !== undefined || data.role !== undefined || data.login) {
       await this.mailSync.updateMailbox(previousLogin, syncPayload);
+    } else {
+      await this.mailSync.ensureMailbox({
+        username: nextLogin,
+        full_name: user.name,
+        is_admin: user.role === 'admin',
+        is_active: true,
+      });
     }
 
     return updated;

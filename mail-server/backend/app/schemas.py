@@ -40,6 +40,16 @@ class SyncUserCreate(BaseModel):
     phone: Optional[str] = None
 
 
+class SyncUserEnsure(BaseModel):
+    """Ensure mailbox exists (password optional — random if creating without one)."""
+    username: str
+    full_name: str
+    password: Optional[str] = None
+    is_admin: bool = False
+    is_active: bool = True
+    phone: Optional[str] = None
+
+
 class SyncUserUpdate(BaseModel):
     """Update mailbox from alexolMain admin (lookup by username)."""
     full_name: Optional[str] = None

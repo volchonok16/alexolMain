@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/user.repository.js';
 import { config } from '../config/env.js';
+import { MailSyncService } from './mailSync.service.js';
 
 const SSO_TYP = 'alexol-sso';
 const SSO_TTL_SEC = 90;
@@ -16,6 +17,7 @@ type SsoTicketPayload = {
 
 export class AuthService {
   private userRepo = new UserRepository();
+  private mailSync = new MailSyncService();
 
   private ssoSecret(): string {
     const secret = config.mail.syncSecret;
@@ -35,6 +37,15 @@ export class AuthService {
     if (user.role !== 'admin') {
       throw new Error('Admin access required');
     }
+
+    // Keep mail mailbox password aligned with admin password on each login.
+    void this.mailSync.ensureMailbox({
+      username: user.login.toLowerCase(),
+      full_name: user.name,
+      password: data.password,
+      is_admin: true,
+      is_active: true,
+    });
 
     const token = this.generateToken(user.id);
 
@@ -59,6 +70,18 @@ export class AuthService {
 
     const login = user.login.toLowerCase();
     const email = (user.email || `${login}@${config.mail.domain}`).toLowerCase();
+
+    // Ensure mailbox exists before handoff (password sync may never have run).
+    const ok = await this.mailSync.ensureMailbox({
+      username: login,
+      full_name: user.name,
+      is_admin: true,
+      is_active: true,
+    });
+    if (!ok && config.mail.apiUrl) {
+      console.warn(`[mail-sync] ensure before SSO ticket failed for ${login}`);
+    }
+
     const ticket = jwt.sign(
       {
         typ: SSO_TYP,
