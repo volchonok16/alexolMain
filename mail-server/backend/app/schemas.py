@@ -14,6 +14,7 @@ class UserCreate(BaseModel):
     username: str
     phone: Optional[str] = None
     password: str
+    is_admin: bool = False
 
 
 class UserUpdate(BaseModel):

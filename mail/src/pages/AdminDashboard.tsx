@@ -45,6 +45,7 @@ export default function AdminDashboard() {
     username: '',
     phone: '',
     password: '',
+    is_admin: false,
   })
   const [editFormData, setEditFormData] = useState({
     full_name: '',
@@ -90,7 +91,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowCreateForm(false)
-      setFormData({ full_name: '', username: '', phone: '', password: '' })
+      setFormData({ full_name: '', username: '', phone: '', password: '', is_admin: false })
       alert('Пользователь создан успешно!')
     },
     onError: (error: any) => {
@@ -385,7 +386,22 @@ export default function AdminDashboard() {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="••••••••"
                     required
+                    minLength={6}
                   />
+                </div>
+
+                <div className="form-group">
+                  <label>Роль</label>
+                  <select
+                    value={formData.is_admin ? 'admin' : 'user'}
+                    onChange={(e) =>
+                      setFormData({ ...formData, is_admin: e.target.value === 'admin' })
+                    }
+                  >
+                    <option value="user">Пользователь</option>
+                    <option value="admin">Админ</option>
+                  </select>
+                  <small>Синхронизируется с admin.alexol.io</small>
                 </div>
 
                 <div className="modal-actions">
@@ -438,14 +454,16 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="form-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={editFormData.is_admin}
-                      onChange={(e) => setEditFormData({ ...editFormData, is_admin: e.target.checked })}
-                    />
-                    <span>Администратор</span>
-                  </label>
+                  <label>Роль</label>
+                  <select
+                    value={editFormData.is_admin ? 'admin' : 'user'}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, is_admin: e.target.value === 'admin' })
+                    }
+                  >
+                    <option value="user">Пользователь</option>
+                    <option value="admin">Админ</option>
+                  </select>
                 </div>
 
                 <div className="modal-actions">

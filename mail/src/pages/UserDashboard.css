@@ -644,6 +644,7 @@ textarea {
 
   .dashboard-nav {
     padding: 0.65rem 0.85rem;
+    padding-top: calc(0.65rem + env(safe-area-inset-top, 0px));
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
@@ -682,6 +683,9 @@ textarea {
   .btn-logout,
   .btn-admin-panel {
     padding: 0.45rem;
+    min-width: 2.6rem;
+    min-height: 2.6rem;
+    justify-content: center;
   }
 
   .dashboard-content {
@@ -731,6 +735,11 @@ textarea {
     width: 100%;
   }
 
+  .content-header {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
   .content-header h2 {
     font-size: 1.2rem;
   }
@@ -743,6 +752,16 @@ textarea {
     padding: 0.9rem 1rem;
   }
 
+  .email-item .email-subject {
+    font-size: 0.98rem;
+    line-height: 1.35;
+  }
+
+  .email-preview {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+
   .compose-modal,
   .email-modal,
   .templates-modal,
@@ -752,6 +771,7 @@ textarea {
     max-height: 100dvh;
     margin: 0;
     border-radius: 16px 16px 0 0;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   }
 
   .modal-overlay {
@@ -768,6 +788,12 @@ textarea {
     font-size: 1.2rem;
   }
 
+  .email-body {
+    font-size: 1rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+
   .compose-header-row {
     flex-direction: column;
     align-items: flex-start;
@@ -780,6 +806,10 @@ textarea {
     justify-content: flex-start;
   }
 
+  .compose-actions-right button {
+    min-height: 2.6rem;
+  }
+
   .templates-tabs {
     width: 100%;
     flex-wrap: wrap;
@@ -789,6 +819,7 @@ textarea {
   .templates-tabs button {
     flex: 1 1 auto;
     text-align: center;
+    min-height: 2.4rem;
   }
 
   .mobile-bottom-nav {

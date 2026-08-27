@@ -325,7 +325,7 @@ async def create_user(
         full_name=user_data.full_name,
         phone=user_data.phone,
         hashed_password=get_password_hash(user_data.password),
-        is_admin=False,
+        is_admin=bool(user_data.is_admin),
         is_active=True
     )
     
