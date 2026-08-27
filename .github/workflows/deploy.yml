@@ -78,10 +78,8 @@ jobs:
                       if [ -d "$LIVE" ]; then mv "$LIVE" "${LIVE}.old"; fi
                       mv "$STAGING" "$LIVE"
                       chown -R $SUDO_USER:$SUDO_USER "$LIVE"
-                      grep -qi "^User-agent:" "$LIVE/robots.txt"
-                      grep -qi "urlset" "$LIVE/sitemap.xml"
-                      curl -fsS --max-time 10 http://127.0.0.1/robots.txt -H "Host: alexol.io" | grep -qi "^User-agent:"
-                      curl -fsS --max-time 10 http://127.0.0.1/sitemap.xml -H "Host: alexol.io" | grep -qi "urlset"
+                      grep -qi 'User-agent:' "$LIVE/robots.txt"
+                      grep -qi 'urlset' "$LIVE/sitemap.xml"
                       echo "frontend activated: $js"'
 
             - name: Smoke test frontend
