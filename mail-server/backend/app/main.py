@@ -49,6 +49,7 @@ from app.avatar_resolve import (
 )
 from app import admin_sync
 import smtplib
+import ssl
 import httpx
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -905,11 +906,18 @@ def _build_and_send_email_message(
                     mx_records = dns.resolver.resolve(recipient_domain, "MX")
                     mx_records = sorted(mx_records, key=lambda r: r.preference)
                     sent = False
+                    tls_ctx = ssl.create_default_context()
                     for mx in mx_records:
                         mx_host = str(mx.exchange).rstrip(".")
                         try:
                             with smtplib.SMTP(mx_host, 25, timeout=30) as smtp:
+                                smtp.ehlo()
+                                # Gmail marks "did not encrypt" if we skip STARTTLS on port 25
+                                if smtp.has_extn("starttls"):
+                                    smtp.starttls(context=tls_ctx)
+                                    smtp.ehlo()
                                 smtp.send_message(msg)
+                            print(f"[EMAIL] Sent via {mx_host}:25 (STARTTLS if available)")
                             sent = True
                             break
                         except Exception as mx_error:

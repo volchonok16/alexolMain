@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard } from 'lucide-react'
+import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
@@ -61,6 +61,17 @@ export default function UserDashboard() {
   const [templatesTab, setTemplatesTab] = useState<TemplateType>('body')
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<number[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
+  const [attachmentPreviews, setAttachmentPreviews] = useState<
+    { name: string; size: number; isImage: boolean; url: string | null }[]
+  >([])
+
+  useEffect(() => {
+    return () => {
+      attachmentPreviews.forEach((p) => {
+        if (p.url) URL.revokeObjectURL(p.url)
+      })
+    }
+  }, [attachmentPreviews])
 
   // Fetch inbox
   const { data: inbox } = useQuery({
@@ -125,6 +136,10 @@ export default function UserDashboard() {
       setShowCompose(false)
       setComposeData({ to_address: '', subject: '', body: '', html_body: '' })
       setAttachments([])
+      setAttachmentPreviews((prev) => {
+        prev.forEach((p) => p.url && URL.revokeObjectURL(p.url))
+        return []
+      })
       toast.success('Письмо отправлено')
     },
     onError: (error: any) => {
@@ -195,7 +210,28 @@ export default function UserDashboard() {
 
   const handleAttachmentsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
+    setAttachmentPreviews((prev) => {
+      prev.forEach((p) => p.url && URL.revokeObjectURL(p.url))
+      return files.map((file) => {
+        const isImage = file.type.startsWith('image/')
+        return {
+          name: file.name,
+          size: file.size,
+          isImage,
+          url: isImage ? URL.createObjectURL(file) : null,
+        }
+      })
+    })
     setAttachments(files)
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachmentPreviews((prev) => {
+      const doomed = prev[index]
+      if (doomed?.url) URL.revokeObjectURL(doomed.url)
+      return prev.filter((_, i) => i !== index)
+    })
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleLogout = () => {
@@ -529,11 +565,31 @@ export default function UserDashboard() {
                   multiple
                   onChange={handleAttachmentsChange}
                 />
-                {attachments.length > 0 && (
-                  <ul className="attachments-list">
-                    {attachments.map((file, idx) => (
-                      <li key={idx}>
-                        {file.name} ({Math.round(file.size / 1024)} КБ)
+                {attachmentPreviews.length > 0 && (
+                  <ul className="attachments-preview">
+                    {attachmentPreviews.map((item, idx) => (
+                      <li key={`${item.name}-${idx}`} className="attachment-chip">
+                        {item.isImage && item.url ? (
+                          <img src={item.url} alt={item.name} className="attachment-thumb" />
+                        ) : (
+                          <div className="attachment-file-icon" aria-hidden>
+                            <File size={22} />
+                          </div>
+                        )}
+                        <div className="attachment-meta">
+                          <span className="attachment-name">{item.name}</span>
+                          <span className="attachment-size">
+                            {Math.round(item.size / 1024)} КБ
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="attachment-remove"
+                          aria-label={`Удалить ${item.name}`}
+                          onClick={() => removeAttachment(idx)}
+                        >
+                          <X size={16} />
+                        </button>
                       </li>
                     ))}
                   </ul>

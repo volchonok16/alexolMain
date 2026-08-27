@@ -175,7 +175,14 @@ def _run_smtp_servers(handler, tls_ctx, loop):
     port_465 = getattr(settings, 'SMTP_SSL_PORT', 465)
 
     def factory_25():
-        return SMTP(handler, hostname=smtp_hostname)
+        # Offer STARTTLS on 25 so Gmail can encrypt inbound (require_starttls=False
+        # keeps plain clients working if any).
+        return SMTP(
+            handler,
+            hostname=smtp_hostname,
+            tls_context=tls_ctx,
+            require_starttls=False,
+        )
 
     def factory_587():
         return SMTP(
@@ -199,7 +206,13 @@ def _run_smtp_servers(handler, tls_ctx, loop):
     async def run():
         server_25 = await loop.create_server(factory_25, bind_host, port_25)
         server_587 = await loop.create_server(factory_587, bind_host, port_587)
-        logger.info("SMTP (receive) started on %s:%s", bind_host, port_25)
+        logger.info(
+            "SMTP (receive) started on %s:%s hostname=%s (%s)",
+            bind_host,
+            port_25,
+            smtp_hostname,
+            "STARTTLS offered" if tls_ctx else "plain only",
+        )
         logger.info(
             "SMTP (submission) started on %s:%s hostname=%s (auth + %s)",
             bind_host, port_587, smtp_hostname, "STARTTLS" if tls_ctx else "no TLS",
