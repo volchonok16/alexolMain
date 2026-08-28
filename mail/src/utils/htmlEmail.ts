@@ -1,0 +1,29 @@
+const TAG_HINTS = /<(?:table|div|h1|p|img|body|head)\b/gi
+
+export function looksLikeHtml(text: string): boolean {
+  const t = (text || '').replace(/^\uFEFF/, '').trim()
+  if (!t) return false
+  if (/^<!DOCTYPE\s+html/i.test(t) || /^<html[\s>]/i.test(t)) return true
+  if (/<body[\s>]/i.test(t) && /<\/html>/i.test(t)) return true
+  const tags = t.match(TAG_HINTS)
+  return Boolean(tags && tags.length >= 4)
+}
+
+/** Prefer MIME html_body; recover newsletters that were stored as plain text. */
+export function htmlForDisplay(htmlBody?: string | null, body?: string | null): string {
+  const html = (htmlBody || '').replace(/^\uFEFF/, '').trim()
+  if (html) return html
+  const plain = (body || '').replace(/^\uFEFF/, '')
+  if (looksLikeHtml(plain)) return plain.trim()
+  return ''
+}
+
+export function previewTextFromParts(htmlBody?: string | null, body?: string | null): string {
+  const source = htmlForDisplay(htmlBody, body) || body || ''
+  return source
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}

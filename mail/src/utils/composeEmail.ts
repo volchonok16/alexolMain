@@ -1,4 +1,5 @@
 import { upgradeSignatureAssets } from './alexolSignature'
+import { htmlForDisplay } from './htmlEmail'
 import type { EmailTemplate } from './templateStarters'
 
 function escapeHtml(text: string): string {
@@ -155,8 +156,8 @@ export function buildQuotedHtml(email: ComposeEmailSource): string {
   const fromLine = email.from_name
     ? `${escapeHtml(email.from_name)} &lt;${escapeHtml(email.from_address)}&gt;`
     : escapeHtml(email.from_address)
-  const original = email.html_body
-    ? email.html_body
+  const original = htmlForDisplay(email.html_body, email.body)
+    ? htmlForDisplay(email.html_body, email.body)
     : `<pre style="margin:0;white-space:pre-wrap;font-family:inherit;">${escapeHtml(email.body || '')}</pre>`
 
   return [
@@ -174,8 +175,8 @@ export function buildForwardHtml(email: ComposeEmailSource): string {
   const fromLine = email.from_name
     ? `${escapeHtml(email.from_name)} &lt;${escapeHtml(email.from_address)}&gt;`
     : escapeHtml(email.from_address)
-  const original = email.html_body
-    ? email.html_body
+  const original = htmlForDisplay(email.html_body, email.body)
+    ? htmlForDisplay(email.html_body, email.body)
     : `<pre style="margin:0;white-space:pre-wrap;font-family:inherit;">${escapeHtml(email.body || '')}</pre>`
 
   return [

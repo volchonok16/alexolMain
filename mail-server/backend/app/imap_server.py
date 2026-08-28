@@ -30,6 +30,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from app.models import User, Email
 from app.auth import verify_password
 from app.config import settings
+from app.mail_body import coerce_stored_bodies
 
 logger = logging.getLogger(__name__)
 
@@ -601,13 +602,14 @@ class IMAPSession:
                 result = []
                 for e in rows:
                     flags = ['\\Seen'] if (is_sent or e.is_read) else []
+                    body, html_body = coerce_stored_bodies(e.body, e.html_body)
                     result.append({
                         'id': e.id,
                         'from': e.from_address,
                         'to': e.to_address,
                         'subject': e.subject or '',
-                        'body': e.body or '',
-                        'html_body': e.html_body or '',
+                        'body': body,
+                        'html_body': html_body,
                         'date': e.received_at,
                         'flags': flags,
                     })

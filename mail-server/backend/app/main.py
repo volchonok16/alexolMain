@@ -38,6 +38,7 @@ from app.auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, get_current_admin_user
 )
+from app.mail_body import coerce_stored_bodies
 from app.config import settings
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
@@ -760,14 +761,15 @@ async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:
         to_name = (getattr(e, "to_name", None) or "").strip() or (
             to_peer.name if to_peer else None
         )
+        body, html_body = coerce_stored_bodies(e.body, e.html_body)
         out.append(
             EmailResponse(
                 id=e.id,
                 from_address=e.from_address,
                 to_address=e.to_address,
                 subject=e.subject,
-                body=e.body,
-                html_body=e.html_body,
+                body=body,
+                html_body=html_body or None,
                 is_read=e.is_read,
                 is_sent=e.is_sent,
                 received_at=e.received_at,

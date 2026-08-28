@@ -112,8 +112,8 @@ export const Contact = () => {
                 <ContactItem
                   icon={Mail}
                   label={t('contact.labels.email')}
-                  value="support@alexol.io"
-                  href="mailto:support@alexol.io"
+                  value="info@alexol.io"
+                  href="mailto:info@alexol.io"
                 />
                 <ContactItem
                   icon={Phone}

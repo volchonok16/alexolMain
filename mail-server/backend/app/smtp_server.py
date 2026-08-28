@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from app.models import User, Email
 from app.config import settings
 from app.auth import verify_password
+from app.mail_body import extract_text_and_html
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -118,17 +119,7 @@ class CustomSMTPHandler:
             header_name, header_addr = parseaddr(msg.get("From") or "")
             from_address = (header_addr or envelope.mail_from or "").strip().lower()
             from_name = (header_name or "").strip() or None
-            body = ""
-            html_body = ""
-            if msg.is_multipart():
-                for part in msg.walk():
-                    ct = part.get_content_type()
-                    if ct == "text/plain":
-                        body = part.get_content() or ""
-                    elif ct == "text/html":
-                        html_body = part.get_content() or ""
-            else:
-                body = msg.get_content() or ""
+            body, html_body = extract_text_and_html(msg)
             async with self._async_session_factory() as db:
                 for to_address in envelope.rcpt_tos:
                     to_norm = (to_address or "").strip().lower()

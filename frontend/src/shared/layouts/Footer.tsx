@@ -69,8 +69,8 @@ export const Footer = () => {
                 <div className="footer__contact-icon" aria-hidden>
                   <Mail size={22} strokeWidth={1.75} />
                 </div>
-                <a href="mailto:support@alexol.io" className="footer__contact-link">
-                  support@alexol.io
+                <a href="mailto:info@alexol.io" className="footer__contact-link">
+                  info@alexol.io
                 </a>
               </li>
               <li className="footer__contact">

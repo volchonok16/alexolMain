@@ -24,7 +24,8 @@ import {
   normalizeComposeLinks,
   replaceOrAppendSignature,
 } from '../utils/composeEmail'
-import './UserDashboard.css'
+import { EmailHtmlFrame } from '../components/EmailHtmlFrame'
+import { htmlForDisplay, previewTextFromParts } from '../utils/htmlEmail'
 
 interface Email {
   id: number
@@ -43,14 +44,7 @@ interface Email {
 }
 
 function emailPreviewText(email: Email): string {
-  const fromBody = (email.body || '').replace(/\s+/g, ' ').trim()
-  if (fromBody) return fromBody
-  const fromHtml = (email.html_body || '')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return fromHtml
+  return previewTextFromParts(email.html_body, email.body)
 }
 
 function formatListDate(iso: string): string {
@@ -445,6 +439,9 @@ export default function UserDashboard() {
   }
 
   const composePreviewHtml = buildComposePreviewHtml(composeData.body, composeData.html_body)
+  const readerHtml = selectedEmail
+    ? htmlForDisplay(selectedEmail.html_body, selectedEmail.body)
+    : ''
 
   const openReply = (email: Email) => {
     setComposeData(buildReplyCompose(email, user?.email || ''))
@@ -768,14 +765,7 @@ export default function UserDashboard() {
                     </time>
                   </div>
                   <div className="email-body">
-                    {selectedEmail.html_body ? (
-                      <div
-                        className="email-html-content email-preview-shell"
-                        dangerouslySetInnerHTML={{ __html: selectedEmail.html_body }}
-                      />
-                    ) : (
-                      <pre>{selectedEmail.body}</pre>
-                    )}
+                    {readerHtml ? <EmailHtmlFrame html={readerHtml} /> : <pre>{selectedEmail.body}</pre>}
                   </div>
                 </article>
               </>

@@ -395,6 +395,15 @@
   line-height: 1.65;
 }
 
+.email-html-frame {
+  display: block;
+  width: 100%;
+  min-height: 280px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 .content-header {
   display: flex;
   justify-content: space-between;
