@@ -935,6 +935,12 @@ async def handle_user_text(
             parse_mode=ParseMode.HTML,
             reply_markup=_correction_keyboard(show_pronunciation=(input_mode == "voice")),
         )
+    elif result.get("_fallback"):
+        await update.message.reply_text(
+            "⚠️ <i>AI временно ответил шаблоном — проверь OPENROUTER_API_KEY или прокси. "
+            "Попробуй ещё раз через минуту.</i>",
+            parse_mode=ParseMode.HTML,
+        )
 
     await _send_tutor_voice_and_controls(
         context,

@@ -100,8 +100,9 @@ CHANGE_TOPIC_BY_LANG: dict[str, tuple[str, str]] = {
     ),
 }
 
+# Только явный мусор модели (не слово "safety" в обычной речи).
 _GARBAGE_REPLY_RE = re.compile(
-    r"(user\s*safe|safety|```|\{\s*\"has_errors\")",
+    r"(^\s*user\s*safe\b|content\s*policy|refusal|```|\{\s*\"has_errors\")",
     re.IGNORECASE,
 )
 
@@ -162,23 +163,29 @@ _BEGIN_FALLBACK: dict[str, dict[str, tuple[str, str]]] = {
     },
 }
 
-_PRACTICE_FALLBACK: dict[str, tuple[str, str]] = {
-    "en": (
-        "That's interesting! Tell me a bit more - what happened next?",
-        "Интересно! Расскажи подробнее - что было дальше?",
-    ),
-    "es": (
-        "¡Qué interesante! Cuéntame un poco más - ¿qué pasó después?",
-        "Интересно! Расскажи подробнее - что было дальше?",
-    ),
-    "fr": (
-        "C'est intéressant ! Raconte-moi un peu plus - qu'est-ce qui s'est passé ensuite ?",
-        "Интересно! Расскажи подробнее - что было дальше?",
-    ),
-    "de": (
-        "Das ist interessant! Erzähl mir mehr - was ist als Nächstes passiert?",
-        "Интересно! Расскажи подробнее - что было дальше?",
-    ),
+_PRACTICE_FALLBACKS: dict[str, list[tuple[str, str]]] = {
+    "en": [
+        ("Oh really? How did that make you feel?", "Правда? И как ты себя при этом чувствовал?"),
+        ("I see! And what did you do after that?", "Понятно! А что ты сделал потом?"),
+        ("That sounds like a story! What happened next?", "Звучит как история! Что было дальше?"),
+        ("Interesting point! Why do you think that happened?", "Интересная мысль! Почему, как ты думаешь, так вышло?"),
+        ("Got it. What was the best part of that?", "Ясно. Что в этом было самым классным?"),
+    ],
+    "es": [
+        ("¿De verdad? ¿Cómo te sentiste?", "Правда? И как ты себя чувствовал?"),
+        ("¡Entiendo! ¿Y qué hiciste después?", "Понятно! А что ты сделал потом?"),
+        ("¡Qué historia! ¿Qué pasó luego?", "Какая история! Что было дальше?"),
+    ],
+    "fr": [
+        ("Vraiment ? Comment tu t'es senti ?", "Правда? И как ты себя чувствовал?"),
+        ("Je vois ! Et qu'est-ce que tu as fait ensuite ?", "Понятно! А что ты сделал потом?"),
+        ("Quelle histoire ! Qu'est-ce qui s'est passé ensuite ?", "Какая история! Что было дальше?"),
+    ],
+    "de": [
+        ("Wirklich? Wie hast du dich dabei gefühlt?", "Правда? И как ты себя чувствовал?"),
+        ("Verstehe! Und was hast du danach gemacht?", "Понятно! А что ты сделал потом?"),
+        ("Was für eine Geschichte! Was ist als Nächstes passiert?", "Какая история! Что было дальше?"),
+    ],
 }
 
 
@@ -247,7 +254,26 @@ def _clean_model_text(text: str) -> str:
         flags=re.IGNORECASE,
     )
     cleaned = re.sub(r"(?is)<reasoning>[\s\S]*?</reasoning>", "", cleaned)
+    cleaned = re.sub(r"(?is)<think>[\s\S]*?</think>", "", cleaned)
     return cleaned.strip()
+
+
+def _message_content_from_choice(choice: dict[str, Any]) -> str:
+    """Достаёт текст ответа модели, в т.ч. из reasoning и multipart content."""
+    message = choice.get("message") or {}
+    raw = message.get("content")
+    if isinstance(raw, list):
+        parts: list[str] = []
+        for part in raw:
+            if isinstance(part, dict):
+                parts.append(str(part.get("text") or part.get("content") or ""))
+            elif part:
+                parts.append(str(part))
+        raw = "".join(parts)
+    content = (raw or "").strip()
+    if not content:
+        content = (message.get("reasoning") or message.get("reasoning_content") or "").strip()
+    return _clean_model_text(content)
 
 
 def _is_valid_spoken_reply(text: str) -> bool:
@@ -307,15 +333,26 @@ def _fallback_begin_topic(language: str, user_text: str) -> dict[str, Any]:
     }
 
 
-def _fallback_practice_turn(language: str, user_text: str, topic_context: str = "") -> dict[str, Any]:
-    reply, trans = _PRACTICE_FALLBACK.get(language, _PRACTICE_FALLBACK["en"])
+def _fallback_practice_turn(
+    language: str,
+    user_text: str,
+    topic_context: str = "",
+    *,
+    turn_index: int = 0,
+    corrections: Optional[list[dict[str, str]]] = None,
+    corrected_message: str = "",
+) -> dict[str, Any]:
+    options = _PRACTICE_FALLBACKS.get(language, _PRACTICE_FALLBACKS["en"])
+    reply, trans = options[turn_index % len(options)]
+    normalized = corrections or []
     return {
-        "has_errors": False,
-        "corrections": [],
-        "corrected_message": user_text,
+        "has_errors": bool(normalized),
+        "corrections": normalized,
+        "corrected_message": corrected_message.strip() or user_text,
         "reply": reply,
         "reply_translation": trans,
         "topic_context": topic_context or "",
+        "_fallback": True,
     }
 
 
@@ -342,16 +379,40 @@ def _extract_json(text: str) -> Optional[dict[str, Any]]:
 
 
 def _parse_speak_response(raw: str) -> Optional[dict[str, Any]]:
+    if not raw:
+        return None
     data = _extract_json(raw)
     if data and data.get("reply"):
         return data
-    reply = _extract_reply_field(raw or "")
+    reply = _extract_reply_field(raw)
     if reply and _is_valid_spoken_reply(reply):
         return {"reply": reply, "reply_translation": ""}
-    cleaned = _clean_model_text(raw or "")
+    cleaned = _clean_model_text(raw)
     if cleaned and _is_valid_spoken_reply(cleaned):
         return {"reply": cleaned, "reply_translation": ""}
     return None
+
+
+def _finalize_practice_data(
+    data: dict[str, Any],
+    *,
+    user_text: str,
+    topic_context: str,
+) -> dict[str, Any]:
+    data["corrections"] = _normalize_corrections(
+        data.get("corrections"),
+        user_text=user_text,
+        corrected_message=(data.get("corrected_message") or ""),
+    )
+    data["has_errors"] = bool(data["corrections"])
+    data.setdefault("topic_context", topic_context or "")
+    data.setdefault("topic", "")
+    data.setdefault("topic_mode", "")
+    return data
+
+
+def _is_valid_practice_result(data: Optional[dict[str, Any]]) -> bool:
+    return bool(data and data.get("reply") and _is_valid_spoken_reply(str(data.get("reply"))))
 
 
 def _normalize_compare(text: str) -> str:
@@ -458,6 +519,7 @@ class SpeakTutorAI:
             return None
 
         models = [self.model] + [m for m in self.fallback_models if m != self.model]
+        saw_security_block = False
         async with httpx.AsyncClient(**openrouter_client_kwargs(75.0)) as client:
             for model in models:
                 try:
@@ -483,6 +545,7 @@ class SpeakTutorAI:
                         body = format_openrouter_error_body(response)
                         print(f"⚠️ Speak AI {model}: HTTP {response.status_code} {body}")
                         if is_openrouter_security_block(response.status_code, body):
+                            saw_security_block = True
                             print(
                                 "🚫 OpenRouter security policy (часто RU IP). "
                                 "Задай OPENROUTER_HTTP_PROXY или HTTPS_PROXY вне РФ."
@@ -493,14 +556,15 @@ class SpeakTutorAI:
                     choices = data.get("choices") or []
                     if not choices:
                         continue
-                    content = (choices[0].get("message") or {}).get("content") or ""
-                    content = content.strip()
+                    content = _message_content_from_choice(choices[0])
                     if content:
                         print(f"✅ Speak AI model: {model}")
                         return content
                 except Exception as exc:
                     print(f"⚠️ Speak AI {model}: {exc}")
                     continue
+        if saw_security_block:
+            print("❌ Speak AI: OpenRouter заблокирован по IP/региону")
         return None
 
     async def ask_for_topic(
@@ -641,6 +705,111 @@ HARD RULES:
             return {"reply": raw, "reply_translation": ""}
         return None
 
+    async def analyze_grammar(
+        self,
+        language: str,
+        user_text: str,
+    ) -> dict[str, Any]:
+        """Отдельная проверка грамматики, если основной ответ не удался или без corrections."""
+        meta = LANG_META.get(language, LANG_META["en"])
+        system = f"""You are a strict but fair {meta['name_en']} tutor for Russian speakers.
+Analyze ONLY the learner's message below.
+
+DO flag real mistakes:
+- wrong verb tense or form
+- missing/wrong articles (a/an/the)
+- wrong prepositions
+- wrong word order that sounds unnatural
+- wrong vocabulary or false friends
+- subject-verb agreement errors
+
+DO NOT flag:
+- spacing/capitalization in casual chat ("hi" vs "Hi", "and you ?")
+- informal but clear phrasing
+
+Return ONLY JSON:
+{{
+  "corrections": [
+    {{
+      "wrong": "exact wrong fragment from user text",
+      "right": "corrected fragment",
+      "wrong_line": "phrase with the mistake",
+      "right_line": "corrected phrase",
+      "type": "grammar|vocabulary|article|preposition|word_order|tense|other"
+    }}
+  ],
+  "corrected_message": "full corrected message in {meta['name_en']}"
+}}"""
+
+        raw = await self._chat(
+            [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_text},
+            ],
+            max_tokens=500,
+            temperature=0.2,
+            json_mode=True,
+        )
+        data = _extract_json(raw or "") or {}
+        corrections = _normalize_corrections(
+            data.get("corrections"),
+            user_text=user_text,
+            corrected_message=(data.get("corrected_message") or ""),
+        )
+        return {
+            "corrections": corrections,
+            "corrected_message": (data.get("corrected_message") or user_text).strip(),
+            "has_errors": bool(corrections),
+        }
+
+    async def _simple_conversation_reply(
+        self,
+        language: str,
+        history: list[dict[str, str]],
+        user_text: str,
+        *,
+        custom_topic: str = "",
+        topic_mode: str = "",
+        topic_context: str = "",
+    ) -> Optional[dict[str, Any]]:
+        """Короткий ответ без жёсткого JSON — запасной путь, если json_mode ломается."""
+        meta = LANG_META.get(language, LANG_META["en"])
+        session_info = _session_topic_block(
+            custom_topic=custom_topic,
+            topic_mode=topic_mode,
+            topic_context=topic_context,
+        )
+        system = f"""You are Alexol Speak - a lively {meta['name_en']} conversation partner.
+{session_info}
+{_topic_roleplay_rules()}
+
+React to the learner's message and ask ONE concrete follow-up question.
+Write 1-3 short spoken sentences in {meta['name_en']}, then on a new line write Russian translation prefixed with "RU: ".
+No JSON, no markdown."""
+
+        messages: list[dict[str, str]] = [{"role": "system", "content": system}]
+        for item in history[-6:]:
+            role = item.get("role") or "user"
+            content = item.get("content") or ""
+            if content:
+                messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": user_text})
+
+        raw = await self._chat(messages, max_tokens=350, temperature=0.65, json_mode=False)
+        if not raw:
+            return None
+        cleaned = _clean_model_text(raw)
+        translation = ""
+        if "RU:" in cleaned:
+            reply_part, _, ru_part = cleaned.partition("RU:")
+            reply = reply_part.strip()
+            translation = ru_part.strip()
+        else:
+            reply = cleaned.strip()
+        if not _is_valid_spoken_reply(reply):
+            return None
+        return {"reply": reply, "reply_translation": translation}
+
     async def practice_turn(
         self,
         language: str,
@@ -672,8 +841,9 @@ Your "reply" is spoken as a voice message - write natural speech, not a formal l
 {_topic_roleplay_rules()}
 
 For EACH user message you MUST:
-1) Analyze real grammar, vocabulary, articles, prepositions, word order, tense, collocations.
-2) List only REAL mistakes that affect correctness or natural meaning.
+1) Analyze grammar, vocabulary, articles, prepositions, word order, tense, collocations.
+   Flag mistakes that a B1-B2 learner should fix — even in casual chat.
+2) List REAL mistakes that affect correctness or natural meaning.
 3) React to content and ask ONE concrete follow-up (stay in role for role-play topics).
 4) Give Russian translation of your spoken reply.
 5) If the learner clearly switches topic or scenario mid-conversation
@@ -689,12 +859,14 @@ For interview: once field/role is known → ask the NEXT interview question; nev
 DO NOT flag as mistakes (leave corrections=[]):
 - Spacing before punctuation: "and you ?" vs "and you?" - BOTH OK in chat.
 - Missing/extra space around ? ! . ,
-- Capitalization in casual chat: "hi" vs "Hi", "i'm" vs "I'm" unless clearly wrong.
-- Informal but understandable phrasing if meaning is clear.
-- Stylistic preferences when grammar is already acceptable.
+- Capitalization only: "hi" vs "Hi", "i'm" vs "I'm".
 
-ONLY flag: wrong words, wrong tense, missing/wrong articles, bad word order, wrong prepositions,
-unnatural collocations, meaning-changing errors.
+DO flag (examples):
+- "I go to work yesterday" → wrong tense
+- "He have a car" → subject-verb agreement
+- "I am agree" → wrong collocation
+- "depends from" → wrong preposition
+- missing articles when they change meaning ("I am student" → "I am a student")
 
 Return ONLY valid JSON:
 {{
@@ -722,7 +894,8 @@ HARD RULES:
 - wrong/right must be real substrings of wrong_line/right_line.
 - Do NOT invent mistakes. Do NOT correct punctuation spacing.
 - NEVER use helpdesk phrases ("How can I help you", etc.).
-- React + ask (What happened next? How did you feel?).
+- React to what the user ACTUALLY said — reference their words, don't ask generic "what happened next?" unless they told a story.
+- Vary your follow-up questions; never repeat the same question twice in a row.
 
 Example - NO correction needed:
 User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear)."""
@@ -737,19 +910,55 @@ User: "hi i'm fine and you ?" → corrections=[] (casual chat, meaning clear).""
 
         raw = await self._chat(messages, max_tokens=900, temperature=0.55, json_mode=True)
         data = _parse_speak_response(raw or "")
-        if data and data.get("reply") and _is_valid_spoken_reply(str(data.get("reply"))):
-            data["corrections"] = _normalize_corrections(
-                data.get("corrections"),
+        if _is_valid_practice_result(data):
+            return _finalize_practice_data(
+                data,
                 user_text=user_text,
-                corrected_message=(data.get("corrected_message") or ""),
+                topic_context=topic_context,
             )
-            data["has_errors"] = bool(data["corrections"])
-            data.setdefault("topic_context", topic_context or "")
-            data.setdefault("topic", "")
-            data.setdefault("topic_mode", "")
-            return data
-        print(f"⚠️ practice_turn AI failed, using fallback. raw={ (raw or '')[:200] }")
-        return _fallback_practice_turn(language, user_text, topic_context)
+
+        print(f"⚠️ practice_turn json_mode failed, retry without json. raw={(raw or '')[:200]}")
+        raw = await self._chat(messages, max_tokens=900, temperature=0.55, json_mode=False)
+        data = _parse_speak_response(raw or "")
+        if _is_valid_practice_result(data):
+            return _finalize_practice_data(
+                data,
+                user_text=user_text,
+                topic_context=topic_context,
+            )
+
+        print(f"⚠️ practice_turn retry failed, trying simple reply. raw={(raw or '')[:200]}")
+        simple = await self._simple_conversation_reply(
+            language,
+            history,
+            user_text,
+            custom_topic=custom_topic,
+            topic_mode=topic_mode,
+            topic_context=topic_context,
+        )
+        grammar = await self.analyze_grammar(language, user_text)
+        if simple:
+            result = {
+                **simple,
+                "corrections": grammar.get("corrections") or [],
+                "corrected_message": grammar.get("corrected_message") or user_text,
+                "topic_context": topic_context or "",
+                "topic": "",
+                "topic_mode": "",
+            }
+            result["has_errors"] = bool(result["corrections"])
+            return result
+
+        turn_index = len(history) // 2
+        print(f"⚠️ practice_turn AI failed completely, using fallback. raw={(raw or '')[:200]}")
+        return _fallback_practice_turn(
+            language,
+            user_text,
+            topic_context,
+            turn_index=turn_index,
+            corrections=grammar.get("corrections") or [],
+            corrected_message=grammar.get("corrected_message") or user_text,
+        )
 
     async def make_hint(
         self,
