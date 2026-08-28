@@ -1,8 +1,5 @@
 .dashboard-container {
-  height: 100dvh;
-  min-height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden;
+  min-height: 100vh;
   background: var(--color-bg);
   display: flex;
   flex-direction: column;

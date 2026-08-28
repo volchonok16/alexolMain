@@ -26,6 +26,7 @@ import {
 } from '../utils/composeEmail'
 import { EmailHtmlFrame } from '../components/EmailHtmlFrame'
 import { htmlForDisplay, previewTextFromParts } from '../utils/htmlEmail'
+import './UserDashboard.css'
 
 interface Email {
   id: number
