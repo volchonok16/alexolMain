@@ -937,9 +937,7 @@ async def handle_user_text(
         )
     elif result.get("_fallback"):
         await update.message.reply_text(
-            "⚠️ <i>AI временно ответил шаблоном — проверь OPENROUTER_API_KEY или прокси. "
-            "Попробуй ещё раз через минуту.</i>",
-            parse_mode=ParseMode.HTML,
+            "⚠️ Произошла ошибка. Попробуй ещё раз через минуту.",
         )
 
     await _send_tutor_voice_and_controls(

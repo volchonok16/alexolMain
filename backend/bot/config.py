@@ -80,18 +80,18 @@ OPENROUTER_FALLBACK_MODELS = [
     if model.strip()
 ]
 
-# Speak tutor: без reasoning-моделей (ломают JSON, озвучивают «user safe» и т.п.)
-SPEAK_OPENROUTER_MODEL = os.getenv("SPEAK_OPENROUTER_MODEL", "qwen/qwen3.6-plus:free")
+# Speak tutor: openrouter/free — роутер на актуальные free-модели (старые :free slugs часто 404).
+SPEAK_OPENROUTER_MODEL = os.getenv("SPEAK_OPENROUTER_MODEL", "openrouter/free")
 _speak_fallback_env = os.getenv(
     "SPEAK_OPENROUTER_FALLBACK_MODELS",
     ",".join(
         [
-            "qwen/qwen3.6-plus:free",
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "google/gemma-3-27b-it:free",
-            "nvidia/nemotron-3-nano-30b-a3b:free",
-            "poolside/laguna-xs.2:free",
             "openrouter/free",
+            "poolside/laguna-xs.2:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "meta-llama/llama-3.2-3b-instruct:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "qwen/qwen3-next-80b-a3b-instruct:free",
         ]
     ),
 )
