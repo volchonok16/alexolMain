@@ -64,6 +64,7 @@ export const UsersManagement = () => {
     role: 'admin' | 'user';
     email?: string;
     phone?: string;
+    telegram?: string;
     birthDate?: string;
     photo?: File;
   }) => {

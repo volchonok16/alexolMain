@@ -7,6 +7,7 @@ type SyncEnsurePayload = {
   is_admin?: boolean;
   is_active?: boolean;
   phone?: string | null;
+  telegram?: string | null;
   avatar_url?: string | null;
 };
 
@@ -77,6 +78,7 @@ export class MailSyncService {
     };
     if (payload.password) body.password = payload.password;
     if (payload.phone !== undefined) body.phone = payload.phone;
+    if (payload.telegram !== undefined) body.telegram = payload.telegram ?? '';
     if (payload.avatar_url) body.avatar_url = payload.avatar_url;
 
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -116,6 +118,7 @@ export class MailSyncService {
       is_admin?: boolean;
       is_active?: boolean;
       phone?: string | null;
+      telegram?: string | null;
       avatar_url?: string | null;
       new_username?: string;
     }
@@ -128,6 +131,7 @@ export class MailSyncService {
       is_admin: payload.is_admin,
       is_active: payload.is_active,
       phone: payload.phone,
+      telegram: payload.telegram,
       avatar_url: payload.avatar_url,
     });
 

@@ -107,6 +107,9 @@ async def startup_event():
                 "ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE"
             )
         )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram VARCHAR")
+        )
         # Existing admin-created templates become org-shared so users keep access
         await conn.execute(
             text(
@@ -370,6 +373,7 @@ async def create_user(
         username=username,
         full_name=user_data.full_name,
         phone=user_data.phone,
+        telegram=user_data.telegram,
         hashed_password=get_password_hash(user_data.password),
         is_admin=bool(user_data.is_admin),
         is_active=True
@@ -386,6 +390,7 @@ async def create_user(
         is_admin=user.is_admin,
         is_active=user.is_active,
         phone=user.phone,
+        telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
     if not synced:
@@ -457,6 +462,8 @@ async def update_user_by_admin(
         user.full_name = user_data.full_name
     if user_data.phone is not None:
         user.phone = user_data.phone
+    if user_data.telegram is not None:
+        user.telegram = (user_data.telegram or "").strip() or None
     if user_data.password is not None:
         user.hashed_password = get_password_hash(user_data.password)
     if user_data.is_admin is not None:
@@ -480,6 +487,7 @@ async def update_user_by_admin(
         is_admin=user.is_admin,
         is_active=user.is_active,
         phone=user.phone,
+        telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
 
@@ -511,6 +519,7 @@ async def make_user_admin(
         is_admin=True,
         is_active=user.is_active,
         phone=user.phone,
+        telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
 
@@ -549,6 +558,7 @@ async def remove_user_admin(
         is_admin=False,
         is_active=user.is_active,
         phone=user.phone,
+        telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
 
@@ -564,8 +574,10 @@ async def update_profile(
     """Update user profile"""
     if user_data.full_name:
         current_user.full_name = user_data.full_name
-    if user_data.phone:
+    if user_data.phone is not None:
         current_user.phone = user_data.phone
+    if user_data.telegram is not None:
+        current_user.telegram = (user_data.telegram or "").strip() or None
     if user_data.password:
         current_user.hashed_password = get_password_hash(user_data.password)
     
@@ -579,6 +591,7 @@ async def update_profile(
         is_admin=current_user.is_admin,
         is_active=current_user.is_active,
         phone=current_user.phone,
+        telegram=current_user.telegram,
         avatar_url=current_user.avatar_url,
     )
 
@@ -629,6 +642,7 @@ async def upload_avatar(
         is_admin=current_user.is_admin,
         is_active=current_user.is_active,
         phone=current_user.phone,
+        telegram=current_user.telegram,
         avatar_url=avatar_url,
     )
 
@@ -1330,6 +1344,8 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         existing.is_active = bool(user_data.is_active)
         if user_data.phone is not None:
             existing.phone = user_data.phone
+        if user_data.telegram is not None:
+            existing.telegram = (user_data.telegram or "").strip() or None
         if user_data.password:
             existing.hashed_password = get_password_hash(user_data.password)
         _apply_avatar_from_sync(existing, user_data)
@@ -1348,6 +1364,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         username=username,
         full_name=user_data.full_name,
         phone=user_data.phone,
+        telegram=user_data.telegram,
         hashed_password=get_password_hash(user_data.password),
         is_admin=bool(user_data.is_admin),
         is_active=bool(user_data.is_active),
@@ -1371,6 +1388,7 @@ async def sync_create_user(user_data: SyncUserCreate, db: AsyncSession = Depends
             is_admin=user_data.is_admin,
             is_active=user_data.is_active,
             phone=user_data.phone,
+            telegram=user_data.telegram,
             avatar_url=user_data.avatar_url,
         ),
         db,
@@ -1414,6 +1432,8 @@ async def sync_update_user(
         user.is_active = bool(user_data.is_active)
     if user_data.phone is not None:
         user.phone = user_data.phone
+    if user_data.telegram is not None:
+        user.telegram = (user_data.telegram or "").strip() or None
     if getattr(user_data, "avatar_url", None):
         user.avatar_url = user_data.avatar_url
 

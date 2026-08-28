@@ -10,16 +10,19 @@ const optionalBirthDate = z.preprocess(
   z.string().nullable().optional()
 );
 
+const optionalContact = z.preprocess(
+  value => (typeof value === 'string' && value.trim() === '' ? null : value),
+  z.string().trim().nullable().optional()
+);
+
 export const createUserSchema = z.object({
   login: z.string().trim().min(3),
   password: z.string().min(6),
   name: z.string().min(1),
   role: z.enum(['admin', 'user']),
   email: optionalEmail,
-  phone: z.preprocess(
-    value => (typeof value === 'string' && value.trim() === '' ? null : value),
-    z.string().trim().nullable().optional()
-  ),
+  phone: optionalContact,
+  telegram: optionalContact,
   birthDate: optionalBirthDate,
 });
 
@@ -29,9 +32,7 @@ export const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
   role: z.enum(['admin', 'user']).optional(),
   email: optionalEmail,
-  phone: z.preprocess(
-    value => (typeof value === 'string' && value.trim() === '' ? null : value),
-    z.string().trim().nullable().optional()
-  ),
+  phone: optionalContact,
+  telegram: optionalContact,
   birthDate: optionalBirthDate,
 });

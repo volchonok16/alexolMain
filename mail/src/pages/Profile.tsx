@@ -18,6 +18,7 @@ export default function Profile() {
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
     phone: user?.phone || '',
+    telegram: user?.telegram || '',
     password: '',
     confirmPassword: '',
   })
@@ -93,6 +94,7 @@ export default function Profile() {
     const updateData: Record<string, string> = {
       full_name: formData.full_name,
       phone: formData.phone,
+      telegram: formData.telegram,
     }
 
     if (formData.password) {
@@ -216,6 +218,16 @@ export default function Profile() {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+7 900 123-45-67"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Телеграм</label>
+              <input
+                type="text"
+                value={formData.telegram}
+                onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
+                placeholder="@username"
               />
             </div>
 

@@ -22,6 +22,7 @@ interface User {
   username: string
   full_name: string
   phone?: string
+  telegram?: string
   is_admin: boolean
   created_at: string
 }
@@ -41,12 +42,14 @@ export default function AdminDashboard() {
     full_name: '',
     username: '',
     phone: '',
+    telegram: '',
     password: '',
     is_admin: false,
   })
   const [editFormData, setEditFormData] = useState({
     full_name: '',
     phone: '',
+    telegram: '',
     password: '',
     is_admin: false,
   })
@@ -88,7 +91,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowCreateForm(false)
-      setFormData({ full_name: '', username: '', phone: '', password: '', is_admin: false })
+      setFormData({ full_name: '', username: '', phone: '', telegram: '', password: '', is_admin: false })
       toast.success('Пользователь создан')
     },
     onError: (error: any) => {
@@ -215,6 +218,7 @@ export default function AdminDashboard() {
     setEditFormData({
       full_name: user.full_name,
       phone: user.phone || '',
+      telegram: user.telegram || '',
       password: '',
       is_admin: user.is_admin,
     })
@@ -227,6 +231,7 @@ export default function AdminDashboard() {
       const updateData: any = {}
       if (editFormData.full_name) updateData.full_name = editFormData.full_name
       if (editFormData.phone) updateData.phone = editFormData.phone
+      updateData.telegram = editFormData.telegram
       if (editFormData.password) updateData.password = editFormData.password
       updateData.is_admin = editFormData.is_admin
       
@@ -400,6 +405,16 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="form-group">
+                  <label>Телеграм</label>
+                  <input
+                    type="text"
+                    value={formData.telegram}
+                    onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
+                    placeholder="@username"
+                  />
+                </div>
+
+                <div className="form-group">
                   <label>Пароль</label>
                   <PasswordInput
                     value={formData.password}
@@ -465,6 +480,16 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="form-group">
+                  <label>Телеграм</label>
+                  <input
+                    type="text"
+                    value={editFormData.telegram}
+                    onChange={(e) => setEditFormData({ ...editFormData, telegram: e.target.value })}
+                    placeholder="@username"
+                  />
+                </div>
+
+                <div className="form-group">
                   <label>Новый пароль (оставьте пустым, если не нужно менять)</label>
                   <PasswordInput
                     value={editFormData.password}
@@ -511,6 +536,7 @@ export default function AdminDashboard() {
                   <th>ФИО</th>
                   <th>Email</th>
                   <th>Телефон</th>
+                  <th>Телеграм</th>
                   <th>Роль</th>
                   <th>Дата создания</th>
                   <th>Действия</th>
@@ -523,6 +549,7 @@ export default function AdminDashboard() {
                     <td data-label="ФИО">{user.full_name}</td>
                     <td data-label="Email">{user.email}</td>
                     <td data-label="Телефон">{user.phone || '-'}</td>
+                    <td data-label="Телеграм">{user.telegram || '-'}</td>
                     <td data-label="Роль">
                       <span className={`badge ${user.is_admin ? 'badge-admin' : 'badge-user'}`}>
                         {user.is_admin ? 'Админ' : 'Пользователь'}

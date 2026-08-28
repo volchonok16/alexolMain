@@ -16,6 +16,12 @@ export class MailInboundSyncController {
       const is_active = req.body?.is_active === undefined ? true : Boolean(req.body.is_active);
       const phone =
         typeof req.body?.phone === 'string' ? req.body.phone : req.body?.phone === null ? null : undefined;
+      const telegram =
+        typeof req.body?.telegram === 'string'
+          ? req.body.telegram
+          : req.body?.telegram === null
+            ? null
+            : undefined;
       const avatar_url =
         typeof req.body?.avatar_url === 'string' && req.body.avatar_url
           ? req.body.avatar_url
@@ -40,6 +46,7 @@ export class MailInboundSyncController {
         is_admin,
         is_active,
         phone,
+        telegram,
         avatar_url,
         avatar_base64,
         avatar_content_type,

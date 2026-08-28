@@ -12,6 +12,7 @@ type MailInboundPayload = {
   is_admin?: boolean;
   is_active?: boolean;
   phone?: string | null;
+  telegram?: string | null;
   avatar_url?: string | null;
   avatar_base64?: string | null;
   avatar_content_type?: string | null;
@@ -61,6 +62,8 @@ export class MailInboundSyncService {
     const role = payload.is_admin ? 'admin' : 'user';
     const name = (payload.full_name || login).trim() || login;
     const phone = payload.phone?.trim() || null;
+    const telegram =
+      payload.telegram === undefined ? undefined : payload.telegram?.trim() || null;
 
     const existing = await this.userRepo.findByLogin(login);
     if (existing) {
@@ -70,6 +73,7 @@ export class MailInboundSyncService {
         role?: string;
         email?: string | null;
         phone?: string | null;
+        telegram?: string | null;
         password?: string;
         photo?: string | null;
       } = {
@@ -78,6 +82,7 @@ export class MailInboundSyncService {
         email,
         phone,
       };
+      if (telegram !== undefined) data.telegram = telegram;
       if (payload.password) {
         data.password = await bcrypt.hash(payload.password, 10);
       }
@@ -101,6 +106,7 @@ export class MailInboundSyncService {
       role,
       email,
       phone,
+      telegram: telegram ?? null,
       photo: photo ?? null,
     });
   }

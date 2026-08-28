@@ -14,6 +14,7 @@ interface UserModalProps {
     role: 'admin' | 'user';
     email?: string;
     phone?: string;
+    telegram?: string;
     birthDate?: string;
     photo?: File;
   }) => void;
@@ -46,6 +47,7 @@ export const UserModal = ({
   const [role, setRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
   const [birthDate, setBirthDate] = useState(toDateInput(user?.birthDate));
   const [phone, setPhone] = useState(user?.phone || '');
+  const [telegram, setTelegram] = useState(user?.telegram || '');
   const [photo, setPhoto] = useState<File | undefined>();
   const [preview, setPreview] = useState(user?.photo ? resolveApiAssetUrl(user.photo) : '');
 
@@ -68,6 +70,7 @@ export const UserModal = ({
       role: lockRole ? (user?.role === 'admin' ? 'admin' : 'user') : role,
       email: mailboxEmail || undefined,
       phone,
+      telegram,
       birthDate,
       photo,
       ...(password ? { password } : {}),
@@ -134,6 +137,17 @@ export const UserModal = ({
             value={phone}
             onChange={e => setPhone(e.target.value)}
             placeholder="+7 900 123-45-67"
+            disabled={isSaving}
+          />
+        </div>
+
+        <div className="modal__field">
+          <label>Телеграм</label>
+          <input
+            type="text"
+            value={telegram}
+            onChange={e => setTelegram(e.target.value)}
+            placeholder="@username"
             disabled={isSaving}
           />
         </div>

@@ -59,6 +59,7 @@ async def push_user_ensure(
     is_admin: bool = False,
     is_active: bool = True,
     phone: Optional[str] = None,
+    telegram: Optional[str] = None,
     avatar_url: Optional[str] = None,
 ) -> bool:
     if not _enabled():
@@ -74,6 +75,7 @@ async def push_user_ensure(
         payload["password"] = password
     if phone is not None:
         payload["phone"] = phone
+    payload["telegram"] = (telegram or "").strip()
     payload.update(await _avatar_fields(avatar_url))
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:

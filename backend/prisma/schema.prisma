@@ -14,6 +14,7 @@ model User {
   name      String
   email     String?   @unique
   phone     String?
+  telegram  String?
   role      String    @default("user")
   photo     String?
   birthDate DateTime? @db.Date

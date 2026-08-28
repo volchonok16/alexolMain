@@ -22,6 +22,11 @@ const normalizePhone = (phone?: string | null) => {
   return value || null;
 };
 
+const normalizeTelegram = (telegram?: string | null) => {
+  const value = telegram?.trim();
+  return value || null;
+};
+
 export class UserService {
   private userRepo = new UserRepository();
   private mailSync = new MailSyncService();
@@ -43,6 +48,7 @@ export class UserService {
     role: 'admin' | 'user';
     email?: string | null;
     phone?: string | null;
+    telegram?: string | null;
     birthDate?: string | null;
     photo?: Express.Multer.File;
   }) {
@@ -67,6 +73,7 @@ export class UserService {
     if (existingEmail) throw new Error('Email already exists');
 
     const phone = normalizePhone(data.phone);
+    const telegram = normalizeTelegram(data.telegram);
     const photoUrl = data.photo ? await saveFile(data.photo) : null;
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
@@ -77,6 +84,7 @@ export class UserService {
       is_admin: data.role === 'admin',
       is_active: true,
       phone,
+      telegram,
       avatar_url: toAbsolutePhotoUrl(photoUrl),
     });
     if (!mailOk) {
@@ -93,6 +101,7 @@ export class UserService {
       role: data.role,
       email,
       phone,
+      telegram,
       birthDate: parseBirthDate(data.birthDate),
       photo: photoUrl,
     });
@@ -107,6 +116,7 @@ export class UserService {
       role?: 'admin' | 'user';
       email?: string | null;
       phone?: string | null;
+      telegram?: string | null;
       birthDate?: string | null;
       photo?: Express.Multer.File;
     }
@@ -145,6 +155,8 @@ export class UserService {
     const nextIsAdmin = (data.role ?? user.role) === 'admin';
     const nextPhone =
       data.phone !== undefined ? normalizePhone(data.phone) : user.phone ?? null;
+    const nextTelegram =
+      data.telegram !== undefined ? normalizeTelegram(data.telegram) : user.telegram ?? null;
 
     const mailOk = await this.mailSync.updateMailbox(previousLogin, {
       full_name: nextName,
@@ -152,6 +164,7 @@ export class UserService {
       is_admin: nextIsAdmin,
       is_active: true,
       phone: nextPhone,
+      telegram: nextTelegram,
       avatar_url: toAbsolutePhotoUrl(photoUrl),
       new_username: data.login && data.login !== previousLogin ? data.login : undefined,
     });
@@ -167,6 +180,7 @@ export class UserService {
       role: data.role,
       email,
       phone: data.phone !== undefined ? nextPhone : undefined,
+      telegram: data.telegram !== undefined ? nextTelegram : undefined,
       birthDate: data.birthDate === undefined ? undefined : parseBirthDate(data.birthDate),
       photo: photoUrl,
       ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),
