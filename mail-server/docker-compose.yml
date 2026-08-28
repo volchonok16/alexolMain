@@ -55,6 +55,7 @@ services:
       MINIO_SECURE: "false"
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production-12345}
       MAIL_DOMAIN: ${MAIL_DOMAIN:-alexol.io}
+      MAIL_HOSTNAME: ${MAIL_HOSTNAME:-mail.alexol.io}
       DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@alexol.io}
       DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-change-me-mail-admin-password}
       # Shared secret with alexolMain backend (MAIL_SYNC_SECRET) for user provisioning

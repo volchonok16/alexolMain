@@ -112,6 +112,9 @@ async def startup_event():
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram VARCHAR")
         )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR")
+        )
         # Existing admin-created templates become org-shared so users keep access
         await conn.execute(
             text(
@@ -456,6 +459,7 @@ async def create_user(
         username=username,
         full_name=user_data.full_name,
         phone=user_data.phone,
+        job_title=(user_data.job_title or "").strip() or None,
         telegram=user_data.telegram,
         hashed_password=get_password_hash(user_data.password),
         is_admin=bool(user_data.is_admin),
@@ -545,6 +549,8 @@ async def update_user_by_admin(
         user.full_name = user_data.full_name
     if user_data.phone is not None:
         user.phone = user_data.phone
+    if user_data.job_title is not None:
+        user.job_title = (user_data.job_title or "").strip() or None
     if user_data.telegram is not None:
         user.telegram = (user_data.telegram or "").strip() or None
     if user_data.password is not None:
@@ -659,6 +665,8 @@ async def update_profile(
         current_user.full_name = user_data.full_name
     if user_data.phone is not None:
         current_user.phone = user_data.phone
+    if user_data.job_title is not None:
+        current_user.job_title = (user_data.job_title or "").strip() or None
     if user_data.telegram is not None:
         current_user.telegram = (user_data.telegram or "").strip() or None
     if user_data.password:
@@ -1023,7 +1031,12 @@ def _build_and_send_email_message(
                     for mx in mx_records:
                         mx_host = str(mx.exchange).rstrip(".")
                         try:
-                            with smtplib.SMTP(mx_host, 25, timeout=30) as smtp:
+                            with smtplib.SMTP(
+                                mx_host,
+                                25,
+                                timeout=30,
+                                local_hostname=settings.smtp_hostname,
+                            ) as smtp:
                                 smtp.ehlo()
                                 # Gmail marks "did not encrypt" if we skip STARTTLS on port 25
                                 if smtp.has_extn("starttls"):
@@ -1050,7 +1063,11 @@ def _build_and_send_email_message(
                     )
                 except Exception as dns_error:
                     if recipient_domain == settings.MAIL_DOMAIN.replace("@", ""):
-                        with smtplib.SMTP("localhost", settings.SMTP_PORT) as smtp:
+                        with smtplib.SMTP(
+                            "localhost",
+                            settings.SMTP_PORT,
+                            local_hostname=settings.smtp_hostname,
+                        ) as smtp:
                             smtp.send_message(msg)
                     else:
                         raise HTTPException(
@@ -1427,6 +1444,8 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         existing.is_active = bool(user_data.is_active)
         if user_data.phone is not None:
             existing.phone = user_data.phone
+        if user_data.job_title is not None:
+            existing.job_title = (user_data.job_title or "").strip() or None
         if user_data.telegram is not None:
             existing.telegram = (user_data.telegram or "").strip() or None
         if user_data.password:
@@ -1447,6 +1466,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         username=username,
         full_name=user_data.full_name,
         phone=user_data.phone,
+        job_title=(user_data.job_title or "").strip() or None,
         telegram=user_data.telegram,
         hashed_password=get_password_hash(user_data.password),
         is_admin=bool(user_data.is_admin),
@@ -1471,6 +1491,7 @@ async def sync_create_user(user_data: SyncUserCreate, db: AsyncSession = Depends
             is_admin=user_data.is_admin,
             is_active=user_data.is_active,
             phone=user_data.phone,
+            job_title=user_data.job_title,
             telegram=user_data.telegram,
             avatar_url=user_data.avatar_url,
         ),
@@ -1515,6 +1536,8 @@ async def sync_update_user(
         user.is_active = bool(user_data.is_active)
     if user_data.phone is not None:
         user.phone = user_data.phone
+    if user_data.job_title is not None:
+        user.job_title = (user_data.job_title or "").strip() or None
     if user_data.telegram is not None:
         user.telegram = (user_data.telegram or "").strip() or None
     if getattr(user_data, "avatar_url", None):

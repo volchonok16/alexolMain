@@ -8,6 +8,7 @@ interface User {
   username: string
   full_name: string
   phone?: string
+  job_title?: string
   telegram?: string
   avatar_url?: string
   is_admin: boolean

@@ -17,6 +17,7 @@ export default function Profile() {
 
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
+    job_title: user?.job_title || '',
     phone: user?.phone || '',
     telegram: user?.telegram || '',
     password: '',
@@ -93,6 +94,7 @@ export default function Profile() {
 
     const updateData: Record<string, string> = {
       full_name: formData.full_name,
+      job_title: formData.job_title,
       phone: formData.phone,
       telegram: formData.telegram,
     }
@@ -209,6 +211,18 @@ export default function Profile() {
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 required
               />
+              <small>Попадает в кнопку «Вставить подпись»</small>
+            </div>
+
+            <div className="form-group">
+              <label>Должность</label>
+              <input
+                type="text"
+                value={formData.job_title}
+                onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+                placeholder="CEO & Founder"
+              />
+              <small>В подписи будет: должность · Alexol. Сайт всегда alexol.io</small>
             </div>
 
             <div className="form-group">

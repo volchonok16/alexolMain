@@ -1,3 +1,4 @@
+import { upgradeSignatureAssets } from './alexolSignature'
 import type { EmailTemplate } from './templateStarters'
 
 function escapeHtml(text: string): string {
@@ -44,8 +45,9 @@ export function htmlWithoutSignature(html: string): string {
 
 export function replaceOrAppendSignature(html: string, signatureHtml: string): string {
   const without = htmlWithoutSignature(html)
-  if (!without) return signatureHtml
-  return `${without}<br /><br />${signatureHtml}`
+  const sig = upgradeSignatureAssets(signatureHtml)
+  if (!without) return sig
+  return `${without}<br /><br />${sig}`
 }
 
 /** Merge selected templates into the HTML fragment (body / signature / other). */
@@ -81,10 +83,12 @@ export function buildComposePreviewHtml(plainBody: string, templateHtml: string)
   const fragments = (templateHtml || '').trim()
 
   if (!textHtml && !fragments) return ''
-  if (!textHtml) return fragments
-  if (!fragments) return textHtml
-
-  return `${textHtml}<div style="margin-top:4px;">${fragments}</div>`
+  const merged = !textHtml
+    ? fragments
+    : !fragments
+      ? textHtml
+      : `${textHtml}<div style="margin-top:4px;">${fragments}</div>`
+  return upgradeSignatureAssets(merged)
 }
 
 export function normalizeComposeLinks(html: string): string {

@@ -56,6 +56,30 @@ python3 scripts/generate_dkim.py --out-dir ./dkim --selector default --domain al
 
 Проверка DNS: `dig +short TXT default._domainkey.alexol.io`
 
+## PTR / SPF / DMARC (чтобы письма не падали в спам Яндекса)
+
+Яндекс пишет «некорректно настроена ptr-запись», если **обратный DNS IP сервера** не совпадает с именем почтового хоста.
+
+PTR **нельзя** задать в Cloudflare. Его ставит **хостер VPS** (Hetzner / Timeweb / Selectel / …) на публичный IP машины, с которой уходит SMTP (тот же `SERVER_IP`).
+
+| Запись | Где | Значение |
+|--------|-----|----------|
+| **PTR** (reverse DNS) | Панель VPS, IP сервера | `mail.alexol.io` |
+| **A** `mail.alexol.io` | Cloudflare, **DNS only** (серое облако) | тот же публичный IP |
+| **MX** `alexol.io` | Cloudflare, DNS only | `mail.alexol.io` (приоритет 10) |
+| **SPF** TXT `@` | Cloudflare, DNS only | `v=spf1 mx a:mail.alexol.io -all` |
+| **DMARC** TXT `_dmarc` | Cloudflare, DNS only | `v=DMARC1; p=none; rua=mailto:admin@alexol.io` |
+
+Проверка после смены PTR (может занять до суток):
+
+```bash
+dig +short mail.alexol.io A
+dig +short -x <ПУБЛИЧНЫЙ_IP>
+# PTR должен вернуть mail.alexol.io.
+```
+
+Исходящий EHLO сервер теперь объявляет `mail.alexol.io` — это имя должно совпадать с PTR.
+
 ## Run
 
 ```bash

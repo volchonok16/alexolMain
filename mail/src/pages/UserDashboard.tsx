@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward } from 'lucide-react'
+import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward, ArrowLeft } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
@@ -15,7 +15,7 @@ import {
   type EmailTemplate,
   type TemplateType,
 } from '../utils/templateStarters'
-import { ALEXOL_SIGNATURE_HTML } from '../utils/alexolSignature'
+import { buildAlexolSignature } from '../utils/alexolSignature'
 import {
   applyTemplatesToHtml,
   buildComposePreviewHtml,
@@ -40,6 +40,39 @@ interface Email {
   to_avatar_url?: string | null
   from_name?: string | null
   to_name?: string | null
+}
+
+function emailPreviewText(email: Email): string {
+  const fromBody = (email.body || '').replace(/\s+/g, ' ').trim()
+  if (fromBody) return fromBody
+  const fromHtml = (email.html_body || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return fromHtml
+}
+
+function formatListDate(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  }
+  if (d.getFullYear() === now.getFullYear()) {
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+  }
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function formatFullDate(iso: string): string {
+  return new Date(iso).toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export default function UserDashboard() {
@@ -358,14 +391,18 @@ export default function UserDashboard() {
   }
 
   const insertQuickSignature = () => {
-    const signatureTemplate = (templates || []).find((t) => t.type === 'signature')
-    const signatureHtml = signatureTemplate?.html_content || ALEXOL_SIGNATURE_HTML
+    const signatureHtml = buildAlexolSignature({
+      full_name: user?.full_name,
+      job_title: user?.job_title,
+      phone: user?.phone,
+      email: user?.email,
+    })
 
     setComposeData((prev) => ({
       ...prev,
       html_body: replaceOrAppendSignature(prev.html_body, signatureHtml),
     }))
-    toast.success('Подпись вставлена в письмо')
+    toast.success('Подпись собрана из профиля')
   }
 
   const composePreviewHtml = buildComposePreviewHtml(composeData.body, composeData.html_body)
@@ -377,7 +414,7 @@ export default function UserDashboard() {
       prev.forEach((p) => p.url && URL.revokeObjectURL(p.url))
       return []
     })
-    setSelectedEmail(null)
+    setSelectedEmail(email)
     setShowCompose(true)
   }
 
@@ -388,12 +425,40 @@ export default function UserDashboard() {
       prev.forEach((p) => p.url && URL.revokeObjectURL(p.url))
       return []
     })
-    setSelectedEmail(null)
+    setSelectedEmail(email)
     setShowCompose(true)
   }
 
+  const openEmail = (email: Email) => {
+    const opened = { ...email, is_read: email.is_sent ? email.is_read : true }
+    setSelectedEmail(opened)
+    if (!email.is_read && !email.is_sent) {
+      queryClient.setQueryData<Email[]>(['inbox'], (old) =>
+        (old || []).map((e) => (e.id === email.id ? { ...e, is_read: true } : e))
+      )
+      void (async () => {
+        try {
+          const { data } = await api.post<Email>(`/emails/${email.id}/read`)
+          setSelectedEmail((current) =>
+            current?.id === email.id ? { ...data, is_read: true } : current
+          )
+          queryClient.setQueryData<Email[]>(['inbox'], (old) =>
+            (old || []).map((e) =>
+              e.id === email.id ? { ...e, ...data, is_read: true } : e
+            )
+          )
+        } catch {
+          queryClient.setQueryData<Email[]>(['inbox'], (old) =>
+            (old || []).map((e) => (e.id === email.id ? { ...e, is_read: false } : e))
+          )
+          setSelectedEmail((current) => (current?.id === email.id ? email : current))
+        }
+      })()
+    }
+  }
+
   return (
-    <div className="dashboard-container">
+    <div className={`dashboard-container ${selectedEmail ? 'is-reading' : ''}`}>
       <nav className="dashboard-nav">
         <div className="nav-brand">
           <button
@@ -489,6 +554,7 @@ export default function UserDashboard() {
               className={`menu-item ${activeTab === 'inbox' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('inbox')
+                setSelectedEmail(null)
                 setMobileNavOpen(false)
               }}
             >
@@ -502,6 +568,7 @@ export default function UserDashboard() {
               className={`menu-item ${activeTab === 'sent' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('sent')
+                setSelectedEmail(null)
                 setMobileNavOpen(false)
               }}
             >
@@ -529,7 +596,8 @@ export default function UserDashboard() {
           </div>
         </aside>
 
-        <div className="main-content">
+        <div className={`mail-workspace ${selectedEmail ? 'has-selection' : ''}`}>
+          <div className="mail-list-pane">
           <div className="content-header">
             <h2>{activeTab === 'inbox' ? 'Входящие' : 'Отправленные'}</h2>
             <button
@@ -554,68 +622,28 @@ export default function UserDashboard() {
                 const peerAddress = email.is_sent ? email.to_address : email.from_address
                 const peerAvatar = email.is_sent ? email.to_avatar_url : email.from_avatar_url
                 const peerName = email.is_sent ? email.to_name : email.from_name
+                const preview = emailPreviewText(email)
                 return (
                 <div
                   key={email.id}
-                  className={`email-item ${!email.is_read && !email.is_sent ? 'unread' : ''}`}
-                  onClick={() => {
-                    const opened = { ...email, is_read: email.is_sent ? email.is_read : true }
-                    setSelectedEmail(opened)
-                    if (!email.is_read && !email.is_sent) {
-                      // Optimistic badge update - don't wait for network
-                      queryClient.setQueryData<Email[]>(['inbox'], (old) =>
-                        (old || []).map((e) =>
-                          e.id === email.id ? { ...e, is_read: true } : e
-                        )
-                      )
-                      void (async () => {
-                        try {
-                          const { data } = await api.post<Email>(`/emails/${email.id}/read`)
-                          setSelectedEmail(data)
-                          queryClient.setQueryData<Email[]>(['inbox'], (old) =>
-                            (old || []).map((e) =>
-                              e.id === email.id ? { ...e, ...data, is_read: true } : e
-                            )
-                          )
-                        } catch {
-                          // Revert if server rejected
-                          queryClient.setQueryData<Email[]>(['inbox'], (old) =>
-                            (old || []).map((e) =>
-                              e.id === email.id ? { ...e, is_read: false } : e
-                            )
-                          )
-                          setSelectedEmail(email)
-                        }
-                      })()
-                    }
-                  }}
+                  className={`email-item ${!email.is_read && !email.is_sent ? 'unread' : ''} ${selectedEmail?.id === email.id ? 'selected' : ''}`}
+                  onClick={() => openEmail(email)}
                 >
-                  <PeerAvatar src={peerAvatar} email={peerAddress} size={44} />
+                  <PeerAvatar src={peerAvatar} email={peerAddress} size={40} />
                   <div className="email-item-body">
                   <div className="email-item-top">
                     <div className="email-from">
                       {peerName ? (
-                        <>
-                          <span className="email-peer-name">{peerName}</span>
-                          <span className="email-peer-email">{peerAddress}</span>
-                        </>
+                        <span className="email-peer-name">{peerName}</span>
                       ) : (
                         peerAddress
                       )}
                     </div>
-                    <div className="email-date">
-                      {new Date(email.received_at).toLocaleString('ru-RU', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
+                    <div className="email-date">{formatListDate(email.received_at)}</div>
                   </div>
                   <div className="email-subject">{email.subject || '(Без темы)'}</div>
                   <div className="email-preview">
-                    {(email.body || '').substring(0, 100)}
-                    {(email.body || '').length > 100 ? '…' : ''}
+                    {preview ? (preview.length > 90 ? `${preview.slice(0, 90)}…` : preview) : 'Нет текста'}
                   </div>
                   </div>
                 </div>
@@ -623,6 +651,97 @@ export default function UserDashboard() {
               })
             )}
           </div>
+          </div>
+
+          <section className="mail-reader-pane" aria-label="Письмо">
+            {!selectedEmail ? (
+              <div className="mail-reader-empty">
+                <Mail size={56} />
+                <h3>Выберите письмо</h3>
+                <p>Откройте сообщение из списка слева — как в Gmail или Яндекс Почте.</p>
+              </div>
+            ) : (
+              <>
+                <div className="mail-reader-toolbar">
+                  <button
+                    type="button"
+                    className="mail-toolbar-btn mail-toolbar-back"
+                    onClick={() => setSelectedEmail(null)}
+                    aria-label="К списку"
+                  >
+                    <ArrowLeft size={18} />
+                    <span>К списку</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="mail-toolbar-btn"
+                    onClick={() => openReply(selectedEmail)}
+                  >
+                    <Reply size={18} />
+                    <span>Ответить</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="mail-toolbar-btn"
+                    onClick={() => openForward(selectedEmail)}
+                  >
+                    <Forward size={18} />
+                    <span>Переслать</span>
+                  </button>
+                  <span className="mail-toolbar-spacer" />
+                  <button
+                    type="button"
+                    className="mail-toolbar-btn danger"
+                    onClick={() => {
+                      if (confirm('Удалить письмо?')) {
+                        deleteMutation.mutate(selectedEmail.id)
+                      }
+                    }}
+                  >
+                    <Trash2 size={18} />
+                    <span>Удалить</span>
+                  </button>
+                </div>
+                <article className="mail-reader-article">
+                  <h2 className="mail-reader-subject">{selectedEmail.subject || '(Без темы)'}</h2>
+                  <div className="mail-reader-meta">
+                    <PeerAvatar
+                      src={selectedEmail.from_avatar_url}
+                      email={selectedEmail.from_address}
+                      size={44}
+                    />
+                    <div className="mail-reader-meta-text">
+                      <div className="mail-reader-from-line">
+                        <span className="mail-reader-from-name">
+                          {selectedEmail.from_name || selectedEmail.from_address}
+                        </span>
+                        {selectedEmail.from_name && (
+                          <span className="mail-reader-from-email">&lt;{selectedEmail.from_address}&gt;</span>
+                        )}
+                      </div>
+                      <div className="mail-reader-to-line">
+                        кому: {selectedEmail.to_name ? `${selectedEmail.to_name} ` : ''}
+                        {selectedEmail.to_address}
+                      </div>
+                    </div>
+                    <time className="mail-reader-date" dateTime={selectedEmail.received_at}>
+                      {formatFullDate(selectedEmail.received_at)}
+                    </time>
+                  </div>
+                  <div className="email-body">
+                    {selectedEmail.html_body ? (
+                      <div
+                        className="email-html-content email-preview-shell"
+                        dangerouslySetInnerHTML={{ __html: selectedEmail.html_body }}
+                      />
+                    ) : (
+                      <pre>{selectedEmail.body}</pre>
+                    )}
+                  </div>
+                </article>
+              </>
+            )}
+          </section>
         </div>
       </div>
 
@@ -630,7 +749,10 @@ export default function UserDashboard() {
         <button
           type="button"
           className={activeTab === 'inbox' ? 'active' : ''}
-          onClick={() => setActiveTab('inbox')}
+          onClick={() => {
+            setActiveTab('inbox')
+            setSelectedEmail(null)
+          }}
         >
           <Inbox size={20} />
           Входящие
@@ -646,7 +768,10 @@ export default function UserDashboard() {
         <button
           type="button"
           className={activeTab === 'sent' ? 'active' : ''}
-          onClick={() => setActiveTab('sent')}
+          onClick={() => {
+            setActiveTab('sent')
+            setSelectedEmail(null)
+          }}
         >
           <Send size={20} />
           Отправленные
@@ -688,6 +813,7 @@ export default function UserDashboard() {
                       type="button"
                       className="btn-link"
                       onClick={insertQuickSignature}
+                      title="ФИО, должность и телефон из профиля; сайт всегда alexol.io"
                     >
                       <PenLine size={16} />
                       Вставить подпись
@@ -1087,89 +1213,6 @@ export default function UserDashboard() {
                 className="btn-secondary"
                 onClick={() => setShowManageTemplates(false)}
               >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selectedEmail && (
-        <div className="modal-overlay" onClick={() => setSelectedEmail(null)}>
-          <div className="modal email-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="email-header">
-              <div className="email-header-main">
-                <div className="email-header-peers">
-                  <div className="email-peer-row">
-                    <PeerAvatar
-                      src={selectedEmail.from_avatar_url}
-                      email={selectedEmail.from_address}
-                      size={40}
-                    />
-                    <div>
-                      <div className="email-peer-label">От</div>
-                      {selectedEmail.from_name && (
-                        <div className="email-peer-address">{selectedEmail.from_name}</div>
-                      )}
-                      <div className={selectedEmail.from_name ? 'email-peer-email' : 'email-peer-address'}>
-                        {selectedEmail.from_address}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="email-peer-row">
-                    <PeerAvatar
-                      src={selectedEmail.to_avatar_url}
-                      email={selectedEmail.to_address}
-                      size={40}
-                    />
-                    <div>
-                      <div className="email-peer-label">Кому</div>
-                      {selectedEmail.to_name && (
-                        <div className="email-peer-address">{selectedEmail.to_name}</div>
-                      )}
-                      <div className={selectedEmail.to_name ? 'email-peer-email' : 'email-peer-address'}>
-                        {selectedEmail.to_address}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="email-subject-large">{selectedEmail.subject || '(Без темы)'}</div>
-                <div className="email-meta">
-                  <strong>Дата:</strong> {new Date(selectedEmail.received_at).toLocaleString('ru-RU')}
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  if (confirm('Удалить письмо?')) {
-                    deleteMutation.mutate(selectedEmail.id)
-                  }
-                }}
-                className="btn-delete-email"
-              >
-                Удалить
-              </button>
-            </div>
-            <div className="email-body">
-              {selectedEmail.html_body ? (
-                <div
-                  className="email-html-content email-preview-shell"
-                  dangerouslySetInnerHTML={{ __html: selectedEmail.html_body }}
-                />
-              ) : (
-                <pre>{selectedEmail.body}</pre>
-              )}
-            </div>
-            <div className="modal-actions email-modal-actions">
-              <button type="button" onClick={() => openReply(selectedEmail)} className="btn-primary">
-                <Reply size={16} />
-                Ответить
-              </button>
-              <button type="button" onClick={() => openForward(selectedEmail)} className="btn-secondary">
-                <Forward size={16} />
-                Переслать
-              </button>
-              <span className="email-modal-actions-spacer" />
-              <button type="button" onClick={() => setSelectedEmail(null)} className="btn-secondary">
                 Закрыть
               </button>
             </div>

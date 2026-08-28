@@ -22,6 +22,7 @@ interface User {
   username: string
   full_name: string
   phone?: string
+  job_title?: string
   telegram?: string
   is_admin: boolean
   created_at: string
@@ -41,6 +42,7 @@ export default function AdminDashboard() {
   const [formData, setFormData] = useState({
     full_name: '',
     username: '',
+    job_title: '',
     phone: '',
     telegram: '',
     password: '',
@@ -48,6 +50,7 @@ export default function AdminDashboard() {
   })
   const [editFormData, setEditFormData] = useState({
     full_name: '',
+    job_title: '',
     phone: '',
     telegram: '',
     password: '',
@@ -91,7 +94,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowCreateForm(false)
-      setFormData({ full_name: '', username: '', phone: '', telegram: '', password: '', is_admin: false })
+      setFormData({ full_name: '', username: '', job_title: '', phone: '', telegram: '', password: '', is_admin: false })
       toast.success('Пользователь создан')
     },
     onError: (error: any) => {
@@ -217,6 +220,7 @@ export default function AdminDashboard() {
     setEditingUser(user)
     setEditFormData({
       full_name: user.full_name,
+      job_title: user.job_title || '',
       phone: user.phone || '',
       telegram: user.telegram || '',
       password: '',
@@ -230,7 +234,8 @@ export default function AdminDashboard() {
     if (editingUser) {
       const updateData: any = {}
       if (editFormData.full_name) updateData.full_name = editFormData.full_name
-      if (editFormData.phone) updateData.phone = editFormData.phone
+      updateData.job_title = editFormData.job_title
+      updateData.phone = editFormData.phone
       updateData.telegram = editFormData.telegram
       if (editFormData.password) updateData.password = editFormData.password
       updateData.is_admin = editFormData.is_admin
@@ -395,6 +400,17 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="form-group">
+                  <label>Должность</label>
+                  <input
+                    type="text"
+                    value={formData.job_title}
+                    onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+                    placeholder="CEO & Founder"
+                  />
+                  <small>Для подписи: должность · Alexol</small>
+                </div>
+
+                <div className="form-group">
                   <label>Телефон</label>
                   <input
                     type="tel"
@@ -470,6 +486,16 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="form-group">
+                  <label>Должность</label>
+                  <input
+                    type="text"
+                    value={editFormData.job_title}
+                    onChange={(e) => setEditFormData({ ...editFormData, job_title: e.target.value })}
+                    placeholder="CEO & Founder"
+                  />
+                </div>
+
+                <div className="form-group">
                   <label>Телефон</label>
                   <input
                     type="tel"
@@ -534,6 +560,7 @@ export default function AdminDashboard() {
                 <tr>
                   <th>ID</th>
                   <th>ФИО</th>
+                  <th>Должность</th>
                   <th>Email</th>
                   <th>Телефон</th>
                   <th>Телеграм</th>
@@ -547,6 +574,7 @@ export default function AdminDashboard() {
                   <tr key={user.id}>
                     <td data-label="ID">{user.id}</td>
                     <td data-label="ФИО">{user.full_name}</td>
+                    <td data-label="Должность">{user.job_title || '-'}</td>
                     <td data-label="Email">{user.email}</td>
                     <td data-label="Телефон">{user.phone || '-'}</td>
                     <td data-label="Телеграм">{user.telegram || '-'}</td>

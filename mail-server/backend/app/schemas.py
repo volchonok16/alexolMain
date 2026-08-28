@@ -7,6 +7,7 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: str
     phone: Optional[str] = None
+    job_title: Optional[str] = None
     telegram: Optional[str] = None
 
 
@@ -14,6 +15,7 @@ class UserCreate(BaseModel):
     full_name: str
     username: str
     phone: Optional[str] = None
+    job_title: Optional[str] = None
     telegram: Optional[str] = None
     password: str
     is_admin: bool = False
@@ -22,6 +24,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    job_title: Optional[str] = None
     telegram: Optional[str] = None
     password: Optional[str] = None
 
@@ -29,6 +32,7 @@ class UserUpdate(BaseModel):
 class UserAdminUpdate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    job_title: Optional[str] = None
     telegram: Optional[str] = None
     password: Optional[str] = None
     is_admin: Optional[bool] = None
@@ -43,6 +47,7 @@ class SyncUserCreate(BaseModel):
     is_admin: bool = False
     is_active: bool = True
     phone: Optional[str] = None
+    job_title: Optional[str] = None
     telegram: Optional[str] = None
     avatar_url: Optional[str] = None
 
@@ -55,6 +60,7 @@ class SyncUserEnsure(BaseModel):
     is_admin: bool = False
     is_active: bool = True
     phone: Optional[str] = None
+    job_title: Optional[str] = None
     telegram: Optional[str] = None
     avatar_url: Optional[str] = None
     avatar_base64: Optional[str] = None
@@ -68,6 +74,7 @@ class SyncUserUpdate(BaseModel):
     is_admin: Optional[bool] = None
     is_active: Optional[bool] = None
     phone: Optional[str] = None
+    job_title: Optional[str] = None
     telegram: Optional[str] = None
     avatar_url: Optional[str] = None
     new_username: Optional[str] = None
@@ -79,6 +86,7 @@ class UserResponse(BaseModel):
     username: str
     full_name: str
     phone: Optional[str]
+    job_title: Optional[str] = None
     telegram: Optional[str] = None
     avatar_url: Optional[str]
     is_admin: bool

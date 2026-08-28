@@ -1,66 +1,161 @@
-/** Compact Alexol email signature — icons, rounded cyan divider. */
-export const ALEXOL_SIGNATURE_HTML = [
-  '<div data-alexol-sig="1" style="margin:0;padding:0;">',
-  '<table role="presentation" cellpadding="0" cellspacing="0" border="0"',
-  ' style="border-collapse:collapse;background-color:#0C0F16;border-radius:10px;max-width:500px;">',
-  '<tr>',
-  '<td style="padding:16px 14px 16px 18px;vertical-align:middle;width:110px;">',
-  '<img src="https://alexol.io/favicon.png" width="52" height="52" alt="Alexol"',
-  ' style="display:block;margin:0 auto 8px;border:0;" />',
-  '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:700;color:#FFFFFF;',
-  'text-align:center;line-height:1.1;">Alexol</div>',
-  '</td>',
-  '<td style="padding:8px 0;width:12px;vertical-align:middle;">',
-  '<img src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'3\' height=\'120\'',
-  ' viewBox=\'0 0 3 120\'%3E%3Crect width=\'3\' height=\'120\' rx=\'1.5\' fill=\'%230AE3FF\'/%3E%3C/svg%3E"',
-  ' width="3" height="120" alt="" style="display:block;border:0;margin:0 auto;" />',
-  '</td>',
-  '<td style="padding:16px 18px 16px 12px;vertical-align:middle;">',
-  '<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#FFFFFF;',
-  'line-height:1.2;margin:0 0 3px;">Alexander Taraskin</div>',
-  '<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#8B95A8;line-height:1.4;margin:0 0 12px;">',
-  'CEO &amp; Founder · Alexol</div>',
-  '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">',
-  '<tr>',
-  '<td style="padding:0 8px 5px 0;vertical-align:middle;width:16px;">',
-  '<img src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\'',
-  ' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23FFFFFF\' stroke-width=\'2\' stroke-linecap=\'round\'',
-  ' stroke-linejoin=\'round\'%3E%3Cpath d=\'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6',
-  ' 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.7 2.34a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.74.34 1.53.57 2.34.7A2 2 0 0 1 22 16.92z\'/%3E%3C/svg%3E"',
-  ' width="14" height="14" alt="" style="display:block;border:0;" />',
-  '</td>',
-  '<td style="padding:0 0 5px 0;vertical-align:middle;">',
-  '<a href="tel:+79095175557" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;',
-  'color:#0AE3FF;text-decoration:none;">+7 909 517-55-57</a>',
-  '</td>',
-  '</tr>',
-  '<tr>',
-  '<td style="padding:0 8px 5px 0;vertical-align:middle;">',
-  '<img src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\'',
-  ' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23FFFFFF\' stroke-width=\'2\' stroke-linecap=\'round\'',
-  ' stroke-linejoin=\'round\'%3E%3Cpath d=\'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z\'/%3E%3Cpolyline points=\'22,6 12,13 2,6\'/%3E%3C/svg%3E"',
-  ' width="14" height="14" alt="" style="display:block;border:0;" />',
-  '</td>',
-  '<td style="padding:0 0 5px 0;vertical-align:middle;">',
-  '<a href="mailto:altaraskin@alexol.io" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;',
-  'color:#0AE3FF;text-decoration:none;">altaraskin@alexol.io</a>',
-  '</td>',
-  '</tr>',
-  '<tr>',
-  '<td style="padding:0 8px 0 0;vertical-align:middle;">',
-  '<img src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\'',
-  ' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23FFFFFF\' stroke-width=\'2\' stroke-linecap=\'round\'',
-  ' stroke-linejoin=\'round\'%3E%3Ccircle cx=\'12\' cy=\'12\' r=\'10\'/%3E%3Cline x1=\'2\' y1=\'12\' x2=\'22\' y2=\'12\'/%3E%3Cpath d=\'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\'/%3E%3C/svg%3E"',
-  ' width="14" height="14" alt="" style="display:block;border:0;" />',
-  '</td>',
-  '<td style="padding:0;vertical-align:middle;">',
-  '<a href="https://alexol.io" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;',
-  'color:#0AE3FF;text-decoration:none;">alexol.io</a>',
-  '</td>',
-  '</tr>',
-  '</table>',
-  '</td>',
-  '</tr>',
-  '</table>',
-  '</div>',
-].join('')
+/** Per-user Alexol signature. Icons are Unicode — Gmail/Outlook strip SVG and often 404 remote PNGs. */
+
+const SITE_HREF = 'https://alexol.io'
+const SITE_LABEL = 'alexol.io'
+
+export interface SignaturePerson {
+  full_name?: string
+  job_title?: string
+  phone?: string
+  email?: string
+}
+
+function esc(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function telHref(phone: string): string {
+  const digits = phone.replace(/\D+/g, '')
+  if (!digits) return ''
+  return phone.includes('+') ? `tel:+${digits}` : `tel:${digits}`
+}
+
+function contactRow(symbol: string, innerHtml: string, last: boolean): string {
+  const iconPad = last ? '0 8px 0 0' : '0 8px 5px 0'
+  const textPad = last ? '0' : '0 0 5px 0'
+  return [
+    '<tr>',
+    `<td style="padding:${iconPad};vertical-align:middle;width:18px;`,
+    'font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1;color:#FFFFFF;">',
+    symbol,
+    '</td>',
+    `<td style="padding:${textPad};vertical-align:middle;">${innerHtml}</td>`,
+    '</tr>',
+  ].join('')
+}
+
+function linkHtml(href: string, label: string): string {
+  return (
+    `<a href="${esc(href)}" style="font-family:Arial,Helvetica,sans-serif;` +
+    `font-size:12px;color:#0AE3FF;text-decoration:none;">${esc(label)}</a>`
+  )
+}
+
+export function buildAlexolSignature(person: SignaturePerson): string {
+  const name = (person.full_name || '').trim() || 'Alexol'
+  const title = (person.job_title || '').trim()
+  const roleLine = title ? `${title} · Alexol` : 'Alexol'
+  const phone = (person.phone || '').trim()
+  const email = (person.email || '').trim()
+
+  const items: { symbol: string; inner: string }[] = []
+  if (phone) {
+    const href = telHref(phone)
+    items.push({ symbol: '☎', inner: href ? linkHtml(href, phone) : esc(phone) })
+  }
+  if (email) {
+    items.push({ symbol: '✉', inner: linkHtml(`mailto:${email}`, email) })
+  }
+  items.push({ symbol: '🌐', inner: linkHtml(SITE_HREF, SITE_LABEL) })
+  const rows = items.map((item, i) => contactRow(item.symbol, item.inner, i === items.length - 1))
+
+  return [
+    '<div data-alexol-sig="1" style="margin:0;padding:0;">',
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0"',
+    ' style="border-collapse:collapse;background-color:#0C0F16;border-radius:10px;max-width:500px;">',
+    '<tr>',
+    '<td style="padding:16px 14px 16px 18px;vertical-align:middle;width:110px;">',
+    '<img src="https://alexol.io/favicon.png" width="52" height="52" alt="Alexol"',
+    ' style="display:block;margin:0 auto 8px;border:0;" />',
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:700;color:#FFFFFF;',
+    'text-align:center;line-height:1.1;">Alexol</div>',
+    '</td>',
+    '<td width="12" style="padding:8px 4px;width:12px;vertical-align:middle;">',
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="3" height="120"',
+    ' bgcolor="#0AE3FF" style="width:3px;height:120px;background-color:#0AE3FF;border-collapse:collapse;">',
+    '<tr><td width="3" height="120" bgcolor="#0AE3FF"',
+    ' style="width:3px;height:120px;font-size:0;line-height:0;background-color:#0AE3FF;">&nbsp;</td></tr>',
+    '</table>',
+    '</td>',
+    '<td style="padding:16px 18px 16px 12px;vertical-align:middle;">',
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#FFFFFF;',
+    `line-height:1.2;margin:0 0 3px;">${esc(name)}</div>`,
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#8B95A8;line-height:1.4;margin:0 0 12px;">',
+    `${esc(roleLine)}</div>`,
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">',
+    ...rows,
+    '</table>',
+    '</td>',
+    '</tr>',
+    '</table>',
+    '</div>',
+  ].join('')
+}
+
+/** Starter for the templates editor — real mail uses buildAlexolSignature(profile). */
+export const ALEXOL_SIGNATURE_HTML = buildAlexolSignature({
+  full_name: 'Имя Фамилия',
+  job_title: 'Должность',
+  phone: '+7 000 000-00-00',
+  email: 'you@alexol.io',
+})
+
+/** Swap SVG/data-URI icons in old stored templates for Unicode (no remote icon files). */
+export function upgradeSignatureAssets(html: string): string {
+  if (!html || typeof document === 'undefined') return html
+  if (!html.includes('data:image/svg+xml') && !html.includes('/email/icon-')) return html
+
+  const wrap = document.createElement('div')
+  wrap.innerHTML = html
+  const symbols = ['☎', '✉', '🌐']
+
+  wrap.querySelectorAll('[data-alexol-sig="1"]').forEach((root) => {
+    root.querySelectorAll('img').forEach((img) => {
+      const src = img.getAttribute('src') || ''
+      const width = img.getAttribute('width')
+      const isIcon =
+        src.startsWith('data:') ||
+        src.includes('/email/icon-') ||
+        src.includes('/email/sig-divider')
+
+      if (!isIcon) return
+
+      if (width === '3' || width === '6' || src.includes('sig-divider')) {
+        const td = img.parentElement
+        if (td) {
+          td.innerHTML =
+            '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="3" height="120"' +
+            ' bgcolor="#0AE3FF" style="width:3px;height:120px;background-color:#0AE3FF;border-collapse:collapse;">' +
+            '<tr><td width="3" height="120" bgcolor="#0AE3FF"' +
+            ' style="width:3px;height:120px;font-size:0;line-height:0;background-color:#0AE3FF;">&nbsp;</td></tr>' +
+            '</table>'
+        }
+        return
+      }
+
+      if (width === '14' || src.includes('/email/icon-')) {
+        const index = src.includes('phone')
+          ? 0
+          : src.includes('email') || src.includes('mail')
+            ? 1
+            : src.includes('web')
+              ? 2
+              : symbols.length
+        const symbol = symbols[Math.min(index, symbols.length - 1)]
+        const span = document.createElement('span')
+        span.setAttribute(
+          'style',
+          'font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1;color:#FFFFFF;',
+        )
+        span.textContent = symbol || '•'
+        img.replaceWith(span)
+      }
+    })
+  })
+
+  return wrap.innerHTML
+}
