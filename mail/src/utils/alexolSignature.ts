@@ -125,13 +125,14 @@ export const ALEXOL_SIGNATURE_HTML = buildAlexolSignature({
 /** Rewrite old SVG / unicode-icon signatures to hosted PNGs. */
 export function upgradeSignatureAssets(html: string): string {
   if (!html || typeof document === 'undefined') return html
+  if (html.includes('mail.alexol.io/email/')) return html
 
   const wrap = document.createElement('div')
   wrap.innerHTML = html
 
   wrap.querySelectorAll('[data-alexol-sig="1"]').forEach((root) => {
     const dividerTd = root.querySelector('td[width="12"], td[width="10"]')
-    if (dividerTd && !dividerTd.querySelector(`img[src*="sig-divider"]`)) {
+    if (dividerTd && !dividerTd.querySelector('img[src*="sig-divider"]')) {
       dividerTd.setAttribute('width', '10')
       dividerTd.setAttribute(
         'style',
@@ -143,17 +144,19 @@ export function upgradeSignatureAssets(html: string): string {
     const iconFiles = ['icon-phone.png', 'icon-email.png', 'icon-telegram.png', 'icon-whatsapp.png', 'icon-web.png']
     let iconIndex = 0
     root.querySelectorAll('td').forEach((td) => {
-      const img = td.querySelector('img')
+      if (td.querySelector('table')) return
+      const img = td.querySelector(':scope > img')
       const src = img?.getAttribute('src') || ''
       const text = (td.textContent || '').trim()
       const looksLikeIconCell =
         Boolean(img && (src.startsWith('data:') || src.includes('/email/icon-'))) ||
-        (!img && td.getAttribute('width') === '18' && /[☎✉🌐]/.test(text))
+        (!img && /[☎✉🌐]/.test(text) && text.length <= 4)
 
       if (!looksLikeIconCell || iconIndex >= iconFiles.length) return
       const file = iconFiles[iconIndex]
       iconIndex += 1
-      td.setAttribute('style', `${td.getAttribute('style') || ''};font-size:0;line-height:0;`.replace(/^;/, ''))
+      td.style.fontSize = '0'
+      td.style.lineHeight = '0'
       td.innerHTML = png(file, 14, 14)
     })
   })
