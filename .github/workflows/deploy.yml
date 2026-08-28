@@ -321,23 +321,27 @@ jobs:
                       else
                         echo "WARNING: dkim/private.pem missing on server"
                       fi
-                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
-                      export COMPOSE_BAKE=false
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc '
+                      set -e
                       cd /var/www/mail
                       if docker compose version >/dev/null 2>&1; then
-                        docker compose down --remove-orphans || true
-                        docker compose build backend
-                        docker compose up -d --force-recreate
-                        docker compose ps
+                        dc="docker compose"
                       elif command -v docker-compose >/dev/null 2>&1; then
-                        docker-compose down --remove-orphans || true
-                        docker-compose build backend
-                        docker-compose up -d --force-recreate
-                        docker-compose ps
+                        dc="docker-compose"
                       else
                         echo "Docker Compose not found"
                         exit 1
-                      fi'
+                      fi
+                      $dc down --remove-orphans || true
+                      if ! $dc build backend; then
+                        echo "WARN: compose build hit a Docker snapshot error; pruning BuildKit cache"
+                        docker builder prune -af || true
+                        docker buildx prune -af || true
+                        $dc build --no-cache backend
+                      fi
+                      $dc up -d --force-recreate
+                      $dc ps
+                      '
 
     deploy-admin:
         runs-on: ubuntu-latest
@@ -491,20 +495,24 @@ jobs:
                   command_timeout: 30m
                   script: |
                       cd /var/www/alexol.io/back
-                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
-                      export COMPOSE_BAKE=false
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc '
+                      set -e
                       cd /var/www/alexol.io/back
                       if docker compose version >/dev/null 2>&1; then
-                        docker compose down --remove-orphans || true
-                        docker compose build backend bot_news
-                        docker compose up -d --force-recreate
-                        docker compose ps
+                        dc="docker compose"
                       elif command -v docker-compose >/dev/null 2>&1; then
-                        docker-compose down --remove-orphans || true
-                        docker-compose build backend bot_news
-                        docker-compose up -d --force-recreate
-                        docker-compose ps
+                        dc="docker-compose"
                       else
                         echo "Docker Compose not found"
                         exit 1
-                      fi'
+                      fi
+                      $dc down --remove-orphans || true
+                      if ! $dc build backend bot_news; then
+                        echo "WARN: compose build hit a Docker snapshot error; pruning BuildKit cache"
+                        docker builder prune -af || true
+                        docker buildx prune -af || true
+                        $dc build --no-cache backend bot_news
+                      fi
+                      $dc up -d --force-recreate
+                      $dc ps
+                      '
