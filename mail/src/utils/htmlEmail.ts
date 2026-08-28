@@ -27,3 +27,19 @@ export function previewTextFromParts(htmlBody?: string | null, body?: string | n
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+const FRAME_CSS =
+  '<style>html,body{margin:0;padding:8px 0;height:auto!important;background:#fff;}</style>'
+
+/** Full document for iframe srcDoc so layout CSS in the letter actually applies. */
+export function wrapEmailDocument(html: string): string {
+  const src = html.replace(/^\uFEFF/, '').trim()
+  if (!src) return ''
+  if (/<html[\s>]/i.test(src)) {
+    if (/<head[\s>]/i.test(src)) {
+      return src.replace(/<head([^>]*)>/i, `<head$1>${FRAME_CSS}`)
+    }
+    return src.replace(/<html([^>]*)>/i, `<html$1><head>${FRAME_CSS}</head>`)
+  }
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/>${FRAME_CSS}</head><body>${src}</body></html>`
+}
