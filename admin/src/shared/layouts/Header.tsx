@@ -1,5 +1,5 @@
 import { LogOut, Mail, Menu } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { openMailApp } from '@/api/auth';
@@ -25,6 +25,7 @@ const initials = (name?: string) => {
 export const Header = ({ title, onMenuClick }: HeaderProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mailLoading, setMailLoading] = useState(false);
 
   const handleLogout = () => {
@@ -58,7 +59,11 @@ export const Header = ({ title, onMenuClick }: HeaderProps) => {
         <button
           type="button"
           className="admin-header__profile"
-          onClick={() => navigate('/settings')}
+          onClick={() =>
+            navigate('/settings', {
+              state: { from: location.pathname === '/settings' ? '/' : location.pathname },
+            })
+          }
           title="Мои настройки"
         >
           <Avatar

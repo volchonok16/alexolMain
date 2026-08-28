@@ -8,6 +8,7 @@ import io
 import uuid
 import asyncio
 import secrets
+import string
 import base64
 
 from jose import JWTError, jwt
@@ -23,6 +24,7 @@ from app.schemas import (
     SyncUserEnsure,
     SyncUserUpdate,
     LoginRequest,
+    ForgotPasswordRequest,
     Token,
     SsoExchangeRequest,
     SsoTicketResponse,
@@ -220,6 +222,87 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
         "token_type": "bearer",
         "user": user_out,
     }
+
+
+CONTACT_ADMIN_DETAIL = "В профиле не указан Telegram. Свяжитесь с администратором."
+
+
+def _generate_mailbox_password(length: int = 12) -> str:
+    alphabet = string.ascii_letters + string.digits
+    while True:
+        password = "".join(secrets.choice(alphabet) for _ in range(length))
+        if (
+            any(c.islower() for c in password)
+            and any(c.isupper() for c in password)
+            and any(c.isdigit() for c in password)
+        ):
+            return password
+
+
+async def _find_mailbox_user(identity: str, db: AsyncSession) -> Optional[User]:
+    identity = (identity or "").strip().lower()
+    if not identity:
+        return None
+
+    domain = settings.MAIL_DOMAIN.lower()
+    if "@" in identity:
+        local, id_domain = identity.split("@", 1)
+        username = local
+        if id_domain != domain:
+            return None
+        email_identity = f"{username}@{domain}"
+    else:
+        username = identity
+        email_identity = f"{identity}@{domain}"
+
+    result = await db.execute(select(User).where(func.lower(User.email) == email_identity))
+    user = result.scalar_one_or_none()
+    if not user:
+        result = await db.execute(select(User).where(func.lower(User.username) == username))
+        user = result.scalar_one_or_none()
+    return user
+
+
+@app.post("/api/auth/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Generate a new mailbox password and send it via the news Telegram bot."""
+    user = await _find_mailbox_user(payload.email, db)
+    if not user or not user.is_active or not (user.telegram or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=CONTACT_ADMIN_DETAIL,
+        )
+
+    new_password = _generate_mailbox_password()
+    message = (
+        f"Новый пароль для почты mail.alexol.io\n\n"
+        f"Логин: {user.username}\n"
+        f"Пароль: {new_password}\n\n"
+        f"После входа смените его в профиле."
+    )
+    sent, error = await admin_sync.send_news_bot_dm(telegram=user.telegram, text=message)
+    if not sent:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=error or CONTACT_ADMIN_DETAIL,
+        )
+
+    user.hashed_password = get_password_hash(new_password)
+    await db.commit()
+
+    await admin_sync.push_user_ensure(
+        username=user.username,
+        full_name=user.full_name,
+        password=new_password,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        phone=user.phone,
+        telegram=user.telegram,
+        avatar_url=user.avatar_url,
+    )
+
+    return {"message": "Новый пароль отправлен в Telegram."}
+
 
 @app.get("/api/auth/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):

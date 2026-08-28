@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserPayload, usersApi } from '@/api/users';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,9 +7,15 @@ import { UserModal } from './UserModal';
 
 export const SettingsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { refreshUser } = useAuth();
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const leaveSettings = () => {
+    const from = (location.state as { from?: string } | null)?.from;
+    navigate(from && from !== '/settings' ? from : '/', { replace: true });
+  };
 
   const { data: me, isLoading, error } = useQuery({
     queryKey: ['users', 'me'],
@@ -32,6 +38,7 @@ export const SettingsPage = () => {
     setSaveError(null);
     try {
       await updateMutation.mutateAsync(payload);
+      leaveSettings();
     } catch (err) {
       const apiError =
         typeof err === 'object' &&
@@ -58,7 +65,7 @@ export const SettingsPage = () => {
         title="Мои настройки"
         cancelLabel="Назад"
         isSaving={updateMutation.isPending}
-        onClose={() => navigate(-1)}
+        onClose={leaveSettings}
         onSave={handleSave}
       />
     </div>

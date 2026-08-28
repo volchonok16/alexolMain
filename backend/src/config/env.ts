@@ -80,6 +80,7 @@ export const config = {
   corsOrigins: parseCorsOrigin(process.env.CORS_ORIGIN),
   publicApiUrl: process.env.PUBLIC_API_URL,
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
+  telegramNewsBotToken: process.env.TELEGRAM_NEWS_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN!,
   telegramChatId: process.env.TELEGRAM_CHAT_ID!,
   minio: {
     endPoint: parseMinioEndpoint(process.env.MINIO_ENDPOINT),

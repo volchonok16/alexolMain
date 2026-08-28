@@ -229,6 +229,7 @@ export default function Profile() {
                 onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
                 placeholder="@username"
               />
+              <small>Нужен для сброса пароля: напишите /start боту новостей</small>
             </div>
 
             <div className="form-divider">

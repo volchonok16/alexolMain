@@ -119,3 +119,29 @@ async def push_user_delete(username: str) -> bool:
         except Exception as exc:
             logger.warning("[admin-sync] delete error (attempt %s): %s", attempt, exc)
     return False
+
+
+async def send_news_bot_dm(*, telegram: str, text: str) -> tuple[bool, str]:
+    """Send a private message via the news bot (alexol_backend → Telegram)."""
+    if not _enabled():
+        return False, "Синхронизация с ботом не настроена. Свяжитесь с администратором."
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            res = await client.post(
+                f"{_base()}/api/internal/mail-sync/telegram-dm",
+                headers=_headers(),
+                json={"telegram": telegram, "text": text},
+            )
+            if res.status_code < 400:
+                return True, ""
+            detail = ""
+            try:
+                payload = res.json()
+                detail = str(payload.get("error") or payload.get("detail") or "")
+            except Exception:
+                detail = (res.text or "")[:300]
+            logger.warning("[admin-sync] telegram-dm failed %s: %s", res.status_code, detail)
+            return False, detail or "Не удалось отправить пароль в Telegram. Свяжитесь с администратором."
+    except Exception as exc:
+        logger.warning("[admin-sync] telegram-dm error: %s", exc)
+        return False, "Не удалось отправить пароль в Telegram. Свяжитесь с администратором."

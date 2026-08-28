@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { Users, Mail, X, LayoutDashboard } from 'lucide-react'
@@ -112,6 +112,10 @@ export default function Login() {
               required
             />
           </div>
+
+          <p className="forgot-password-row">
+            <Link to="/forgot-password">Забыли пароль?</Link>
+          </p>
 
           {error && <div className="error">{error}</div>}
 

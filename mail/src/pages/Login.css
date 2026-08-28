@@ -73,6 +73,45 @@
   text-align: center;
 }
 
+.success {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.14);
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.forgot-password-row,
+.login-footer-link {
+  text-align: center;
+  margin: 0 0 1.25rem;
+}
+
+.login-footer-link {
+  margin: 1.25rem 0 0;
+}
+
+.forgot-password-row a,
+.login-footer-link a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.forgot-password-row a:hover,
+.login-footer-link a:hover {
+  text-decoration: underline;
+}
+
+.login-hint {
+  margin: 1rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .btn-primary {
   width: 100%;
   padding: 0.75rem;

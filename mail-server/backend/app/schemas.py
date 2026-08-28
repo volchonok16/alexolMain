@@ -104,6 +104,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
 class SsoExchangeRequest(BaseModel):
     ticket: str
 

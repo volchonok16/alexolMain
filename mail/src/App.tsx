@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import Login from './pages/Login'
+import ForgotPassword from './pages/ForgotPassword'
 import SsoPage from './pages/SsoPage'
 import AdminDashboard from './pages/AdminDashboard'
 import UserDashboard from './pages/UserDashboard'
@@ -30,6 +31,7 @@ function App() {
           path="/login"
           element={token ? <Navigate to={user?.is_admin ? '/admin' : '/dashboard'} /> : <Login />}
         />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/sso" element={<SsoPage />} />
         
         <Route

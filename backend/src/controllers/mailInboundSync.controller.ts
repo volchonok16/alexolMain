@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import { MailInboundSyncService } from '../services/mailInboundSync.service.js';
+import { TelegramNewsDmService } from '../services/telegramNewsDm.service.js';
 
 export class MailInboundSyncController {
   private service = new MailInboundSyncService();
+  private newsDm = new TelegramNewsDmService();
 
   ensure = async (req: Request, res: Response) => {
     try {
@@ -72,6 +74,23 @@ export class MailInboundSyncController {
       const msg = error.message || 'Sync failed';
       const status = msg.includes('last admin') ? 400 : 500;
       res.status(status).json({ error: msg });
+    }
+  };
+
+  notifyDm = async (req: Request, res: Response) => {
+    try {
+      const telegram = typeof req.body?.telegram === 'string' ? req.body.telegram : '';
+      const text = typeof req.body?.text === 'string' ? req.body.text : '';
+      if (!telegram.trim() || !text.trim()) {
+        return res.status(400).json({ error: 'telegram and text are required' });
+      }
+      const result = await this.newsDm.sendDirectMessage(telegram, text);
+      if (!result.ok) {
+        return res.status(502).json({ error: result.error });
+      }
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Telegram send failed' });
     }
   };
 }

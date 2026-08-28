@@ -13,6 +13,7 @@ from telegram.ext import Application
 from src.post_generator import PostGenerator
 from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
 from src.telegram_bot import TelegramPublisher
+from src.news_start import setup_news_start
 from src.project_requests_bot import run_requests_bot, setup_requests_bot
 from src.simple_forward_bot import run_forward_bot, setup_forward_bot
 from src.speak_tutor_bot import run_speak_bot
@@ -110,24 +111,41 @@ async def run_bot():
         print("🌐 OpenRouter proxy: не задан (при 403 security policy нужен прокси вне РФ)")
     print("=" * 60)
 
-    print("\n🚀 Публикация первого поста при запуске...")
-    try:
-        await generator.run_once()
-    except BaseException as e:
-        if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
-            raise
-        print(f"❌ Ошибка первой публикации (бот продолжит работу по расписанию): {e}")
+    news_token = config.TELEGRAM_NEWS_BOT_TOKEN or config.TELEGRAM_BOT_TOKEN
+    if not news_token:
+        raise RuntimeError("TELEGRAM_NEWS_BOT_TOKEN / TELEGRAM_BOT_TOKEN is not set")
 
-    scheduler.start()
-    schedule_news_posts()
-    schedule_lead_posts()
+    application = Application.builder().token(news_token).build()
+    setup_news_start(application)
+    setup_polling_error_handler(application)
 
-    try:
-        while True:
-            await asyncio.sleep(60)
-    except (KeyboardInterrupt, SystemExit):
-        print("\n🛑 Остановка бота...")
-        scheduler.shutdown()
+    async with application:
+        await application.start()
+        if application.updater:
+            await application.updater.start_polling(drop_pending_updates=True)
+            print("📬 /start: бот принимает личные сообщения для сброса пароля почты")
+
+        print("\n🚀 Публикация первого поста при запуске...")
+        try:
+            await generator.run_once()
+        except BaseException as e:
+            if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                raise
+            print(f"❌ Ошибка первой публикации (бот продолжит работу по расписанию): {e}")
+
+        scheduler.start()
+        schedule_news_posts()
+        schedule_lead_posts()
+
+        try:
+            while True:
+                await asyncio.sleep(60)
+        except (KeyboardInterrupt, SystemExit):
+            print("\n🛑 Остановка бота...")
+        finally:
+            scheduler.shutdown()
+            if application.updater:
+                await application.updater.stop()
 
 
 async def run_once():
