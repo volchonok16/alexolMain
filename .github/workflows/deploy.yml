@@ -4,6 +4,10 @@ on:
     push:
         branches: [master]
 
+env:
+    # Включить после настройки SSL (Cloudflare или certbot): "true"
+    RUN_SMOKE_TESTS: "false"
+
 jobs:
     deploy-frontend:
         runs-on: ubuntu-latest
@@ -83,6 +87,7 @@ jobs:
                       echo "frontend activated: $js"'
 
             - name: Smoke test frontend
+              if: env.RUN_SMOKE_TESTS == 'true'
               run: |
                   set -euo pipefail
 
@@ -401,6 +406,7 @@ jobs:
                       echo "admin activated: $js"'
 
             - name: Smoke test admin via Cloudflare
+              if: env.RUN_SMOKE_TESTS == 'true'
               run: |
                   fetch() {
                     local url="$1"
