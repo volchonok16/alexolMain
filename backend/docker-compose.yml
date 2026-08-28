@@ -92,6 +92,7 @@ services:
     build:
       context: ./bot
       dockerfile: Dockerfile
+    image: alexol_bot:latest
     container_name: alexol_bot_news
     restart: unless-stopped
     depends_on:
@@ -114,6 +115,7 @@ services:
     build:
       context: ./bot
       dockerfile: Dockerfile
+    image: alexol_bot:latest
     container_name: alexol_bot_requests
     restart: unless-stopped
     depends_on:
@@ -137,6 +139,7 @@ services:
     build:
       context: ./bot
       dockerfile: Dockerfile
+    image: alexol_bot:latest
     container_name: alexol_bot_speak
     restart: unless-stopped
     depends_on:

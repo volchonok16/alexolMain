@@ -313,6 +313,7 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script_stop: true
+                  command_timeout: 30m
                   script: |
                       cd /var/www/mail
                       if [ -f dkim/private.pem ]; then
@@ -321,11 +322,17 @@ jobs:
                         echo "WARNING: dkim/private.pem missing on server"
                       fi
                       echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      export COMPOSE_BAKE=false
+                      cd /var/www/mail
                       if docker compose version >/dev/null 2>&1; then
-                        docker compose up -d --build
+                        docker compose down --remove-orphans || true
+                        docker compose build backend
+                        docker compose up -d --force-recreate
                         docker compose ps
                       elif command -v docker-compose >/dev/null 2>&1; then
-                        docker-compose up -d --build
+                        docker-compose down --remove-orphans || true
+                        docker-compose build backend
+                        docker-compose up -d --force-recreate
                         docker-compose ps
                       else
                         echo "Docker Compose not found"
@@ -485,11 +492,17 @@ jobs:
                   script: |
                       cd /var/www/alexol.io/back
                       echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      export COMPOSE_BAKE=false
+                      cd /var/www/alexol.io/back
                       if docker compose version >/dev/null 2>&1; then
-                        docker compose up -d --build
+                        docker compose down --remove-orphans || true
+                        docker compose build backend bot_news
+                        docker compose up -d --force-recreate
                         docker compose ps
                       elif command -v docker-compose >/dev/null 2>&1; then
-                        docker-compose up -d --build
+                        docker-compose down --remove-orphans || true
+                        docker-compose build backend bot_news
+                        docker-compose up -d --force-recreate
                         docker-compose ps
                       else
                         echo "Docker Compose not found"
