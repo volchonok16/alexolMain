@@ -163,6 +163,59 @@ services:
     networks:
       - alexol_network
 
+  # Ежедневный бэкап: cron 59 23 * * * (см. scripts/crontab.example)
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alexol_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      POSTGRES_DB: ${POSTGRES_DB:-alexol_db}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - ./uploads:/uploads:ro
+      - ./bot/data:/bot_data:ro
+      - ./bot/tdata:/bot_tdata:ro
+      - minio_data:/minio_data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - alexol_network
+    restart: "no"
+    entrypoint: ["/scripts/backup.sh"]
+
+  restore:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alexol_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      POSTGRES_DB: ${POSTGRES_DB:-alexol_db}
+      RESTORE_DATE: ${RESTORE_DATE:-}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - ./uploads:/uploads
+      - ./bot/data:/bot_data
+      - ./bot/tdata:/bot_tdata
+      - minio_data:/minio_data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - alexol_network
+    restart: "no"
+    entrypoint: ["/scripts/restore.sh"]
+
 volumes:
   postgres_data:
     driver: local

@@ -29,3 +29,7 @@ build/
 # Temporary files
 *.tmp
 .cache/
+
+# Backups (данные не в git — только scripts/)
+**/backups/*
+!**/backups/.gitkeep

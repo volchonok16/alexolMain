@@ -65,3 +65,7 @@ Thumbs.db
 
 # DKIM private keys (keep private.pem off git)
 dkim/*.pem
+
+# Backups
+backups/*
+!backups/.gitkeep

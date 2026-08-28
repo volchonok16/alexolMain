@@ -94,6 +94,54 @@ services:
       - alexol_mail_sync
     restart: unless-stopped
 
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      POSTGRES_USER: mailuser
+      POSTGRES_PASSWORD: mailpass
+      POSTGRES_DB: maildb
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - minio_data:/minio_data:ro
+      - ./dkim:/dkim:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mail_network
+    restart: "no"
+    entrypoint: ["/scripts/backup.sh"]
+
+  restore:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      POSTGRES_USER: mailuser
+      POSTGRES_PASSWORD: mailpass
+      POSTGRES_DB: maildb
+      RESTORE_DATE: ${RESTORE_DATE:-}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - minio_data:/minio_data
+      - ./dkim:/dkim
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mail_network
+    restart: "no"
+    entrypoint: ["/scripts/restore.sh"]
+
 volumes:
   postgres_data:
   minio_data:
