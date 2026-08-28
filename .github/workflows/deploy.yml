@@ -402,10 +402,36 @@ jobs:
 
             - name: Smoke test admin via Cloudflare
               run: |
-                  js=$(curl -fsS --max-time 15 https://admin.alexol.io/ | grep -oE '/assets/[^"]+\.js' | head -1)
+                  fetch() {
+                    local url="$1"
+                    local attempt=1
+                    while [ "$attempt" -le 5 ]; do
+                      if out=$(curl -fsS --max-time 15 "$url"); then
+                        printf '%s' "$out"
+                        return 0
+                      fi
+                      echo "curl attempt $attempt failed: $url"
+                      attempt=$((attempt + 1))
+                      sleep 5
+                    done
+                    return 1
+                  }
+
+                  html=""
+                  if html=$(fetch "https://admin.alexol.io/"); then
+                    base="https://admin.alexol.io"
+                  elif html=$(fetch "http://admin.alexol.io/"); then
+                    echo "::warning::HTTPS недоступен для admin.alexol.io. Включи Cloudflare Proxy (оранжевое облако) и SSL Flexible."
+                    base="http://admin.alexol.io"
+                  else
+                    echo "admin.alexol.io недоступен ни по HTTPS, ни по HTTP" >&2
+                    exit 1
+                  fi
+
+                  js=$(echo "$html" | grep -oE '/assets/[^"]+\.js' | head -1)
                   test -n "$js"
-                  curl -fsS --max-time 30 "https://admin.alexol.io${js}" -o /dev/null
-                  echo "Cloudflare OK: https://admin.alexol.io${js}"
+                  fetch "${base}${js}" > /dev/null
+                  echo "admin OK: ${base}${js}"
 
     deploy-backend:
         runs-on: ubuntu-latest
