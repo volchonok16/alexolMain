@@ -228,8 +228,8 @@ volumes:
 networks:
   alexol_network:
     driver: bridge
-  # Shared with mail-server so alexol_backend can call mail_backend:8000
+  # Shared with mail-server. Created in CI if missing; never owned by one compose project.
   alexol_mail_sync:
     name: alexol_mail_sync
-    driver: bridge
+    external: true
 

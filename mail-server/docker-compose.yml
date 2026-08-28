@@ -150,8 +150,8 @@ volumes:
 networks:
   mail_network:
     driver: bridge
-  # Shared with alexolMain backend for mailbox provisioning (MAIL_API_URL)
+  # Shared with alexolMain backend. external: compose down must not delete it.
   alexol_mail_sync:
     name: alexol_mail_sync
-    driver: bridge
+    external: true
 

@@ -333,6 +333,7 @@ jobs:
                         exit 1
                       fi
                       $dc down --remove-orphans || true
+                      docker network inspect alexol_mail_sync >/dev/null 2>&1 || docker network create alexol_mail_sync
                       if ! $dc build backend; then
                         echo "WARN: compose build hit a Docker snapshot error; pruning BuildKit cache"
                         docker builder prune -af || true
@@ -507,6 +508,7 @@ jobs:
                         exit 1
                       fi
                       $dc down --remove-orphans || true
+                      docker network inspect alexol_mail_sync >/dev/null 2>&1 || docker network create alexol_mail_sync
                       if ! $dc build backend bot_news; then
                         echo "WARN: compose build hit a Docker snapshot error; pruning BuildKit cache"
                         docker builder prune -af || true
