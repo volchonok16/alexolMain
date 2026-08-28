@@ -80,6 +80,7 @@ export default function UserDashboard() {
   const toast = useToast()
   const logout = useAuthStore((state) => state.logout)
   const user = useAuthStore((state) => state.user)
+  const setUser = useAuthStore((state) => state.setUser)
   const queryClient = useQueryClient()
   
   const [activeTab, setActiveTab] = useState<'inbox' | 'sent'>('inbox')
@@ -116,6 +117,19 @@ export default function UserDashboard() {
       })
     }
   }, [attachmentPreviews])
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .get('/auth/me')
+      .then(({ data }) => {
+        if (!cancelled && data) setUser(data)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [setUser])
 
   // Fetch inbox
   const { data: inbox } = useQuery({
@@ -390,19 +404,44 @@ export default function UserDashboard() {
     setSelectedTemplateIds([])
   }
 
-  const insertQuickSignature = () => {
-    const signatureHtml = buildAlexolSignature({
+  const insertQuickSignature = async () => {
+    let person = {
       full_name: user?.full_name,
       job_title: user?.job_title,
       phone: user?.phone,
       email: user?.email,
-    })
+    }
+
+    try {
+      const { data } = await api.get('/auth/me')
+      if (data) {
+        setUser(data)
+        person = {
+          full_name: data.full_name,
+          job_title: data.job_title,
+          phone: data.phone,
+          email: data.email,
+        }
+      }
+    } catch {
+      /* keep values from the session */
+    }
+
+    const signatureHtml = buildAlexolSignature(person)
 
     setComposeData((prev) => ({
       ...prev,
       html_body: replaceOrAppendSignature(prev.html_body, signatureHtml),
     }))
-    toast.success('Подпись собрана из профиля')
+
+    const missing: string[] = []
+    if (!String(person.job_title || '').trim()) missing.push('должность')
+    if (!String(person.phone || '').trim()) missing.push('телефон')
+    if (missing.length) {
+      toast.info(`Подпись вставлена. В профиле нет: ${missing.join(', ')}.`)
+    } else {
+      toast.success('Подпись собрана из профиля')
+    }
   }
 
   const composePreviewHtml = buildComposePreviewHtml(composeData.body, composeData.html_body)

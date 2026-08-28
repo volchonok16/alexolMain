@@ -664,7 +664,7 @@ async def update_profile(
     if user_data.full_name:
         current_user.full_name = user_data.full_name
     if user_data.phone is not None:
-        current_user.phone = user_data.phone
+        current_user.phone = (user_data.phone or "").strip() or None
     if user_data.job_title is not None:
         current_user.job_title = (user_data.job_title or "").strip() or None
     if user_data.telegram is not None:

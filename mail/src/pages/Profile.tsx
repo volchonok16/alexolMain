@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
@@ -24,6 +24,27 @@ export default function Profile() {
     confirmPassword: '',
   })
 
+  useEffect(() => {
+    let cancelled = false
+    api
+      .get('/auth/me')
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setUser(data)
+        setFormData((prev) => ({
+          ...prev,
+          full_name: data.full_name || '',
+          job_title: data.job_title || '',
+          phone: data.phone || '',
+          telegram: data.telegram || '',
+        }))
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [setUser])
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [avatarBroken, setAvatarBroken] = useState(false)
@@ -39,7 +60,15 @@ export default function Profile() {
     onSuccess: (updatedUser) => {
       setUser(updatedUser)
       toast.success('Профиль обновлён')
-      setFormData((prev) => ({ ...prev, password: '', confirmPassword: '' }))
+      setFormData((prev) => ({
+        ...prev,
+        full_name: updatedUser.full_name || prev.full_name,
+        job_title: updatedUser.job_title || '',
+        phone: updatedUser.phone || '',
+        telegram: updatedUser.telegram || '',
+        password: '',
+        confirmPassword: '',
+      }))
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Ошибка обновления профиля')
