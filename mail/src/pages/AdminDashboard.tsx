@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileText, LayoutDashboard } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { PasswordInput } from '../components/PasswordInput'
 import { useToast } from '../components/Toast'
 import { openSiteAdmin } from '../sso'
 import {
@@ -400,11 +401,11 @@ export default function AdminDashboard() {
 
                 <div className="form-group">
                   <label>Пароль</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="••••••••"
+                    autoComplete="new-password"
                     required
                     minLength={6}
                   />
@@ -465,11 +466,11 @@ export default function AdminDashboard() {
 
                 <div className="form-group">
                   <label>Новый пароль (оставьте пустым, если не нужно менять)</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={editFormData.password}
                     onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
                     placeholder="••••••••"
+                    autoComplete="new-password"
                   />
                 </div>
 

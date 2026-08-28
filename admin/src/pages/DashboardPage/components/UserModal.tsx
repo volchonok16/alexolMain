@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User } from '@/api/users';
 import { resolveApiAssetUrl } from '@/api/client';
+import { PasswordInput } from '@/shared/ui/PasswordInput';
 
 interface UserModalProps {
   user: User | null;
@@ -90,13 +91,13 @@ export const UserModal = ({
 
         <div className="modal__field">
           <label>{user ? 'Новый пароль (оставьте пустым, чтобы не менять)' : 'Пароль'}</label>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={e => setPassword(e.target.value)}
             required={!user}
             minLength={user ? undefined : 6}
             disabled={isSaving}
+            autoComplete="new-password"
           />
         </div>
 

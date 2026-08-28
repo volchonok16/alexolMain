@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Users, Mail, X, Eye, EyeOff, LayoutDashboard } from 'lucide-react'
+import { Users, Mail, X, LayoutDashboard } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { PasswordInput } from '../components/PasswordInput'
 import { openSiteAdmin } from '../sso'
 import './Login.css'
 
@@ -13,7 +14,6 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showAdminChoice, setShowAdminChoice] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
@@ -104,23 +104,13 @@ export default function Login() {
 
           <div className="form-group">
             <label htmlFor="password">Пароль</label>
-            <div className="password-wrapper">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="toggle-password"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
+            <PasswordInput
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
           </div>
 
           {error && <div className="error">{error}</div>}

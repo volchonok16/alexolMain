@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { ArrowLeft, Upload, Save } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { PasswordInput } from '../components/PasswordInput'
 import { useToast } from '../components/Toast'
 import { resolveAvatarUrl } from '../utils/avatarUrl'
 import './Profile.css'
@@ -224,23 +225,23 @@ export default function Profile() {
 
             <div className="form-group">
               <label>Новый пароль</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="••••••••"
+                autoComplete="new-password"
               />
             </div>
 
             <div className="form-group">
               <label>Подтвердите пароль</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={formData.confirmPassword}
                 onChange={(e) =>
                   setFormData({ ...formData, confirmPassword: e.target.value })
                 }
                 placeholder="••••••••"
+                autoComplete="new-password"
               />
             </div>
 

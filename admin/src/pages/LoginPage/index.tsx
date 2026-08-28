@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { PasswordInput } from '@/shared/ui/PasswordInput';
 import './LoginPage.scss';
 
 export const LoginPage = () => {
@@ -51,12 +52,12 @@ export const LoginPage = () => {
 
             <div className="login-page__field">
               <label className="login-page__label">Пароль</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="login-page__input"
                 placeholder="••••••"
+                autoComplete="current-password"
                 required
               />
             </div>
