@@ -38,7 +38,8 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/UID/SELECT format changes so Outlook drops a stale empty cache.
-UIDVALIDITY = 10
+# 11: mailbox-local UIDs 1..N (DB ids as UIDs made UIDNEXT=86 with EXISTS=14; Outlook skipped FETCH).
+UIDVALIDITY = 11
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -53,10 +54,15 @@ def _imap_internaldate(dt: datetime) -> str:
     )
 
 
+def _imap_uid(em: dict) -> int:
+    """IMAP UID for a message. Prefer mailbox-local uid over the database id."""
+    return int(em.get("uid") or em["id"])
+
+
 def _uidnext(emails: list[dict]) -> int:
     if not emails:
         return 1
-    return max(int(e["id"]) for e in emails) + 1
+    return max(_imap_uid(e) for e in emails) + 1
 
 
 def _normalize_mailbox(args: str) -> str:
@@ -314,14 +320,20 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
         if ':' in part:
             a, b = part.split(':', 1)
             if uid_mode:
-                all_uids = [e['id'] for e in emails]
+                all_uids = [_imap_uid(e) for e in emails]
                 lo = _resolve(a, max(all_uids))
                 hi = _resolve(b, max(all_uids))
                 if lo == 0:
                     lo = min(all_uids)
+                matched = []
                 for idx, e in enumerate(emails):
-                    if lo <= e['id'] <= hi:
-                        result.append((idx + 1, e))
+                    if lo <= _imap_uid(e) <= hi:
+                        matched.append((idx + 1, e))
+                # Outlook sometimes treats UIDs as 1..EXISTS even when DB ids are larger.
+                if not matched and lo >= 1 and hi <= total:
+                    for seq in range(lo, hi + 1):
+                        matched.append((seq, emails[seq - 1]))
+                result.extend(matched)
             else:
                 lo = _resolve(a, total)
                 hi = _resolve(b, total)
@@ -330,16 +342,20 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
                     result.append((seq, emails[seq - 1]))
         else:
             if uid_mode:
-                uid = _resolve(part, max(e['id'] for e in emails) if emails else 0)
+                uid = _resolve(part, max(_imap_uid(e) for e in emails) if emails else 0)
                 # UID 0 is invalid; Outlook sends it when a prior FETCH omitted UID.
                 if uid == 0:
                     for idx, e in enumerate(emails):
                         result.append((idx + 1, e))
                     continue
+                found = False
                 for idx, e in enumerate(emails):
-                    if e['id'] == uid:
+                    if _imap_uid(e) == uid:
                         result.append((idx + 1, e))
+                        found = True
                         break
+                if not found and 1 <= uid <= total:
+                    result.append((uid, emails[uid - 1]))
             else:
                 seq = _resolve(part, total)
                 seq = max(1, min(total, seq))
@@ -392,7 +408,7 @@ def _build_fetch_response(seq_num: int, em: dict, items_str: str,
                            uid_mode: bool) -> bytes:
     upper = items_str.upper()
     flags_str = " ".join(em.get("flags", []))
-    uid = em["id"]
+    uid = _imap_uid(em)
 
     date = em.get("date") or datetime.now(timezone.utc)
     if isinstance(date, datetime) and date.tzinfo is None:
@@ -564,8 +580,20 @@ class IMAPSession:
     async def _dispatch(self, line: str):
         m = re.match(r'^(\S+)\s+(\S+)(.*)', line)
         if not m:
+            logger.info("IMAP unparsed %r peer=%s", line[:200], self._peer())
             return
         tag, cmd, rest = m.group(1), m.group(2).upper(), m.group(3).strip()
+        if cmd == "LOGIN":
+            login = _parse_args(rest)[0] if rest else "?"
+            logger.info("IMAP cmd=LOGIN user=%s peer=%s", login, self._peer())
+        else:
+            logger.info(
+                "IMAP cmd=%s %s peer=%s user=%s",
+                cmd,
+                rest[:180],
+                self._peer(),
+                self.user.email if self.user else "-",
+            )
 
         dispatch = {
             'CAPABILITY': self._capability,
@@ -595,8 +623,6 @@ class IMAPSession:
             'CREATE': self._ok,
             'CHECK': self._noop,
             'COPY': self._ok,
-            'ENABLE': self._ok,
-            'MOVE': self._ok,
         }
         handler = dispatch.get(cmd, self._unknown)
         await handler(tag, cmd, rest)
@@ -606,7 +632,7 @@ class IMAPSession:
     # ------------------------------------------------------------------
 
     async def _capability(self, tag, cmd, args):
-        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE UIDPLUS SPECIAL-USE CHILDREN'
+        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE SPECIAL-USE'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
@@ -640,6 +666,11 @@ class IMAPSession:
         if self.state != self.SELECTED:
             await self._send(f'{tag} NO Not in selected state')
             return
+        logger.info(
+            "IMAP IDLE start mailbox=%s user=%s",
+            self.selected_mailbox,
+            self.user.email if self.user else "?",
+        )
         await self._send('+ idling')
         try:
             while True:
@@ -653,6 +684,13 @@ class IMAPSession:
                 text = line.decode('utf-8', errors='replace').strip()
                 if text.upper() == 'DONE' or text.upper().endswith(' DONE'):
                     break
+                # Outlook sometimes pipelines FETCH without DONE; don't eat it.
+                if text:
+                    logger.info("IMAP IDLE interrupted by %r", text[:120])
+                    await self._push_mailbox_updates()
+                    await self._send(f'{tag} OK IDLE completed')
+                    await self._dispatch(text)
+                    return
             await self._push_mailbox_updates()
             await self._send(f'{tag} OK IDLE completed')
         except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
@@ -840,15 +878,16 @@ class IMAPSession:
         )
         uidnext = _uidnext(emails)
 
-        # RFC 3501: FLAGS, EXISTS, RECENT are required. Outlook skips FETCH without FLAGS.
-        await self._send(r'* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
-        await self._send(r'* OK [PERMANENTFLAGS (\Answered \Flagged \Deleted \Seen \Draft \*)] Flags permitted')
+        # Same SELECT shape as when Outlook still issued FETCH 1:N. Do not append
+        # extra text after [UIDVALIDITY]/[UIDNEXT] and do not advertise \*.
+        await self._send('* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)')
+        await self._send('* OK [PERMANENTFLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)]')
         await self._send(f'* {n} EXISTS')
-        await self._send(f'* 0 RECENT')
+        await self._send('* 0 RECENT')
         if first_unseen:
             await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
-        await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}] UIDs valid')
-        await self._send(f'* OK [UIDNEXT {uidnext}] Predicted next UID')
+        await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}]')
+        await self._send(f'* OK [UIDNEXT {uidnext}]')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
         logger.info(
@@ -989,7 +1028,7 @@ class IMAPSession:
     async def _do_search(self, tag: str, args: str, uid_mode: bool):
         # Simplified: return all messages (handles ALL, UNSEEN, etc. as "all")
         if uid_mode:
-            nums = ' '.join(str(e['id']) for e in self.selected_emails)
+            nums = ' '.join(str(_imap_uid(e)) for e in self.selected_emails)
         else:
             nums = ' '.join(str(i + 1) for i in range(len(self.selected_emails)))
         logger.info(
@@ -1047,11 +1086,12 @@ class IMAPSession:
                     .order_by(Email.id)
                 ).scalars().all()
                 result = []
-                for e in rows:
+                for idx, e in enumerate(rows, start=1):
                     flags = ['\\Seen'] if (is_sent or e.is_read) else []
                     body, html_body = coerce_stored_bodies(e.body, e.html_body)
                     result.append({
                         'id': e.id,
+                        'uid': idx,
                         'from': e.from_address,
                         'from_name': e.from_name,
                         'to': e.to_address,
