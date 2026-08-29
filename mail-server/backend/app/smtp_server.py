@@ -9,7 +9,7 @@ import os
 from email import policy
 from email.parser import BytesParser
 from email.utils import parseaddr
-from aiosmtpd.smtp import SMTP, AuthResult, LoginPassword
+from aiosmtpd.smtp import SMTP, AuthResult, LoginPassword, TLSSetupException
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -158,6 +158,22 @@ class CustomSMTPHandler:
         except Exception as e:
             logger.error("Error handling email: %s", e, exc_info=True)
             return "500 Error processing email"
+
+    async def handle_exception(self, error):
+        """aiosmtpd calls this instead of logging ERROR+traceback for session errors."""
+        cause = error.__cause__ or error
+        peer_drop = (ConnectionResetError, BrokenPipeError, ConnectionAbortedError)
+        if isinstance(error, TLSSetupException) or isinstance(cause, peer_drop):
+            logger.info(
+                "SMTP peer dropped during TLS/session (%s)",
+                cause.__class__.__name__,
+            )
+            return "421 4.7.0 TLS handshake aborted"
+        if isinstance(cause, ssl.SSLError):
+            logger.warning("SMTP TLS handshake failed: %s", cause)
+            return "421 4.7.0 TLS handshake failed"
+        logger.exception("SMTP session exception")
+        return f"500 Error: ({error.__class__.__name__}) {error}"
 
     @property
     def engine(self):
