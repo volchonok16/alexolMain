@@ -24,7 +24,7 @@ from email.utils import format_datetime, formataddr, parseaddr
 from email.parser import BytesParser
 from email import policy as email_policy
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.models import User, Email
@@ -36,7 +36,7 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/UID format changes so Outlook drops a stale empty cache.
-UIDVALIDITY = 8
+UIDVALIDITY = 9
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -331,7 +331,7 @@ class IMAPSession:
         return self.writer.get_extra_info("peername")
 
     async def handle(self):
-        logger.debug("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
+        logger.info("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
         await self._send(f'* OK {settings.smtp_hostname} IMAP4rev1 Service Ready')
         try:
             while self.state != self.LOGOUT:
@@ -658,7 +658,7 @@ class IMAPSession:
         await self._send(f'* OK [UIDNEXT {(emails[-1]["id"] + 1) if emails else 1}]')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
-        logger.debug(
+        logger.info(
             "IMAP %s mailbox=%s messages=%s user=%s",
             cmd,
             self.selected_mailbox,
@@ -797,11 +797,14 @@ class IMAPSession:
             with self._db() as db:
                 user = db.execute(
                     select(User).where(
-                        (User.email == login) | (User.username == local)
+                        (func.lower(User.email) == login)
+                        | (func.lower(User.username) == local)
                     )
                 ).scalar_one_or_none()
                 if user and user.is_active and verify_password(password, user.hashed_password):
+                    logger.info("IMAP login ok user=%s peer=%s", user.email, self._peer())
                     return user
+                logger.warning("IMAP login failed login=%r peer=%s", login, self._peer())
         except Exception as exc:
             logger.error('IMAP auth error: %s', exc)
         return None
@@ -819,7 +822,11 @@ class IMAPSession:
             with self._db() as db:
                 rows = db.execute(
                     select(Email)
-                    .where(Email.user_id == self.user.id, Email.is_sent == is_sent)
+                    .where(
+                        Email.user_id == self.user.id,
+                        Email.is_sent == is_sent,
+                        Email.is_draft.is_(False),
+                    )
                     .order_by(Email.id)
                 ).scalars().all()
                 result = []

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import time
 from typing import Any, Optional
 from urllib.parse import quote
 
@@ -12,6 +13,10 @@ import httpx
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Don't hammer admin DNS on every inbox/avatar request (blocks the API worker).
+_PHOTO_FAIL_TTL = 600.0
+_photo_fail_until: dict[str, float] = {}
 
 
 def _enabled() -> bool:
@@ -155,8 +160,11 @@ async def fetch_admin_photo_url(username: str) -> Optional[str]:
     if not _enabled():
         return None
     login = username.strip().lower()
+    until = _photo_fail_until.get(login, 0.0)
+    if until > time.monotonic():
+        return None
     try:
-        async with httpx.AsyncClient(timeout=12.0) as client:
+        async with httpx.AsyncClient(timeout=1.5) as client:
             res = await client.get(
                 f"{_base()}/api/internal/mail-sync/users/{quote(login, safe='')}",
                 headers=_headers(),
@@ -177,7 +185,8 @@ async def fetch_admin_photo_url(username: str) -> Optional[str]:
                 return f"{_base()}{photo}"
             return photo
     except Exception as exc:
-        logger.warning("[admin-sync] fetch photo for %s: %s", login, exc)
+        _photo_fail_until[login] = time.monotonic() + _PHOTO_FAIL_TTL
+        logger.warning("[admin-sync] fetch photo for %s skipped 10m: %s", login, exc)
         return None
 
 

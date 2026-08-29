@@ -223,8 +223,6 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="User is inactive"
         )
 
-    await admin_sync.ensure_user_avatar(user, db)
-
     # Normalize stored email to lowercase so JWT ↔ DB lookups stay consistent
     if user.email != user.email.lower():
         user.email = user.email.lower()
@@ -326,12 +324,8 @@ async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Dep
 
 
 @app.get("/api/auth/me", response_model=UserResponse)
-async def get_me(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
+async def get_me(current_user: User = Depends(get_current_user)):
     """Get current user info"""
-    await admin_sync.ensure_user_avatar(current_user, db)
     data = UserResponse.model_validate(current_user)
     return data.model_copy(
         update={
@@ -887,7 +881,6 @@ async def _commit_and_deliver(
         names[addr] if addr in names else addr
         for addr in addresses
     ]
-    await admin_sync.ensure_user_avatar(current_user, db)
     email_obj = Email(
         user_id=current_user.id,
         from_address=current_user.email,

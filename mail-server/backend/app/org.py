@@ -17,7 +17,6 @@ from app.auth import get_current_user
 from app.avatar_resolve import load_avatar_bytes, local_avatar_api_path, to_browser_avatar_url
 from app.config import settings
 from app.database import get_db
-from app import admin_sync
 from app.mail_photos import user_to_vcard, vcard_filename
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
 from app.schemas import (
@@ -374,8 +373,6 @@ async def list_contacts(
 ):
     _ = current_user
     users = await _load_colleagues(db, "", 500)
-    for user in users:
-        await admin_sync.ensure_user_avatar(user, db)
     busy = await _busy_now_by_email(db)
     return [_person(u, busy.get(u.email.lower())) for u in users]
 
@@ -387,8 +384,6 @@ async def download_contacts_vcf(
 ):
     _ = current_user
     users = await _load_colleagues(db, "", 500)
-    for user in users:
-        await admin_sync.ensure_user_avatar(user, db)
     payload = "".join(_user_to_vcard(u) for u in users)
     return PlainTextResponse(
         payload,
@@ -404,8 +399,6 @@ async def public_avatar(email: str, db: AsyncSession = Depends(get_db)):
         addr = addr[7:]
     result = await db.execute(select(User).where(func.lower(User.email) == addr))
     user = result.scalar_one_or_none()
-    if user:
-        await admin_sync.ensure_user_avatar(user, db)
     if not user or not user.avatar_url:
         raise HTTPException(
             status_code=404,

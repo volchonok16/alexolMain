@@ -283,11 +283,6 @@ async def peer_info_map(
     )
     users = {u.email.lower(): u for u in result.scalars().all()}
 
-    from app.admin_sync import ensure_user_avatar
-
-    for user in users.values():
-        await ensure_user_avatar(user, db)
-
     out: dict[str, PeerInfo] = {}
     for addr in unique:
         user = users.get(addr)
