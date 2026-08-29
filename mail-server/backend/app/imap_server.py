@@ -36,7 +36,7 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/UID format changes so Outlook drops a stale empty cache.
-UIDVALIDITY = 2
+UIDVALIDITY = 3
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -138,6 +138,8 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
                 all_uids = [e['id'] for e in emails]
                 lo = _resolve(a, max(all_uids))
                 hi = _resolve(b, max(all_uids))
+                if lo == 0:
+                    lo = min(all_uids)
                 for idx, e in enumerate(emails):
                     if lo <= e['id'] <= hi:
                         result.append((idx + 1, e))
@@ -150,6 +152,11 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
         else:
             if uid_mode:
                 uid = _resolve(part, emails[-1]['id'] if emails else 0)
+                # UID 0 is invalid; Outlook sends it when a prior FETCH omitted UID.
+                if uid == 0:
+                    for idx, e in enumerate(emails):
+                        result.append((idx + 1, e))
+                    continue
                 for idx, e in enumerate(emails):
                     if e['id'] == uid:
                         result.append((idx + 1, e))
@@ -206,8 +213,7 @@ def _build_fetch_response(seq_num: int, em: dict, items_str: str,
     def add_text(piece: str) -> None:
         parts.append(piece.encode("utf-8"))
 
-    if uid_mode:
-        add_text(f"UID {uid}")
+    add_text(f"UID {uid}")
 
     if "FLAGS" in upper:
         add_text(f"FLAGS ({flags_str})")
