@@ -1086,11 +1086,7 @@ async def get_inbox(
     """Get user inbox"""
     result = await db.execute(
         select(Email)
-        .where(
-            Email.user_id == current_user.id,
-            Email.is_sent == False,
-            Email.is_draft == False,
-        )
+        .where(Email.user_id == current_user.id, Email.is_sent == False)
         .order_by(Email.received_at.desc())
     )
     emails = result.scalars().all()
@@ -1104,11 +1100,7 @@ async def get_sent(
     """Get sent emails"""
     result = await db.execute(
         select(Email)
-        .where(
-            Email.user_id == current_user.id,
-            Email.is_sent == True,
-            Email.is_draft == False,
-        )
+        .where(Email.user_id == current_user.id, Email.is_sent == True)
         .order_by(Email.received_at.desc())
     )
     emails = result.scalars().all()

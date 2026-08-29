@@ -6,7 +6,6 @@ import asyncio
 import ssl
 import tempfile
 import os
-import time
 from email import policy
 from email.parser import BytesParser
 from email.utils import parseaddr
@@ -18,7 +17,7 @@ from app.models import User, Email
 from app.config import settings
 from app.auth import verify_password
 from app.database import async_connect_args, sync_connect_args
-from app.mail_body import extract_text_and_html, peek_rfc822_header
+from app.mail_body import extract_text_and_html
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
 from app.logging_setup import configure_quiet_logging
@@ -27,44 +26,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 configure_quiet_logging()
 logger = logging.getLogger(__name__)
-
-_RECENT_SMTP_TTL = 900.0
-_recent_smtp_ids: dict[str, float] = {}
-
-
-def _claim_message_id(mid: str) -> bool:
-    """True if this Message-ID was already accepted (Outlook retry)."""
-    key = (mid or "").strip().lower()
-    if not key:
-        return False
-    now = time.monotonic()
-    for old, ts in list(_recent_smtp_ids.items()):
-        if now - ts > _RECENT_SMTP_TTL:
-            _recent_smtp_ids.pop(old, None)
-    if key in _recent_smtp_ids:
-        return True
-    _recent_smtp_ids[key] = now
-    return False
-
-
-def _release_message_id(mid: str) -> None:
-    _recent_smtp_ids.pop((mid or "").strip().lower(), None)
-
-
-async def _raw_has_message_id(db, user_id: int, message_id: str, *, is_sent: bool, is_draft: bool) -> bool:
-    needle = (message_id or "").encode("utf-8", errors="ignore")
-    if not needle:
-        return False
-    rows = (
-        await db.execute(
-            select(Email).where(
-                Email.user_id == user_id,
-                Email.is_sent.is_(is_sent),
-                Email.is_draft.is_(is_draft),
-            ).order_by(Email.id.desc()).limit(30)
-        )
-    ).scalars().all()
-    return any(needle in (getattr(row, "raw_rfc822", None) or b"") for row in rows)
 
 
 def _smtp_text(value) -> str:
@@ -198,65 +159,34 @@ class CustomSMTPHandler:
             logger.exception("Outbound delivery failed to %s", external_addrs)
 
     async def handle_DATA(self, server, session, envelope):
-        """Ack immediately so Outlook does not show 'still sending' / draft error."""
+        """Inbound MX → local inboxes. Authenticated submission → also send external via MX."""
         logger.info("Receiving email from %s to %s", envelope.mail_from, envelope.rcpt_tos)
         authenticated = bool(getattr(session, "authenticated", False))
-        content = bytes(envelope.content or b"")
-        rcpt_norm = [(a or "").strip() for a in envelope.rcpt_tos if (a or "").strip()]
-        _local_addrs, external_addrs = partition_local_external(
-            [a.lower() for a in rcpt_norm], settings.MAIL_DOMAIN
-        )
-        if external_addrs and not authenticated:
-            return "550 5.7.1 Relay denied"
-
-        mid = peek_rfc822_header(content, "Message-ID")
-        if _claim_message_id(mid):
-            logger.info("SMTP duplicate Message-ID %s — already accepted", mid)
-            return "250 2.0.0 Message accepted"
-
-        auth_login = ""
-        if authenticated:
-            auth_data = getattr(session, "auth_data", None)
-            if isinstance(auth_data, LoginPassword):
-                auth_login = _smtp_text(auth_data.login).strip().lower()
-
-        asyncio.create_task(
-            self._process_message(
-                content=content,
-                mail_from=envelope.mail_from or "",
-                rcpt_norm=rcpt_norm,
-                external_addrs=list(external_addrs),
-                authenticated=authenticated,
-                auth_login=auth_login,
-                message_id=mid,
-            )
-        )
-        return "250 2.0.0 Message accepted"
-
-    async def _process_message(
-        self,
-        *,
-        content: bytes,
-        mail_from: str,
-        rcpt_norm: list[str],
-        external_addrs: list[str],
-        authenticated: bool,
-        auth_login: str,
-        message_id: str,
-    ) -> None:
         try:
-            msg = BytesParser(policy=policy.default).parsebytes(content)
+            msg = BytesParser(policy=policy.default).parsebytes(envelope.content)
             subject = msg.get("subject", "No Subject")
             header_name, header_addr = parseaddr(msg.get("From") or "")
-            from_address = (header_addr or mail_from or "").strip().lower()
+            from_address = (header_addr or envelope.mail_from or "").strip().lower()
             from_name = (header_name or "").strip() or None
             body, html_body = extract_text_and_html(msg)
+            rcpt_norm = [(a or "").strip() for a in envelope.rcpt_tos if (a or "").strip()]
+            _local_addrs, external_addrs = partition_local_external(
+                [a.lower() for a in rcpt_norm], settings.MAIL_DOMAIN
+            )
             header_to = (msg.get("To") or "").strip() or ", ".join(rcpt_norm)
+
+            if external_addrs and not authenticated:
+                return "550 5.7.1 Relay denied"
 
             sender = None
             async with self._async_session_factory() as db:
                 if authenticated:
-                    login = auth_login or from_address
+                    auth_data = getattr(session, "auth_data", None)
+                    login = (
+                        _smtp_text(auth_data.login).strip().lower()
+                        if isinstance(auth_data, LoginPassword)
+                        else from_address
+                    )
                     local_part = login.split("@", 1)[0]
                     sender = (
                         await db.execute(
@@ -271,62 +201,54 @@ class CustomSMTPHandler:
                     to_norm = to_address.lower()
                     result = await db.execute(select(User).where(func.lower(User.email) == to_norm))
                     user = result.scalar_one_or_none()
-                    if not user:
-                        continue
-                    if message_id and await _raw_has_message_id(
-                        db, user.id, message_id, is_sent=False, is_draft=False
-                    ):
-                        continue
-                    email_obj = Email(
-                        user_id=user.id,
-                        from_address=from_address or mail_from,
-                        to_address=header_to or user.email,
-                        from_name=from_name,
-                        to_name=user.full_name,
-                        subject=subject,
-                        body=body,
-                        html_body=html_body,
-                        raw_rfc822=content,
-                        is_sent=False,
-                        is_draft=False,
-                    )
-                    db.add(email_obj)
-                    await db.commit()
-                    logger.info(
-                        "Email saved for user %s from %s (%s)",
-                        user.email,
-                        from_address,
-                        from_name,
-                    )
-
-                if authenticated and sender:
-                    if message_id and await _raw_has_message_id(
-                        db, sender.id, message_id, is_sent=True, is_draft=False
-                    ):
-                        pass
-                    else:
-                        sent = Email(
-                            user_id=sender.id,
-                            from_address=from_address or sender.email,
-                            to_address=header_to,
-                            from_name=from_name or sender.full_name,
-                            to_name=None,
+                    if user:
+                        email_obj = Email(
+                            user_id=user.id,
+                            from_address=from_address or (envelope.mail_from or ""),
+                            to_address=header_to or user.email,
+                            from_name=from_name,
+                            to_name=user.full_name,
                             subject=subject,
                             body=body,
                             html_body=html_body,
-                            raw_rfc822=content,
-                            is_sent=True,
-                            is_draft=False,
+                            raw_rfc822=envelope.content,
+                            is_sent=False,
                         )
-                        db.add(sent)
+                        db.add(email_obj)
                         await db.commit()
+                        logger.info(
+                            "Email saved for user %s from %s (%s)",
+                            user.email,
+                            from_address,
+                            from_name,
+                        )
+
+                if authenticated and sender:
+                    sent = Email(
+                        user_id=sender.id,
+                        from_address=from_address or sender.email,
+                        to_address=header_to,
+                        from_name=from_name or sender.full_name,
+                        to_name=None,
+                        subject=subject,
+                        body=body,
+                        html_body=html_body,
+                        raw_rfc822=envelope.content,
+                        is_sent=True,
+                    )
+                    db.add(sent)
+                    await db.commit()
 
             if external_addrs:
-                from_addr = (sender.email if sender else from_address) or mail_from
-                await self._deliver_external_later(content, from_addr, list(external_addrs))
-        except Exception:
-            logger.exception("SMTP background accept failed from %s", mail_from)
-            _release_message_id(message_id)
+                from_addr = (sender.email if sender else from_address) or envelope.mail_from
+                content = envelope.content
+                addrs = list(external_addrs)
+                asyncio.create_task(self._deliver_external_later(content, from_addr, addrs))
+
+            return "250 2.0.0 Message accepted"
+        except Exception as e:
+            logger.error("Error handling email: %s", e, exc_info=True)
+            return "500 Error processing email"
 
     async def handle_exception(self, error):
         """aiosmtpd calls this instead of logging ERROR+traceback for session errors."""

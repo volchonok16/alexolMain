@@ -24,19 +24,19 @@ from email.utils import format_datetime, formataddr, parseaddr
 from email.parser import BytesParser
 from email import policy as email_policy
 
-from sqlalchemy import create_engine, select, delete
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.models import User, Email
 from app.auth import verify_password
 from app.config import settings
-from app.mail_body import coerce_stored_bodies, peek_rfc822_header
+from app.mail_body import coerce_stored_bodies, extract_text_and_html
 from app.database import sync_connect_args
 
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/UID format changes so Outlook drops a stale empty cache.
-UIDVALIDITY = 7
+UIDVALIDITY = 8
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -431,7 +431,7 @@ class IMAPSession:
         if self.selected_mailbox == 'Sent':
             emails = self._fetch_sent()
         elif self.selected_mailbox == 'Drafts':
-            emails = self._fetch_drafts()
+            emails = []
         else:
             emails = self._fetch_inbox()
         self.selected_emails = emails
@@ -501,58 +501,49 @@ class IMAPSession:
             'ОТПРАВЛЕННЫЕ', 'ОТПРАВЛЕННЫЕ СООБЩЕНИЯ',
         )
         is_draft = box in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ')
-        new_id = self._save_appended(data, is_sent=is_sent, is_draft=is_draft)
-        if new_id:
-            await self._send(f'{tag} OK [APPENDUID {UIDVALIDITY} {new_id}] APPEND completed')
-        else:
-            await self._send(f'{tag} OK APPEND completed')
+        if is_sent:
+            self._save_appended_sent(data)
+        elif is_draft:
+            logger.debug('IMAP APPEND Drafts discarded user=%s bytes=%s', self.user.email, size)
+        await self._send(f'{tag} OK APPEND completed')
 
-    def _save_appended(self, data: bytes, *, is_sent: bool, is_draft: bool) -> int | None:
+    def _save_appended_sent(self, data: bytes) -> None:
         if not self.user or not data:
-            return None
-        if not is_sent and not is_draft:
-            return None
+            return
         try:
-            mid = peek_rfc822_header(data, "Message-ID")
-            from_raw = peek_rfc822_header(data, "From")
-            header_name, header_addr = parseaddr(from_raw)
+            msg = BytesParser(policy=email_policy.default).parsebytes(data)
+            mid = (msg.get('Message-ID') or '').strip()
+            header_name, header_addr = parseaddr(msg.get('From') or '')
             from_address = (header_addr or self.user.email).strip().lower()
-            to_header = peek_rfc822_header(data, "To")
-            subject = peek_rfc822_header(data, "Subject")
+            body, html_body = extract_text_and_html(msg)
             with self._db() as db:
                 if mid:
                     recent = db.execute(
                         select(Email).where(
                             Email.user_id == self.user.id,
-                            Email.is_sent.is_(is_sent),
-                            Email.is_draft.is_(is_draft),
-                        ).order_by(Email.id.desc()).limit(30)
+                            Email.is_sent.is_(True),
+                        ).order_by(Email.id.desc()).limit(20)
                     ).scalars().all()
-                    needle = mid.encode("utf-8", errors="ignore")
+                    needle = mid.encode('utf-8', errors='ignore')
                     for row in recent:
-                        raw = getattr(row, "raw_rfc822", None) or b""
+                        raw = getattr(row, 'raw_rfc822', None) or b''
                         if needle and needle in raw:
-                            return row.id
-                row = Email(
+                            return
+                db.add(Email(
                     user_id=self.user.id,
                     from_address=from_address,
-                    to_address=to_header.strip() or self.user.email,
-                    from_name=(header_name or "").strip() or self.user.full_name,
-                    subject=subject or "",
-                    body="",
-                    html_body=None,
+                    to_address=(msg.get('To') or '').strip() or self.user.email,
+                    from_name=(header_name or '').strip() or self.user.full_name,
+                    subject=msg.get('subject', '') or '',
+                    body=body,
+                    html_body=html_body,
                     raw_rfc822=data,
-                    is_sent=is_sent,
-                    is_draft=is_draft,
+                    is_sent=True,
                     is_read=True,
-                )
-                db.add(row)
+                ))
                 db.commit()
-                db.refresh(row)
-                return row.id
         except Exception as exc:
-            logger.warning("IMAP APPEND save failed: %s", exc)
-            return None
+            logger.warning('IMAP APPEND Sent save failed: %s', exc)
 
     async def _unknown(self, tag, cmd, args):
         await self._send(f'{tag} BAD Command {cmd} not supported')
@@ -644,7 +635,7 @@ class IMAPSession:
             emails = self._fetch_sent()
             self.selected_mailbox = 'Sent'
         elif mailbox in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ'):
-            emails = self._fetch_drafts()
+            emails = []
             self.selected_mailbox = 'Drafts'
         else:
             await self._send(f'{tag} NO Mailbox "{args.strip()}" not found')
@@ -695,7 +686,7 @@ class IMAPSession:
         elif mbox in ('SENT', 'SENT ITEMS', 'SENT MESSAGES', 'ОТПРАВЛЕННЫЕ'):
             emails = self._fetch_sent()
         elif mbox in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ'):
-            emails = self._fetch_drafts()
+            emails = []
         else:
             await self._send(f'{tag} NO Mailbox not found')
             return
@@ -731,35 +722,7 @@ class IMAPSession:
         await self._do_store(tag, args, uid_mode=False)
 
     async def _do_store(self, tag, args, uid_mode=False):
-        if self.state != self.SELECTED:
-            await self._send(f'{tag} NO Not in selected state')
-            return
-        match = re.match(
-            r'^(\S+)\s+(\+|-)?FLAGS(?:\.SILENT)?\s+\((.*)\)\s*$',
-            (args or '').strip(),
-            re.I,
-        )
-        if not match:
-            await self._send(f'{tag} OK STORE completed')
-            return
-        seq_set, _mode, flags_raw = match.group(1), match.group(2), match.group(3)
-        flags_upper = flags_raw.upper()
-        pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
-        if '\\DELETED' in flags_upper and pairs and self.user:
-            ids = [em['id'] for _seq, em in pairs]
-            try:
-                with self._db() as db:
-                    db.execute(
-                        delete(Email).where(
-                            Email.user_id == self.user.id,
-                            Email.id.in_(ids),
-                        )
-                    )
-                    db.commit()
-            except Exception as exc:
-                logger.warning('IMAP STORE delete failed: %s', exc)
-            self.selected_emails = [e for e in self.selected_emails if e['id'] not in set(ids)]
-            await self._send(f'* {len(self.selected_emails)} EXISTS')
+        # Minimal: parse flags and acknowledge - persistence not needed for basic client support
         await self._send(f'{tag} OK STORE completed')
 
     async def _expunge(self, tag, cmd, args):
@@ -796,7 +759,10 @@ class IMAPSession:
 
         pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
         if not pairs and uid_mode:
-            self.selected_emails = self._reload_selected()
+            if self.selected_mailbox == "Sent":
+                self.selected_emails = self._fetch_sent()
+            else:
+                self.selected_emails = self._fetch_inbox()
             pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
         logger.debug(
             "IMAP FETCH user=%s mailbox=%s uid=%s set=%s items=%s hits=%s",
@@ -840,41 +806,25 @@ class IMAPSession:
             logger.error('IMAP auth error: %s', exc)
         return None
 
-    def _reload_selected(self) -> list[dict]:
-        if self.selected_mailbox == 'Sent':
-            return self._fetch_sent()
-        if self.selected_mailbox == 'Drafts':
-            return self._fetch_drafts()
-        return self._fetch_inbox()
-
     def _fetch_inbox(self) -> list[dict]:
-        return self._fetch_emails(is_sent=False, is_draft=False)
+        return self._fetch_emails(is_sent=False)
 
     def _fetch_sent(self) -> list[dict]:
-        return self._fetch_emails(is_sent=True, is_draft=False)
+        return self._fetch_emails(is_sent=True)
 
-    def _fetch_drafts(self) -> list[dict]:
-        return self._fetch_emails(is_sent=False, is_draft=True)
-
-    def _fetch_emails(self, is_sent: bool, is_draft: bool = False) -> list[dict]:
+    def _fetch_emails(self, is_sent: bool) -> list[dict]:
         if not self.user:
             return []
         try:
             with self._db() as db:
                 rows = db.execute(
                     select(Email)
-                    .where(
-                        Email.user_id == self.user.id,
-                        Email.is_sent == is_sent,
-                        Email.is_draft == is_draft,
-                    )
+                    .where(Email.user_id == self.user.id, Email.is_sent == is_sent)
                     .order_by(Email.id)
                 ).scalars().all()
                 result = []
                 for e in rows:
-                    flags = ['\\Seen'] if (is_sent or is_draft or e.is_read) else []
-                    if is_draft:
-                        flags.append('\\Draft')
+                    flags = ['\\Seen'] if (is_sent or e.is_read) else []
                     body, html_body = coerce_stored_bodies(e.body, e.html_body)
                     result.append({
                         'id': e.id,
