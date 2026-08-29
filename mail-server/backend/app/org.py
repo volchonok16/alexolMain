@@ -8,16 +8,16 @@ from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import PlainTextResponse
-from sqlalchemy import delete, or_, select
+from fastapi.responses import PlainTextResponse, Response
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
-from app.avatar_resolve import to_browser_avatar_url
+from app.avatar_resolve import load_avatar_bytes, to_browser_avatar_url
 from app.config import settings
 from app.database import get_db
-from app.mail_photos import vcard_photo_lines
+from app.mail_photos import user_to_vcard, vcard_filename
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
 from app.schemas import (
     BusyMapResponse,
@@ -73,33 +73,8 @@ def _ics_stamp(dt: datetime) -> str:
     return _dt_utc(dt).strftime("%Y%m%dT%H%M%SZ")
 
 
-def _vcard_escape(value: str) -> str:
-    return (value or "").replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
-
-
 def _user_to_vcard(user: User) -> str:
-    parts = user.full_name.strip().split(None, 1)
-    first = parts[0] if parts else user.full_name
-    last = parts[1] if len(parts) > 1 else ""
-    lines = [
-        "BEGIN:VCARD",
-        "VERSION:3.0",
-        f"FN:{_vcard_escape(user.full_name)}",
-        f"N:{_vcard_escape(last)};{_vcard_escape(first)};;;",
-        f"EMAIL;TYPE=WORK,INTERNET:{user.email}",
-        f"ORG:{_vcard_escape(settings.MAIL_DOMAIN)}",
-    ]
-    if user.job_title:
-        lines.append(f"TITLE:{_vcard_escape(user.job_title)}")
-    if user.phone:
-        lines.append(f"TEL;TYPE=WORK,VOICE:{_vcard_escape(user.phone)}")
-    if user.telegram:
-        lines.append(f"X-TELEGRAM:{_vcard_escape(user.telegram)}")
-    if user.username:
-        lines.append(f"NICKNAME:{_vcard_escape(user.username)}")
-    lines.extend(vcard_photo_lines(user.avatar_url))
-    lines.append("END:VCARD")
-    return "\r\n".join(lines) + "\r\n"
+    return user_to_vcard(user)
 
 
 def _event_to_ics(event: CalendarEvent, domain: str) -> str:
@@ -412,6 +387,46 @@ async def download_contacts_vcf(
         payload,
         media_type="text/vcard; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="alexol-contacts.vcf"'},
+    )
+
+
+@router.get("/public/avatar/{email}")
+async def public_avatar(email: str, db: AsyncSession = Depends(get_db)):
+    addr = (email or "").strip().lower()
+    result = await db.execute(
+        select(User).where(func.lower(User.email) == addr, User.is_active.is_(True))
+    )
+    user = result.scalar_one_or_none()
+    if not user or not user.avatar_url:
+        raise HTTPException(status_code=404, detail="No photo")
+    loaded = load_avatar_bytes(user.avatar_url)
+    if not loaded:
+        raise HTTPException(status_code=404, detail="No photo")
+    data, content_type, _name = loaded
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get("/public/vcard/{email}")
+async def public_vcard(email: str, db: AsyncSession = Depends(get_db)):
+    addr = (email or "").strip().lower()
+    result = await db.execute(
+        select(User).where(func.lower(User.email) == addr, User.is_active.is_(True))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Unknown mailbox")
+    payload = user_to_vcard(user)
+    return PlainTextResponse(
+        payload,
+        media_type="text/vcard; charset=utf-8",
+        headers={
+            "Content-Disposition": f'inline; filename="{vcard_filename(user)}"',
+            "Cache-Control": "public, max-age=3600",
+        },
     )
 
 

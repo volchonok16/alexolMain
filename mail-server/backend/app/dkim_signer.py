@@ -99,7 +99,7 @@ def sign_message(msg: Message) -> Message:
             ],
         )
         signed = message_from_bytes(sig + raw, policy=policy.SMTP)
-        logger.info(
+        logger.debug(
             "DKIM: signed message selector=%s domain=%s",
             settings.DKIM_SELECTOR,
             settings.MAIL_DOMAIN,

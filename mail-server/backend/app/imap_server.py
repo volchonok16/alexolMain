@@ -24,7 +24,7 @@ from email.utils import format_datetime, formataddr
 from email.parser import BytesParser
 from email import policy as email_policy
 
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.models import User, Email
@@ -32,13 +32,11 @@ from app.auth import verify_password
 from app.config import settings
 from app.mail_body import coerce_stored_bodies
 from app.database import sync_connect_args
-from app.mail_photos import attach_cid_photo, has_inline_photo, html_photo_src, prepend_people_bar
-from app.recipients import split_address_field
 
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/UID format changes so Outlook drops a stale empty cache.
-UIDVALIDITY = 4
+UIDVALIDITY = 5
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -177,39 +175,28 @@ def _email_to_rfc822(em: dict) -> bytes:
         date = date.replace(tzinfo=timezone.utc)
     date_str = format_datetime(date)
 
+    if em.get('html_body'):
+        msg = MIMEMultipart('alternative')
+        msg.attach(MIMEText(em.get('body', '') or '', 'plain', 'utf-8'))
+        msg.attach(MIMEText(em['html_body'], 'html', 'utf-8'))
+    else:
+        msg = MIMEText(em.get('body', '') or '', 'plain', 'utf-8')
+
     from_addr = em.get('from', '') or ''
-    from_name = (em.get('from_name') or '').strip() or from_addr
-    to_raw = em.get('to', '') or ''
-    to_addrs = split_address_field(to_raw)
-    to_addr = to_addrs[0] if to_addrs else to_raw
-    to_name = (em.get('to_name') or '').strip() or to_addr
-
-    html = em.get('html_body') or ''
-    from_avatar = em.get('from_avatar')
-    to_avatar = em.get('to_avatar')
-    from_ok = has_inline_photo(from_avatar)
-    to_ok = has_inline_photo(to_avatar) if to_addr else False
-    from_src = html_photo_src(from_addr, from_avatar, 'from-photo', from_ok) if from_addr else None
-    to_src = html_photo_src(to_addr, to_avatar, 'to-photo', to_ok) if to_addr else None
-    html = prepend_people_bar(html, from_src, from_name, to_src, to_name)
-
-    alternative = MIMEMultipart('alternative')
-    alternative.attach(MIMEText(em.get('body', '') or '', 'plain', 'utf-8'))
-    alternative.attach(MIMEText(html or (em.get('body') or ''), 'html', 'utf-8'))
-
-    related = MIMEMultipart('related')
-    related.attach(alternative)
-    attach_cid_photo(related, from_avatar, 'from-photo')
-    if to_addr:
-        attach_cid_photo(related, to_avatar, 'to-photo')
-
-    msg = related
+    from_name = (em.get('from_name') or '').strip()
     msg['From'] = formataddr((from_name, from_addr)) if from_addr else from_name
-    msg['To'] = to_raw
+    msg['To'] = em.get('to', '')
     msg['Subject'] = em.get('subject', '')
     msg['Date'] = date_str
     msg['Message-ID'] = f"<{em['id']}@{settings.MAIL_DOMAIN}>"
     return msg.as_bytes()
+
+
+def _message_bytes(em: dict) -> bytes:
+    raw = em.get("raw")
+    if raw:
+        return bytes(raw)
+    return _email_to_rfc822(em)
 
 
 def _imap_literal(name: str, payload: bytes) -> bytes:
@@ -246,7 +233,7 @@ def _build_fetch_response(seq_num: int, em: dict, items_str: str,
     needs_body = "RFC822" in upper or body_bracket
     rfc: bytes | None = None
     if needs_body or "RFC822.SIZE" in upper:
-        rfc = _email_to_rfc822(em)
+        rfc = _message_bytes(em)
         if "RFC822.SIZE" in upper:
             add_text(f"RFC822.SIZE {len(rfc)}")
 
@@ -337,7 +324,7 @@ class IMAPSession:
         return self.writer.get_extra_info("peername")
 
     async def handle(self):
-        logger.info("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
+        logger.debug("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
         await self._send(f'* OK {settings.smtp_hostname} IMAP4rev1 Service Ready')
         try:
             while self.state != self.LOGOUT:
@@ -490,7 +477,7 @@ class IMAPSession:
             self.user = user
             self.state = self.AUTHENTICATED
             await self._send(f'{tag} OK LOGIN completed')
-            logger.info("IMAP LOGIN ok user=%s peer=%s", user.email, self._peer())
+            logger.debug("IMAP LOGIN ok user=%s peer=%s", user.email, self._peer())
         else:
             logger.warning("IMAP LOGIN failed user=%r peer=%s", parts[0], self._peer())
             await self._send(f'{tag} NO [AUTHENTICATIONFAILED] Invalid credentials')
@@ -517,7 +504,7 @@ class IMAPSession:
                 self.user = user
                 self.state = self.AUTHENTICATED
                 await self._send(f'{tag} OK AUTHENTICATE completed')
-                logger.info("IMAP AUTHENTICATE ok user=%s peer=%s", user.email, self._peer())
+                logger.debug("IMAP AUTHENTICATE ok user=%s peer=%s", user.email, self._peer())
             else:
                 await self._send(f'{tag} NO [AUTHENTICATIONFAILED] Invalid credentials')
         else:
@@ -577,7 +564,7 @@ class IMAPSession:
         await self._send(f'* OK [UIDNEXT {(emails[-1]["id"] + 1) if emails else 1}]')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
-        logger.info(
+        logger.debug(
             "IMAP %s mailbox=%s messages=%s user=%s",
             cmd,
             self.selected_mailbox,
@@ -679,7 +666,7 @@ class IMAPSession:
             else:
                 self.selected_emails = self._fetch_inbox()
             pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
-        logger.info(
+        logger.debug(
             "IMAP FETCH user=%s mailbox=%s uid=%s set=%s items=%s hits=%s",
             self.user.email if self.user else "?",
             self.selected_mailbox,
@@ -737,33 +724,20 @@ class IMAPSession:
                     .where(Email.user_id == self.user.id, Email.is_sent == is_sent)
                     .order_by(Email.id)
                 ).scalars().all()
-                addrs: set[str] = set()
-                for e in rows:
-                    if e.from_address:
-                        addrs.add(e.from_address.lower())
-                    addrs.update(split_address_field(e.to_address))
-                avatars: dict[str, str | None] = {}
-                if addrs:
-                    peers = db.execute(
-                        select(User).where(func.lower(User.email).in_(list(addrs)))
-                    ).scalars().all()
-                    avatars = {u.email.lower(): u.avatar_url for u in peers}
                 result = []
                 for e in rows:
                     flags = ['\\Seen'] if (is_sent or e.is_read) else []
                     body, html_body = coerce_stored_bodies(e.body, e.html_body)
-                    to_first = (split_address_field(e.to_address) or [e.to_address or ""])[0]
                     result.append({
                         'id': e.id,
                         'from': e.from_address,
                         'from_name': e.from_name,
-                        'from_avatar': avatars.get((e.from_address or "").lower()),
                         'to': e.to_address,
                         'to_name': e.to_name,
-                        'to_avatar': avatars.get((to_first or "").lower()),
                         'subject': e.subject or '',
                         'body': body,
                         'html_body': html_body,
+                        'raw': getattr(e, 'raw_rfc822', None),
                         'date': e.received_at,
                         'flags': flags,
                     })

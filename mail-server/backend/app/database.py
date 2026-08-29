@@ -43,7 +43,7 @@ def sync_connect_args(url: str | None = None) -> dict:
 
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=True,
+    echo=False,
     pool_pre_ping=True,
     connect_args=async_connect_args(settings.DATABASE_URL),
 )

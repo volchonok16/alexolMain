@@ -38,7 +38,7 @@ class MinioClient:
                 self.client.set_bucket_policy(settings.MINIO_BUCKET, json.dumps(policy))
                 logger.info("Created MinIO bucket: %s", settings.MINIO_BUCKET)
             else:
-                logger.info("MinIO bucket already exists: %s", settings.MINIO_BUCKET)
+                logger.debug("MinIO bucket already exists: %s", settings.MINIO_BUCKET)
             self._bucket_ready = True
         except Exception as e:
             logger.error("Error ensuring MinIO bucket: %s", e)

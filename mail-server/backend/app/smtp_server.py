@@ -20,9 +20,11 @@ from app.database import async_connect_args, sync_connect_args
 from app.mail_body import extract_text_and_html
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
+from app.logging_setup import configure_quiet_logging
 import logging
 
 logging.basicConfig(level=logging.INFO)
+configure_quiet_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -104,7 +106,7 @@ class CustomSMTPHandler:
             return AuthResult(success=False)
         login = _smtp_text(auth_data.login).strip().lower()
         password = _smtp_text(auth_data.password)
-        logger.info("SMTP auth attempt: login=%r mechanism=%s", login, mechanism)
+        logger.debug("SMTP auth attempt: login=%r mechanism=%s", login, mechanism)
         if not login or not password:
             logger.warning("SMTP auth: empty login or password for %r", login)
             return AuthResult(success=False)
@@ -123,7 +125,7 @@ class CustomSMTPHandler:
                     logger.warning("SMTP auth: user inactive: %r", login)
                     return AuthResult(success=False)
                 if verify_password(password, row.hashed_password):
-                    logger.info("SMTP auth: success for %r", login)
+                    logger.debug("SMTP auth: success for %r", login)
                     return AuthResult(success=True, auth_data=auth_data)
                 logger.warning("SMTP auth: wrong password for %r", login)
                 return AuthResult(success=False)
@@ -195,6 +197,7 @@ class CustomSMTPHandler:
                             subject=subject,
                             body=body,
                             html_body=html_body,
+                            raw_rfc822=envelope.content,
                             is_sent=False,
                         )
                         db.add(email_obj)
@@ -216,6 +219,7 @@ class CustomSMTPHandler:
                         subject=subject,
                         body=body,
                         html_body=html_body,
+                        raw_rfc822=envelope.content,
                         is_sent=True,
                     )
                     db.add(sent)

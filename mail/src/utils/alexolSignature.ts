@@ -1,11 +1,15 @@
 /** Per-user Alexol signature. Hosted PNGs on mail.alexol.io (same deploy as the mail SPA). */
 
 const ASSET = 'https://mail.alexol.io/email'
-const ASSET_V = 'v=7'
+const ASSET_V = 'v=8'
 const SITE_HREF = 'https://alexol.io'
 const SITE_LABEL = 'alexol.io'
 const TELEGRAM_FALLBACK = 'https://t.me/AlexolBot'
 const WHATSAPP_FALLBACK = '79095175557'
+const CARD = '#0C0F16'
+const CYAN = '#00F5FF'
+const MUTED = '#C5CDD8'
+const TAGLINE = '#D0D7E2'
 
 export interface SignaturePerson {
   full_name?: string
@@ -49,16 +53,17 @@ function telegramHref(raw?: string): string {
 
 function png(file: string, width: number, height: number, extra = ''): string {
   return (
-    `<img src="${ASSET}/${file}?${ASSET_V}" width="${width}" height="${height}" alt="" ` +
-    `style="display:block;border:0;background:transparent;width:${width}px;height:${height}px;${extra}" />`
+    `<img src="${ASSET}/${file}?${ASSET_V}" width="${width}" height="${height}" alt="" border="0" ` +
+    `style="display:block;border:0;outline:none;background-color:transparent;background:none;` +
+    `width:${width}px;height:${height}px;${extra}" />`
   )
 }
 
 function linkHtml(href: string, label: string): string {
   return (
     `<a href="${esc(href)}" style="font-family:Arial,Helvetica,sans-serif;` +
-    `font-size:12px;color:#0AE3FF;text-decoration:none;">` +
-    `<span style="color:#0AE3FF;text-decoration:none;">${esc(label)}</span></a>`
+    `font-size:12px;color:${CYAN};text-decoration:none;">` +
+    `<span style="color:${CYAN};text-decoration:none;">${esc(label)}</span></a>`
   )
 }
 
@@ -67,18 +72,19 @@ function contactRow(iconFile: string, innerHtml: string, last: boolean): string 
   const textPad = last ? '0' : '0 0 6px 0'
   return [
     '<tr>',
-    `<td style="padding:${iconPad};vertical-align:middle;width:16px;font-size:0;line-height:0;">`,
+    `<td bgcolor="${CARD}" style="padding:${iconPad};vertical-align:middle;width:16px;font-size:0;line-height:0;background:transparent;">`,
     png(iconFile, 14, 14),
     '</td>',
-    `<td style="padding:${textPad};vertical-align:middle;">${innerHtml}</td>`,
+    `<td bgcolor="${CARD}" style="padding:${textPad};vertical-align:middle;background:transparent;">${innerHtml}</td>`,
     '</tr>',
   ].join('')
 }
 
 function socialIcon(href: string, file: string, alt: string): string {
   return [
-    `<a href="${esc(href)}" title="${esc(alt)}" style="text-decoration:none;border:0;">`,
-    png(file, 20, 20),
+    `<a href="${esc(href)}" title="${esc(alt)}" ` +
+      `style="text-decoration:none;border:0;background:transparent;display:inline-block;">`,
+    png(file, 22, 22),
     '</a>',
   ].join('')
 }
@@ -102,47 +108,57 @@ export function buildAlexolSignature(person: SignaturePerson): string {
   }
   items.push({ icon: 'icon-web.png', inner: linkHtml(SITE_HREF, SITE_LABEL) })
   const rows = items.map((item, i) => contactRow(item.icon, item.inner, i === items.length - 1))
+  const cardBg = `background-color:${CARD};background-image:linear-gradient(${CARD},${CARD});`
 
   return [
     '<div data-alexol-sig="1" data-alexol-layout="social-top" style="margin:0;padding:0;">',
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="500"',
-    ' style="border-collapse:collapse;table-layout:fixed;width:500px;max-width:500px;',
-    'background-color:#0C0F16;border-radius:10px;">',
+    ` bgcolor="${CARD}" style="border-collapse:collapse;table-layout:fixed;width:500px;max-width:500px;`,
+    `${cardBg}border-radius:10px;">`,
     '<tr>',
-    '<td width="108" style="padding:16px 10px 16px 16px;vertical-align:middle;width:108px;">',
-    '<img src="https://alexol.io/favicon.png" width="52" height="52" alt="Alexol"',
-    ' style="display:block;margin:0 auto 8px;border:0;width:52px;height:52px;" />',
+    `<td width="108" bgcolor="${CARD}" style="padding:18px 8px 18px 16px;vertical-align:middle;width:108px;${cardBg}">`,
+    '<img src="https://alexol.io/favicon.png" width="52" height="52" alt="Alexol" border="0"',
+    ' style="display:block;margin:0 auto 8px;border:0;background:transparent;width:52px;height:52px;" />',
     '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:700;color:#FFFFFF;',
     'text-align:center;line-height:1.1;">Alexol</div>',
     '</td>',
-    '<td width="3" style="padding:16px 0;vertical-align:stretch;width:3px;background-color:#0AE3FF;"></td>',
-    '<td width="389" style="padding:16px 18px 16px 14px;vertical-align:middle;width:389px;">',
-    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"',
-    ' style="border-collapse:collapse;width:100%;">',
+    `<td width="16" bgcolor="${CARD}" style="padding:0;vertical-align:middle;width:16px;${cardBg}">`,
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="16"',
+    ` bgcolor="${CARD}" style="border-collapse:collapse;width:16px;">`,
     '<tr>',
-    '<td style="vertical-align:top;padding:0 8px 0 0;">',
+    `<td bgcolor="${CARD}" style="padding:22px 5px;font-size:0;line-height:0;${cardBg}">`,
+    png('sig-divider.png', 5, 118),
+    '</td>',
+    '</tr>',
+    '</table>',
+    '</td>',
+    `<td width="376" bgcolor="${CARD}" style="padding:16px 18px 16px 10px;vertical-align:middle;width:376px;${cardBg}">`,
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"',
+    ` bgcolor="${CARD}" style="border-collapse:collapse;width:100%;">`,
+    '<tr>',
+    `<td bgcolor="${CARD}" style="vertical-align:top;padding:0 8px 0 0;${cardBg}">`,
     '<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#FFFFFF;',
     `line-height:1.2;margin:0 0 3px;">${esc(name)}</div>`,
-    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#8B95A8;line-height:1.4;margin:0;">',
+    `<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};line-height:1.4;margin:0;">`,
     `${esc(roleLine)}</div>`,
     '</td>',
-    '<td style="vertical-align:top;padding:2px 0 0 0;width:56px;">',
+    `<td bgcolor="${CARD}" style="vertical-align:top;padding:2px 0 0 0;width:60px;${cardBg}">`,
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right"',
-    ' style="border-collapse:collapse;">',
+    ` bgcolor="${CARD}" style="border-collapse:collapse;background:transparent;">`,
     '<tr>',
-    `<td style="padding:0 8px 0 0;font-size:0;line-height:0;">${socialIcon(tg, 'icon-telegram.png', 'Telegram')}</td>`,
-    `<td style="padding:0;font-size:0;line-height:0;">${socialIcon(wa, 'icon-whatsapp.png', 'WhatsApp')}</td>`,
+    `<td bgcolor="${CARD}" style="padding:0 8px 0 0;font-size:0;line-height:0;background:transparent;">${socialIcon(tg, 'icon-telegram.png', 'Telegram')}</td>`,
+    `<td bgcolor="${CARD}" style="padding:0;font-size:0;line-height:0;background:transparent;">${socialIcon(wa, 'icon-whatsapp.png', 'WhatsApp')}</td>`,
     '</tr>',
     '</table>',
     '</td>',
     '</tr>',
     '</table>',
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0"',
-    ' style="border-collapse:collapse;margin-top:12px;">',
+    ` bgcolor="${CARD}" style="border-collapse:collapse;margin-top:12px;">`,
     ...rows,
     '</table>',
-    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;',
-    'color:#A8B0C0;text-decoration:none;margin:14px 0 0;">',
+    `<div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;`,
+    `color:${TAGLINE};text-decoration:none;margin:14px 0 0;">`,
     'Professional IT Development: from concept to business digitalization.<br />',
     'Full-cycle development: from business analysis to implementation.',
     '</div>',
@@ -184,7 +200,10 @@ function parseSignaturePerson(root: Element): SignaturePerson {
       !node.querySelector('table')
     )
   })
-  const titleDiv = divs.find((node) => (node.getAttribute('style') || '').includes('#8B95A8'))
+  const titleDiv = divs.find((node) => {
+    const style = node.getAttribute('style') || ''
+    return style.includes('#8B95A8') || style.includes('#C5CDD8')
+  })
   let job = (titleDiv?.textContent || '').replace(/·\s*Alexol\s*$/, '').trim()
   if (job === 'Alexol') job = ''
   return {

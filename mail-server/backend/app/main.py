@@ -12,6 +12,7 @@ import base64
 
 from jose import JWTError, jwt
 
+from app.logging_setup import configure_quiet_logging
 from app.database import get_db, engine, Base, AsyncSessionLocal, wait_for_database
 from app.models import User, Email, EmailTemplate
 from app.schemas import (
@@ -54,6 +55,8 @@ from app.org import router as org_router
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from urllib.parse import unquote
+
+configure_quiet_logging()
 
 app = FastAPI(title="Mail Server API")
 
@@ -117,6 +120,9 @@ async def startup_event():
         )
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_feed_token VARCHAR")
+        )
+        await conn.execute(
+            text("ALTER TABLE emails ADD COLUMN IF NOT EXISTS raw_rfc822 BYTEA")
         )
         # Existing admin-created templates become org-shared so users keep access
         await conn.execute(
@@ -882,7 +888,7 @@ async def _commit_and_deliver(
     )
     db.add(email_obj)
     await db.commit()
-    await deliver_composed_email(
+    raw = await deliver_composed_email(
         current_user=current_user,
         to_addresses=addresses,
         to_header=format_to_header(addresses, names),
@@ -891,6 +897,8 @@ async def _commit_and_deliver(
         html_body=html_body,
         attachments=attachments,
     )
+    email_obj.raw_rfc822 = raw
+    await db.commit()
     return email_obj
 
 

@@ -17,15 +17,15 @@ from fastapi import HTTPException
 
 from app.config import settings
 from app.dkim_signer import sign_message
-from app.mail_photos import attach_cid_photo, has_inline_photo, html_photo_src, photo_html_tag, prepend_people_bar
+from app.mail_photos import attach_sender_vcard
 from app.models import User
 from app.recipients import group_by_domain, partition_local_external
 
 
 def wrap_outbound_html(content_html: str, signature_html: str) -> str:
     """
-    Wrap fragment HTML in a Gmail/Outlook-friendly table layout.
-    Skip outer chrome if the fragment already looks like a full document.
+    Wrap fragment HTML for mail clients without a white 600px card.
+    A light card is inverted/slabbed in Apple Mail and Outlook dark mode.
     """
     lowered = (content_html or "").lower()
     already_full = "<html" in lowered or "<body" in lowered
@@ -41,23 +41,24 @@ def wrap_outbound_html(content_html: str, signature_html: str) -> str:
         "<head>"
         '<meta charset="utf-8" />'
         '<meta name="viewport" content="width=device-width, initial-scale=1" />'
+        '<meta name="color-scheme" content="light dark" />'
+        '<meta name="supported-color-schemes" content="light dark" />'
         "<title>Email</title>"
+        "<style>"
+        ":root{color-scheme:light dark;}"
+        "@media (prefers-color-scheme: dark) {"
+        "body{background-color:#0C0F16 !important;color:#e8eef7 !important;}"
+        "}"
+        "</style>"
         "</head>"
-        '<body style="margin:0;padding:0;background:#f1f5f9;">'
-        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-        'style="border-collapse:collapse;background:#f1f5f9;width:100%;">'
-        "<tr><td align=\"center\" style=\"padding:24px 12px;\">"
-        '<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
-        'style="border-collapse:collapse;width:100%;max-width:600px;'
-        'background:#ffffff;border-radius:12px;overflow:hidden;'
-        'border:1px solid #e2e8f0;">'
-        "<tr><td style=\"padding:28px 32px;font-family:-apple-system,BlinkMacSystemFont,"
+        '<body style="margin:0;padding:20px 16px;background-color:transparent;">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
+        'style="border-collapse:collapse;width:100%;">'
+        "<tr><td style=\"font-family:-apple-system,BlinkMacSystemFont,"
         "'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;"
         'color:#0f172a;">'
         f"{content_html}"
         f"{sig}"
-        "</td></tr>"
-        "</table>"
         "</td></tr>"
         "</table>"
         "</body>"
@@ -79,7 +80,6 @@ def _build_mime(
     attachments: Optional[list[tuple]] = None,
 ) -> tuple[MIMEMultipart, str, str]:
     display_name = current_user.full_name or current_user.email
-    sender_cid = has_inline_photo(current_user.avatar_url)
 
     if html_body and html_body.strip():
         content_html = html_body
@@ -93,8 +93,7 @@ def _build_mime(
         "<div data-alexol-sig=\"1\" style='margin-top:28px;padding-top:16px;"
         "border-top:1px solid #e2e8f0;"
         "font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'>"
-        f"{photo_html_tag(html_photo_src(current_user.email, current_user.avatar_url, 'from-photo', sender_cid), display_name)}"
-        f"<div style='font-weight:600;color:#0f172a;font-size:14px;margin-top:8px'>"
+        f"<div style='font-weight:600;color:#0f172a;font-size:14px'>"
         f"{html_escape(display_name)}</div>"
         f"<div style='color:#64748b;font-size:13px;margin-top:2px'>"
         f"{html_escape(current_user.email)}</div>"
@@ -102,34 +101,17 @@ def _build_mime(
     )
     signature_text = f"\n\n--\n{display_name}\n{current_user.email}\n"
     full_html = wrap_outbound_html(content_html, signature_html)
-    full_html = prepend_people_bar(
-        full_html,
-        html_photo_src(
-            current_user.email,
-            current_user.avatar_url,
-            "from-photo",
-            sender_cid,
-        ),
-        display_name,
-    )
     full_text = (body or "") + signature_text
 
     alternative = MIMEMultipart("alternative")
-    related = MIMEMultipart("related")
-    if attachments:
-        msg = MIMEMultipart("mixed")
-        msg.attach(related)
-    else:
-        msg = related
+    alternative.attach(MIMEText(full_text, "plain", "utf-8"))
+    alternative.attach(MIMEText(full_html, "html", "utf-8"))
 
+    msg = MIMEMultipart("mixed")
     msg["From"] = formataddr((display_name, current_user.email))
     msg["To"] = to_header
     msg["Subject"] = subject
-
-    alternative.attach(MIMEText(full_text, "plain", "utf-8"))
-    alternative.attach(MIMEText(full_html, "html", "utf-8"))
-    related.attach(alternative)
-    attach_cid_photo(related, current_user.avatar_url, "from-photo")
+    msg.attach(alternative)
 
     if attachments:
         for filename, content_type, content in attachments:
@@ -139,6 +121,7 @@ def _build_mime(
                 part.add_header("Content-Type", content_type)
             msg.attach(part)
 
+    attach_sender_vcard(msg, current_user)
     return sign_message(msg), full_text, full_html
 
 
@@ -304,7 +287,7 @@ async def deliver_composed_email(
     body: str,
     html_body: Optional[str],
     attachments: Optional[list[tuple]] = None,
-) -> None:
+) -> bytes:
     """Deliver one MIME message. Local inboxes via SMTP; external via relay or MX."""
     if not to_addresses:
         raise HTTPException(status_code=400, detail="Укажите хотя бы одного получателя")
@@ -340,15 +323,7 @@ async def deliver_composed_email(
     if external:
         relay_ok = bool(settings.SMTP_RELAY_ENABLED and settings.SMTP_RELAY_HOST)
         try:
-            if relay_ok and _use_sendgrid_api() and not attachments:
-                await _send_sendgrid(
-                    current_user=current_user,
-                    envelope=external,
-                    subject=subject,
-                    full_text=full_text,
-                    full_html=full_html,
-                )
-            elif relay_ok:
+            if relay_ok:
                 await asyncio.to_thread(_send_relay, msg, from_addr, external)
             else:
                 for domain, addrs in group_by_domain(external).items():
@@ -364,3 +339,4 @@ async def deliver_composed_email(
             status_code=500,
             detail=f"Не удалось отправить письмо: {'; '.join(errors)}",
         )
+    return msg.as_bytes()
