@@ -61,6 +61,7 @@ def schedule_news_posts():
             id=f"post_generator_{i}",
             name=f"Новости {i}/4 ({start_hour:02d}–{end_hour:02d}ч)",
             replace_existing=True,
+            misfire_grace_time=0,
         )
         print(f"📅 Новости {i}/4: ежедневно в {hour:02d}:{minute:02d} ({tz})")
 
@@ -84,6 +85,7 @@ def schedule_lead_posts():
         id="lead_generator",
         name="Посты о поиске новых проектов",
         replace_existing=True,
+        misfire_grace_time=0,
     )
     print("📅 Промо-посты о поиске проектов будут публиковаться каждые 3 дня")
 
@@ -123,13 +125,7 @@ async def run_bot():
             await application.updater.start_polling(drop_pending_updates=True)
             print("📬 /start: бот принимает личные сообщения для сброса пароля почты")
 
-        print("\n🚀 Публикация первого поста при запуске...")
-        try:
-            await generator.run_once()
-        except BaseException as e:
-            if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
-                raise
-            print(f"❌ Ошибка первой публикации (бот продолжит работу по расписанию): {e}")
+        print("\n⏭ Новость при старте не публикуем — только по расписанию (или python main.py --mode once).")
 
         scheduler.start()
         schedule_news_posts()
