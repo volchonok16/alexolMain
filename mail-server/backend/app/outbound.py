@@ -17,6 +17,7 @@ from fastapi import HTTPException
 
 from app.config import settings
 from app.dkim_signer import sign_message
+from app.mail_photos import attach_cid_photo, has_inline_photo, html_photo_src, photo_html_tag, prepend_people_bar
 from app.models import User
 from app.recipients import group_by_domain, partition_local_external
 
@@ -78,6 +79,7 @@ def _build_mime(
     attachments: Optional[list[tuple]] = None,
 ) -> tuple[MIMEMultipart, str, str]:
     display_name = current_user.full_name or current_user.email
+    sender_cid = has_inline_photo(current_user.avatar_url)
 
     if html_body and html_body.strip():
         content_html = html_body
@@ -91,7 +93,8 @@ def _build_mime(
         "<div data-alexol-sig=\"1\" style='margin-top:28px;padding-top:16px;"
         "border-top:1px solid #e2e8f0;"
         "font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'>"
-        f"<div style='font-weight:600;color:#0f172a;font-size:14px'>"
+        f"{photo_html_tag(html_photo_src(current_user.email, current_user.avatar_url, 'from-photo', sender_cid), display_name)}"
+        f"<div style='font-weight:600;color:#0f172a;font-size:14px;margin-top:8px'>"
         f"{html_escape(display_name)}</div>"
         f"<div style='color:#64748b;font-size:13px;margin-top:2px'>"
         f"{html_escape(current_user.email)}</div>"
@@ -99,15 +102,25 @@ def _build_mime(
     )
     signature_text = f"\n\n--\n{display_name}\n{current_user.email}\n"
     full_html = wrap_outbound_html(content_html, signature_html)
+    full_html = prepend_people_bar(
+        full_html,
+        html_photo_src(
+            current_user.email,
+            current_user.avatar_url,
+            "from-photo",
+            sender_cid,
+        ),
+        display_name,
+    )
     full_text = (body or "") + signature_text
 
+    alternative = MIMEMultipart("alternative")
+    related = MIMEMultipart("related")
     if attachments:
         msg = MIMEMultipart("mixed")
-        alternative = MIMEMultipart("alternative")
-        msg.attach(alternative)
+        msg.attach(related)
     else:
-        msg = MIMEMultipart("alternative")
-        alternative = msg
+        msg = related
 
     msg["From"] = formataddr((display_name, current_user.email))
     msg["To"] = to_header
@@ -115,6 +128,8 @@ def _build_mime(
 
     alternative.attach(MIMEText(full_text, "plain", "utf-8"))
     alternative.attach(MIMEText(full_html, "html", "utf-8"))
+    related.attach(alternative)
+    attach_cid_photo(related, current_user.avatar_url, "from-photo")
 
     if attachments:
         for filename, content_type, content in attachments:

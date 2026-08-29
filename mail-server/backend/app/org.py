@@ -17,6 +17,7 @@ from app.auth import get_current_user
 from app.avatar_resolve import to_browser_avatar_url
 from app.config import settings
 from app.database import get_db
+from app.mail_photos import vcard_photo_lines
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
 from app.schemas import (
     BusyMapResponse,
@@ -96,6 +97,7 @@ def _user_to_vcard(user: User) -> str:
         lines.append(f"X-TELEGRAM:{_vcard_escape(user.telegram)}")
     if user.username:
         lines.append(f"NICKNAME:{_vcard_escape(user.username)}")
+    lines.extend(vcard_photo_lines(user.avatar_url))
     lines.append("END:VCARD")
     return "\r\n".join(lines) + "\r\n"
 
