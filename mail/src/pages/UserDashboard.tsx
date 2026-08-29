@@ -15,7 +15,7 @@ import {
   type EmailTemplate,
   type TemplateType,
 } from '../utils/templateStarters'
-import { buildAlexolSignature } from '../utils/alexolSignature'
+import { buildAlexolSignature, upgradeSignatureAssets } from '../utils/alexolSignature'
 import {
   applyTemplatesToHtml,
   buildComposePreviewHtml,
@@ -265,7 +265,7 @@ export default function UserDashboard() {
         formData.append('subject', emailData.subject)
         formData.append('body', emailData.body)
         if (emailData.html_body) {
-          formData.append('html_body', emailData.html_body)
+          formData.append('html_body', upgradeSignatureAssets(emailData.html_body))
         }
         emailData.attachments.forEach((file) => {
           formData.append('files', file)
@@ -279,7 +279,9 @@ export default function UserDashboard() {
           to_address: emailData.to_address,
           subject: emailData.subject,
           body: emailData.body,
-          html_body: emailData.html_body,
+          html_body: emailData.html_body
+            ? upgradeSignatureAssets(emailData.html_body)
+            : emailData.html_body,
         })
         return data
       }
@@ -421,6 +423,7 @@ export default function UserDashboard() {
       job_title: user?.job_title,
       phone: user?.phone,
       email: user?.email,
+      telegram: user?.telegram,
     }
 
     try {
@@ -432,6 +435,7 @@ export default function UserDashboard() {
           job_title: data.job_title,
           phone: data.phone,
           email: data.email,
+          telegram: data.telegram,
         }
       }
     } catch {

@@ -1087,8 +1087,12 @@ textarea {
   border: 1px solid var(--color-border);
 }
 
-.email-preview-shell [data-alexol-sig] img {
-  max-width: none;
+.email-preview-shell [data-alexol-sig] a {
+  text-decoration: underline;
+}
+
+.email-preview-shell [data-alexol-sig] a[title] {
+  text-decoration: none;
 }
 
 [data-theme="light"] .email-preview-shell {
