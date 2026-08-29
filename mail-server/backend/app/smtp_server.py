@@ -18,6 +18,8 @@ from app.config import settings
 from app.auth import verify_password
 from app.database import async_connect_args, sync_connect_args
 from app.mail_body import extract_text_and_html
+from app.outbound import deliver_raw_outbound
+from app.recipients import partition_local_external
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -129,29 +131,61 @@ class CustomSMTPHandler:
             logger.exception("SMTP auth error for %s: %s", login, e)
             return AuthResult(success=False)
 
+    async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
+        addr = (address or "").strip().strip("<>").strip()
+        if not addr:
+            return "501 5.1.3 Bad recipient"
+        _local, external = partition_local_external([addr.lower()], settings.MAIL_DOMAIN)
+        if external and not getattr(session, "authenticated", False):
+            logger.warning("SMTP relay denied for unauthenticated RCPT %s", addr)
+            return "550 5.7.1 Relay denied"
+        envelope.rcpt_tos.append(addr)
+        return "250 OK"
+
     async def handle_DATA(self, server, session, envelope):
-        """Приём письма и сохранение в БД."""
+        """Inbound MX → local inboxes. Authenticated submission → also send external via MX."""
         logger.info("Receiving email from %s to %s", envelope.mail_from, envelope.rcpt_tos)
+        authenticated = bool(getattr(session, "authenticated", False))
         try:
             msg = BytesParser(policy=policy.default).parsebytes(envelope.content)
             subject = msg.get("subject", "No Subject")
-            # Prefer RFC From header (may include display name); fall back to envelope
             header_name, header_addr = parseaddr(msg.get("From") or "")
             from_address = (header_addr or envelope.mail_from or "").strip().lower()
             from_name = (header_name or "").strip() or None
             body, html_body = extract_text_and_html(msg)
+            rcpt_norm = [(a or "").strip() for a in envelope.rcpt_tos if (a or "").strip()]
+            _local_addrs, external_addrs = partition_local_external(
+                [a.lower() for a in rcpt_norm], settings.MAIL_DOMAIN
+            )
+            header_to = (msg.get("To") or "").strip() or ", ".join(rcpt_norm)
+
+            if external_addrs and not authenticated:
+                return "550 5.7.1 Relay denied"
+
+            sender = None
             async with self._async_session_factory() as db:
-                for to_address in envelope.rcpt_tos:
-                    to_norm = (to_address or "").strip().lower()
-                    result = await db.execute(select(User).where(User.email == to_norm))
-                    user = result.scalar_one_or_none()
-                    if not user:
-                        result = await db.execute(
-                            select(User).where(User.email == to_address)
+                if authenticated:
+                    auth_data = getattr(session, "auth_data", None)
+                    login = (
+                        _smtp_text(auth_data.login).strip().lower()
+                        if isinstance(auth_data, LoginPassword)
+                        else from_address
+                    )
+                    local_part = login.split("@", 1)[0]
+                    sender = (
+                        await db.execute(
+                            select(User).where(
+                                (func.lower(User.email) == login)
+                                | (func.lower(User.username) == local_part)
+                            )
                         )
-                        user = result.scalar_one_or_none()
+                    ).scalar_one_or_none()
+
+                for to_address in rcpt_norm:
+                    to_norm = to_address.lower()
+                    result = await db.execute(select(User).where(func.lower(User.email) == to_norm))
+                    user = result.scalar_one_or_none()
                     if user:
-                        header_to = (msg.get("To") or "").strip()
                         email_obj = Email(
                             user_id=user.id,
                             from_address=from_address or (envelope.mail_from or ""),
@@ -165,9 +199,42 @@ class CustomSMTPHandler:
                         )
                         db.add(email_obj)
                         await db.commit()
-                        logger.info("Email saved for user %s from %s (%s)", user.email, from_address, from_name)
-                    else:
-                        logger.warning("User not found: %s", to_address)
+                        logger.info(
+                            "Email saved for user %s from %s (%s)",
+                            user.email,
+                            from_address,
+                            from_name,
+                        )
+
+                if authenticated and sender:
+                    sent = Email(
+                        user_id=sender.id,
+                        from_address=from_address or sender.email,
+                        to_address=header_to,
+                        from_name=from_name or sender.full_name,
+                        to_name=None,
+                        subject=subject,
+                        body=body,
+                        html_body=html_body,
+                        is_sent=True,
+                    )
+                    db.add(sent)
+                    await db.commit()
+
+            if external_addrs:
+                from_addr = (sender.email if sender else from_address) or envelope.mail_from
+                try:
+                    await asyncio.to_thread(
+                        deliver_raw_outbound,
+                        envelope.content,
+                        from_addr,
+                        external_addrs,
+                    )
+                    logger.info("Outbound delivered from %s to %s", from_addr, external_addrs)
+                except Exception as exc:
+                    logger.exception("Outbound delivery failed to %s: %s", external_addrs, exc)
+                    return f"451 4.4.1 Delivery failed: {exc}"
+
             return "250 OK"
         except Exception as e:
             logger.error("Error handling email: %s", e, exc_info=True)

@@ -218,6 +218,22 @@ def _send_mx(msg, from_addr: str, domain: str, envelope: list[str]) -> None:
         ) from dns_error
 
 
+def deliver_raw_outbound(content: bytes, from_addr: str, recipients: list[str]) -> None:
+    """Send an already-composed message (Outlook/IMAP SMTP) to external MX or relay."""
+    from email import message_from_bytes
+    from email import policy as email_policy
+
+    if not recipients:
+        return
+    msg = sign_message(message_from_bytes(content, policy=email_policy.SMTP))
+    relay_ok = bool(settings.SMTP_RELAY_ENABLED and settings.SMTP_RELAY_HOST)
+    if relay_ok:
+        _send_relay(msg, from_addr, recipients)
+        return
+    for domain, addrs in group_by_domain(recipients).items():
+        _send_mx(msg, from_addr, domain, addrs)
+
+
 def _use_sendgrid_api() -> bool:
     return bool(
         settings.SENDGRID_USE_API
