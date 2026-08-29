@@ -1,7 +1,7 @@
 /** Per-user Alexol signature. Hosted PNGs on mail.alexol.io (same deploy as the mail SPA). */
 
 const ASSET = 'https://mail.alexol.io/email'
-const ASSET_V = 'v=11'
+const ASSET_V = 'v=12'
 const SITE_HREF = 'https://alexol.io'
 const SITE_LABEL = 'alexol.io'
 const TELEGRAM_FALLBACK = 'https://t.me/AlexolBot'
@@ -18,7 +18,6 @@ export interface SignaturePerson {
   phone?: string
   email?: string
   telegram?: string
-  avatar_url?: string
 }
 
 function esc(value: string): string {
@@ -82,17 +81,6 @@ function contactRow(iconFile: string, innerHtml: string, last: boolean): string 
   ].join('')
 }
 
-function personPhoto(email: string): string {
-  const addr = (email || '').trim().toLowerCase()
-  if (!addr) return ''
-  const src = `https://mail.alexol.io/api/public/avatar/${encodeURIComponent(addr)}?${ASSET_V}`
-  return (
-    `<img src="${src}" width="36" height="36" alt="" border="0" ` +
-    `style="display:block;border:0;outline:none;border-radius:50%;width:36px;height:36px;` +
-    `object-fit:cover;background:transparent;" />`
-  )
-}
-
 function socialIcon(href: string, file: string, alt: string): string {
   return [
     `<a href="${esc(href)}" title="${esc(alt)}" ` +
@@ -122,7 +110,6 @@ export function buildAlexolSignature(person: SignaturePerson): string {
   items.push({ icon: 'icon-web.png', inner: linkHtml(SITE_HREF, SITE_LABEL) })
   const rows = items.map((item, i) => contactRow(item.icon, item.inner, i === items.length - 1))
   const cardBg = `background-color:${CARD};background-image:linear-gradient(${CARD},${CARD});`
-  const photo = personPhoto(email)
 
   return [
     '<div data-alexol-sig="1" data-alexol-layout="social-top" style="margin:0;padding:0;">',
@@ -141,7 +128,7 @@ export function buildAlexolSignature(person: SignaturePerson): string {
     ` bgcolor="${CARD}" style="border-collapse:collapse;width:18px;">`,
     '<tr>',
     `<td bgcolor="${CARD}" style="padding:8px 5px;font-size:0;line-height:0;${cardBg}">`,
-    png('sig-divider.png', 7, 168),
+    png('sig-divider.png', 7, 200),
     '</td>',
     '</tr>',
     '</table>',
@@ -151,16 +138,10 @@ export function buildAlexolSignature(person: SignaturePerson): string {
     ` bgcolor="${CARD}" style="border-collapse:collapse;width:100%;">`,
     '<tr>',
     `<td bgcolor="${CARD}" style="vertical-align:top;padding:0 8px 0 0;${cardBg}">`,
-    photo
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>` +
-        `<td style="padding:0 8px 0 0;vertical-align:middle;font-size:0;line-height:0;">${photo}</td>` +
-        `<td style="vertical-align:middle;">` +
-        `<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#FFFFFF;line-height:1.2;margin:0 0 3px;">${esc(name)}</div>` +
-        `<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};line-height:1.4;margin:0;">${esc(roleLine)}</div>` +
-        `</td></tr></table>`
-      : `<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#FFFFFF;` +
-        `line-height:1.2;margin:0 0 3px;">${esc(name)}</div>` +
-        `<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};line-height:1.4;margin:0;">${esc(roleLine)}</div>`,
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#FFFFFF;',
+    `line-height:1.2;margin:0 0 3px;">${esc(name)}</div>`,
+    `<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:${MUTED};line-height:1.4;margin:0;">`,
+    `${esc(roleLine)}</div>`,
     '</td>',
     `<td bgcolor="${CARD}" style="vertical-align:top;padding:2px 0 0 0;width:60px;${cardBg}">`,
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right"',

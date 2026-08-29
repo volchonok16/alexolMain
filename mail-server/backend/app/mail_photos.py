@@ -4,7 +4,6 @@ from __future__ import annotations
 import base64
 import re
 from email.mime.application import MIMEApplication
-from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
 from urllib.parse import quote
@@ -12,8 +11,6 @@ from urllib.parse import quote
 from app.avatar_resolve import load_avatar_bytes
 from app.config import settings
 from app.models import User
-
-SENDER_PHOTO_CID = "alexol-sender-photo"
 
 
 def public_avatar_url(email: str) -> str:
@@ -96,50 +93,3 @@ def attach_sender_vcard(msg: MIMEMultipart, user: User) -> None:
     part.add_header("Content-Disposition", "attachment", filename=vcard_filename(user))
     part.add_header("Content-Type", 'text/vcard; charset="utf-8"; name="%s"' % vcard_filename(user))
     msg.attach(part)
-
-
-def sender_photo_mime(user: User) -> Optional[MIMEImage]:
-    """Inline JPEG/PNG for Outlook — remote <img> URLs are blocked until 'download pictures'."""
-    if not user.avatar_url:
-        return None
-    loaded = load_avatar_bytes(user.avatar_url)
-    if not loaded:
-        return None
-    data, content_type, name = loaded
-    subtype = ((content_type or "image/jpeg").split("/")[-1] or "jpeg").lower()
-    if subtype in ("jpg", "pjpeg"):
-        subtype = "jpeg"
-    if subtype not in ("jpeg", "png", "gif"):
-        subtype = "jpeg"
-    part = MIMEImage(data, _subtype=subtype)
-    part.add_header("Content-ID", f"<{SENDER_PHOTO_CID}>")
-    part.add_header("Content-Disposition", "inline", filename=name or "avatar.jpg")
-    return part
-
-
-def rewrite_html_sender_photo(html: str, user: User) -> str:
-    """Point signature/list avatars at the CID part instead of mail.alexol.io."""
-    email = (user.email or "").strip().lower()
-    if not html or not email:
-        return html
-    cid = f"cid:{SENDER_PHOTO_CID}"
-    encoded = quote(email, safe="")
-    raw_at = quote(email, safe="@.")
-    bases = [
-        public_avatar_url(email),
-        f"https://mail.alexol.io/api/public/avatar/{encoded}",
-        f"https://mail.alexol.io/api/public/avatar/{raw_at}",
-        f"http://mail.alexol.io/api/public/avatar/{encoded}",
-        f"/api/public/avatar/{encoded}",
-        f"/api/public/avatar/{raw_at}",
-        f"/api/public/avatar/{email}",
-    ]
-    out = html
-    seen: set[str] = set()
-    for base in bases:
-        key = base.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        out = re.sub(re.escape(base) + r"[^\"'\s>]*", cid, out, flags=re.IGNORECASE)
-    return out
