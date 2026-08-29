@@ -43,7 +43,7 @@ from app.config import settings
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.minio_client import minio_client
-from app.avatar_resolve import peer_info_map, to_browser_avatar_url
+from app.avatar_resolve import peer_info_map, to_browser_avatar_url, parse_from_header
 from app.outbound import deliver_composed_email
 from app.recipients import (
     format_to_header,
@@ -770,9 +770,9 @@ async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:
     )
     out: List[EmailResponse] = []
     for e in rows:
-        from_key = (e.from_address or "").lower()
+        from_key, _ = parse_from_header(e.from_address)
         addrs = split_address_field(e.to_address)
-        first_to = addrs[0] if addrs else (e.to_address or "").lower()
+        first_to = addrs[0] if addrs else (parse_from_header(e.to_address)[0] or "")
         from_peer = peers.get(from_key)
         to_peer = peers.get(first_to)
         from_name = (getattr(e, "from_name", None) or "").strip() or (

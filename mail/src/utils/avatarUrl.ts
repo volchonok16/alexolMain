@@ -6,6 +6,7 @@ export function resolveAvatarUrl(url?: string | null): string | null {
 
   // Already same-origin media proxy
   if (trimmed.startsWith('/api/media/')) return trimmed
+  if (trimmed.startsWith('/api/public/avatar/')) return trimmed
 
   const bucketMarker = '/avatars/'
   if (trimmed.includes(bucketMarker)) {
@@ -29,4 +30,8 @@ export function resolveAvatarUrl(url?: string | null): string | null {
   }
 
   return trimmed
+}
+
+export function publicAvatarUrl(email: string): string {
+  return `/api/public/avatar/${encodeURIComponent(email.trim().toLowerCase())}`
 }

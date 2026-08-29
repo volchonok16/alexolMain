@@ -4,7 +4,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -390,12 +390,12 @@ async def download_contacts_vcf(
     )
 
 
-@router.get("/public/avatar/{email}")
+@router.get("/public/avatar/{email:path}")
 async def public_avatar(email: str, db: AsyncSession = Depends(get_db)):
-    addr = (email or "").strip().lower()
-    result = await db.execute(
-        select(User).where(func.lower(User.email) == addr, User.is_active.is_(True))
-    )
+    addr = unquote(email or "").strip().lower()
+    if addr.startswith("mailto:"):
+        addr = addr[7:]
+    result = await db.execute(select(User).where(func.lower(User.email) == addr))
     user = result.scalar_one_or_none()
     if not user or not user.avatar_url:
         raise HTTPException(status_code=404, detail="No photo")
@@ -410,12 +410,12 @@ async def public_avatar(email: str, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/public/vcard/{email}")
+@router.get("/public/vcard/{email:path}")
 async def public_vcard(email: str, db: AsyncSession = Depends(get_db)):
-    addr = (email or "").strip().lower()
-    result = await db.execute(
-        select(User).where(func.lower(User.email) == addr, User.is_active.is_(True))
-    )
+    addr = unquote(email or "").strip().lower()
+    if addr.startswith("mailto:"):
+        addr = addr[7:]
+    result = await db.execute(select(User).where(func.lower(User.email) == addr))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Unknown mailbox")

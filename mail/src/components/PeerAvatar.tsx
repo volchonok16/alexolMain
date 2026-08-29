@@ -1,4 +1,11 @@
 import { useState } from 'react'
+import { publicAvatarUrl, resolveAvatarUrl } from '../utils/avatarUrl'
+
+function mailboxFrom(raw?: string | null): string {
+  const value = (raw || '').trim()
+  const angled = value.match(/<([^>]+)>/)
+  return (angled?.[1] || value).replace(/^mailto:/i, '').trim().toLowerCase()
+}
 
 /** Avatar for from/to with initials fallback if image fails. */
 export function PeerAvatar({
@@ -14,10 +21,17 @@ export function PeerAvatar({
   size?: number
   className?: string
 }) {
-  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const mailbox = mailboxFrom(email)
+  const candidates = [
+    resolveAvatarUrl(src),
+    mailbox ? publicAvatarUrl(mailbox) : null,
+  ].filter((item, index, all): item is string => Boolean(item) && all.indexOf(item) === index)
+
+  const current = candidates[attempt]
   const initial = (name || email || '?').trim().charAt(0).toUpperCase() || '?'
 
-  if (!src || failed) {
+  if (!current) {
     return (
       <div
         className={`peer-avatar peer-avatar--fallback ${className}`}
@@ -31,11 +45,11 @@ export function PeerAvatar({
 
   return (
     <img
-      src={src}
+      src={current}
       alt=""
       className={`peer-avatar ${className}`}
       style={{ width: size, height: size }}
-      onError={() => setFailed(true)}
+      onError={() => setAttempt((n) => n + 1)}
     />
   )
 }

@@ -1,15 +1,16 @@
 /** Per-user Alexol signature. Hosted PNGs on mail.alexol.io (same deploy as the mail SPA). */
 
 const ASSET = 'https://mail.alexol.io/email'
-const ASSET_V = 'v=8'
+const ASSET_V = 'v=9'
 const SITE_HREF = 'https://alexol.io'
 const SITE_LABEL = 'alexol.io'
 const TELEGRAM_FALLBACK = 'https://t.me/AlexolBot'
 const WHATSAPP_FALLBACK = '79095175557'
+/** Alexol dark brand tokens — same as alexol.io (globals.scss) */
 const CARD = '#0C0F16'
-const CYAN = '#00F5FF'
-const MUTED = '#C5CDD8'
-const TAGLINE = '#D0D7E2'
+const CYAN = '#0AE3FF'
+const MUTED = '#A8B0C0'
+const TAGLINE = '#A8B0C0'
 
 export interface SignaturePerson {
   full_name?: string
@@ -72,10 +73,10 @@ function contactRow(iconFile: string, innerHtml: string, last: boolean): string 
   const textPad = last ? '0' : '0 0 6px 0'
   return [
     '<tr>',
-    `<td bgcolor="${CARD}" style="padding:${iconPad};vertical-align:middle;width:16px;font-size:0;line-height:0;background:transparent;">`,
-    png(iconFile, 14, 14),
+    `<td style="padding:${iconPad};vertical-align:middle;width:18px;font-size:0;line-height:0;background:transparent;">`,
+    png(iconFile, 16, 16),
     '</td>',
-    `<td bgcolor="${CARD}" style="padding:${textPad};vertical-align:middle;background:transparent;">${innerHtml}</td>`,
+    `<td style="padding:${textPad};vertical-align:middle;background:transparent;">${innerHtml}</td>`,
     '</tr>',
   ].join('')
 }
@@ -84,7 +85,7 @@ function socialIcon(href: string, file: string, alt: string): string {
   return [
     `<a href="${esc(href)}" title="${esc(alt)}" ` +
       `style="text-decoration:none;border:0;background:transparent;display:inline-block;">`,
-    png(file, 22, 22),
+    png(file, 24, 24),
     '</a>',
   ].join('')
 }
@@ -122,17 +123,17 @@ export function buildAlexolSignature(person: SignaturePerson): string {
     '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:700;color:#FFFFFF;',
     'text-align:center;line-height:1.1;">Alexol</div>',
     '</td>',
-    `<td width="16" bgcolor="${CARD}" style="padding:0;vertical-align:middle;width:16px;${cardBg}">`,
-    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="16"',
-    ` bgcolor="${CARD}" style="border-collapse:collapse;width:16px;">`,
+    `<td width="18" bgcolor="${CARD}" style="padding:0;vertical-align:middle;width:18px;${cardBg}">`,
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="18"',
+    ` bgcolor="${CARD}" style="border-collapse:collapse;width:18px;">`,
     '<tr>',
-    `<td bgcolor="${CARD}" style="padding:22px 5px;font-size:0;line-height:0;${cardBg}">`,
-    png('sig-divider.png', 5, 118),
+    `<td bgcolor="${CARD}" style="padding:20px 5px;font-size:0;line-height:0;${cardBg}">`,
+    png('sig-divider.png', 7, 124),
     '</td>',
     '</tr>',
     '</table>',
     '</td>',
-    `<td width="376" bgcolor="${CARD}" style="padding:16px 18px 16px 10px;vertical-align:middle;width:376px;${cardBg}">`,
+    `<td width="374" bgcolor="${CARD}" style="padding:16px 18px 16px 10px;vertical-align:middle;width:374px;${cardBg}">`,
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"',
     ` bgcolor="${CARD}" style="border-collapse:collapse;width:100%;">`,
     '<tr>',
@@ -154,7 +155,7 @@ export function buildAlexolSignature(person: SignaturePerson): string {
     '</tr>',
     '</table>',
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0"',
-    ` bgcolor="${CARD}" style="border-collapse:collapse;margin-top:12px;">`,
+    ' style="border-collapse:collapse;margin-top:12px;background:transparent;">',
     ...rows,
     '</table>',
     `<div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;`,
@@ -202,7 +203,7 @@ function parseSignaturePerson(root: Element): SignaturePerson {
   })
   const titleDiv = divs.find((node) => {
     const style = node.getAttribute('style') || ''
-    return style.includes('#8B95A8') || style.includes('#C5CDD8')
+    return style.includes('#8B95A8') || style.includes('#A8B0C0') || style.includes('#C5CDD8')
   })
   let job = (titleDiv?.textContent || '').replace(/·\s*Alexol\s*$/, '').trim()
   if (job === 'Alexol') job = ''

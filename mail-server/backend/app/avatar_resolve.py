@@ -5,7 +5,7 @@ import hashlib
 import logging
 from dataclasses import dataclass
 from typing import Iterable, Optional, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlparse
 
 from email.utils import parseaddr
 from sqlalchemy import func, select
@@ -81,51 +81,75 @@ def to_public_avatar_url(url: Optional[str]) -> Optional[str]:
 def minio_object_name_from_avatar_url(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
+    url = unquote(url.strip())
     bucket = settings.MINIO_BUCKET
     marker = f"/{bucket}/"
     if marker in url:
-        return url.split(marker, 1)[1].split("?", 1)[0]
-    if url.startswith("/api/media/"):
-        # /api/media/avatars/file.jpg
-        parts = url.split("/")
-        try:
-            i = parts.index(bucket)
-            return "/".join(parts[i + 1 :]).split("?", 1)[0]
-        except ValueError:
-            return None
+        return url.split(marker, 1)[1].split("?", 1)[0].lstrip("/")
+    if "/api/media/" in url:
+        parts = url.split("/api/media/", 1)[1].split("?", 1)[0].split("/")
+        if parts and parts[0] == bucket:
+            return "/".join(parts[1:]).lstrip("/") or None
+        return "/".join(parts).lstrip("/") or None
+    parsed = urlparse(url)
+    if parsed.scheme in ("http", "https") and parsed.path:
+        name = parsed.path.rsplit("/", 1)[-1]
+        if "." in name and name.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
+            # Bare object names stored without a bucket prefix
+            if bucket not in parsed.path:
+                return name
     return None
 
 
-def load_avatar_bytes(avatar_url: Optional[str]) -> Optional[Tuple[bytes, str, str]]:
-    """
-    Load avatar from MinIO for CID embedding.
-    Returns (bytes, content_type, filename) or None.
-    """
-    object_name = minio_object_name_from_avatar_url(avatar_url)
-    if not object_name:
-        return None
-    try:
-        from app.minio_client import minio_client
+def _guess_image_type(name: str, fallback: str = "image/jpeg") -> str:
+    lower = (name or "").lower()
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith(".webp"):
+        return "image/webp"
+    if lower.endswith(".gif"):
+        return "image/gif"
+    return fallback
 
-        minio_client._ensure_bucket()
-        obj = minio_client.client.get_object(settings.MINIO_BUCKET, object_name)
-        try:
-            data = obj.read()
-        finally:
-            obj.close()
-            obj.release_conn()
-        content_type = "image/jpeg"
-        lower = object_name.lower()
-        if lower.endswith(".png"):
-            content_type = "image/png"
-        elif lower.endswith(".webp"):
-            content_type = "image/webp"
-        elif lower.endswith(".gif"):
-            content_type = "image/gif"
-        return data, content_type, object_name.split("/")[-1]
-    except Exception as e:
-        logger.warning("Could not load avatar bytes for CID: %s", e)
+
+def load_avatar_bytes(avatar_url: Optional[str]) -> Optional[Tuple[bytes, str, str]]:
+    """Load avatar from MinIO or an http(s) photo URL. Returns (bytes, content_type, filename)."""
+    if not avatar_url:
         return None
+    object_name = minio_object_name_from_avatar_url(avatar_url)
+    if object_name:
+        try:
+            from app.minio_client import minio_client
+
+            minio_client._ensure_bucket()
+            obj = minio_client.client.get_object(settings.MINIO_BUCKET, object_name)
+            try:
+                data = obj.read()
+            finally:
+                obj.close()
+                obj.release_conn()
+            return data, _guess_image_type(object_name), object_name.split("/")[-1]
+        except Exception as e:
+            logger.warning("Could not load avatar from MinIO: %s", e)
+
+    raw = avatar_url.strip()
+    if raw.startswith("http://") or raw.startswith("https://"):
+        if "minio:9000" in raw or "://minio/" in raw:
+            return None
+        try:
+            import httpx
+
+            with httpx.Client(timeout=8.0, follow_redirects=True) as client:
+                resp = client.get(raw)
+                resp.raise_for_status()
+            ctype = (resp.headers.get("content-type") or "image/jpeg").split(";")[0]
+            if not ctype.startswith("image/"):
+                return None
+            name = raw.rsplit("/", 1)[-1].split("?", 1)[0] or "avatar.jpg"
+            return resp.content, ctype, name
+        except Exception as e:
+            logger.warning("Could not fetch remote avatar: %s", e)
+    return None
 
 
 def parse_from_header(raw: Optional[str]) -> tuple[str, Optional[str]]:
@@ -140,7 +164,11 @@ async def peer_info_map(
     db: AsyncSession, emails: Iterable[str]
 ) -> dict[str, PeerInfo]:
     """email(lower) → avatar + full_name when local user exists."""
-    unique = {((e or "").strip().lower()) for e in emails if (e or "").strip()}
+    unique: set[str] = set()
+    for raw in emails:
+        addr, _name = parse_from_header(raw)
+        if addr:
+            unique.add(addr)
     unique.discard("")
     if not unique:
         return {}
@@ -155,9 +183,8 @@ async def peer_info_map(
         user = users.get(addr)
         if user and user.avatar_url:
             browser = to_browser_avatar_url(user.avatar_url)
-            avatar = browser or unavatar_url(addr)
+            avatar = browser or f"/api/public/avatar/{quote(addr, safe='')}"
         else:
-            # External (e.g. Gmail): Unavatar may resolve Google/Gravatar photo
             avatar = unavatar_url(addr)
         name = (user.full_name.strip() if user and user.full_name else None) or None
         out[addr] = PeerInfo(avatar_url=avatar, name=name)

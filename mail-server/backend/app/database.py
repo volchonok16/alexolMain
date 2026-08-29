@@ -4,7 +4,10 @@ from urllib.parse import urlparse
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import text
+from app.logging_setup import configure_quiet_logging
 from app.config import settings
+
+configure_quiet_logging()
 
 _INTERNAL_DB_HOSTS = frozenset(
     {

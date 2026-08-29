@@ -61,10 +61,17 @@ def _get_sync_db_url() -> str:
 
 
 def _make_tls_context() -> ssl.SSLContext | None:
-    """Return TLS context; fall back to ephemeral self-signed cert."""
+    """Server TLS for IMAPS/STARTTLS. TLS 1.2+; no client certs."""
+    def _server_ctx() -> ssl.SSLContext:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+
     if settings.SMTP_TLS_CERT_FILE and settings.SMTP_TLS_KEY_FILE:
         if os.path.isfile(settings.SMTP_TLS_CERT_FILE) and os.path.isfile(settings.SMTP_TLS_KEY_FILE):
-            ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ctx = _server_ctx()
             ctx.load_cert_chain(settings.SMTP_TLS_CERT_FILE, settings.SMTP_TLS_KEY_FILE)
             logger.info("IMAP TLS: using configured cert %s", settings.SMTP_TLS_CERT_FILE)
             return ctx
@@ -82,7 +89,7 @@ def _make_tls_context() -> ssl.SSLContext | None:
             ],
             capture_output=True, check=True, timeout=30,
         )
-        ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        ctx = _server_ctx()
         ctx.load_cert_chain(cert, key)
         logger.info("IMAP TLS: generated self-signed cert (CN=%s)", settings.MAIL_DOMAIN)
         return ctx
@@ -344,6 +351,8 @@ class IMAPSession:
         except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
             # Client closed connection - normal for iOS/Outlook
             logger.debug('IMAP: client disconnected')
+        except ssl.SSLError as exc:
+            logger.warning('IMAP TLS peer=%s: %s', self._peer(), exc)
         except Exception as exc:
             logger.error('IMAP session error: %s', exc, exc_info=True)
         finally:
@@ -529,7 +538,12 @@ class IMAPSession:
             self.reader._transport = new_transport  # type: ignore[attr-defined]
             self._is_ssl = True
         except Exception as exc:
-            logger.error('STARTTLS upgrade failed: %s', exc)
+            logger.warning('STARTTLS upgrade failed peer=%s: %s', self._peer(), exc)
+            try:
+                self.writer.close()
+            except Exception:
+                pass
+            return
 
     async def _select(self, tag, cmd, args):
         if self.state not in (self.AUTHENTICATED, self.SELECTED):
