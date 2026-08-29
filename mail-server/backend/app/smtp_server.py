@@ -10,7 +10,7 @@ from email import policy
 from email.parser import BytesParser
 from email.utils import parseaddr
 from aiosmtpd.smtp import SMTP, AuthResult, LoginPassword, TLSSetupException
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from app.models import User, Email
@@ -22,6 +22,15 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _smtp_text(value) -> str:
+    """aiosmtpd AUTH LOGIN/PLAIN hands login and password as bytes."""
+    if value is None:
+        return ""
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return bytes(value).decode("utf-8", errors="replace")
+    return str(value)
 
 
 def _get_sync_database_url() -> str:
@@ -91,15 +100,20 @@ class CustomSMTPHandler:
         if not isinstance(auth_data, LoginPassword):
             logger.warning("SMTP auth: unexpected auth_data type %s", type(auth_data))
             return AuthResult(success=False)
-        login = (auth_data.login or "").strip()
-        password = auth_data.password or ""
+        login = _smtp_text(auth_data.login).strip().lower()
+        password = _smtp_text(auth_data.password)
         logger.info("SMTP auth attempt: login=%r mechanism=%s", login, mechanism)
         if not login or not password:
             logger.warning("SMTP auth: empty login or password for %r", login)
             return AuthResult(success=False)
         try:
             with self._SyncSession() as db:
-                row = db.execute(select(User).where(User.email == login)).scalar_one_or_none()
+                local = login.split("@", 1)[0]
+                row = db.execute(
+                    select(User).where(
+                        (func.lower(User.email) == login) | (func.lower(User.username) == local)
+                    )
+                ).scalar_one_or_none()
                 if not row:
                     logger.warning("SMTP auth: user not found: %r", login)
                     return AuthResult(success=False)

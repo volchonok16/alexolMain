@@ -573,10 +573,18 @@ class IMAPSession:
         await self._send(f'{tag} OK SEARCH completed')
 
     def _auth(self, username: str, password: str) -> User | None:
+        if isinstance(username, (bytes, bytearray)):
+            username = username.decode("utf-8", errors="replace")
+        if isinstance(password, (bytes, bytearray)):
+            password = password.decode("utf-8", errors="replace")
+        login = (username or "").strip().lower()
+        local = login.split("@", 1)[0]
         try:
             with self._db() as db:
                 user = db.execute(
-                    select(User).where(User.email == username)
+                    select(User).where(
+                        (User.email == login) | (User.username == local)
+                    )
                 ).scalar_one_or_none()
                 if user and user.is_active and verify_password(password, user.hashed_password):
                     return user
