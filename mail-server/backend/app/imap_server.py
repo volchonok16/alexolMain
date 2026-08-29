@@ -31,6 +31,7 @@ from app.models import User, Email
 from app.auth import verify_password
 from app.config import settings
 from app.mail_body import coerce_stored_bodies
+from app.database import sync_connect_args
 
 logger = logging.getLogger(__name__)
 
@@ -647,7 +648,13 @@ class IMAPServer:
 
     async def _start_servers(self):
         sync_url = _get_sync_db_url()
-        engine = create_engine(sync_url, pool_pre_ping=True, pool_size=5, max_overflow=10)
+        engine = create_engine(
+            sync_url,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
+            connect_args=sync_connect_args(sync_url),
+        )
         SyncSession = sessionmaker(engine, class_=Session, expire_on_commit=False)
 
         self._tls_ctx = _make_tls_context()

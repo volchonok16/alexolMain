@@ -6,6 +6,7 @@ export interface User {
   name: string;
   email?: string | null;
   phone?: string | null;
+  jobTitle?: string | null;
   telegram?: string | null;
   role: 'admin' | 'user';
   photo?: string | null;
@@ -31,6 +32,7 @@ export interface UserPayload {
   role: 'admin' | 'user';
   email?: string;
   phone?: string;
+  jobTitle?: string;
   telegram?: string;
   birthDate?: string;
   photo?: File;
@@ -57,6 +59,7 @@ export const usersApi = {
     formData.append('role', data.role);
     if (data.email) formData.append('email', data.email);
     if (data.phone) formData.append('phone', data.phone);
+    if (data.jobTitle) formData.append('jobTitle', data.jobTitle);
     if (data.telegram) formData.append('telegram', data.telegram);
     if (data.birthDate) formData.append('birthDate', data.birthDate);
     if (data.photo) formData.append('photo', data.photo);
@@ -74,6 +77,7 @@ export const usersApi = {
     formData.append('role', data.role);
     formData.append('email', data.email || '');
     formData.append('phone', data.phone || '');
+    formData.append('jobTitle', data.jobTitle || '');
     formData.append('telegram', data.telegram || '');
     formData.append('birthDate', data.birthDate || '');
     if (data.password) formData.append('password', data.password);

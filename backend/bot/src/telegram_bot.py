@@ -4,6 +4,7 @@ from typing import Optional
 from io import BytesIO
 
 import config
+from src.telegram_http import telegram_request
 
 import asyncio
 
@@ -14,7 +15,7 @@ class TelegramPublisher:
 
     def __init__(self):
         token = config.TELEGRAM_NEWS_BOT_TOKEN or config.TELEGRAM_BOT_TOKEN
-        self.bot = Bot(token=token)
+        self.bot = Bot(token=token, request=telegram_request())
         self.channel_id = config.TELEGRAM_CHANNEL_ID
         self._last_sent = None
         self._sending = False

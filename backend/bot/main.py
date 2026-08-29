@@ -7,12 +7,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
-from telegram import Update
-from telegram.ext import Application
-
 from src.post_generator import PostGenerator
 from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
 from src.telegram_bot import TelegramPublisher
+from src.telegram_http import application_builder
 from src.news_start import setup_news_start
 from src.project_requests_bot import run_requests_bot, setup_requests_bot
 from src.simple_forward_bot import run_forward_bot, setup_forward_bot
@@ -115,7 +113,7 @@ async def run_bot():
     if not news_token:
         raise RuntimeError("TELEGRAM_NEWS_BOT_TOKEN / TELEGRAM_BOT_TOKEN is not set")
 
-    application = Application.builder().token(news_token).build()
+    application = application_builder(news_token).build()
     setup_news_start(application)
     setup_polling_error_handler(application)
 
@@ -280,7 +278,7 @@ def run_requests_and_forward_bot() -> None:
     if not config.TELEGRAM_REQUESTS_CHAT_ID:
         raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
 
-    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+    application = application_builder(config.TELEGRAM_BOT_TOKEN).build()
 
     setup_requests_bot(application)
     setup_forward_bot(application)

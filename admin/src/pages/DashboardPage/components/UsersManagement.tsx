@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
-import { User } from '@/api/users';
+import { User, UserPayload } from '@/api/users';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar } from '@/shared/ui/Avatar';
 import { useUsers } from '../hooks/useUsers';
@@ -57,17 +57,7 @@ export const UsersManagement = () => {
     }
   };
 
-  const handleSave = async (payload: {
-    login: string;
-    password?: string;
-    name: string;
-    role: 'admin' | 'user';
-    email?: string;
-    phone?: string;
-    telegram?: string;
-    birthDate?: string;
-    photo?: File;
-  }) => {
+  const handleSave = async (payload: UserPayload) => {
     setSaveError(null);
     try {
       if (editingUser) {
@@ -119,8 +109,11 @@ export const UsersManagement = () => {
               <tr>
                 <th>Фото</th>
                 <th>ФИО</th>
+                <th>Должность</th>
                 <th>Логин</th>
                 <th>Почта</th>
+                <th>Телефон</th>
+                <th>Телеграм</th>
                 <th>Роль</th>
                 <th>Дата рождения</th>
                 <th>Действия</th>
@@ -139,8 +132,11 @@ export const UsersManagement = () => {
                     />
                   </td>
                   <td>{user.name}</td>
+                  <td>{user.jobTitle || '-'}</td>
                   <td>{user.login}</td>
                   <td>{user.email || '-'}</td>
+                  <td>{user.phone || '-'}</td>
+                  <td>{user.telegram || '-'}</td>
                   <td>
                     <span className={`users-management__role users-management__role--${user.role}`}>
                       {roleLabel(user.role)}

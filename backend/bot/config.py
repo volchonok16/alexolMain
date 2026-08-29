@@ -40,6 +40,12 @@ OPENROUTER_HTTP_PROXY = (
     or os.getenv("http_proxy")
     or ""
 ).strip() or None
+# Optional dedicated proxy for api.telegram.org (502 Bad Gateway from RU IPs).
+TELEGRAM_HTTP_PROXY = (
+    os.getenv("TELEGRAM_HTTP_PROXY")
+    or os.getenv("TELEGRAM_PROXY")
+    or ""
+).strip() or None
 
 # VK API настройки
 VK_ACCESS_TOKEN = os.getenv("VK_ACCESS_TOKEN")

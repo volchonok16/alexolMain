@@ -210,3 +210,41 @@ export function buildForwardCompose(email: ComposeEmailSource) {
     html_body: buildForwardHtml(email),
   }
 }
+
+export type RecipientChip = {
+  email: string
+  name?: string
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function parseRecipientChips(raw: string): RecipientChip[] {
+  const seen = new Set<string>()
+  const chips: RecipientChip[] = []
+  for (const chunk of (raw || '').split(/[;,]+/)) {
+    const trimmed = chunk.trim()
+    if (!trimmed) continue
+    const angle = trimmed.match(/^(.*?)\s*<([^>]+)>\s*$/)
+    const email = (angle ? angle[2] : trimmed).trim().toLowerCase()
+    if (!email || seen.has(email) || !EMAIL_RE.test(email)) continue
+    seen.add(email)
+    const name = angle ? angle[1].replace(/^["']|["']$/g, '').trim() : ''
+    chips.push(name && !EMAIL_RE.test(name) ? { email, name } : { email })
+  }
+  return chips
+}
+
+export function stringifyRecipients(chips: RecipientChip[], draft = ''): string {
+  const emails = chips.map((chip) => chip.email)
+  const extra = draft.trim()
+  if (extra) emails.push(extra)
+  return emails.join(', ')
+}
+
+export function firstEmailAddress(raw: string): string {
+  return parseRecipientChips(raw)[0]?.email || (raw || '').trim()
+}
+
+export function looksLikeEmail(value: string): boolean {
+  return EMAIL_RE.test(value.trim())
+}

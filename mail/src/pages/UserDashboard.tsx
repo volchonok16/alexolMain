@@ -21,10 +21,13 @@ import {
   buildComposePreviewHtml,
   buildForwardCompose,
   buildReplyCompose,
+  firstEmailAddress,
+  looksLikeEmail,
   normalizeComposeLinks,
   replaceOrAppendSignature,
 } from '../utils/composeEmail'
 import { EmailHtmlFrame } from '../components/EmailHtmlFrame'
+import { ComposeToField } from '../components/ComposeToField'
 import { htmlForDisplay, previewTextFromParts } from '../utils/htmlEmail'
 import './UserDashboard.css'
 
@@ -312,6 +315,19 @@ export default function UserDashboard() {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!composeData.to_address.trim()) {
+      toast.error('Укажите хотя бы одного получателя')
+      return
+    }
+    const leftover = composeData.to_address
+      .split(/[;,]+/)
+      .map((part) => part.trim())
+      .filter((part) => part && !looksLikeEmail(part) && !part.includes('@'))
+    if (leftover.length) {
+      toast.error('Выберите коллегу из списка или укажите полный email')
+      return
+    }
 
     const mergedHtml = buildComposePreviewHtml(composeData.body, composeData.html_body)
 
@@ -656,7 +672,9 @@ export default function UserDashboard() {
               </div>
             ) : (
               emails.map((email) => {
-                const peerAddress = email.is_sent ? email.to_address : email.from_address
+                const peerAddress = firstEmailAddress(
+                  email.is_sent ? email.to_address : email.from_address
+                )
                 const peerAvatar = email.is_sent ? email.to_avatar_url : email.from_avatar_url
                 const peerName = email.is_sent ? email.to_name : email.from_name
                 const preview = emailPreviewText(email)
@@ -666,7 +684,7 @@ export default function UserDashboard() {
                   className={`email-item ${!email.is_read && !email.is_sent ? 'unread' : ''} ${selectedEmail?.id === email.id ? 'selected' : ''}`}
                   onClick={() => openEmail(email)}
                 >
-                  <PeerAvatar src={peerAvatar} email={peerAddress} size={40} />
+                  <PeerAvatar src={peerAvatar} email={peerAddress} name={peerName} size={40} />
                   <div className="email-item-body">
                   <div className="email-item-top">
                     <div className="email-from">
@@ -745,6 +763,7 @@ export default function UserDashboard() {
                     <PeerAvatar
                       src={selectedEmail.from_avatar_url}
                       email={selectedEmail.from_address}
+                      name={selectedEmail.from_name}
                       size={44}
                     />
                     <div className="mail-reader-meta-text">
@@ -815,13 +834,14 @@ export default function UserDashboard() {
             <form onSubmit={handleSend}>
               <div className="form-group">
                 <label>Кому</label>
-                <input
-                  type="email"
+                <ComposeToField
                   value={composeData.to_address}
-                  onChange={(e) => setComposeData({ ...composeData, to_address: e.target.value })}
-                  placeholder="user@example.com"
-                  required
+                  onChange={(to_address) => setComposeData({ ...composeData, to_address })}
+                  disabled={sendMutation.isPending}
                 />
+                <small className="compose-to-hint">
+                  Несколько адресов — через Enter или запятую. Начните вводить фамилию или имя коллеги.
+                </small>
               </div>
 
               <div className="form-group">

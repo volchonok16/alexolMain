@@ -144,6 +144,9 @@ class RSSParser:
     def _clean_html(self, text: str) -> str:
         if not text:
             return ""
+        # Short non-HTML strings look like filenames to BeautifulSoup (MarkupResemblesLocatorWarning).
+        if "<" not in text:
+            return re.sub(r"\s+", " ", text).strip()
         soup = BeautifulSoup(text, "lxml")
         clean_text = soup.get_text(separator=" ", strip=True)
         clean_text = re.sub(r"\s+", " ", clean_text)
@@ -169,7 +172,7 @@ class RSSParser:
             if entry.get("content")
             else entry.get("summary", "")
         )
-        if content:
+        if content and "<" in content:
             soup = BeautifulSoup(content, "lxml")
             img = soup.find("img")
             if img and img.get("src"):

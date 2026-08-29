@@ -27,6 +27,11 @@ const normalizeTelegram = (telegram?: string | null) => {
   return value || null;
 };
 
+const normalizeJobTitle = (jobTitle?: string | null) => {
+  const value = jobTitle?.trim();
+  return value || null;
+};
+
 export class UserService {
   private userRepo = new UserRepository();
   private mailSync = new MailSyncService();
@@ -48,6 +53,7 @@ export class UserService {
     role: 'admin' | 'user';
     email?: string | null;
     phone?: string | null;
+    jobTitle?: string | null;
     telegram?: string | null;
     birthDate?: string | null;
     photo?: Express.Multer.File;
@@ -73,6 +79,7 @@ export class UserService {
     if (existingEmail) throw new Error('Email already exists');
 
     const phone = normalizePhone(data.phone);
+    const jobTitle = normalizeJobTitle(data.jobTitle);
     const telegram = normalizeTelegram(data.telegram);
     const photoUrl = data.photo ? await saveFile(data.photo) : null;
     const hashedPassword = await bcrypt.hash(data.password, 10);
@@ -84,6 +91,7 @@ export class UserService {
       is_admin: data.role === 'admin',
       is_active: true,
       phone,
+      job_title: jobTitle,
       telegram,
       avatar_url: toAbsolutePhotoUrl(photoUrl),
     });
@@ -101,6 +109,7 @@ export class UserService {
       role: data.role,
       email,
       phone,
+      jobTitle,
       telegram,
       birthDate: parseBirthDate(data.birthDate),
       photo: photoUrl,
@@ -116,6 +125,7 @@ export class UserService {
       role?: 'admin' | 'user';
       email?: string | null;
       phone?: string | null;
+      jobTitle?: string | null;
       telegram?: string | null;
       birthDate?: string | null;
       photo?: Express.Multer.File;
@@ -155,6 +165,8 @@ export class UserService {
     const nextIsAdmin = (data.role ?? user.role) === 'admin';
     const nextPhone =
       data.phone !== undefined ? normalizePhone(data.phone) : user.phone ?? null;
+    const nextJobTitle =
+      data.jobTitle !== undefined ? normalizeJobTitle(data.jobTitle) : user.jobTitle ?? null;
     const nextTelegram =
       data.telegram !== undefined ? normalizeTelegram(data.telegram) : user.telegram ?? null;
 
@@ -164,6 +176,7 @@ export class UserService {
       is_admin: nextIsAdmin,
       is_active: true,
       phone: nextPhone,
+      job_title: nextJobTitle,
       telegram: nextTelegram,
       avatar_url: toAbsolutePhotoUrl(photoUrl),
       new_username: data.login && data.login !== previousLogin ? data.login : undefined,
@@ -180,6 +193,7 @@ export class UserService {
       role: data.role,
       email,
       phone: data.phone !== undefined ? nextPhone : undefined,
+      jobTitle: data.jobTitle !== undefined ? nextJobTitle : undefined,
       telegram: data.telegram !== undefined ? nextTelegram : undefined,
       birthDate: data.birthDate === undefined ? undefined : parseBirthDate(data.birthDate),
       photo: photoUrl,

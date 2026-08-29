@@ -125,6 +125,13 @@ class SsoTicketResponse(BaseModel):
     expires_in: int
 
 
+class DirectoryPerson(BaseModel):
+    email: str
+    full_name: str
+    job_title: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
 class EmailCreate(BaseModel):
     to_address: str
     subject: str

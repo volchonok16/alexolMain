@@ -28,6 +28,7 @@ from telegram.ext import (
 )
 
 import config
+from src.telegram_http import application_builder
 from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
 from src.speak_ai import LANG_META, SpeakTutorAI
 from src.speak_settings import (
@@ -1044,8 +1045,7 @@ def run_speak_bot() -> None:
         asyncio.create_task(asyncio.to_thread(warmup_local_whisper))
 
     application = (
-        Application.builder()
-        .token(token)
+        application_builder(token)
         .post_init(_post_init)
         .build()
     )

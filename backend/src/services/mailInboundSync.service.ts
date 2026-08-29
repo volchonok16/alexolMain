@@ -12,6 +12,7 @@ type MailInboundPayload = {
   is_admin?: boolean;
   is_active?: boolean;
   phone?: string | null;
+  job_title?: string | null;
   telegram?: string | null;
   avatar_url?: string | null;
   avatar_base64?: string | null;
@@ -61,7 +62,10 @@ export class MailInboundSyncService {
     const email = MailSyncService.mailboxEmail(login, config.mail.domain).toLowerCase();
     const role = payload.is_admin ? 'admin' : 'user';
     const name = (payload.full_name || login).trim() || login;
-    const phone = payload.phone?.trim() || null;
+    const phone =
+      payload.phone === undefined ? undefined : payload.phone?.trim() || null;
+    const jobTitle =
+      payload.job_title === undefined ? undefined : payload.job_title?.trim() || null;
     const telegram =
       payload.telegram === undefined ? undefined : payload.telegram?.trim() || null;
 
@@ -73,6 +77,7 @@ export class MailInboundSyncService {
         role?: string;
         email?: string | null;
         phone?: string | null;
+        jobTitle?: string | null;
         telegram?: string | null;
         password?: string;
         photo?: string | null;
@@ -80,8 +85,9 @@ export class MailInboundSyncService {
         name,
         role,
         email,
-        phone,
       };
+      if (phone !== undefined) data.phone = phone;
+      if (jobTitle !== undefined) data.jobTitle = jobTitle;
       if (telegram !== undefined) data.telegram = telegram;
       if (payload.password) {
         data.password = await bcrypt.hash(payload.password, 10);
@@ -105,7 +111,8 @@ export class MailInboundSyncService {
       name,
       role,
       email,
-      phone,
+      phone: phone ?? null,
+      jobTitle: jobTitle ?? null,
       telegram: telegram ?? null,
       photo: photo ?? null,
     });

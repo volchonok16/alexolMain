@@ -14,6 +14,7 @@ interface UserModalProps {
     role: 'admin' | 'user';
     email?: string;
     phone?: string;
+    jobTitle?: string;
     telegram?: string;
     birthDate?: string;
     photo?: File;
@@ -47,6 +48,7 @@ export const UserModal = ({
   const [role, setRole] = useState<'admin' | 'user'>(user?.role === 'admin' ? 'admin' : 'user');
   const [birthDate, setBirthDate] = useState(toDateInput(user?.birthDate));
   const [phone, setPhone] = useState(user?.phone || '');
+  const [jobTitle, setJobTitle] = useState(user?.jobTitle || '');
   const [telegram, setTelegram] = useState(user?.telegram || '');
   const [photo, setPhoto] = useState<File | undefined>();
   const [preview, setPreview] = useState(user?.photo ? resolveApiAssetUrl(user.photo) : '');
@@ -70,6 +72,7 @@ export const UserModal = ({
       role: lockRole ? (user?.role === 'admin' ? 'admin' : 'user') : role,
       email: mailboxEmail || undefined,
       phone,
+      jobTitle,
       telegram,
       birthDate,
       photo,
@@ -128,6 +131,17 @@ export const UserModal = ({
               ? ' Если вход в почту не работает - задайте новый пароль и сохраните (ящик пересоздастся/обновится).'
               : ' Пароль сразу синхронизируется с почтой.'}
           </p>
+        </div>
+
+        <div className="modal__field">
+          <label>Должность</label>
+          <input
+            type="text"
+            value={jobTitle}
+            onChange={e => setJobTitle(e.target.value)}
+            placeholder="Например, frontend-разработчик"
+            disabled={isSaving}
+          />
         </div>
 
         <div className="modal__field">

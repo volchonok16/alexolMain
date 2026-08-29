@@ -22,6 +22,7 @@ export const createUserSchema = z.object({
   role: z.enum(['admin', 'user']),
   email: optionalEmail,
   phone: optionalContact,
+  jobTitle: optionalContact,
   telegram: optionalContact,
   birthDate: optionalBirthDate,
 });
@@ -33,6 +34,7 @@ export const updateUserSchema = z.object({
   role: z.enum(['admin', 'user']).optional(),
   email: optionalEmail,
   phone: optionalContact,
+  jobTitle: optionalContact,
   telegram: optionalContact,
   birthDate: optionalBirthDate,
 });

@@ -59,6 +59,7 @@ async def push_user_ensure(
     is_admin: bool = False,
     is_active: bool = True,
     phone: Optional[str] = None,
+    job_title: Optional[str] = None,
     telegram: Optional[str] = None,
     avatar_url: Optional[str] = None,
 ) -> bool:
@@ -73,8 +74,9 @@ async def push_user_ensure(
     }
     if password:
         payload["password"] = password
-    if phone is not None:
-        payload["phone"] = phone
+    # Always send contact fields so clearing a value in mail also clears it in admin.
+    payload["phone"] = (phone or "").strip()
+    payload["job_title"] = (job_title or "").strip()
     payload["telegram"] = (telegram or "").strip()
     payload.update(await _avatar_fields(avatar_url))
     try:

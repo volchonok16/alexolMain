@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from app.models import User, Email
 from app.config import settings
 from app.auth import verify_password
+from app.database import async_connect_args, sync_connect_args
 from app.mail_body import extract_text_and_html
 import logging
 
@@ -70,6 +71,7 @@ class CustomSMTPHandler:
             settings.DATABASE_URL,
             echo=False,
             pool_pre_ping=True,
+            connect_args=async_connect_args(settings.DATABASE_URL),
         )
         self._async_session_factory = async_sessionmaker(
             self._async_engine,
@@ -77,7 +79,11 @@ class CustomSMTPHandler:
             expire_on_commit=False,
         )
         sync_url = _get_sync_database_url()
-        self._sync_engine = create_engine(sync_url, pool_pre_ping=True)
+        self._sync_engine = create_engine(
+            sync_url,
+            pool_pre_ping=True,
+            connect_args=sync_connect_args(sync_url),
+        )
         self._SyncSession = sessionmaker(self._sync_engine, class_=Session, expire_on_commit=False)
 
     def _authenticator(self, server, session, envelope, mechanism: str, auth_data):
@@ -131,10 +137,11 @@ class CustomSMTPHandler:
                         )
                         user = result.scalar_one_or_none()
                     if user:
+                        header_to = (msg.get("To") or "").strip()
                         email_obj = Email(
                             user_id=user.id,
                             from_address=from_address or (envelope.mail_from or ""),
-                            to_address=user.email,
+                            to_address=header_to or user.email,
                             from_name=from_name,
                             to_name=user.full_name,
                             subject=subject,

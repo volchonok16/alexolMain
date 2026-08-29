@@ -11,6 +11,7 @@ from telegram.ext import (
 
 import config
 from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
+from src.telegram_http import application_builder
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -66,7 +67,7 @@ def run_forward_bot() -> None:
     if not config.TELEGRAM_REQUESTS_CHAT_ID:
         raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
 
-    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+    application = application_builder(config.TELEGRAM_BOT_TOKEN).build()
 
     setup_forward_bot(application)
     setup_polling_error_handler(application)

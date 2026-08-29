@@ -4,16 +4,18 @@ import { useState } from 'react'
 export function PeerAvatar({
   src,
   email,
+  name,
   size = 40,
   className = '',
 }: {
   src?: string | null
   email: string
+  name?: string | null
   size?: number
   className?: string
 }) {
   const [failed, setFailed] = useState(false)
-  const initial = (email || '?').trim().charAt(0).toUpperCase() || '?'
+  const initial = (name || email || '?').trim().charAt(0).toUpperCase() || '?'
 
   if (!src || failed) {
     return (

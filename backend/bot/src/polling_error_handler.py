@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 
-from telegram.error import Conflict
+from telegram.error import Conflict, NetworkError, RetryAfter, TimedOut
 from telegram.ext import Application, ContextTypes
 
 _polling_conflict: bool = False
@@ -31,6 +31,10 @@ async def handle_polling_error(update: object, context: ContextTypes.DEFAULT_TYP
         _polling_conflict = True
         print("❌ Конфликт Telegram polling: другой экземпляр бота уже использует этот токен через getUpdates.")
         context.application.stop_running()
+        return
+
+    if isinstance(error, (NetworkError, TimedOut, RetryAfter)):
+        print(f"⚠️ Telegram сеть (повтор): {error}")
         return
 
     print(f"❌ Ошибка polling: {error}")

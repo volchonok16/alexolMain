@@ -6,14 +6,13 @@ from datetime import timedelta, datetime
 from typing import List, Optional
 import io
 import uuid
-import asyncio
 import secrets
 import string
 import base64
 
 from jose import JWTError, jwt
 
-from app.database import get_db, engine, Base, AsyncSessionLocal
+from app.database import get_db, engine, Base, AsyncSessionLocal, wait_for_database
 from app.models import User, Email, EmailTemplate
 from app.schemas import (
     UserCreate,
@@ -23,6 +22,7 @@ from app.schemas import (
     SyncUserCreate,
     SyncUserEnsure,
     SyncUserUpdate,
+    DirectoryPerson,
     LoginRequest,
     ForgotPasswordRequest,
     Token,
@@ -43,20 +43,17 @@ from app.config import settings
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.minio_client import minio_client
-from app.dkim_signer import sign_message
 from app.avatar_resolve import peer_info_map, to_browser_avatar_url
+from app.outbound import deliver_composed_email
+from app.recipients import (
+    format_to_header,
+    parse_recipient_addresses,
+    split_address_field,
+)
 from app import admin_sync
-import smtplib
-import ssl
-import httpx
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-from email.utils import formataddr
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from urllib.parse import unquote
-from html import escape as html_escape
 
 app = FastAPI(title="Mail Server API")
 
@@ -95,6 +92,7 @@ def verify_mail_sync_key(x_mail_sync_key: Optional[str] = Header(None, alias="X-
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and create default admin"""
+    await wait_for_database()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Existing DBs: create_all does not add new columns
@@ -301,6 +299,7 @@ async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Dep
         is_admin=user.is_admin,
         is_active=user.is_active,
         phone=user.phone,
+        job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
@@ -478,6 +477,7 @@ async def create_user(
         is_admin=user.is_admin,
         is_active=user.is_active,
         phone=user.phone,
+        job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
@@ -577,6 +577,7 @@ async def update_user_by_admin(
         is_admin=user.is_admin,
         is_active=user.is_active,
         phone=user.phone,
+        job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
@@ -609,6 +610,7 @@ async def make_user_admin(
         is_admin=True,
         is_active=user.is_active,
         phone=user.phone,
+        job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
@@ -648,6 +650,7 @@ async def remove_user_admin(
         is_admin=False,
         is_active=user.is_active,
         phone=user.phone,
+        job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
@@ -683,6 +686,7 @@ async def update_profile(
         is_admin=current_user.is_admin,
         is_active=current_user.is_active,
         phone=current_user.phone,
+        job_title=current_user.job_title,
         telegram=current_user.telegram,
         avatar_url=current_user.avatar_url,
     )
@@ -734,6 +738,7 @@ async def upload_avatar(
         is_admin=current_user.is_admin,
         is_active=current_user.is_active,
         phone=current_user.phone,
+        job_title=current_user.job_title,
         telegram=current_user.telegram,
         avatar_url=avatar_url,
     )
@@ -742,25 +747,71 @@ async def upload_avatar(
     return {"avatar_url": browser_url}
 
 
+@app.get("/api/directory", response_model=List[DirectoryPerson])
+async def search_directory(
+    q: str = "",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search colleagues by name, last name, login or email (Outlook-style To:)."""
+    _ = current_user
+    query = (q or "").strip()
+    stmt = select(User).where(User.is_active.is_(True))
+    if query:
+        like = f"%{query}%"
+        stmt = stmt.where(
+            or_(
+                User.full_name.ilike(like),
+                User.email.ilike(like),
+                User.username.ilike(like),
+                User.job_title.ilike(like),
+            )
+        )
+    result = await db.execute(stmt.order_by(User.full_name.asc()).limit(12))
+    users = result.scalars().all()
+    return [
+        DirectoryPerson(
+            email=u.email,
+            full_name=u.full_name,
+            job_title=u.job_title,
+            avatar_url=to_browser_avatar_url(u.avatar_url) or u.avatar_url,
+        )
+        for u in users
+    ]
+
+
 async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:
     """Attach from/to avatar URLs and display names."""
     rows = list(emails)
+    to_addrs: list[str] = []
+    for e in rows:
+        split = split_address_field(e.to_address)
+        to_addrs.extend(split or [e.to_address])
     peers = await peer_info_map(
         db,
-        [e.from_address for e in rows] + [e.to_address for e in rows],
+        [e.from_address for e in rows] + to_addrs,
     )
     out: List[EmailResponse] = []
     for e in rows:
         from_key = (e.from_address or "").lower()
-        to_key = (e.to_address or "").lower()
+        addrs = split_address_field(e.to_address)
+        first_to = addrs[0] if addrs else (e.to_address or "").lower()
         from_peer = peers.get(from_key)
-        to_peer = peers.get(to_key)
+        to_peer = peers.get(first_to)
         from_name = (getattr(e, "from_name", None) or "").strip() or (
             from_peer.name if from_peer else None
         )
-        to_name = (getattr(e, "to_name", None) or "").strip() or (
-            to_peer.name if to_peer else None
-        )
+        stored_to_name = (getattr(e, "to_name", None) or "").strip()
+        if stored_to_name:
+            to_name = stored_to_name
+        elif len(addrs) > 1:
+            labels = []
+            for addr in addrs:
+                peer = peers.get(addr)
+                labels.append((peer.name if peer and peer.name else addr) or addr)
+            to_name = ", ".join(labels)
+        else:
+            to_name = to_peer.name if to_peer else None
         body, html_body = coerce_stored_bodies(e.body, e.html_body)
         out.append(
             EmailResponse(
@@ -826,266 +877,50 @@ async def media_proxy(
     )
 
 
-def _wrap_outbound_html(content_html: str, signature_html: str) -> str:
-    """
-    Wrap fragment HTML in a Gmail/Outlook-friendly table layout.
-    Skip outer chrome if the fragment already looks like a full document.
-    """
-    lowered = (content_html or "").lower()
-    already_full = "<html" in lowered or "<body" in lowered
-    # Avoid double signature when a signature template already marked itself
-    has_sig = 'data-alexol-sig="1"' in lowered or "data-alexol-sig='1'" in lowered
-    sig = "" if has_sig else signature_html
-
-    if already_full:
-        return content_html + sig
-
-    return (
-        "<!DOCTYPE html>"
-        '<html lang="ru">'
-        "<head>"
-        '<meta charset="utf-8" />'
-        '<meta name="viewport" content="width=device-width, initial-scale=1" />'
-        "<title>Email</title>"
-        "</head>"
-        '<body style="margin:0;padding:0;background:#f1f5f9;">'
-        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-        'style="border-collapse:collapse;background:#f1f5f9;width:100%;">'
-        "<tr><td align=\"center\" style=\"padding:24px 12px;\">"
-        '<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
-        'style="border-collapse:collapse;width:100%;max-width:600px;'
-        'background:#ffffff;border-radius:12px;overflow:hidden;'
-        'border:1px solid #e2e8f0;">'
-        "<tr><td style=\"padding:28px 32px;font-family:-apple-system,BlinkMacSystemFont,"
-        "'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;"
-        'color:#0f172a;">'
-        f"{content_html}"
-        f"{sig}"
-        "</td></tr>"
-        "</table>"
-        "</td></tr>"
-        "</table>"
-        "</body>"
-        "</html>"
-    )
-
-
-def _build_and_send_email_message(
+async def _commit_and_deliver(
     *,
+    db: AsyncSession,
     current_user: User,
-    to_address: str,
+    to_raw: str,
     subject: str,
     body: str,
     html_body: Optional[str],
     attachments: Optional[List[tuple]] = None,
-):
-    """
-    Build MIME message (with optional attachments) and return (msg, sender_callable_or_coroutine).
-    attachments: list of tuples (filename, content_type, bytes_content).
-
-    Note: Gmail's header avatar (circle next to name) is Google-controlled and cannot be
-    set via SMTP - do not embed profile photos in the body as a fake substitute.
-    """
-    display_name = current_user.full_name or current_user.email
-
-    if html_body and html_body.strip():
-        content_html = html_body
-    else:
-        content_html = (
-            f"<pre style='font-family:inherit;white-space:pre-wrap;margin:0'>"
-            f"{html_escape(body or '')}</pre>"
-        )
-
-    signature_html = (
-        "<div data-alexol-sig=\"1\" style='margin-top:28px;padding-top:16px;"
-        "border-top:1px solid #e2e8f0;"
-        "font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'>"
-        f"<div style='font-weight:600;color:#0f172a;font-size:14px'>"
-        f"{html_escape(display_name)}</div>"
-        f"<div style='color:#64748b;font-size:13px;margin-top:2px'>"
-        f"{html_escape(current_user.email)}</div>"
-        "</div>"
+) -> Email:
+    addresses = parse_recipient_addresses(to_raw)
+    peers = await peer_info_map(db, addresses)
+    names = {
+        addr: (peers[addr].name or "")
+        for addr in addresses
+        if peers.get(addr) and peers[addr].name
+    }
+    to_labels = [
+        names[addr] if addr in names else addr
+        for addr in addresses
+    ]
+    email_obj = Email(
+        user_id=current_user.id,
+        from_address=current_user.email,
+        to_address=", ".join(addresses),
+        from_name=current_user.full_name,
+        to_name=", ".join(to_labels) if to_labels else None,
+        subject=subject,
+        body=body,
+        html_body=html_body,
+        is_sent=True,
     )
-    signature_text = f"\n\n--\n{display_name}\n{current_user.email}\n"
-
-    full_html = _wrap_outbound_html(content_html, signature_html)
-    full_text = (body or "") + signature_text
-
-    if attachments:
-        msg = MIMEMultipart("mixed")
-        alternative = MIMEMultipart("alternative")
-        msg.attach(alternative)
-    else:
-        msg = MIMEMultipart("alternative")
-        alternative = msg
-
-    msg["From"] = formataddr((display_name, current_user.email))
-    msg["To"] = to_address
-    msg["Subject"] = subject
-
-    alternative.attach(MIMEText(full_text, "plain", "utf-8"))
-    alternative.attach(MIMEText(full_html, "html", "utf-8"))
-
-    if attachments:
-        for filename, content_type, content in attachments:
-            part = MIMEApplication(content, Name=filename)
-            part.add_header(
-                "Content-Disposition", "attachment", filename=filename
-            )
-            if content_type:
-                part.add_header("Content-Type", content_type)
-            msg.attach(part)
-
-    msg = sign_message(msg)
-
-    print(f"[EMAIL] Starting send process: from={current_user.email}, to={to_address}")
-    try:
-        recipient_domain = to_address.split("@")[1] if "@" in to_address else None
-
-        if not recipient_domain:
-            raise HTTPException(status_code=400, detail="Invalid recipient email address")
-
-        print(
-            f"[EMAIL] Recipient domain: {recipient_domain}, Mail domain: {settings.MAIL_DOMAIN}"
-        )
-        print(
-            f"[EMAIL] SMTP_RELAY_ENABLED: {settings.SMTP_RELAY_ENABLED}, SMTP_RELAY_HOST: {settings.SMTP_RELAY_HOST}"
-        )
-
-        if (
-            recipient_domain != settings.MAIL_DOMAIN.replace("@", "")
-            and settings.SMTP_RELAY_ENABLED
-            and settings.SMTP_RELAY_HOST
-        ):
-            use_sendgrid_api = (
-                settings.SENDGRID_USE_API
-                and settings.SMTP_RELAY_HOST
-                and "sendgrid" in settings.SMTP_RELAY_HOST.lower()
-                and settings.SMTP_RELAY_PASSWORD
-            )
-            if use_sendgrid_api:
-                print(
-                    f"[EMAIL] Sending via SendGrid API (HTTPS) to {to_address}"
-                )
-                try:
-                    payload = {
-                        "personalizations": [{"to": [{"email": to_address}]}],
-                        "from": {
-                            "email": current_user.email,
-                            "name": current_user.full_name or current_user.email,
-                        },
-                        "subject": subject,
-                        "content": [
-                            {"type": "text/plain", "value": full_text or ""},
-                            {"type": "text/html", "value": full_html},
-                        ],
-                    }
-                    import httpx  # local import to avoid circular issues
-
-                    async def _send_via_sendgrid():
-                        async with httpx.AsyncClient(timeout=30.0) as client:
-                            r = await client.post(
-                                "https://api.sendgrid.com/v3/mail/send",
-                                json=payload,
-                                headers={
-                                    "Authorization": f"Bearer {settings.SMTP_RELAY_PASSWORD}",
-                                    "Content-Type": "application/json",
-                                },
-                            )
-                        if r.status_code >= 400:
-                            raise Exception(f"SendGrid API {r.status_code}: {r.text}")
-
-                    return msg, _send_via_sendgrid
-                except Exception as api_err:
-                    print(f"[EMAIL] SendGrid API error: {api_err}")
-                    raise
-            else:
-                print(f"[EMAIL] Sending via SMTP Relay to {to_address}")
-                print(
-                    f"[EMAIL] Relay config: {settings.SMTP_RELAY_HOST}:{settings.SMTP_RELAY_PORT}, user: {settings.SMTP_RELAY_USER}"
-                )
-
-                def _send_via_relay():
-                    with smtplib.SMTP(
-                        settings.SMTP_RELAY_HOST, settings.SMTP_RELAY_PORT
-                    ) as smtp:
-                        if settings.SMTP_RELAY_USE_TLS:
-                            smtp.starttls()
-                        if settings.SMTP_RELAY_USER and settings.SMTP_RELAY_PASSWORD:
-                            smtp.login(
-                                settings.SMTP_RELAY_USER, settings.SMTP_RELAY_PASSWORD
-                            )
-                        smtp.send_message(msg)
-
-                return msg, _send_via_relay
-        else:
-            print(
-                f"[EMAIL] Using direct SMTP (not using relay). Reason: domain={recipient_domain}, mail_domain={settings.MAIL_DOMAIN}, relay_enabled={settings.SMTP_RELAY_ENABLED}, relay_host={settings.SMTP_RELAY_HOST}"
-            )
-            import dns.resolver
-
-            def _send_direct():
-                try:
-                    mx_records = dns.resolver.resolve(recipient_domain, "MX")
-                    mx_records = sorted(mx_records, key=lambda r: r.preference)
-                    sent = False
-                    tls_ctx = ssl.create_default_context()
-                    for mx in mx_records:
-                        mx_host = str(mx.exchange).rstrip(".")
-                        try:
-                            with smtplib.SMTP(
-                                mx_host,
-                                25,
-                                timeout=30,
-                                local_hostname=settings.smtp_hostname,
-                            ) as smtp:
-                                smtp.ehlo()
-                                # Gmail marks "did not encrypt" if we skip STARTTLS on port 25
-                                if smtp.has_extn("starttls"):
-                                    smtp.starttls(context=tls_ctx)
-                                    smtp.ehlo()
-                                smtp.send_message(msg)
-                            print(f"[EMAIL] Sent via {mx_host}:25 (STARTTLS if available)")
-                            sent = True
-                            break
-                        except Exception as mx_error:
-                            print(f"Failed to send via {mx_host}: {mx_error}")
-                            continue
-                    if not sent:
-                        raise Exception("All MX servers failed")
-                except dns.resolver.NXDOMAIN:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Domain {recipient_domain} does not exist",
-                    )
-                except dns.resolver.NoAnswer:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"No MX records found for {recipient_domain}",
-                    )
-                except Exception as dns_error:
-                    if recipient_domain == settings.MAIL_DOMAIN.replace("@", ""):
-                        with smtplib.SMTP(
-                            "localhost",
-                            settings.SMTP_PORT,
-                            local_hostname=settings.smtp_hostname,
-                        ) as smtp:
-                            smtp.send_message(msg)
-                    else:
-                        raise HTTPException(
-                            status_code=500,
-                            detail=f"Failed to send email: {str(dns_error)}",
-                        )
-
-            return msg, _send_direct
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Could not prepare email for sending: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to send email: {str(e)}",
-        )
+    db.add(email_obj)
+    await db.commit()
+    await deliver_composed_email(
+        current_user=current_user,
+        to_addresses=addresses,
+        to_header=format_to_header(addresses, names),
+        subject=subject,
+        body=body,
+        html_body=html_body,
+        attachments=attachments,
+    )
+    return email_obj
 
 
 @app.post("/api/emails/send")
@@ -1094,40 +929,16 @@ async def send_email(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Send email without attachments (JSON payload)"""
-    to_addr = (email_data.to_address or "").strip().lower()
-    peers = await peer_info_map(db, [to_addr])
-    to_peer = peers.get(to_addr)
-    # Save to database as sent
-    email_obj = Email(
-        user_id=current_user.id,
-        from_address=current_user.email,
-        to_address=email_data.to_address,
-        from_name=current_user.full_name,
-        to_name=to_peer.name if to_peer else None,
-        subject=email_data.subject,
-        body=email_data.body,
-        html_body=email_data.html_body,
-        is_sent=True
-    )
-    db.add(email_obj)
-    await db.commit()
-
-    msg, sender = _build_and_send_email_message(
+    """Send email without attachments (JSON payload). To: accepts several addresses."""
+    email_obj = await _commit_and_deliver(
+        db=db,
         current_user=current_user,
-        to_address=email_data.to_address,
+        to_raw=email_data.to_address,
         subject=email_data.subject,
         body=email_data.body,
         html_body=email_data.html_body,
         attachments=None,
     )
-
-    send_callable = sender
-    if asyncio.iscoroutinefunction(send_callable):
-        await send_callable()
-    else:
-        send_callable()
-
     return {"message": "Email sent successfully", "email_id": email_obj.id}
 
 
@@ -1258,44 +1069,21 @@ async def send_email_with_attachments(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Send email with optional file attachments (multipart/form-data)."""
-    to_norm = (to_address or "").strip().lower()
-    peers = await peer_info_map(db, [to_norm])
-    to_peer = peers.get(to_norm)
-    email_obj = Email(
-        user_id=current_user.id,
-        from_address=current_user.email,
-        to_address=to_address,
-        from_name=current_user.full_name,
-        to_name=to_peer.name if to_peer else None,
-        subject=subject,
-        body=body,
-        html_body=html_body,
-        is_sent=True,
-    )
-    db.add(email_obj)
-    await db.commit()
-
+    """Send email with optional file attachments (multipart/form-data). To: accepts several addresses."""
     attachments_data: List[tuple] = []
     for file in files or []:
         content = await file.read()
         attachments_data.append((file.filename, file.content_type or "", content))
 
-    msg, sender = _build_and_send_email_message(
+    email_obj = await _commit_and_deliver(
+        db=db,
         current_user=current_user,
-        to_address=to_address,
+        to_raw=to_address,
         subject=subject,
         body=body,
         html_body=html_body,
         attachments=attachments_data or None,
     )
-
-    send_callable = sender
-    if asyncio.iscoroutinefunction(send_callable):
-        await send_callable()
-    else:
-        send_callable()
-
     return {"message": "Email sent successfully", "email_id": email_obj.id}
 
 @app.get("/api/emails/inbox", response_model=List[EmailResponse])
@@ -1445,7 +1233,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         existing.is_admin = bool(user_data.is_admin)
         existing.is_active = bool(user_data.is_active)
         if user_data.phone is not None:
-            existing.phone = user_data.phone
+            existing.phone = (user_data.phone or "").strip() or None
         if user_data.job_title is not None:
             existing.job_title = (user_data.job_title or "").strip() or None
         if user_data.telegram is not None:

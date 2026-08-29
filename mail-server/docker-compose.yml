@@ -3,6 +3,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: mail_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: mailuser
       POSTGRES_PASSWORD: mailpass
@@ -17,12 +18,16 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - mail_network
+      mail_network:
+        aliases:
+          - postgres
+          - mail_postgres
 
   # MinIO Object Storage
   minio:
     image: minio/minio:latest
     container_name: mail_minio
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -38,7 +43,10 @@ services:
       timeout: 20s
       retries: 3
     networks:
-      - mail_network
+      mail_network:
+        aliases:
+          - minio
+          - mail_minio
 
   # Backend API + SMTP/IMAP Server
   backend:
@@ -47,8 +55,9 @@ services:
       dockerfile: Dockerfile
     container_name: mail_backend
     environment:
-      DATABASE_URL: postgresql+asyncpg://mailuser:mailpass@postgres:5432/maildb
-      MINIO_ENDPOINT: minio:9000
+      # mail_postgres = container_name (stable DNS when backend is on two networks)
+      DATABASE_URL: postgresql+asyncpg://mailuser:mailpass@mail_postgres:5432/maildb
+      MINIO_ENDPOINT: mail_minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: avatars
@@ -67,7 +76,7 @@ services:
       # SMTP_RELAY_ENABLED=true, SMTP_RELAY_HOST=..., SMTP_RELAY_PASSWORD=...
       SMTP_RELAY_ENABLED: "false"
       # Sync URL для аутентификации на порту 587 (логин/пароль из БД)
-      DATABASE_URL_SYNC: postgresql://mailuser:mailpass@postgres:5432/maildb
+      DATABASE_URL_SYNC: postgresql://mailuser:mailpass@mail_postgres:5432/maildb
       # Let's Encrypt сертификаты для SMTP/IMAP TLS (порты 587, 993)
       SMTP_TLS_CERT_FILE: "/etc/letsencrypt/live/mail.alexol.io/fullchain.pem"
       SMTP_TLS_KEY_FILE: "/etc/letsencrypt/live/mail.alexol.io/privkey.pem"

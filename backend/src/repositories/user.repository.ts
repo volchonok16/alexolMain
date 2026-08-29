@@ -7,6 +7,7 @@ type UserCreateData = {
   role: string;
   email?: string | null;
   phone?: string | null;
+  jobTitle?: string | null;
   telegram?: string | null;
   photo?: string | null;
   birthDate?: Date | null;
@@ -19,6 +20,7 @@ type UserUpdateData = {
   role?: string;
   email?: string | null;
   phone?: string | null;
+  jobTitle?: string | null;
   telegram?: string | null;
   photo?: string | null;
   birthDate?: Date | null;
@@ -30,6 +32,7 @@ const publicSelect = {
   name: true,
   email: true,
   phone: true,
+  jobTitle: true,
   telegram: true,
   role: true,
   photo: true,
