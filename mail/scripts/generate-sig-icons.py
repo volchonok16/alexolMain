@@ -71,14 +71,14 @@ def save(img: Image.Image, name: str) -> None:
         print("wrote", path)
 
 
-def raster_svg(svg: str, size: int = SRC) -> Image.Image:
+def raster_svg(svg: str, size: int = SRC, pad_color: tuple[int, int, int, int] = (0, 0, 0, 0)) -> Image.Image:
     doc = pymupdf.open(stream=svg.encode("utf-8"), filetype="svg")
     page = doc[0]
     scale = size / max(page.rect.width, page.rect.height)
     pix = page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=True)
     img = Image.open(BytesIO(pix.tobytes("png"))).convert("RGBA")
     if img.size != (size, size):
-        canvas_img = Image.new("RGBA", (size, size), BG)
+        canvas_img = Image.new("RGBA", (size, size), pad_color)
         x = (size - img.width) // 2
         y = (size - img.height) // 2
         canvas_img.paste(img, (x, y), img)
@@ -86,13 +86,27 @@ def raster_svg(svg: str, size: int = SRC) -> Image.Image:
     return img
 
 
+def knockout_dark_bg(img: Image.Image) -> Image.Image:
+    """Turn near-black fill into real transparency so email clients don't show a square."""
+    out = img.copy()
+    pixels = out.load()
+    width, height = out.size
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = pixels[x, y]
+            if a == 0:
+                continue
+            if r <= 28 and g <= 32 and b <= 40:
+                pixels[x, y] = (0, 0, 0, 0)
+    return out
+
+
 def draw_phone() -> Image.Image:
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 28 28">
-      <rect x="-2" y="-2" width="28" height="28" fill="#0C0F16"/>
       <path fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"
         stroke-linejoin="round" d="{LUCIDE_PHONE}"/>
     </svg>"""
-    return raster_svg(svg)
+    return knockout_dark_bg(raster_svg(svg))
 
 
 def draw_brand(path: str, fill: str) -> Image.Image:

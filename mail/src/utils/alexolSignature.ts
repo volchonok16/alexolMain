@@ -1,7 +1,7 @@
 /** Per-user Alexol signature. Hosted PNGs on mail.alexol.io (same deploy as the mail SPA). */
 
 const ASSET = 'https://mail.alexol.io/email'
-const ASSET_V = 'v=5'
+const ASSET_V = 'v=7'
 const SITE_HREF = 'https://alexol.io'
 const SITE_LABEL = 'alexol.io'
 const TELEGRAM_FALLBACK = 'https://t.me/AlexolBot'
@@ -50,7 +50,7 @@ function telegramHref(raw?: string): string {
 function png(file: string, width: number, height: number, extra = ''): string {
   return (
     `<img src="${ASSET}/${file}?${ASSET_V}" width="${width}" height="${height}" alt="" ` +
-    `style="display:block;border:0;width:${width}px;height:${height}px;${extra}" />`
+    `style="display:block;border:0;background:transparent;width:${width}px;height:${height}px;${extra}" />`
   )
 }
 
