@@ -51,7 +51,7 @@ def telegram_request(*, for_get_updates: bool = False) -> HTTPXRequest:
 
 def application_builder(token: str) -> ApplicationBuilder:
     return (
-        Application.builder()
+        ApplicationBuilder()
         .token(token)
         .request(telegram_request())
         .get_updates_request(telegram_request(for_get_updates=True))
