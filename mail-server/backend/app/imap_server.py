@@ -6,7 +6,7 @@ IMAP4rev1 сервер: даёт доступ к почте через стан�
   993  - SSL (IMAPS)
 
 Поддерживаемые команды:
-  CAPABILITY, NOOP, LOGOUT, LOGIN, AUTHENTICATE, STARTTLS,
+  CAPABILITY, NOOP, IDLE, LOGOUT, LOGIN, AUTHENTICATE, STARTTLS,
   SELECT, EXAMINE, LIST, LSUB, STATUS, SEARCH, FETCH, UID, STORE,
   EXPUNGE, CLOSE, NAMESPACE, ID, SUBSCRIBE, UNSUBSCRIBE
 """
@@ -327,6 +327,7 @@ class IMAPSession:
         dispatch = {
             'CAPABILITY': self._capability,
             'NOOP': self._noop,
+            'IDLE': self._idle,
             'LOGOUT': self._logout,
             'LOGIN': self._login,
             'AUTHENTICATE': self._authenticate,
@@ -347,7 +348,7 @@ class IMAPSession:
             'SUBSCRIBE': self._ok,
             'UNSUBSCRIBE': self._ok,
             'APPEND': self._ok,
-            'CHECK': self._ok,
+            'CHECK': self._noop,
             'COPY': self._ok,
         }
         handler = dispatch.get(cmd, self._unknown)
@@ -358,14 +359,55 @@ class IMAPSession:
     # ------------------------------------------------------------------
 
     async def _capability(self, tag, cmd, args):
-        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN'
+        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
         await self._send(f'{tag} OK CAPABILITY completed')
 
+    async def _push_mailbox_updates(self) -> None:
+        """Re-read DB and tell the client if new messages appeared (NOOP/IDLE)."""
+        if self.state != self.SELECTED or not self.selected_mailbox:
+            return
+        old_n = len(self.selected_emails)
+        old_ids = {e['id'] for e in self.selected_emails}
+        if self.selected_mailbox == 'Sent':
+            emails = self._fetch_sent()
+        else:
+            emails = self._fetch_inbox()
+        self.selected_emails = emails
+        n = len(emails)
+        recent = sum(1 for e in emails if e['id'] not in old_ids)
+        if n != old_n or recent:
+            await self._send(f'* {n} EXISTS')
+            if recent:
+                await self._send(f'* {recent} RECENT')
+
     async def _noop(self, tag, cmd, args):
-        await self._send(f'{tag} OK NOOP completed')
+        await self._push_mailbox_updates()
+        await self._send(f'{tag} OK {cmd} completed')
+
+    async def _idle(self, tag, cmd, args):
+        if self.state != self.SELECTED:
+            await self._send(f'{tag} NO Not in selected state')
+            return
+        await self._send('+ idling')
+        try:
+            while True:
+                try:
+                    line = await asyncio.wait_for(self.reader.readline(), timeout=20)
+                except asyncio.TimeoutError:
+                    await self._push_mailbox_updates()
+                    continue
+                if not line:
+                    break
+                text = line.decode('utf-8', errors='replace').strip()
+                if text.upper() == 'DONE' or text.upper().endswith(' DONE'):
+                    break
+            await self._push_mailbox_updates()
+            await self._send(f'{tag} OK IDLE completed')
+        except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
+            raise
 
     async def _ok(self, tag, cmd, args):
         await self._send(f'{tag} OK {cmd} completed')
@@ -458,12 +500,15 @@ class IMAPSession:
         self.selected_emails = emails
         self.state = self.SELECTED
         n = len(emails)
-        unseen = sum(1 for e in emails if '\\Seen' not in e['flags'])
+        first_unseen = next(
+            (i + 1 for i, e in enumerate(emails) if '\\Seen' not in e['flags']),
+            None,
+        )
 
         await self._send(f'* {n} EXISTS')
         await self._send(f'* 0 RECENT')
-        if unseen:
-            await self._send(f'* OK [UNSEEN {unseen}]')
+        if first_unseen:
+            await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
         await self._send(f'* OK [PERMANENTFLAGS (\\Seen \\Answered \\Flagged \\Deleted \\Draft)]')
         await self._send(f'* OK [UIDVALIDITY 1]')
         await self._send(f'* OK [UIDNEXT {(emails[-1]["id"] + 1) if emails else 1}]')
