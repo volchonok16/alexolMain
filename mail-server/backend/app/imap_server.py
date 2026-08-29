@@ -292,8 +292,11 @@ class IMAPSession:
         self.selected_mailbox: str | None = None
         self.selected_emails: list[dict] = []
 
-    # ------------------------------------------------------------------
+    def _peer(self):
+        return self.writer.get_extra_info("peername")
+
     async def handle(self):
+        logger.info("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
         await self._send(f'* OK {settings.smtp_hostname} IMAP4rev1 Service Ready')
         try:
             while self.state != self.LOGOUT:
@@ -350,6 +353,7 @@ class IMAPSession:
             'SELECT': self._select,
             'EXAMINE': self._select,
             'LIST': self._list,
+            'XLIST': self._list,
             'LSUB': self._lsub,
             'STATUS': self._status,
             'SEARCH': self._search,
@@ -374,7 +378,7 @@ class IMAPSession:
     # ------------------------------------------------------------------
 
     async def _capability(self, tag, cmd, args):
-        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE'
+        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE SPECIAL-USE'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
@@ -445,7 +449,9 @@ class IMAPSession:
             self.user = user
             self.state = self.AUTHENTICATED
             await self._send(f'{tag} OK LOGIN completed')
+            logger.info("IMAP LOGIN ok user=%s peer=%s", user.email, self._peer())
         else:
+            logger.warning("IMAP LOGIN failed user=%r peer=%s", parts[0], self._peer())
             await self._send(f'{tag} NO [AUTHENTICATIONFAILED] Invalid credentials')
 
     async def _authenticate(self, tag, cmd, args):
@@ -470,6 +476,7 @@ class IMAPSession:
                 self.user = user
                 self.state = self.AUTHENTICATED
                 await self._send(f'{tag} OK AUTHENTICATE completed')
+                logger.info("IMAP AUTHENTICATE ok user=%s peer=%s", user.email, self._peer())
             else:
                 await self._send(f'{tag} NO [AUTHENTICATIONFAILED] Invalid credentials')
         else:
@@ -529,10 +536,17 @@ class IMAPSession:
         await self._send(f'* OK [UIDNEXT {(emails[-1]["id"] + 1) if emails else 1}]')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
+        logger.info(
+            "IMAP %s mailbox=%s messages=%s user=%s",
+            cmd,
+            self.selected_mailbox,
+            n,
+            self.user.email if self.user else "?",
+        )
 
     async def _list(self, tag, cmd, args):
-        await self._send('* LIST (\\HasNoChildren) "/" "INBOX"')
-        await self._send('* LIST (\\HasNoChildren \\Sent) "/" "Sent"')
+        await self._send('* LIST (\\HasNoChildren \\Inbox) "/" INBOX')
+        await self._send('* LIST (\\HasNoChildren \\Sent) "/" Sent')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
