@@ -350,13 +350,29 @@ class SMTPServer:
         self._thread = threading.Thread(target=thread_target, daemon=True)
         self._thread.start()
 
-    async def cleanup(self):
-        if self.handler and hasattr(self.handler, "_async_engine"):
+    async def _dispose_engines(self):
+        if not self.handler:
+            return
+        try:
             await self.handler._async_engine.dispose()
-        if self.handler and hasattr(self.handler, "_sync_engine"):
+        except Exception:
+            logger.warning("SMTP async engine dispose failed", exc_info=True)
+        try:
             self.handler._sync_engine.dispose()
+        except Exception:
+            logger.warning("SMTP sync engine dispose failed", exc_info=True)
+
+    async def cleanup(self):
+        """Engines are disposed on the SMTP loop inside stop()."""
+        return
 
     def stop(self):
+        if self._loop and self._loop.is_running():
+            fut = asyncio.run_coroutine_threadsafe(self._dispose_engines(), self._loop)
+            try:
+                fut.result(timeout=8)
+            except Exception:
+                logger.warning("SMTP engine dispose on worker loop failed", exc_info=True)
         if self._loop and self._servers:
             for s in self._servers:
                 s.close()
