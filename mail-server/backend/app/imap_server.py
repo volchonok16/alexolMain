@@ -35,6 +35,21 @@ from app.database import sync_connect_args
 
 logger = logging.getLogger(__name__)
 
+# Bump when FETCH/UID format changes so Outlook drops a stale empty cache.
+UIDVALIDITY = 2
+_IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+
+
+def _imap_internaldate(dt: datetime) -> str:
+    """RFC 3501 INTERNALDATE: \"07-Jan-2026 15:04:05 +0000\"."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    dt = dt.astimezone(timezone.utc)
+    return (
+        f'"{dt.day:02d}-{_IMAP_MONTHS[dt.month - 1]}-{dt.year} '
+        f"{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d} +0000\""
+    )
+
 # ---------------------------------------------------------------------------
 # TLS helpers
 # ---------------------------------------------------------------------------
@@ -198,7 +213,7 @@ def _build_fetch_response(seq_num: int, em: dict, items_str: str,
         add_text(f"FLAGS ({flags_str})")
 
     if "INTERNALDATE" in upper:
-        add_text(f'INTERNALDATE "{date_str}"')
+        add_text(f"INTERNALDATE {_imap_internaldate(date)}")
 
     peek = "BODY.PEEK[" in upper
     body_bracket = "BODY[" in upper.replace(" ", "") or peek
@@ -532,7 +547,7 @@ class IMAPSession:
         if first_unseen:
             await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
         await self._send(f'* OK [PERMANENTFLAGS (\\Seen \\Answered \\Flagged \\Deleted \\Draft)]')
-        await self._send(f'* OK [UIDVALIDITY 1]')
+        await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}]')
         await self._send(f'* OK [UIDNEXT {(emails[-1]["id"] + 1) if emails else 1}]')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
@@ -568,7 +583,7 @@ class IMAPSession:
         unseen = sum(1 for e in emails if '\\Seen' not in e['flags'])
         uid_next = (emails[-1]['id'] + 1) if emails else 1
         await self._send(f'* STATUS "{parts[0].strip(chr(34))}" '
-                         f'(MESSAGES {n} RECENT 0 UNSEEN {unseen} UIDNEXT {uid_next} UIDVALIDITY 1)')
+                         f'(MESSAGES {n} RECENT 0 UNSEEN {unseen} UIDNEXT {uid_next} UIDVALIDITY {UIDVALIDITY})')
         await self._send(f'{tag} OK STATUS completed')
 
     async def _search(self, tag, cmd, args):
@@ -638,6 +653,15 @@ class IMAPSession:
             else:
                 self.selected_emails = self._fetch_inbox()
             pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
+        logger.info(
+            "IMAP FETCH user=%s mailbox=%s uid=%s set=%s items=%s hits=%s",
+            self.user.email if self.user else "?",
+            self.selected_mailbox,
+            uid_mode,
+            seq_set,
+            items_str[:80],
+            len(pairs),
+        )
         for seq_num, em in pairs:
             await self._send_bytes(_build_fetch_response(seq_num, em, items_str, uid_mode))
         await self._send(f"{tag} OK FETCH completed")
