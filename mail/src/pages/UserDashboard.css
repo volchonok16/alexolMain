@@ -1,11 +1,15 @@
 .dashboard-container {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   background: var(--color-bg);
   display: flex;
   flex-direction: column;
 }
 
 .dashboard-nav {
+  flex-shrink: 0;
   background: var(--color-surface);
   padding: 1rem 2rem;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
@@ -99,6 +103,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  min-height: 0;
+  overflow-y: auto;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
   border-right: 1px solid var(--color-border);
 }
@@ -126,6 +132,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .menu-item {
@@ -163,6 +171,7 @@
 
 .user-info {
   margin-top: auto;
+  flex-shrink: 0;
   padding-top: 1.5rem;
   border-top: 1px solid rgba(148, 163, 184, 0.3);
   display: flex;
@@ -210,6 +219,15 @@
   background: var(--color-bg);
 }
 
+.org-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .mail-list-pane {
   width: min(400px, 38%);
   min-width: 280px;
@@ -221,6 +239,7 @@
 }
 
 .mail-list-pane .content-header {
+  flex-shrink: 0;
   padding: 0.85rem 1rem 0.65rem;
   margin-bottom: 0;
   border-bottom: 1px solid var(--color-border);
@@ -233,7 +252,11 @@
 
 .mail-list-pane .emails-list {
   flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border-radius: 0;
   box-shadow: none;
   border: none;
@@ -280,6 +303,7 @@
 }
 
 .mail-reader-toolbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -408,6 +432,7 @@
 }
 
 .content-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1303,6 +1328,7 @@ textarea {
 
 @media (max-width: 768px) {
   .dashboard-container {
+    height: 100dvh;
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 

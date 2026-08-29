@@ -124,6 +124,12 @@ async def startup_event():
         await conn.execute(
             text("ALTER TABLE emails ADD COLUMN IF NOT EXISTS raw_rfc822 BYTEA")
         )
+        await conn.execute(
+            text(
+                "ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_draft "
+                "BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        )
         # Existing admin-created templates become org-shared so users keep access
         await conn.execute(
             text(
@@ -881,6 +887,7 @@ async def _commit_and_deliver(
         names[addr] if addr in names else addr
         for addr in addresses
     ]
+    await admin_sync.ensure_user_avatar(current_user, db)
     email_obj = Email(
         user_id=current_user.id,
         from_address=current_user.email,
@@ -1079,7 +1086,11 @@ async def get_inbox(
     """Get user inbox"""
     result = await db.execute(
         select(Email)
-        .where(Email.user_id == current_user.id, Email.is_sent == False)
+        .where(
+            Email.user_id == current_user.id,
+            Email.is_sent == False,
+            Email.is_draft == False,
+        )
         .order_by(Email.received_at.desc())
     )
     emails = result.scalars().all()
@@ -1093,7 +1104,11 @@ async def get_sent(
     """Get sent emails"""
     result = await db.execute(
         select(Email)
-        .where(Email.user_id == current_user.id, Email.is_sent == True)
+        .where(
+            Email.user_id == current_user.id,
+            Email.is_sent == True,
+            Email.is_draft == False,
+        )
         .order_by(Email.received_at.desc())
     )
     emails = result.scalars().all()
@@ -1194,8 +1209,12 @@ def _apply_avatar_from_sync(user: User, user_data: SyncUserEnsure | SyncUserUpda
         except Exception as exc:
             print(f"[sync] avatar base64 upload failed: {exc}")
     elif avatar_url:
-        imported = import_avatar_to_minio(username, source_url=avatar_url.strip())
-        user.avatar_url = imported or avatar_url.strip()
+        source = avatar_url.strip()
+        imported = import_avatar_to_minio(username, source_url=source)
+        if imported:
+            user.avatar_url = imported
+        elif "/uploads/" in source or "api.alexol.io" in source:
+            user.avatar_url = source
 
 
 @app.post("/api/internal/users/ensure", response_model=UserResponse, dependencies=[Depends(verify_mail_sync_key)])

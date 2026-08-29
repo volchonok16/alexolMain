@@ -7,6 +7,10 @@ function mailboxFrom(raw?: string | null): string {
   return (angled?.[1] || value).replace(/^mailto:/i, '').trim().toLowerCase()
 }
 
+function isDummyAvatar(url: string): boolean {
+  return /unavatar\.io|gravatar\.com\/avatar/i.test(url)
+}
+
 /** Avatar for from/to with initials fallback if image fails. */
 export function PeerAvatar({
   src,
@@ -23,9 +27,10 @@ export function PeerAvatar({
 }) {
   const [attempt, setAttempt] = useState(0)
   const mailbox = mailboxFrom(email)
+  const resolved = resolveAvatarUrl(src)
   const candidates = [
-    resolveAvatarUrl(src),
     mailbox ? publicAvatarUrl(mailbox) : null,
+    resolved && !isDummyAvatar(resolved) ? resolved : null,
   ].filter((item, index, all): item is string => Boolean(item) && all.indexOf(item) === index)
 
   const current = candidates[attempt]

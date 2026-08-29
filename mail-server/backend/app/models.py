@@ -51,6 +51,7 @@ class Email(Base):
     raw_rfc822 = Column(LargeBinary, nullable=True)
     is_read = Column(Boolean, default=False)
     is_sent = Column(Boolean, default=False)
+    is_draft = Column(Boolean, default=False)
     received_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="emails")

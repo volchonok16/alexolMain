@@ -8,7 +8,6 @@ import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
 import { openSiteAdmin } from '../sso'
-import { resolveAvatarUrl } from '../utils/avatarUrl'
 import {
   starterHtml,
   templateTypeLabel,
@@ -426,6 +425,7 @@ export default function UserDashboard() {
       phone: user?.phone,
       email: user?.email,
       telegram: user?.telegram,
+      avatar_url: user?.avatar_url,
     }
 
     try {
@@ -438,6 +438,7 @@ export default function UserDashboard() {
           phone: data.phone,
           email: data.email,
           telegram: data.telegram,
+          avatar_url: data.avatar_url,
         }
       }
     } catch {
@@ -659,16 +660,13 @@ export default function UserDashboard() {
           </div>
 
           <div className="user-info">
-            {resolveAvatarUrl(user?.avatar_url) ? (
-              <img
-                src={resolveAvatarUrl(user?.avatar_url)!}
-                alt=""
-                className="user-avatar"
-                onError={(e) => {
-                  ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-                }}
-              />
-            ) : null}
+            <PeerAvatar
+              src={user?.avatar_url}
+              email={user?.email || ''}
+              name={user?.full_name}
+              size={48}
+              className="user-avatar"
+            />
             <div>
               <div className="user-name">{user?.full_name}</div>
               <div className="user-email">{user?.email}</div>

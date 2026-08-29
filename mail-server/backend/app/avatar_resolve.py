@@ -7,7 +7,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from typing import Iterable, Optional, Tuple
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import quote, unquote
 
 from email.utils import parseaddr
 from sqlalchemy import func, select
@@ -82,10 +82,34 @@ def to_public_avatar_url(url: Optional[str]) -> Optional[str]:
     return f"{base}/{browser}"
 
 
+def admin_origin() -> str:
+    """alexolMain origin for /uploads (strip trailing /api)."""
+    base = (settings.ALEXOL_API_URL or "https://api.alexol.io").rstrip("/")
+    if base.lower().endswith("/api"):
+        base = base[:-4]
+    return base or "https://api.alexol.io"
+
+
+def admin_upload_candidates(filename: str) -> list[str]:
+    name = (filename or "").strip().split("/")[-1].split("?")[0]
+    if not name or "." not in name:
+        return []
+    if not name.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
+        return []
+    origin = admin_origin()
+    urls = [f"{origin}/uploads/{name}"]
+    public = f"https://api.alexol.io/uploads/{name}"
+    if public not in urls:
+        urls.append(public)
+    return urls
+
+
 def minio_object_name_from_avatar_url(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
     url = unquote(url.strip())
+    if "/uploads/" in url:
+        return None
     bucket = settings.MINIO_BUCKET
     marker = f"/{bucket}/"
     if marker in url:
@@ -95,13 +119,6 @@ def minio_object_name_from_avatar_url(url: Optional[str]) -> Optional[str]:
         if parts and parts[0] == bucket:
             return "/".join(parts[1:]).lstrip("/") or None
         return "/".join(parts).lstrip("/") or None
-    parsed = urlparse(url)
-    if parsed.scheme in ("http", "https") and parsed.path:
-        name = parsed.path.rsplit("/", 1)[-1]
-        if "." in name and name.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
-            # Bare object names stored without a bucket prefix
-            if bucket not in parsed.path:
-                return name
     return None
 
 
@@ -116,8 +133,34 @@ def _guess_image_type(name: str, fallback: str = "image/jpeg") -> str:
     return fallback
 
 
+def _http_fetch_image(url: str) -> Optional[Tuple[bytes, str, str]]:
+    raw = (url or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("/uploads/"):
+        raw = f"{admin_origin()}{raw}"
+    if not raw.startswith("http://") and not raw.startswith("https://"):
+        return None
+    if "minio:9000" in raw or "://minio/" in raw:
+        return None
+    try:
+        import httpx
+
+        with httpx.Client(timeout=8.0, follow_redirects=True) as client:
+            resp = client.get(raw)
+            resp.raise_for_status()
+        ctype = (resp.headers.get("content-type") or "image/jpeg").split(";")[0]
+        if not ctype.startswith("image/"):
+            return None
+        name = raw.rsplit("/", 1)[-1].split("?", 1)[0] or "avatar.jpg"
+        return resp.content, ctype, name
+    except Exception as e:
+        logger.warning("Could not fetch remote avatar %s: %s", raw, e)
+        return None
+
+
 def load_avatar_bytes(avatar_url: Optional[str]) -> Optional[Tuple[bytes, str, str]]:
-    """Load avatar from MinIO or an http(s) photo URL. Returns (bytes, content_type, filename)."""
+    """Load avatar from MinIO, then admin /uploads, then the original http(s) URL."""
     if not avatar_url:
         return None
     object_name = minio_object_name_from_avatar_url(avatar_url)
@@ -134,29 +177,20 @@ def load_avatar_bytes(avatar_url: Optional[str]) -> Optional[Tuple[bytes, str, s
                 obj.release_conn()
             return data, _guess_image_type(object_name), object_name.split("/")[-1]
         except Exception as e:
-            logger.warning("Could not load avatar from MinIO: %s", e)
+            logger.info("MinIO miss for %s (%s); trying admin /uploads", object_name, e)
+            for candidate in admin_upload_candidates(object_name.split("/")[-1]):
+                recovered = _http_fetch_image(candidate)
+                if recovered:
+                    return recovered
 
     raw = avatar_url.strip()
-    if raw.startswith("/uploads/"):
-        base = (settings.ALEXOL_API_URL or "https://api.alexol.io").rstrip("/")
-        raw = f"{base}{raw}"
-    if raw.startswith("http://") or raw.startswith("https://"):
-        if "minio:9000" in raw or "://minio/" in raw:
-            return None
-        try:
-            import httpx
-
-            with httpx.Client(timeout=8.0, follow_redirects=True) as client:
-                resp = client.get(raw)
-                resp.raise_for_status()
-            ctype = (resp.headers.get("content-type") or "image/jpeg").split(";")[0]
-            if not ctype.startswith("image/"):
-                return None
-            name = raw.rsplit("/", 1)[-1].split("?", 1)[0] or "avatar.jpg"
-            return resp.content, ctype, name
-        except Exception as e:
-            logger.warning("Could not fetch remote avatar: %s", e)
-    return None
+    if "/uploads/" in raw:
+        name = raw.split("/uploads/", 1)[1].split("?", 1)[0]
+        for candidate in admin_upload_candidates(name) or [raw]:
+            fetched = _http_fetch_image(candidate)
+            if fetched:
+                return fetched
+    return _http_fetch_image(raw)
 
 
 def _ext_from_content_type(content_type: str) -> str:
@@ -258,13 +292,13 @@ async def peer_info_map(
     for addr in unique:
         user = users.get(addr)
         if user and is_local_mailbox(addr):
-            browser = to_browser_avatar_url(user.avatar_url) if user.avatar_url else None
-            avatar = browser or local_avatar_api_path(addr)
+            avatar = local_avatar_api_path(addr)
         elif user and user.avatar_url:
             browser = to_browser_avatar_url(user.avatar_url)
-            avatar = browser or unavatar_url(addr)
+            avatar = browser or local_avatar_api_path(addr)
         else:
-            avatar = unavatar_url(addr)
+            # No dummy Gravatar/Unavatar silhouettes — SPA falls back to initials.
+            avatar = ""
         name = (user.full_name.strip() if user and user.full_name else None) or None
         out[addr] = PeerInfo(avatar_url=avatar, name=name)
     return out

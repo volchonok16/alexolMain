@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
-from app.avatar_resolve import load_avatar_bytes, to_browser_avatar_url
+from app.avatar_resolve import load_avatar_bytes, local_avatar_api_path, to_browser_avatar_url
 from app.config import settings
 from app.database import get_db
 from app import admin_sync
@@ -43,7 +43,9 @@ def _person(user: User, busy: Optional[CalendarBusySlot] = None) -> DirectoryPer
         email=user.email,
         full_name=user.full_name,
         job_title=user.job_title,
-        avatar_url=to_browser_avatar_url(user.avatar_url) or user.avatar_url,
+        avatar_url=local_avatar_api_path(user.email)
+        or to_browser_avatar_url(user.avatar_url)
+        or user.avatar_url,
         phone=user.phone,
         telegram=user.telegram,
         username=user.username,
@@ -372,6 +374,8 @@ async def list_contacts(
 ):
     _ = current_user
     users = await _load_colleagues(db, "", 500)
+    for user in users:
+        await admin_sync.ensure_user_avatar(user, db)
     busy = await _busy_now_by_email(db)
     return [_person(u, busy.get(u.email.lower())) for u in users]
 
@@ -400,16 +404,29 @@ async def public_avatar(email: str, db: AsyncSession = Depends(get_db)):
         addr = addr[7:]
     result = await db.execute(select(User).where(func.lower(User.email) == addr))
     user = result.scalar_one_or_none()
+    if user:
+        await admin_sync.ensure_user_avatar(user, db)
     if not user or not user.avatar_url:
-        raise HTTPException(status_code=404, detail="No photo")
+        raise HTTPException(
+            status_code=404,
+            detail="No photo",
+            headers={"Cache-Control": "no-store"},
+        )
     loaded = load_avatar_bytes(user.avatar_url)
     if not loaded:
-        raise HTTPException(status_code=404, detail="No photo")
+        raise HTTPException(
+            status_code=404,
+            detail="No photo",
+            headers={"Cache-Control": "no-store"},
+        )
     data, content_type, _name = loaded
     return Response(
         content=data,
         media_type=content_type,
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "Access-Control-Allow-Origin": "*",
+        },
     )
 
 

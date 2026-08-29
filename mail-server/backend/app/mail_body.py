@@ -88,7 +88,33 @@ def extract_text_and_html(msg) -> tuple[str, str]:
             html = text
         else:
             plain = text
-    elif not html and looks_like_html(plain):
-        html = plain
 
     return plain, html
+
+
+def peek_rfc822_header(content: bytes, name: str) -> str:
+    """Read one header without parsing the whole MIME tree (fast path for SMTP/IMAP)."""
+    if not content or not name:
+        return ""
+    blob = content[:16384]
+    split = blob.split(b"\r\n\r\n", 1)[0]
+    if split == blob:
+        split = blob.split(b"\n\n", 1)[0]
+    try:
+        text = split.decode("utf-8", errors="replace")
+    except Exception:
+        text = split.decode("latin-1", errors="replace")
+    key = name.lower() + ":"
+    lines = text.replace("\r\n", "\n").split("\n")
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line.lower().startswith(key):
+            value = line.split(":", 1)[1].strip()
+            i += 1
+            while i < len(lines) and lines[i][:1] in (" ", "\t"):
+                value += " " + lines[i].strip()
+                i += 1
+            return value.strip()
+        i += 1
+    return ""

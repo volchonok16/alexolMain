@@ -169,6 +169,10 @@ async def fetch_admin_photo_url(username: str) -> Optional[str]:
             photo = photo.strip()
             if photo.startswith("http://") or photo.startswith("https://"):
                 return photo
+            if photo.startswith("/uploads/"):
+                from app.avatar_resolve import admin_origin
+
+                return f"{admin_origin()}{photo}"
             if photo.startswith("/"):
                 return f"{_base()}{photo}"
             return photo
@@ -177,32 +181,61 @@ async def fetch_admin_photo_url(username: str) -> Optional[str]:
         return None
 
 
+def _minio_object_exists(object_name: str) -> bool:
+    try:
+        from app.minio_client import minio_client
+
+        minio_client._ensure_bucket()
+        minio_client.client.stat_object(settings.MINIO_BUCKET, object_name)
+        return True
+    except Exception:
+        return False
+
+
 async def ensure_user_avatar(user, db) -> bool:
     """
-    Make sure mailbox user has a MinIO-backed avatar_url.
-    Pulls from admin when missing; imports external URLs into MinIO.
+    Make sure mailbox user has a real MinIO object.
+    Stale keys like /avatars/<admin-upload-id>.jpeg are recovered from /uploads.
     """
-    from app.avatar_resolve import import_avatar_to_minio, load_avatar_bytes, minio_object_name_from_avatar_url
+    from app.avatar_resolve import (
+        admin_upload_candidates,
+        import_avatar_to_minio,
+        minio_object_name_from_avatar_url,
+    )
 
-    changed = False
     username = (user.username or user.email.split("@", 1)[0]).strip().lower()
+    current = (user.avatar_url or "").strip() or None
+    object_name = minio_object_name_from_avatar_url(current) if current else None
+    if object_name and _minio_object_exists(object_name):
+        return False
 
-    if user.avatar_url:
-        if minio_object_name_from_avatar_url(user.avatar_url) and load_avatar_bytes(user.avatar_url):
-            return False
-        imported = import_avatar_to_minio(username, source_url=user.avatar_url)
-        if imported and imported != user.avatar_url:
+    sources: list[str] = []
+    if current and "/uploads/" in current:
+        sources.append(current)
+    if current:
+        fname = current.rstrip("/").rsplit("/", 1)[-1].split("?")[0]
+        sources.extend(admin_upload_candidates(fname))
+    admin_url = await fetch_admin_photo_url(username)
+    if admin_url:
+        sources.append(admin_url)
+    if current and not object_name:
+        sources.append(current)
+
+    seen: set[str] = set()
+    for src in sources:
+        key = (src or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        imported = import_avatar_to_minio(username, source_url=key)
+        if not imported:
+            continue
+        if imported != current:
             user.avatar_url = imported
-            changed = True
-    else:
-        admin_url = await fetch_admin_photo_url(username)
-        if admin_url:
-            imported = import_avatar_to_minio(username, source_url=admin_url)
-            if imported:
-                user.avatar_url = imported
-                changed = True
+            await db.commit()
+            await db.refresh(user)
+            logger.info("[admin-sync] restored avatar for %s", username)
+            return True
+        return False
 
-    if changed:
-        await db.commit()
-        await db.refresh(user)
-    return changed
+    return False

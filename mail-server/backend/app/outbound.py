@@ -11,6 +11,8 @@ from email.utils import formataddr
 from html import escape as html_escape
 from typing import Optional
 
+from app.mail_photos import rewrite_html_sender_photo, sender_photo_mime
+
 import httpx
 import smtplib
 from fastapi import HTTPException
@@ -102,9 +104,19 @@ def _build_mime(
     full_html = wrap_outbound_html(content_html, signature_html)
     full_text = (body or "") + signature_text
 
+    photo_part = sender_photo_mime(current_user)
+    if photo_part:
+        full_html = rewrite_html_sender_photo(full_html, current_user)
+
     alternative = MIMEMultipart("alternative")
     alternative.attach(MIMEText(full_text, "plain", "utf-8"))
-    alternative.attach(MIMEText(full_html, "html", "utf-8"))
+    if photo_part:
+        related = MIMEMultipart("related")
+        related.attach(MIMEText(full_html, "html", "utf-8"))
+        related.attach(photo_part)
+        alternative.attach(related)
+    else:
+        alternative.attach(MIMEText(full_html, "html", "utf-8"))
 
     msg = MIMEMultipart("mixed")
     msg["From"] = formataddr((display_name, current_user.email))

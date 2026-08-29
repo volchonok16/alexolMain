@@ -244,6 +244,7 @@ export default function CompanyCalendar() {
         </button>
       </div>
 
+      <div className="cal-scroll">
       <div className="cal-weekdays">
         {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
           <span key={d}>{d}</span>
@@ -312,6 +313,7 @@ export default function CompanyCalendar() {
             </article>
           ))
         )}
+      </div>
       </div>
 
       {showForm && (
