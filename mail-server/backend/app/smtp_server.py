@@ -45,10 +45,17 @@ def _get_sync_database_url() -> str:
 
 
 def _make_tls_context():
-    """TLS-контекст для порта 587/465. Если сертификаты не заданы - self-signed для разработки."""
+    """TLS-контекст для порта 587/465. TLS 1.2+; без клиентских сертификатов."""
+    def _server_ctx() -> ssl.SSLContext:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+
     if settings.SMTP_TLS_CERT_FILE and settings.SMTP_TLS_KEY_FILE:
         if os.path.isfile(settings.SMTP_TLS_CERT_FILE) and os.path.isfile(settings.SMTP_TLS_KEY_FILE):
-            ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ctx = _server_ctx()
             ctx.load_cert_chain(settings.SMTP_TLS_CERT_FILE, settings.SMTP_TLS_KEY_FILE)
             logger.info("SMTP TLS: using configured cert %s", settings.SMTP_TLS_CERT_FILE)
             return ctx
@@ -68,7 +75,7 @@ def _make_tls_context():
                 check=True,
                 timeout=10,
             )
-            ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ctx = _server_ctx()
             ctx.load_cert_chain(cert, key)
             return ctx
     except Exception as e:
@@ -143,6 +150,13 @@ class CustomSMTPHandler:
             return "550 5.7.1 Relay denied"
         envelope.rcpt_tos.append(addr)
         return "250 OK"
+
+    async def _deliver_external_later(self, content: bytes, from_addr: str, external_addrs: list[str]) -> None:
+        try:
+            await asyncio.to_thread(deliver_raw_outbound, content, from_addr, external_addrs)
+            logger.info("Outbound delivered from %s to %s", from_addr, external_addrs)
+        except Exception:
+            logger.exception("Outbound delivery failed to %s", external_addrs)
 
     async def handle_DATA(self, server, session, envelope):
         """Inbound MX → local inboxes. Authenticated submission → also send external via MX."""
@@ -227,19 +241,11 @@ class CustomSMTPHandler:
 
             if external_addrs:
                 from_addr = (sender.email if sender else from_address) or envelope.mail_from
-                try:
-                    await asyncio.to_thread(
-                        deliver_raw_outbound,
-                        envelope.content,
-                        from_addr,
-                        external_addrs,
-                    )
-                    logger.info("Outbound delivered from %s to %s", from_addr, external_addrs)
-                except Exception as exc:
-                    logger.exception("Outbound delivery failed to %s: %s", external_addrs, exc)
-                    return f"451 4.4.1 Delivery failed: {exc}"
+                content = envelope.content
+                addrs = list(external_addrs)
+                asyncio.create_task(self._deliver_external_later(content, from_addr, addrs))
 
-            return "250 OK"
+            return "250 2.0.0 Message accepted"
         except Exception as e:
             logger.error("Error handling email: %s", e, exc_info=True)
             return "500 Error processing email"

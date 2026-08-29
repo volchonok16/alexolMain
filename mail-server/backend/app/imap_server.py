@@ -20,7 +20,7 @@ import tempfile
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import format_datetime, formataddr
+from email.utils import format_datetime, formataddr, parseaddr
 from email.parser import BytesParser
 from email import policy as email_policy
 
@@ -30,13 +30,13 @@ from sqlalchemy.orm import sessionmaker, Session
 from app.models import User, Email
 from app.auth import verify_password
 from app.config import settings
-from app.mail_body import coerce_stored_bodies
+from app.mail_body import coerce_stored_bodies, extract_text_and_html
 from app.database import sync_connect_args
 
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/UID format changes so Outlook drops a stale empty cache.
-UIDVALIDITY = 5
+UIDVALIDITY = 6
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -403,7 +403,8 @@ class IMAPSession:
             'ID': self._id,
             'SUBSCRIBE': self._ok,
             'UNSUBSCRIBE': self._ok,
-            'APPEND': self._ok,
+            'APPEND': self._append,
+            'CREATE': self._ok,
             'CHECK': self._noop,
             'COPY': self._ok,
         }
@@ -429,6 +430,8 @@ class IMAPSession:
         old_ids = {e['id'] for e in self.selected_emails}
         if self.selected_mailbox == 'Sent':
             emails = self._fetch_sent()
+        elif self.selected_mailbox == 'Drafts':
+            emails = []
         else:
             emails = self._fetch_inbox()
         self.selected_emails = emails
@@ -467,6 +470,80 @@ class IMAPSession:
 
     async def _ok(self, tag, cmd, args):
         await self._send(f'{tag} OK {cmd} completed')
+
+    async def _append(self, tag, cmd, args):
+        """Consume IMAP APPEND literals. Outlook hangs on 'still sending' if we ACK without reading the body."""
+        if self.state not in (self.AUTHENTICATED, self.SELECTED) or not self.user:
+            await self._send(f'{tag} NO Not authenticated')
+            return
+        literal = re.search(r'~?\{(\d+)(\+)?\}\s*$', args or '')
+        if not literal:
+            await self._send(f'{tag} BAD APPEND requires a literal')
+            return
+        size = int(literal.group(1))
+        non_sync = bool(literal.group(2))
+        mailbox = (_parse_args(args[: literal.start()]) or ['INBOX'])[0]
+        if not non_sync:
+            await self._send('+ Ready for literal data')
+        try:
+            data = await asyncio.wait_for(self.reader.readexactly(size), timeout=120)
+            crlf = await asyncio.wait_for(self.reader.readexactly(2), timeout=10)
+            if crlf not in (b'\r\n', b'\n\r'):
+                pass
+        except Exception as exc:
+            logger.warning('IMAP APPEND read failed peer=%s: %s', self._peer(), exc)
+            await self._send(f'{tag} NO APPEND failed')
+            return
+
+        box = (mailbox or 'INBOX').strip().strip('"').upper()
+        is_sent = box in (
+            'SENT', 'SENT ITEMS', 'SENT MESSAGES',
+            'ОТПРАВЛЕННЫЕ', 'ОТПРАВЛЕННЫЕ СООБЩЕНИЯ',
+        )
+        is_draft = box in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ')
+        if is_sent:
+            self._save_appended_sent(data)
+        elif is_draft:
+            logger.debug('IMAP APPEND Drafts discarded user=%s bytes=%s', self.user.email, size)
+        await self._send(f'{tag} OK APPEND completed')
+
+    def _save_appended_sent(self, data: bytes) -> None:
+        if not self.user or not data:
+            return
+        try:
+            msg = BytesParser(policy=email_policy.default).parsebytes(data)
+            mid = (msg.get('Message-ID') or '').strip()
+            header_name, header_addr = parseaddr(msg.get('From') or '')
+            from_address = (header_addr or self.user.email).strip().lower()
+            body, html_body = extract_text_and_html(msg)
+            with self._db() as db:
+                if mid:
+                    recent = db.execute(
+                        select(Email).where(
+                            Email.user_id == self.user.id,
+                            Email.is_sent.is_(True),
+                        ).order_by(Email.id.desc()).limit(20)
+                    ).scalars().all()
+                    needle = mid.encode('utf-8', errors='ignore')
+                    for row in recent:
+                        raw = getattr(row, 'raw_rfc822', None) or b''
+                        if needle and needle in raw:
+                            return
+                db.add(Email(
+                    user_id=self.user.id,
+                    from_address=from_address,
+                    to_address=(msg.get('To') or '').strip() or self.user.email,
+                    from_name=(header_name or '').strip() or self.user.full_name,
+                    subject=msg.get('subject', '') or '',
+                    body=body,
+                    html_body=html_body,
+                    raw_rfc822=data,
+                    is_sent=True,
+                    is_read=True,
+                ))
+                db.commit()
+        except Exception as exc:
+            logger.warning('IMAP APPEND Sent save failed: %s', exc)
 
     async def _unknown(self, tag, cmd, args):
         await self._send(f'{tag} BAD Command {cmd} not supported')
@@ -557,6 +634,9 @@ class IMAPSession:
                          'ОТПРАВЛЕННЫЕ', 'ОТПРАВЛЕННЫЕ СООБЩЕНИЯ'):
             emails = self._fetch_sent()
             self.selected_mailbox = 'Sent'
+        elif mailbox in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ'):
+            emails = []
+            self.selected_mailbox = 'Drafts'
         else:
             await self._send(f'{tag} NO Mailbox "{args.strip()}" not found')
             return
@@ -589,11 +669,13 @@ class IMAPSession:
     async def _list(self, tag, cmd, args):
         await self._send('* LIST (\\HasNoChildren \\Inbox) "/" INBOX')
         await self._send('* LIST (\\HasNoChildren \\Sent) "/" Sent')
+        await self._send('* LIST (\\HasNoChildren \\Drafts) "/" Drafts')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
         await self._send('* LSUB () "/" "INBOX"')
         await self._send('* LSUB () "/" "Sent"')
+        await self._send('* LSUB () "/" "Drafts"')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _status(self, tag, cmd, args):
@@ -603,6 +685,8 @@ class IMAPSession:
             emails = self._fetch_inbox()
         elif mbox in ('SENT', 'SENT ITEMS', 'SENT MESSAGES', 'ОТПРАВЛЕННЫЕ'):
             emails = self._fetch_sent()
+        elif mbox in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ'):
+            emails = []
         else:
             await self._send(f'{tag} NO Mailbox not found')
             return

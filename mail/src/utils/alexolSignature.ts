@@ -1,7 +1,7 @@
 /** Per-user Alexol signature. Hosted PNGs on mail.alexol.io (same deploy as the mail SPA). */
 
 const ASSET = 'https://mail.alexol.io/email'
-const ASSET_V = 'v=9'
+const ASSET_V = 'v=10'
 const SITE_HREF = 'https://alexol.io'
 const SITE_LABEL = 'alexol.io'
 const TELEGRAM_FALLBACK = 'https://t.me/AlexolBot'
@@ -127,8 +127,8 @@ export function buildAlexolSignature(person: SignaturePerson): string {
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="18"',
     ` bgcolor="${CARD}" style="border-collapse:collapse;width:18px;">`,
     '<tr>',
-    `<td bgcolor="${CARD}" style="padding:20px 5px;font-size:0;line-height:0;${cardBg}">`,
-    png('sig-divider.png', 7, 124),
+    `<td bgcolor="${CARD}" style="padding:8px 5px;font-size:0;line-height:0;${cardBg}">`,
+    png('sig-divider.png', 7, 168),
     '</td>',
     '</tr>',
     '</table>',
