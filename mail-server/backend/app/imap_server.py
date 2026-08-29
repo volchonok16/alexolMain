@@ -20,7 +20,7 @@ import tempfile
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import format_datetime
+from email.utils import format_datetime, formataddr
 from email.parser import BytesParser
 from email import policy as email_policy
 
@@ -155,12 +155,14 @@ def _email_to_rfc822(em: dict) -> bytes:
 
     if em.get('html_body'):
         msg = MIMEMultipart('alternative')
-        msg.attach(MIMEText(em.get('body', ''), 'plain', 'utf-8'))
+        msg.attach(MIMEText(em.get('body', '') or '', 'plain', 'utf-8'))
         msg.attach(MIMEText(em['html_body'], 'html', 'utf-8'))
     else:
-        msg = MIMEText(em.get('body', ''), 'plain', 'utf-8')
+        msg = MIMEText(em.get('body', '') or '', 'plain', 'utf-8')
 
-    msg['From'] = em.get('from', '')
+    from_addr = em.get('from', '') or ''
+    from_name = (em.get('from_name') or '').strip()
+    msg['From'] = formataddr((from_name, from_addr)) if from_addr else from_name
     msg['To'] = em.get('to', '')
     msg['Subject'] = em.get('subject', '')
     msg['Date'] = date_str
@@ -168,94 +170,104 @@ def _email_to_rfc822(em: dict) -> bytes:
     return msg.as_bytes()
 
 
-def _build_fetch_response(seq_num: int, em: dict, items_str: str,
-                           uid_mode: bool) -> str:
-    upper = items_str.upper()
-    flags_str = ' '.join(em.get('flags', []))
-    uid = em['id']
+def _imap_literal(name: str, payload: bytes) -> bytes:
+    """IMAP literal: name {octet-count}\\r\\n + exact payload bytes."""
+    return f"{name} {{{len(payload)}}}\r\n".encode("ascii") + payload
 
-    date = em.get('date') or datetime.now(timezone.utc)
+
+def _build_fetch_response(seq_num: int, em: dict, items_str: str,
+                           uid_mode: bool) -> bytes:
+    upper = items_str.upper()
+    flags_str = " ".join(em.get("flags", []))
+    uid = em["id"]
+
+    date = em.get("date") or datetime.now(timezone.utc)
     if isinstance(date, datetime) and date.tzinfo is None:
         date = date.replace(tzinfo=timezone.utc)
     date_str = format_datetime(date)
 
-    parts: list[str] = []
+    parts: list[bytes] = []
+
+    def add_text(piece: str) -> None:
+        parts.append(piece.encode("utf-8"))
 
     if uid_mode:
-        parts.append(f'UID {uid}')
+        add_text(f"UID {uid}")
 
-    if 'FLAGS' in upper:
-        parts.append(f'FLAGS ({flags_str})')
+    if "FLAGS" in upper:
+        add_text(f"FLAGS ({flags_str})")
 
-    if 'INTERNALDATE' in upper:
-        parts.append(f'INTERNALDATE "{date_str}"')
+    if "INTERNALDATE" in upper:
+        add_text(f'INTERNALDATE "{date_str}"')
 
-    needs_body = (
-        'RFC822' in upper or
-        'BODY[' in upper.replace(' ', '') or
-        'BODY.PEEK[' in upper.upper()
-    )
-    if needs_body or 'RFC822.SIZE' in upper:
+    peek = "BODY.PEEK[" in upper
+    body_bracket = "BODY[" in upper.replace(" ", "") or peek
+    needs_body = "RFC822" in upper or body_bracket
+    rfc: bytes | None = None
+    if needs_body or "RFC822.SIZE" in upper:
         rfc = _email_to_rfc822(em)
-        size = len(rfc)
+        if "RFC822.SIZE" in upper:
+            add_text(f"RFC822.SIZE {len(rfc)}")
 
-        if 'RFC822.SIZE' in upper:
-            parts.append(f'RFC822.SIZE {size}')
-
-        if 'RFC822' in upper and 'RFC822.SIZE' not in upper:
-            rfc_str = rfc.decode('utf-8', errors='replace')
-            parts.append(f'RFC822 {{{size}}}\r\n{rfc_str}')
-        elif 'BODY[' in upper or 'BODY.PEEK[' in upper.upper():
-            # Identify which section was requested
+        if "RFC822" in upper and "RFC822.SIZE" not in upper:
+            parts.append(_imap_literal("RFC822", rfc))
+        elif body_bracket:
             section_match = re.search(
-                r'BODY(?:\.PEEK)?\[([^\]]*)\](?:<(\d+)\.(\d+)>)?',
-                items_str, re.IGNORECASE
+                r"BODY(?:\.PEEK)?\[([^\]]*)\](?:<(\d+)\.(\d+)>)?",
+                items_str,
+                re.IGNORECASE,
             )
-            section = section_match.group(1).upper() if section_match else ''
+            section = (section_match.group(1) if section_match else "").strip()
+            section_up = section.upper()
+            fields_match = re.match(r"HEADER\.FIELDS(?:\.NOT)?\s*\((.*)\)\s*$", section, re.I | re.S)
 
-            if section in ('HEADER', 'HEADER.FIELDS'):
+            if section_up in ("HEADER",) or fields_match:
                 parsed = BytesParser(policy=email_policy.compat32).parsebytes(rfc)
-                headers_str = ''.join(
-                    f'{k}: {v}\r\n' for k, v in parsed.items()
-                ) + '\r\n'
-                hb = headers_str.encode('utf-8')
-                parts.append(f'BODY[HEADER] {{{len(hb)}}}\r\n{headers_str}')
-            elif section == 'TEXT':
-                body_text = em.get('body', '')
-                tb = body_text.encode('utf-8')
-                parts.append(f'BODY[TEXT] {{{len(tb)}}}\r\n{body_text}')
+                if fields_match:
+                    wanted = {n.strip().upper() for n in fields_match.group(1).split() if n.strip()}
+                    headers_str = (
+                        "".join(f"{k}: {v}\r\n" for k, v in parsed.items() if k.upper() in wanted)
+                        + "\r\n"
+                    )
+                    label = f"BODY[{section}]"
+                else:
+                    headers_str = "".join(f"{k}: {v}\r\n" for k, v in parsed.items()) + "\r\n"
+                    label = "BODY[HEADER]"
+                parts.append(_imap_literal(label, headers_str.encode("utf-8")))
+            elif section_up == "TEXT":
+                body_text = em.get("body") or ""
+                parts.append(_imap_literal("BODY[TEXT]", body_text.encode("utf-8")))
             else:
-                rfc_str = rfc.decode('utf-8', errors='replace')
-                label = 'BODY[]' if not section else f'BODY[{section}]'
-                parts.append(f'{label} {{{size}}}\r\n{rfc_str}')
+                label = "BODY[]" if not section else f"BODY[{section}]"
+                parts.append(_imap_literal(label, rfc))
 
-    if 'ENVELOPE' in upper:
+    if "ENVELOPE" in upper:
         def _mbox(addr: str) -> str:
-            at = addr.find('@')
+            at = addr.find("@")
             if at == -1:
                 return f'("" NIL "{addr}" "")'
-            return f'("" NIL "{addr[:at]}" "{addr[at+1:]}")'
+            return f'("" NIL "{addr[:at]}" "{addr[at + 1:]}")'
 
-        frm = em.get('from', '')
-        to = em.get('to', '')
-        subj = em.get('subject', '').replace('"', '\\"')
-        parts.append(
+        frm = em.get("from", "")
+        to = em.get("to", "")
+        subj = (em.get("subject") or "").replace("\\", "\\\\").replace('"', '\\"')
+        add_text(
             f'ENVELOPE ("{date_str}" "{subj}" '
-            f'({_mbox(frm)}) ({_mbox(frm)}) ({_mbox(frm)}) ({_mbox(to)}) '
+            f"({_mbox(frm)}) ({_mbox(frm)}) ({_mbox(frm)}) ({_mbox(to)}) "
             f'NIL NIL NIL "<{uid}@{settings.MAIL_DOMAIN}>")'
         )
 
-    if 'BODYSTRUCTURE' in upper and 'BODY[' not in upper:
-        if em.get('html_body'):
-            bs = '("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "7BIT" 100 10)'
+    if "BODYSTRUCTURE" in upper and "BODY[" not in upper:
+        if em.get("html_body"):
+            bs = '("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "8BIT" 100 10)'
         else:
-            bs = '("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "7BIT" 100 10)'
-        parts.append(f'BODYSTRUCTURE {bs}')
+            bs = '("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "8BIT" 100 10)'
+        add_text(f"BODYSTRUCTURE {bs}")
 
     if not parts:
-        parts.append(f'FLAGS ({flags_str})')
+        add_text(f"FLAGS ({flags_str})")
 
-    return f'* {seq_num} FETCH ({" ".join(parts)})'
+    return b"* " + str(seq_num).encode("ascii") + b" FETCH (" + b" ".join(parts) + b")\r\n"
 
 
 # ---------------------------------------------------------------------------
@@ -311,12 +323,15 @@ class IMAPSession:
                 pass
 
     async def _send(self, data: str):
-        logger.debug('IMAP > %s', data[:200])
+        await self._send_bytes((data + "\r\n").encode("utf-8"))
+
+    async def _send_bytes(self, data: bytes):
+        logger.debug("IMAP > %s", data[:200])
         try:
-            self.writer.write((data + '\r\n').encode('utf-8'))
+            self.writer.write(data)
             await self.writer.drain()
         except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
-            raise  # пробрасываем вверх для обработки в handle()
+            raise
 
     async def _dispatch(self, line: str):
         m = re.match(r'^(\S+)\s+(\S+)(.*)', line)
@@ -603,10 +618,15 @@ class IMAPSession:
             items_str = items_str[1:-1]
 
         pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
+        if not pairs and uid_mode:
+            if self.selected_mailbox == "Sent":
+                self.selected_emails = self._fetch_sent()
+            else:
+                self.selected_emails = self._fetch_inbox()
+            pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
         for seq_num, em in pairs:
-            resp = _build_fetch_response(seq_num, em, items_str, uid_mode)
-            await self._send(resp)
-        await self._send(f'{tag} OK FETCH completed')
+            await self._send_bytes(_build_fetch_response(seq_num, em, items_str, uid_mode))
+        await self._send(f"{tag} OK FETCH completed")
 
     async def _do_search(self, tag: str, args: str, uid_mode: bool):
         # Simplified: return all messages (handles ALL, UNSEEN, etc. as "all")
@@ -660,6 +680,7 @@ class IMAPSession:
                     result.append({
                         'id': e.id,
                         'from': e.from_address,
+                        'from_name': e.from_name,
                         'to': e.to_address,
                         'subject': e.subject or '',
                         'body': body,
