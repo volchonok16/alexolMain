@@ -205,16 +205,20 @@ def _run_smtp_servers(handler, tls_ctx, loop):
             authenticator=handler._authenticator,
             require_starttls=(tls_ctx is not None),
             tls_context=tls_ctx,
+            auth_required=True,
         )
 
     def factory_465():
-        # SSL уже обёрнут на уровне TCP - внутри plain SMTP
+        # Implicit TLS on the socket (smtps). aiosmtpd still thinks AUTH needs STARTTLS
+        # unless auth_require_tls is off — Outlook then gets 538 5.7.11.
         return SMTP(
             handler,
             hostname=smtp_hostname,
             authenticator=handler._authenticator,
             require_starttls=False,
             tls_context=None,
+            auth_require_tls=False,
+            auth_required=True,
         )
 
     async def run():
