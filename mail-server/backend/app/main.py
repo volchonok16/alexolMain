@@ -43,7 +43,7 @@ from app.config import settings
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.minio_client import minio_client
-from app.avatar_resolve import peer_info_map, to_browser_avatar_url, parse_from_header
+from app.avatar_resolve import peer_info_map, to_browser_avatar_url, parse_from_header, import_avatar_to_minio
 from app.outbound import deliver_composed_email
 from app.recipients import (
     format_to_header,
@@ -217,6 +217,8 @@ async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="User is inactive"
         )
 
+    await admin_sync.ensure_user_avatar(user, db)
+
     # Normalize stored email to lowercase so JWT ↔ DB lookups stay consistent
     if user.email != user.email.lower():
         user.email = user.email.lower()
@@ -318,8 +320,12 @@ async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Dep
 
 
 @app.get("/api/auth/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Get current user info"""
+    await admin_sync.ensure_user_avatar(current_user, db)
     data = UserResponse.model_validate(current_user)
     return data.model_copy(
         update={
@@ -1174,23 +1180,22 @@ def _apply_avatar_from_sync(user: User, user_data: SyncUserEnsure | SyncUserUpda
     avatar_url = getattr(user_data, "avatar_url", None)
     avatar_b64 = getattr(user_data, "avatar_base64", None)
     content_type = getattr(user_data, "avatar_content_type", None) or "image/jpeg"
+    username = (user.username or user.email.split("@", 1)[0]).strip().lower()
     if avatar_b64:
         try:
             raw = base64.b64decode(avatar_b64)
-            ext = "jpg"
-            if "png" in content_type:
-                ext = "png"
-            elif "webp" in content_type:
-                ext = "webp"
-            elif "gif" in content_type:
-                ext = "gif"
-            file_name = f"{user.username}_{uuid.uuid4()}.{ext}"
-            url = minio_client.upload_file(io.BytesIO(raw), file_name, content_type)
-            user.avatar_url = url
+            imported = import_avatar_to_minio(
+                username,
+                raw_bytes=raw,
+                content_type=content_type,
+            )
+            if imported:
+                user.avatar_url = imported
         except Exception as exc:
             print(f"[sync] avatar base64 upload failed: {exc}")
     elif avatar_url:
-        user.avatar_url = avatar_url
+        imported = import_avatar_to_minio(username, source_url=avatar_url.strip())
+        user.avatar_url = imported or avatar_url.strip()
 
 
 @app.post("/api/internal/users/ensure", response_model=UserResponse, dependencies=[Depends(verify_mail_sync_key)])

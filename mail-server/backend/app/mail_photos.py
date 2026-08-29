@@ -39,20 +39,20 @@ def _fold_vcard_line(line: str) -> str:
 
 
 def vcard_photo_lines(user: User) -> list[str]:
-    lines: list[str] = []
-    if user.avatar_url:
-        lines.append(f"PHOTO;VALUE=URI:{public_avatar_url(user.email)}")
-        loaded = load_avatar_bytes(user.avatar_url)
-        if loaded:
-            data, content_type, _name = loaded
-            subtype = "JPEG"
-            if "png" in content_type:
-                subtype = "PNG"
-            elif "gif" in content_type:
-                subtype = "GIF"
-            b64 = base64.b64encode(data).decode("ascii")
-            lines.append(_fold_vcard_line(f"PHOTO;ENCODING=b;TYPE={subtype}:{b64}"))
-    return lines
+    """Embedded base64 only — Outlook imports photos from vCard, not from HTTP URIs."""
+    if not user.avatar_url:
+        return []
+    loaded = load_avatar_bytes(user.avatar_url)
+    if not loaded:
+        return []
+    data, content_type, _name = loaded
+    subtype = "JPEG"
+    if "png" in content_type:
+        subtype = "PNG"
+    elif "gif" in content_type:
+        subtype = "GIF"
+    b64 = base64.b64encode(data).decode("ascii")
+    return [_fold_vcard_line(f"PHOTO;ENCODING=b;TYPE={subtype}:{b64}")]
 
 
 def user_to_vcard(user: User) -> str:

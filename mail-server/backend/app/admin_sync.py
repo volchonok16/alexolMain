@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import logging
 from typing import Any, Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -147,3 +148,61 @@ async def send_news_bot_dm(*, telegram: str, text: str) -> tuple[bool, str]:
     except Exception as exc:
         logger.warning("[admin-sync] telegram-dm error: %s", exc)
         return False, "Не удалось отправить пароль в Telegram. Свяжитесь с администратором."
+
+
+async def fetch_admin_photo_url(username: str) -> Optional[str]:
+    """Read admin user photo path from alexolMain backend."""
+    if not _enabled():
+        return None
+    login = username.strip().lower()
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            res = await client.get(
+                f"{_base()}/api/internal/mail-sync/users/{quote(login, safe='')}",
+                headers=_headers(),
+            )
+            if res.status_code >= 400:
+                return None
+            photo = (res.json() or {}).get("photo")
+            if not photo or not isinstance(photo, str):
+                return None
+            photo = photo.strip()
+            if photo.startswith("http://") or photo.startswith("https://"):
+                return photo
+            if photo.startswith("/"):
+                return f"{_base()}{photo}"
+            return photo
+    except Exception as exc:
+        logger.warning("[admin-sync] fetch photo for %s: %s", login, exc)
+        return None
+
+
+async def ensure_user_avatar(user, db) -> bool:
+    """
+    Make sure mailbox user has a MinIO-backed avatar_url.
+    Pulls from admin when missing; imports external URLs into MinIO.
+    """
+    from app.avatar_resolve import import_avatar_to_minio, load_avatar_bytes, minio_object_name_from_avatar_url
+
+    changed = False
+    username = (user.username or user.email.split("@", 1)[0]).strip().lower()
+
+    if user.avatar_url:
+        if minio_object_name_from_avatar_url(user.avatar_url) and load_avatar_bytes(user.avatar_url):
+            return False
+        imported = import_avatar_to_minio(username, source_url=user.avatar_url)
+        if imported and imported != user.avatar_url:
+            user.avatar_url = imported
+            changed = True
+    else:
+        admin_url = await fetch_admin_photo_url(username)
+        if admin_url:
+            imported = import_avatar_to_minio(username, source_url=admin_url)
+            if imported:
+                user.avatar_url = imported
+                changed = True
+
+    if changed:
+        await db.commit()
+        await db.refresh(user)
+    return changed

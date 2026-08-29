@@ -71,6 +71,18 @@ export class MailInboundSyncController {
     }
   };
 
+  get = async (req: Request, res: Response) => {
+    try {
+      const username = String(req.params.username || '').trim();
+      if (!username) return res.status(400).json({ error: 'username is required' });
+      const user = await this.service.getByLogin(username);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Sync failed' });
+    }
+  };
+
   remove = async (req: Request, res: Response) => {
     try {
       const username = String(req.params.username || '').trim();

@@ -31,7 +31,7 @@ export function PeerAvatar({
   const current = candidates[attempt]
   const initial = (name || email || '?').trim().charAt(0).toUpperCase() || '?'
 
-  if (!current) {
+  if (!current || attempt >= candidates.length) {
     return (
       <div
         className={`peer-avatar peer-avatar--fallback ${className}`}

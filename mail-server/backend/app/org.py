@@ -17,6 +17,7 @@ from app.auth import get_current_user
 from app.avatar_resolve import load_avatar_bytes, to_browser_avatar_url
 from app.config import settings
 from app.database import get_db
+from app import admin_sync
 from app.mail_photos import user_to_vcard, vcard_filename
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
 from app.schemas import (
@@ -382,6 +383,8 @@ async def download_contacts_vcf(
 ):
     _ = current_user
     users = await _load_colleagues(db, "", 500)
+    for user in users:
+        await admin_sync.ensure_user_avatar(user, db)
     payload = "".join(_user_to_vcard(u) for u in users)
     return PlainTextResponse(
         payload,

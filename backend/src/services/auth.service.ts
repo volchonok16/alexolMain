@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/user.repository.js';
 import { config } from '../config/env.js';
-import { MailSyncService } from './mailSync.service.js';
+import { MailSyncService, toAbsolutePhotoUrl } from './mailSync.service.js';
 
 const SSO_TYP = 'alexol-sso';
 const SSO_TTL_SEC = 90;
@@ -58,6 +58,7 @@ export class AuthService {
       password: data.password,
       is_admin: true,
       is_active: true,
+      avatar_url: toAbsolutePhotoUrl(user.photo),
     });
 
     const token = this.generateToken(user.id);
@@ -91,6 +92,7 @@ export class AuthService {
       full_name: user.name,
       is_admin: true,
       is_active: true,
+      avatar_url: toAbsolutePhotoUrl(user.photo),
     });
 
     const ticket = jwt.sign(

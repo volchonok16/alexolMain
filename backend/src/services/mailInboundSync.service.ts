@@ -118,6 +118,18 @@ export class MailInboundSyncService {
     });
   }
 
+  async getByLogin(username: string) {
+    const login = normalizeLogin(username);
+    if (!login) return null;
+    const user = await this.userRepo.findByLogin(login);
+    if (!user) return null;
+    return {
+      username: user.login,
+      full_name: user.name,
+      photo: user.photo,
+    };
+  }
+
   async deleteFromMail(username: string) {
     const login = normalizeLogin(username);
     const user = await this.userRepo.findByLogin(login);

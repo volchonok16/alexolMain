@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import logging
+import uuid
 from dataclasses import dataclass
 from typing import Iterable, Optional, Tuple
 from urllib.parse import quote, unquote, urlparse
@@ -15,6 +17,8 @@ from app.config import settings
 from app.models import User
 
 logger = logging.getLogger(__name__)
+
+ALEXOL_DOMAIN = (settings.MAIL_DOMAIN or "alexol.io").lower()
 
 
 @dataclass
@@ -133,6 +137,9 @@ def load_avatar_bytes(avatar_url: Optional[str]) -> Optional[Tuple[bytes, str, s
             logger.warning("Could not load avatar from MinIO: %s", e)
 
     raw = avatar_url.strip()
+    if raw.startswith("/uploads/"):
+        base = (settings.ALEXOL_API_URL or "https://api.alexol.io").rstrip("/")
+        raw = f"{base}{raw}"
     if raw.startswith("http://") or raw.startswith("https://"):
         if "minio:9000" in raw or "://minio/" in raw:
             return None
@@ -150,6 +157,70 @@ def load_avatar_bytes(avatar_url: Optional[str]) -> Optional[Tuple[bytes, str, s
         except Exception as e:
             logger.warning("Could not fetch remote avatar: %s", e)
     return None
+
+
+def _ext_from_content_type(content_type: str) -> str:
+    lower = (content_type or "").lower()
+    if "png" in lower:
+        return "png"
+    if "webp" in lower:
+        return "webp"
+    if "gif" in lower:
+        return "gif"
+    return "jpg"
+
+
+def import_avatar_to_minio(
+    username: str,
+    *,
+    source_url: Optional[str] = None,
+    raw_bytes: Optional[bytes] = None,
+    content_type: str = "image/jpeg",
+) -> Optional[str]:
+    """
+    Store avatar bytes in MinIO and return internal object URL.
+    Idempotent when the object already lives in our bucket.
+    """
+    if raw_bytes:
+        data = raw_bytes
+        ctype = content_type or "image/jpeg"
+    elif source_url:
+        loaded = load_avatar_bytes(source_url)
+        if not loaded:
+            logger.warning("import_avatar_to_minio: could not load %s", source_url)
+            return None
+        data, ctype, _name = loaded
+        object_name = minio_object_name_from_avatar_url(source_url)
+        if object_name:
+            try:
+                from app.minio_client import minio_client
+
+                minio_client._ensure_bucket()
+                minio_client.client.stat_object(settings.MINIO_BUCKET, object_name)
+                return source_url.strip()
+            except Exception:
+                pass
+    else:
+        return None
+
+    from app.minio_client import minio_client
+
+    ext = _ext_from_content_type(ctype)
+    file_name = f"{username.strip().lower()}_{uuid.uuid4().hex}.{ext}"
+    try:
+        return minio_client.upload_file(io.BytesIO(data), file_name, ctype)
+    except Exception as exc:
+        logger.warning("import_avatar_to_minio upload failed: %s", exc)
+        return None
+
+
+def local_avatar_api_path(email: str) -> str:
+    return f"/api/public/avatar/{quote((email or '').strip().lower(), safe='')}"
+
+
+def is_local_mailbox(email: str) -> bool:
+    addr = (email or "").strip().lower()
+    return addr.endswith(f"@{ALEXOL_DOMAIN}")
 
 
 def parse_from_header(raw: Optional[str]) -> tuple[str, Optional[str]]:
@@ -178,12 +249,20 @@ async def peer_info_map(
     )
     users = {u.email.lower(): u for u in result.scalars().all()}
 
+    from app.admin_sync import ensure_user_avatar
+
+    for user in users.values():
+        await ensure_user_avatar(user, db)
+
     out: dict[str, PeerInfo] = {}
     for addr in unique:
         user = users.get(addr)
-        if user and user.avatar_url:
+        if user and is_local_mailbox(addr):
+            browser = to_browser_avatar_url(user.avatar_url) if user.avatar_url else None
+            avatar = browser or local_avatar_api_path(addr)
+        elif user and user.avatar_url:
             browser = to_browser_avatar_url(user.avatar_url)
-            avatar = browser or f"/api/public/avatar/{quote(addr, safe='')}"
+            avatar = browser or unavatar_url(addr)
         else:
             avatar = unavatar_url(addr)
         name = (user.full_name.strip() if user and user.full_name else None) or None
