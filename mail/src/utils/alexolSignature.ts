@@ -1,7 +1,7 @@
 /** Per-user Alexol signature. Hosted PNGs on mail.alexol.io (same deploy as the mail SPA). */
 
 const ASSET = 'https://mail.alexol.io/email'
-const ASSET_V = 'v=4'
+const ASSET_V = 'v=5'
 const SITE_HREF = 'https://alexol.io'
 const SITE_LABEL = 'alexol.io'
 const TELEGRAM_FALLBACK = 'https://t.me/AlexolBot'
@@ -57,8 +57,8 @@ function png(file: string, width: number, height: number, extra = ''): string {
 function linkHtml(href: string, label: string): string {
   return (
     `<a href="${esc(href)}" style="font-family:Arial,Helvetica,sans-serif;` +
-    `font-size:12px;color:#0AE3FF;text-decoration:underline;">` +
-    `<u style="color:#0AE3FF;">${esc(label)}</u></a>`
+    `font-size:12px;color:#0AE3FF;text-decoration:none;">` +
+    `<span style="color:#0AE3FF;text-decoration:none;">${esc(label)}</span></a>`
   )
 }
 
@@ -115,10 +115,8 @@ export function buildAlexolSignature(person: SignaturePerson): string {
     '<div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:700;color:#FFFFFF;',
     'text-align:center;line-height:1.1;">Alexol</div>',
     '</td>',
-    '<td width="10" style="padding:16px 0;vertical-align:middle;width:10px;font-size:0;line-height:0;">',
-    png('sig-divider.png', 3, 124, 'margin:0 auto;'),
-    '</td>',
-    '<td width="382" style="padding:16px 18px 16px 10px;vertical-align:middle;width:382px;">',
+    '<td width="3" style="padding:16px 0;vertical-align:stretch;width:3px;background-color:#0AE3FF;"></td>',
+    '<td width="389" style="padding:16px 18px 16px 14px;vertical-align:middle;width:389px;">',
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"',
     ' style="border-collapse:collapse;width:100%;">',
     '<tr>',
@@ -143,6 +141,11 @@ export function buildAlexolSignature(person: SignaturePerson): string {
     ' style="border-collapse:collapse;margin-top:12px;">',
     ...rows,
     '</table>',
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;',
+    'color:#A8B0C0;text-decoration:none;margin:14px 0 0;">',
+    'Professional IT Development: from concept to business digitalization.<br />',
+    'Full-cycle development: from business analysis to implementation.',
+    '</div>',
     '</td>',
     '</tr>',
     '</table>',

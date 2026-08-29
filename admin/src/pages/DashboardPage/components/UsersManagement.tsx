@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { User, UserPayload } from '@/api/users';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar } from '@/shared/ui/Avatar';
 import { useUsers } from '../hooks/useUsers';
 import { Pagination } from './Pagination';
 import { UserModal } from './UserModal';
+import { UserDetailModal } from './UserDetailModal';
 import './UsersManagement.scss';
 
 const roleLabel = (role: string) => (role === 'admin' ? 'Админ' : 'Пользователь');
@@ -13,6 +14,7 @@ const roleLabel = (role: string) => (role === 'admin' ? 'Админ' : 'Поль
 export const UsersManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [viewingUser, setViewingUser] = useState<User | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const {
     users,
@@ -29,12 +31,14 @@ export const UsersManagement = () => {
   const { user: currentUser, refreshUser } = useAuth();
 
   const handleAdd = () => {
+    setViewingUser(null);
     setEditingUser(null);
     setSaveError(null);
     setIsModalOpen(true);
   };
 
   const handleEdit = (user: User) => {
+    setViewingUser(null);
     setEditingUser(user);
     setSaveError(null);
     setIsModalOpen(true);
@@ -45,6 +49,7 @@ export const UsersManagement = () => {
     setSaveError(null);
     try {
       await deleteUser(id);
+      setViewingUser(null);
     } catch (err) {
       const apiError =
         typeof err === 'object' &&
@@ -98,30 +103,29 @@ export const UsersManagement = () => {
       <div className="users-management__stats">
         <p>Всего: {pagination?.total || 0}</p>
         <p>На странице: {users.length}</p>
+        <p>Нажмите на строку, чтобы открыть полную карточку</p>
       </div>
 
       {users.length === 0 ? (
         <div className="dashboard__empty">Пользователей пока нет</div>
       ) : (
-        <div className="dashboard__table">
+        <div className="dashboard__table dashboard__table--compact">
           <table>
             <thead>
               <tr>
                 <th>Фото</th>
                 <th>ФИО</th>
-                <th>Должность</th>
                 <th>Логин</th>
-                <th>Почта</th>
-                <th>Телефон</th>
-                <th>Телеграм</th>
                 <th>Роль</th>
-                <th>Дата рождения</th>
-                <th>Действия</th>
               </tr>
             </thead>
             <tbody>
               {users.map(user => (
-                <tr key={user.id}>
+                <tr
+                  key={user.id}
+                  className="users-management__row"
+                  onClick={() => setViewingUser(user)}
+                >
                   <td>
                     <Avatar
                       src={user.photo}
@@ -131,44 +135,17 @@ export const UsersManagement = () => {
                       fallback={user.name.slice(0, 1).toUpperCase()}
                     />
                   </td>
-                  <td>{user.name}</td>
-                  <td>{user.jobTitle || '-'}</td>
+                  <td>
+                    <div className="users-management__name">{user.name}</div>
+                    {user.jobTitle ? (
+                      <div className="users-management__sub">{user.jobTitle}</div>
+                    ) : null}
+                  </td>
                   <td>{user.login}</td>
-                  <td>{user.email || '-'}</td>
-                  <td>{user.phone || '-'}</td>
-                  <td>{user.telegram || '-'}</td>
                   <td>
                     <span className={`users-management__role users-management__role--${user.role}`}>
                       {roleLabel(user.role)}
                     </span>
-                  </td>
-                  <td>
-                    {user.birthDate
-                      ? new Date(user.birthDate).toLocaleDateString('ru-RU')
-                      : '-'}
-                  </td>
-                  <td>
-                    <div className="dashboard__row-actions">
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(user)}
-                        className="dashboard__edit"
-                        title="Редактировать"
-                      >
-                        <Edit2 />
-                        <span>Изменить</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(user.id)}
-                        className="dashboard__delete"
-                        title="Удалить в админке и в почте"
-                        disabled={user.id === currentUser?.id}
-                      >
-                        <Trash2 />
-                        <span>Удалить</span>
-                      </button>
-                    </div>
                   </td>
                 </tr>
               ))}
@@ -182,6 +159,16 @@ export const UsersManagement = () => {
           currentPage={page}
           totalPages={pagination.totalPages}
           onPageChange={setPage}
+        />
+      )}
+
+      {viewingUser && (
+        <UserDetailModal
+          user={viewingUser}
+          canDelete={viewingUser.id !== currentUser?.id}
+          onClose={() => setViewingUser(null)}
+          onEdit={() => handleEdit(viewingUser)}
+          onDelete={() => handleDelete(viewingUser.id)}
         />
       )}
 

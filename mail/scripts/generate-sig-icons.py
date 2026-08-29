@@ -1,18 +1,17 @@
-"""White-on-#0C0F16 PNG icons for the Alexol email signature (56x56)."""
+"""Signature icons: Lucide phone (site footer) + official Telegram/WhatsApp marks."""
 from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
 
 import pymupdf
-from PIL import Image, ImageDraw
+from PIL import Image
 
 BG = (12, 15, 22, 255)
-WHITE = (255, 255, 255, 255)
 SRC = 224
 OUT = 56
 
-# Simple Icons WhatsApp mark (24x24), white on the signature card.
+# Same path as frontend/src/shared/ui/BrandIcons.tsx
 WHATSAPP_PATH = (
     "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15"
     "-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463"
@@ -25,10 +24,30 @@ WHATSAPP_PATH = (
     ".173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031"
     "-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001"
     "-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 01"
-    "2.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 00"
+    "2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 00"
     "12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l"
     "6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893"
     "-11.893a11.821 11.821 0 00-3.48-8.413z"
+)
+
+TELEGRAM_PATH = (
+    "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 "
+    "12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 "
+    ".171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 "
+    "1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8"
+    "-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15"
+    "-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49"
+    "-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027"
+    "-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025"
+    "-1.627 4.476-1.635z"
+)
+
+# Lucide Phone (same mark as alexol.io footer)
+LUCIDE_PHONE = (
+    "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 "
+    "19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 "
+    "0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 "
+    "2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
 )
 
 
@@ -68,60 +87,26 @@ def raster_svg(svg: str, size: int = SRC) -> Image.Image:
 
 
 def draw_phone() -> Image.Image:
-    """Lucide-style call receiver, tilted so it reads as a phone not a pin."""
-    layer = Image.new("RGBA", (SRC, SRC), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    w = 26
-    box = (52, 40, 172, 184)
-    d.arc(box, start=205, end=335, fill=WHITE, width=w)
-    d.ellipse((56, 72, 100, 132), fill=WHITE)
-    d.ellipse((124, 72, 168, 132), fill=WHITE)
-    rot = layer.rotate(48, resample=Image.Resampling.BICUBIC, fillcolor=(0, 0, 0, 0))
-    out = canvas()
-    out.alpha_composite(rot)
-    return out
-
-
-def draw_whatsapp() -> Image.Image:
-    """Official WhatsApp mark, white on the signature background."""
-    pad = 1.4
-    svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{-pad} {-pad} {24 + pad * 2} {24 + pad * 2}">'
-        f'<rect x="{-pad}" y="{-pad}" width="{24 + pad * 2}" height="{24 + pad * 2}" fill="#0C0F16"/>'
-        f'<path fill="#FFFFFF" d="{WHATSAPP_PATH}"/>'
-        "</svg>"
-    )
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 28 28">
+      <rect x="-2" y="-2" width="28" height="28" fill="#0C0F16"/>
+      <path fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"
+        stroke-linejoin="round" d="{LUCIDE_PHONE}"/>
+    </svg>"""
     return raster_svg(svg)
 
 
-def draw_telegram() -> Image.Image:
-    """Filled paper plane pointing up-right."""
-    img = canvas()
-    d = ImageDraw.Draw(img)
-    d.polygon(
-        [
-            (36, 112),
-            (188, 42),
-            (108, 118),
-            (96, 182),
-        ],
-        fill=WHITE,
-    )
-    d.polygon(
-        [
-            (108, 118),
-            (188, 42),
-            (124, 128),
-        ],
-        fill=BG,
-    )
-    return img
+def draw_brand(path: str, fill: str) -> Image.Image:
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <rect width="24" height="24" fill="#0C0F16"/>
+      <path fill="{fill}" d="{path}"/>
+    </svg>"""
+    return raster_svg(svg)
 
 
 def main() -> None:
     save(draw_phone(), "icon-phone.png")
-    save(draw_whatsapp(), "icon-whatsapp.png")
-    save(draw_telegram(), "icon-telegram.png")
+    save(draw_brand(WHATSAPP_PATH, "#25D366"), "icon-whatsapp.png")
+    save(draw_brand(TELEGRAM_PATH, "#2AABEE"), "icon-telegram.png")
 
 
 if __name__ == "__main__":
