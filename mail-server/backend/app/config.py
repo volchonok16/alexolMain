@@ -6,7 +6,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://mailuser:mailpass@mail_postgres:5432/maildb"
     
     # MinIO
-    MINIO_ENDPOINT: str = "mail_minio:9000"
+    # Hostname must be DNS-valid: MinIO rejects Host headers with underscores.
+    MINIO_ENDPOINT: str = "minio:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET: str = "avatars"

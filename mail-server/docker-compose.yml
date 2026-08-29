@@ -57,7 +57,7 @@ services:
     environment:
       # mail_postgres = container_name (stable DNS when backend is on two networks)
       DATABASE_URL: postgresql+asyncpg://mailuser:mailpass@mail_postgres:5432/maildb
-      MINIO_ENDPOINT: mail_minio:9000
+      MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: avatars
