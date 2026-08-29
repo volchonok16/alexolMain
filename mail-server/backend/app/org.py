@@ -1,0 +1,558 @@
+"""Company directory, calendar meetings, vCard and ICS feeds."""
+from __future__ import annotations
+
+import secrets
+from datetime import datetime, timezone
+from typing import Optional
+from urllib.parse import quote
+from xml.sax.saxutils import escape as xml_escape
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import PlainTextResponse
+from sqlalchemy import delete, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.auth import get_current_user
+from app.avatar_resolve import to_browser_avatar_url
+from app.config import settings
+from app.database import get_db
+from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
+from app.schemas import (
+    BusyMapResponse,
+    BusySlotOut,
+    CalendarAttendeeIn,
+    CalendarAttendeeOut,
+    CalendarEventCreate,
+    CalendarEventResponse,
+    CalendarFeedUrlResponse,
+    DirectoryPerson,
+)
+
+router = APIRouter()
+
+
+def _naive(dt: datetime) -> datetime:
+    return dt.replace(tzinfo=None) if dt.tzinfo else dt
+
+
+def _person(user: User, busy: Optional[CalendarBusySlot] = None) -> DirectoryPerson:
+    return DirectoryPerson(
+        email=user.email,
+        full_name=user.full_name,
+        job_title=user.job_title,
+        avatar_url=to_browser_avatar_url(user.avatar_url) or user.avatar_url,
+        phone=user.phone,
+        telegram=user.telegram,
+        username=user.username,
+        is_busy=bool(busy),
+        busy_until=busy.end_at if busy else None,
+        busy_title=busy.title if busy else None,
+    )
+
+
+def _dt_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _ics_text(value: str) -> str:
+    return (
+        (value or "")
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\r\n", "\\n")
+        .replace("\n", "\\n")
+    )
+
+
+def _ics_stamp(dt: datetime) -> str:
+    return _dt_utc(dt).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _vcard_escape(value: str) -> str:
+    return (value or "").replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def _user_to_vcard(user: User) -> str:
+    parts = user.full_name.strip().split(None, 1)
+    first = parts[0] if parts else user.full_name
+    last = parts[1] if len(parts) > 1 else ""
+    lines = [
+        "BEGIN:VCARD",
+        "VERSION:3.0",
+        f"FN:{_vcard_escape(user.full_name)}",
+        f"N:{_vcard_escape(last)};{_vcard_escape(first)};;;",
+        f"EMAIL;TYPE=WORK,INTERNET:{user.email}",
+        f"ORG:{_vcard_escape(settings.MAIL_DOMAIN)}",
+    ]
+    if user.job_title:
+        lines.append(f"TITLE:{_vcard_escape(user.job_title)}")
+    if user.phone:
+        lines.append(f"TEL;TYPE=WORK,VOICE:{_vcard_escape(user.phone)}")
+    if user.telegram:
+        lines.append(f"X-TELEGRAM:{_vcard_escape(user.telegram)}")
+    if user.username:
+        lines.append(f"NICKNAME:{_vcard_escape(user.username)}")
+    lines.append("END:VCARD")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _event_to_ics(event: CalendarEvent, domain: str) -> str:
+    uid = f"event-{event.id}@{domain}"
+    stamp = _ics_stamp(event.updated_at or event.created_at or datetime.utcnow())
+    lines = [
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{stamp}",
+        f"DTSTART:{_ics_stamp(event.start_at)}",
+        f"DTEND:{_ics_stamp(event.end_at)}",
+        f"SUMMARY:{_ics_text(event.title)}",
+    ]
+    if event.description:
+        lines.append(f"DESCRIPTION:{_ics_text(event.description)}")
+    if event.location:
+        lines.append(f"LOCATION:{_ics_text(event.location)}")
+    org = event.organizer
+    if org:
+        lines.append(f"ORGANIZER;CN={_ics_text(org.full_name)}:mailto:{org.email}")
+    for att in event.attendees or []:
+        cn = _ics_text(att.display_name or att.email)
+        lines.append(f"ATTENDEE;CN={cn};ROLE=REQ-PARTICIPANT:mailto:{att.email}")
+    lines.append("END:VEVENT")
+    return "\r\n".join(lines)
+
+
+def _calendar_ics(events: list[CalendarEvent]) -> str:
+    domain = (settings.MAIL_DOMAIN or "alexol.io").replace("@", "")
+    chunks = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Alexol//Mail Calendar//RU",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        f"X-WR-CALNAME:Alexol {domain}",
+        "X-WR-TIMEZONE:UTC",
+    ]
+    for event in events:
+        chunks.append(_event_to_ics(event, domain))
+    chunks.append("END:VCALENDAR")
+    return "\r\n".join(chunks) + "\r\n"
+
+
+async def _load_colleagues(db: AsyncSession, query: str, limit: int) -> list[User]:
+    stmt = select(User).where(User.is_active.is_(True))
+    if query:
+        like = f"%{query}%"
+        stmt = stmt.where(
+            or_(
+                User.full_name.ilike(like),
+                User.email.ilike(like),
+                User.username.ilike(like),
+                User.job_title.ilike(like),
+                User.phone.ilike(like),
+            )
+        )
+    result = await db.execute(stmt.order_by(User.full_name.asc()).limit(limit))
+    return list(result.scalars().all())
+
+
+async def _busy_now_by_email(db: AsyncSession) -> dict[str, CalendarBusySlot]:
+    now = datetime.utcnow()
+    result = await db.execute(
+        select(CalendarBusySlot).where(
+            CalendarBusySlot.is_busy.is_(True),
+            CalendarBusySlot.start_at <= now,
+            CalendarBusySlot.end_at > now,
+        )
+    )
+    out: dict[str, CalendarBusySlot] = {}
+    for slot in result.scalars().all():
+        key = slot.email.lower()
+        prev = out.get(key)
+        if not prev or slot.end_at > prev.end_at:
+            out[key] = slot
+    return out
+
+
+def _busy_out(slot: CalendarBusySlot, names: dict[str, str]) -> BusySlotOut:
+    return BusySlotOut(
+        email=slot.email,
+        full_name=names.get(slot.email.lower()),
+        start_at=slot.start_at,
+        end_at=slot.end_at,
+        event_id=slot.event_id,
+        title=slot.title,
+        is_busy=slot.is_busy,
+    )
+
+
+async def _names_for_emails(db: AsyncSession, emails: list[str]) -> dict[str, str]:
+    if not emails:
+        return {}
+    found = await db.execute(select(User).where(User.email.in_(emails)))
+    return {u.email.lower(): u.full_name for u in found.scalars().all()}
+
+
+async def _find_conflicts(
+    db: AsyncSession,
+    emails: list[str],
+    start: datetime,
+    end: datetime,
+    exclude_event_id: Optional[int] = None,
+) -> list[CalendarBusySlot]:
+    if not emails:
+        return []
+    lowered = [e.lower() for e in emails]
+    stmt = select(CalendarBusySlot).where(
+        CalendarBusySlot.is_busy.is_(True),
+        CalendarBusySlot.start_at < end,
+        CalendarBusySlot.end_at > start,
+        or_(*[CalendarBusySlot.email.ilike(e) for e in lowered]),
+    )
+    if exclude_event_id is not None:
+        stmt = stmt.where(CalendarBusySlot.event_id != exclude_event_id)
+    result = await db.execute(stmt.order_by(CalendarBusySlot.start_at.asc()))
+    return list(result.scalars().all())
+
+
+async def _write_busy(db: AsyncSession, event: CalendarEvent) -> None:
+    await db.execute(delete(CalendarBusySlot).where(CalendarBusySlot.event_id == event.id))
+    people: list[tuple[Optional[int], str]] = []
+    org = event.organizer
+    if org:
+        people.append((org.id, org.email.lower()))
+    for att in event.attendees or []:
+        people.append((att.user_id, (att.email or "").lower()))
+    seen: set[str] = set()
+    for user_id, email in people:
+        if not email or email in seen:
+            continue
+        seen.add(email)
+        db.add(
+            CalendarBusySlot(
+                event_id=event.id,
+                user_id=user_id,
+                email=email,
+                start_at=event.start_at,
+                end_at=event.end_at,
+                title=event.title,
+                is_busy=True,
+            )
+        )
+
+
+def _visible_event_filter(user: User):
+    return or_(
+        CalendarEvent.is_company.is_(True),
+        CalendarEvent.organizer_id == user.id,
+        CalendarEvent.attendees.any(CalendarAttendee.user_id == user.id),
+        CalendarEvent.attendees.any(CalendarAttendee.email.ilike(user.email)),
+    )
+
+
+async def _event_response(
+    db: AsyncSession,
+    event: CalendarEvent,
+    current: User,
+    conflicts: Optional[list[CalendarBusySlot]] = None,
+) -> CalendarEventResponse:
+    avatars = {}
+    emails = [a.email.lower() for a in event.attendees]
+    if emails:
+        found = await db.execute(
+            select(User).where(User.email.in_([a.email for a in event.attendees]))
+        )
+        for u in found.scalars().all():
+            avatars[u.email.lower()] = to_browser_avatar_url(u.avatar_url) or u.avatar_url
+    org = event.organizer
+    resp = CalendarEventResponse(
+        id=event.id,
+        organizer_email=org.email if org else "",
+        organizer_name=org.full_name if org else "",
+        title=event.title,
+        description=event.description,
+        location=event.location,
+        start_at=event.start_at,
+        end_at=event.end_at,
+        all_day=event.all_day,
+        is_company=event.is_company,
+        attendees=[
+            CalendarAttendeeOut(
+                email=a.email,
+                display_name=a.display_name,
+                status=a.status,
+                avatar_url=avatars.get(a.email.lower()),
+            )
+            for a in event.attendees
+        ],
+        can_edit=bool(current.is_admin or event.organizer_id == current.id),
+        conflicts=[],
+    )
+    if conflicts:
+        names = await _names_for_emails(db, [s.email for s in conflicts])
+        resp.conflicts = [_busy_out(s, names) for s in conflicts]
+    return resp
+
+
+async def _resolve_attendees(
+    db: AsyncSession, items: list[CalendarAttendeeIn], organizer: User
+) -> list[CalendarAttendee]:
+    seen = {organizer.email.lower()}
+    out: list[CalendarAttendee] = []
+    for item in items:
+        email = (item.email or "").strip().lower()
+        if not email or email in seen:
+            continue
+        seen.add(email)
+        result = await db.execute(select(User).where(User.email.ilike(email)))
+        peer = result.scalar_one_or_none()
+        out.append(
+            CalendarAttendee(
+                user_id=peer.id if peer else None,
+                email=peer.email if peer else email,
+                display_name=(item.display_name or (peer.full_name if peer else None)),
+                status="accepted",
+            )
+        )
+    return out
+
+
+async def _notify_meeting(
+    db: AsyncSession, event: CalendarEvent, organizer: User
+) -> None:
+    start = event.start_at.strftime("%d.%m.%Y %H:%M") if event.start_at else ""
+    end = event.end_at.strftime("%H:%M") if event.end_at else ""
+    where = event.location or "—"
+    body = (
+        f"{organizer.full_name} приглашает на встречу.\n\n"
+        f"{event.title}\n"
+        f"Когда: {start}–{end} UTC\n"
+        f"Где: {where}\n"
+    )
+    if event.description:
+        body += f"\n{event.description}\n"
+    html = (
+        f"<p>{xml_escape(organizer.full_name)} приглашает на встречу.</p>"
+        f"<p><strong>{xml_escape(event.title)}</strong></p>"
+        f"<p>Когда: {xml_escape(start)}–{xml_escape(end)} UTC<br/>Где: {xml_escape(where)}</p>"
+    )
+    if event.description:
+        html += f"<p>{xml_escape(event.description)}</p>"
+    for att in event.attendees:
+        if not att.user_id:
+            continue
+        db.add(
+            Email(
+                user_id=att.user_id,
+                from_address=organizer.email,
+                to_address=att.email,
+                from_name=organizer.full_name,
+                to_name=att.display_name,
+                subject=f"Встреча: {event.title}",
+                body=body,
+                html_body=html,
+                is_read=False,
+                is_sent=False,
+            )
+        )
+    db.add(
+        Email(
+            user_id=organizer.id,
+            from_address=organizer.email,
+            to_address=", ".join(a.email for a in event.attendees) or organizer.email,
+            from_name=organizer.full_name,
+            subject=f"Встреча: {event.title}",
+            body=body,
+            html_body=html,
+            is_read=True,
+            is_sent=True,
+        )
+    )
+
+
+@router.get("/directory", response_model=list[DirectoryPerson])
+async def search_directory(
+    q: str = "",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _ = current_user
+    query = (q or "").strip()
+    limit = 80 if query else 500
+    users = await _load_colleagues(db, query, limit)
+    busy = await _busy_now_by_email(db)
+    return [_person(u, busy.get(u.email.lower())) for u in users]
+
+
+@router.get("/contacts", response_model=list[DirectoryPerson])
+async def list_contacts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _ = current_user
+    users = await _load_colleagues(db, "", 500)
+    busy = await _busy_now_by_email(db)
+    return [_person(u, busy.get(u.email.lower())) for u in users]
+
+
+@router.get("/contacts.vcf")
+async def download_contacts_vcf(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _ = current_user
+    users = await _load_colleagues(db, "", 500)
+    payload = "".join(_user_to_vcard(u) for u in users)
+    return PlainTextResponse(
+        payload,
+        media_type="text/vcard; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="alexol-contacts.vcf"'},
+    )
+
+
+@router.get("/calendar/events", response_model=list[CalendarEventResponse])
+async def list_events(
+    from_at: Optional[datetime] = None,
+    to_at: Optional[datetime] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(CalendarEvent)
+        .options(selectinload(CalendarEvent.attendees), selectinload(CalendarEvent.organizer))
+        .where(_visible_event_filter(current_user))
+    )
+    if from_at:
+        stmt = stmt.where(CalendarEvent.end_at >= from_at.replace(tzinfo=None) if from_at.tzinfo else from_at)
+    if to_at:
+        stmt = stmt.where(CalendarEvent.start_at <= to_at.replace(tzinfo=None) if to_at.tzinfo else to_at)
+    result = await db.execute(stmt.order_by(CalendarEvent.start_at.asc()))
+    events = result.scalars().unique().all()
+    return [await _event_response(db, e, current_user) for e in events]
+
+
+@router.post("/calendar/events", response_model=CalendarEventResponse)
+async def create_event(
+    payload: CalendarEventCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    title = (payload.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Укажите название встречи")
+    start = _naive(payload.start_at)
+    end = _naive(payload.end_at)
+    if end <= start:
+        raise HTTPException(status_code=400, detail="Конец встречи должен быть позже начала")
+    attendees = await _resolve_attendees(db, payload.attendees, current_user)
+    involved = [current_user.email] + [a.email for a in attendees]
+    conflicts = await _find_conflicts(db, involved, start, end)
+    event = CalendarEvent(
+        organizer_id=current_user.id,
+        title=title,
+        description=(payload.description or "").strip() or None,
+        location=(payload.location or "").strip() or None,
+        start_at=start,
+        end_at=end,
+        all_day=payload.all_day,
+        is_company=payload.is_company,
+    )
+    event.attendees = attendees
+    db.add(event)
+    await db.flush()
+    await db.refresh(event, attribute_names=["attendees", "organizer"])
+    await _write_busy(db, event)
+    await _notify_meeting(db, event, current_user)
+    await db.commit()
+    result = await db.execute(
+        select(CalendarEvent)
+        .options(selectinload(CalendarEvent.attendees), selectinload(CalendarEvent.organizer))
+        .where(CalendarEvent.id == event.id)
+    )
+    saved = result.scalar_one()
+    return await _event_response(db, saved, current_user, conflicts)
+
+
+@router.delete("/calendar/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_event(
+    event_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(CalendarEvent).where(CalendarEvent.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Встреча не найдена")
+    if event.organizer_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Нельзя удалить чужую встречу")
+    await db.delete(event)
+    await db.commit()
+    return None
+
+
+@router.get("/calendar/busy", response_model=BusyMapResponse)
+async def list_busy(
+    from_at: datetime,
+    to_at: datetime,
+    emails: str = "",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _ = current_user
+    start = _naive(from_at)
+    end = _naive(to_at)
+    wanted = [e.strip().lower() for e in emails.split(",") if e.strip()]
+    stmt = select(CalendarBusySlot).where(
+        CalendarBusySlot.is_busy.is_(True),
+        CalendarBusySlot.start_at < end,
+        CalendarBusySlot.end_at > start,
+    )
+    if wanted:
+        stmt = stmt.where(or_(*[CalendarBusySlot.email.ilike(e) for e in wanted]))
+    result = await db.execute(stmt.order_by(CalendarBusySlot.start_at.asc()))
+    slots = list(result.scalars().all())
+    names = await _names_for_emails(db, [s.email for s in slots])
+    return BusyMapResponse(slots=[_busy_out(s, names) for s in slots])
+
+
+@router.get("/calendar/feed-url", response_model=CalendarFeedUrlResponse)
+async def calendar_feed_url(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not current_user.calendar_feed_token:
+        current_user.calendar_feed_token = secrets.token_urlsafe(24)
+        await db.commit()
+        await db.refresh(current_user)
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or settings.MAIL_HOSTNAME
+    proto = request.headers.get("x-forwarded-proto") or "https"
+    token = current_user.calendar_feed_token
+    url = f"{proto}://{host}/api/calendar/feed.ics?token={quote(token)}"
+    return CalendarFeedUrlResponse(url=url, token=token)
+
+
+@router.get("/calendar/feed.ics")
+async def calendar_feed_ics(
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.calendar_feed_token == token))
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Недействительная ссылка календаря")
+    stmt = (
+        select(CalendarEvent)
+        .options(selectinload(CalendarEvent.attendees), selectinload(CalendarEvent.organizer))
+        .where(_visible_event_filter(user))
+        .order_by(CalendarEvent.start_at.asc())
+    )
+    events = (await db.execute(stmt)).scalars().unique().all()
+    return PlainTextResponse(
+        _calendar_ics(list(events)),
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": 'inline; filename="alexol.ics"'},
+    )

@@ -22,7 +22,6 @@ from app.schemas import (
     SyncUserCreate,
     SyncUserEnsure,
     SyncUserUpdate,
-    DirectoryPerson,
     LoginRequest,
     ForgotPasswordRequest,
     Token,
@@ -51,6 +50,7 @@ from app.recipients import (
     split_address_field,
 )
 from app import admin_sync
+from app.org import router as org_router
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from urllib.parse import unquote
@@ -72,6 +72,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(org_router, prefix="/api")
 
 
 def verify_mail_sync_key(x_mail_sync_key: Optional[str] = Header(None, alias="X-Mail-Sync-Key")):
@@ -113,6 +114,9 @@ async def startup_event():
         )
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_feed_token VARCHAR")
         )
         # Existing admin-created templates become org-shared so users keep access
         await conn.execute(
@@ -745,39 +749,6 @@ async def upload_avatar(
 
     browser_url = to_browser_avatar_url(avatar_url) or avatar_url
     return {"avatar_url": browser_url}
-
-
-@app.get("/api/directory", response_model=List[DirectoryPerson])
-async def search_directory(
-    q: str = "",
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Search colleagues by name, last name, login or email (Outlook-style To:)."""
-    _ = current_user
-    query = (q or "").strip()
-    stmt = select(User).where(User.is_active.is_(True))
-    if query:
-        like = f"%{query}%"
-        stmt = stmt.where(
-            or_(
-                User.full_name.ilike(like),
-                User.email.ilike(like),
-                User.username.ilike(like),
-                User.job_title.ilike(like),
-            )
-        )
-    result = await db.execute(stmt.order_by(User.full_name.asc()).limit(12))
-    users = result.scalars().all()
-    return [
-        DirectoryPerson(
-            email=u.email,
-            full_name=u.full_name,
-            job_title=u.job_title,
-            avatar_url=to_browser_avatar_url(u.avatar_url) or u.avatar_url,
-        )
-        for u in users
-    ]
 
 
 async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:

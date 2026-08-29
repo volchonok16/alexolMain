@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
+from pydantic import BaseModel, EmailStr, validator, Field
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -130,6 +130,70 @@ class DirectoryPerson(BaseModel):
     full_name: str
     job_title: Optional[str] = None
     avatar_url: Optional[str] = None
+    phone: Optional[str] = None
+    telegram: Optional[str] = None
+    username: Optional[str] = None
+    is_busy: bool = False
+    busy_until: Optional[datetime] = None
+    busy_title: Optional[str] = None
+
+
+class CalendarAttendeeIn(BaseModel):
+    email: str
+    display_name: Optional[str] = None
+
+
+class CalendarAttendeeOut(BaseModel):
+    email: str
+    display_name: Optional[str] = None
+    status: str = "accepted"
+    avatar_url: Optional[str] = None
+
+
+class CalendarEventCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    location: Optional[str] = None
+    start_at: datetime
+    end_at: datetime
+    all_day: bool = False
+    is_company: bool = True
+    attendees: List[CalendarAttendeeIn] = Field(default_factory=list)
+
+
+class BusySlotOut(BaseModel):
+    email: str
+    full_name: Optional[str] = None
+    start_at: datetime
+    end_at: datetime
+    event_id: int
+    title: str
+    is_busy: bool = True
+
+
+class BusyMapResponse(BaseModel):
+    slots: List[BusySlotOut]
+
+
+class CalendarEventResponse(BaseModel):
+    id: int
+    organizer_email: str
+    organizer_name: str
+    title: str
+    description: Optional[str] = None
+    location: Optional[str] = None
+    start_at: datetime
+    end_at: datetime
+    all_day: bool
+    is_company: bool
+    attendees: List[CalendarAttendeeOut] = Field(default_factory=list)
+    can_edit: bool = False
+    conflicts: List[BusySlotOut] = Field(default_factory=list)
+
+
+class CalendarFeedUrlResponse(BaseModel):
+    url: str
+    token: str
 
 
 class EmailCreate(BaseModel):

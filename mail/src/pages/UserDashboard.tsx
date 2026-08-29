@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward, ArrowLeft } from 'lucide-react'
+import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward, ArrowLeft, Calendar } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
@@ -29,6 +29,8 @@ import {
 import { EmailHtmlFrame } from '../components/EmailHtmlFrame'
 import { ComposeToField } from '../components/ComposeToField'
 import { htmlForDisplay, previewTextFromParts } from '../utils/htmlEmail'
+import CompanyContacts from '../components/CompanyContacts'
+import CompanyCalendar from '../components/CompanyCalendar'
 import './UserDashboard.css'
 
 interface Email {
@@ -81,7 +83,7 @@ export default function UserDashboard() {
   const setUser = useAuthStore((state) => state.setUser)
   const queryClient = useQueryClient()
   
-  const [activeTab, setActiveTab] = useState<'inbox' | 'sent'>('inbox')
+  const [activeTab, setActiveTab] = useState<'inbox' | 'sent' | 'contacts' | 'calendar'>('inbox')
   const [showCompose, setShowCompose] = useState(false)
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -632,6 +634,28 @@ export default function UserDashboard() {
               <Send size={20} />
               Отправленные
             </button>
+            <button
+              className={`menu-item ${activeTab === 'contacts' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('contacts')
+                setSelectedEmail(null)
+                setMobileNavOpen(false)
+              }}
+            >
+              <Users size={20} />
+              Контакты
+            </button>
+            <button
+              className={`menu-item ${activeTab === 'calendar' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('calendar')
+                setSelectedEmail(null)
+                setMobileNavOpen(false)
+              }}
+            >
+              <Calendar size={20} />
+              Календарь
+            </button>
           </div>
 
           <div className="user-info">
@@ -653,6 +677,7 @@ export default function UserDashboard() {
           </div>
         </aside>
 
+        {(activeTab === 'inbox' || activeTab === 'sent') && (
         <div className={`mail-workspace ${selectedEmail ? 'has-selection' : ''}`}>
           <div className="mail-list-pane">
           <div className="content-header">
@@ -796,6 +821,9 @@ export default function UserDashboard() {
             )}
           </section>
         </div>
+        )}
+        {activeTab === 'contacts' && <CompanyContacts />}
+        {activeTab === 'calendar' && <CompanyCalendar />}
       </div>
 
       <nav className="mobile-bottom-nav" aria-label="Быстрые действия">
@@ -812,6 +840,17 @@ export default function UserDashboard() {
         </button>
         <button
           type="button"
+          className={activeTab === 'contacts' ? 'active' : ''}
+          onClick={() => {
+            setActiveTab('contacts')
+            setSelectedEmail(null)
+          }}
+        >
+          <Users size={20} />
+          Контакты
+        </button>
+        <button
+          type="button"
           className="mobile-compose"
           onClick={() => setShowCompose(true)}
           aria-label="Написать"
@@ -820,14 +859,14 @@ export default function UserDashboard() {
         </button>
         <button
           type="button"
-          className={activeTab === 'sent' ? 'active' : ''}
+          className={activeTab === 'calendar' ? 'active' : ''}
           onClick={() => {
-            setActiveTab('sent')
+            setActiveTab('calendar')
             setSelectedEmail(null)
           }}
         >
-          <Send size={20} />
-          Отправленные
+          <Calendar size={20} />
+          Календарь
         </button>
       </nav>
 

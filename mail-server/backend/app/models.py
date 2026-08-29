@@ -21,10 +21,17 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    calendar_feed_token = Column(String, unique=True, nullable=True, index=True)
+
     emails = relationship("Email", back_populates="user", cascade="all, delete-orphan")
     templates = relationship(
         "EmailTemplate",
         back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    organized_events = relationship(
+        "CalendarEvent",
+        back_populates="organizer",
         cascade="all, delete-orphan",
     )
 
@@ -63,4 +70,64 @@ class EmailTemplate(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="templates")
+
+
+class CalendarEvent(Base):
+    __tablename__ = "calendar_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organizer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    location = Column(String, nullable=True)
+    start_at = Column(DateTime, nullable=False, index=True)
+    end_at = Column(DateTime, nullable=False)
+    all_day = Column(Boolean, default=False, nullable=False)
+    is_company = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    organizer = relationship("User", back_populates="organized_events")
+    attendees = relationship(
+        "CalendarAttendee",
+        back_populates="event",
+        cascade="all, delete-orphan",
+    )
+    busy_slots = relationship(
+        "CalendarBusySlot",
+        back_populates="event",
+        cascade="all, delete-orphan",
+    )
+
+
+class CalendarAttendee(Base):
+    __tablename__ = "calendar_attendees"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("calendar_events.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    email = Column(String, nullable=False)
+    display_name = Column(String, nullable=True)
+    status = Column(String, default="accepted", nullable=False)
+
+    event = relationship("CalendarEvent", back_populates="attendees")
+    user = relationship("User")
+
+
+class CalendarBusySlot(Base):
+    """Occupied time for a mailbox while a meeting is on the calendar."""
+
+    __tablename__ = "calendar_busy"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("calendar_events.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    email = Column(String, nullable=False, index=True)
+    start_at = Column(DateTime, nullable=False, index=True)
+    end_at = Column(DateTime, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    is_busy = Column(Boolean, default=True, nullable=False)
+
+    event = relationship("CalendarEvent", back_populates="busy_slots")
+    user = relationship("User")
 
