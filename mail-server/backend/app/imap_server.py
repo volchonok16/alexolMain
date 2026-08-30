@@ -38,8 +38,8 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/UID/SELECT format changes so Outlook drops a stale empty cache.
-# 11: mailbox-local UIDs 1..N (DB ids as UIDs made UIDNEXT=86 with EXISTS=14; Outlook skipped FETCH).
-UIDVALIDITY = 11
+# 12: prefetch FETCH on SELECT — Outlook LISTs INBOX then LOGOUT without FETCH.
+UIDVALIDITY = 12
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -63,6 +63,36 @@ def _uidnext(emails: list[dict]) -> int:
     if not emails:
         return 1
     return max(_imap_uid(e) for e in emails) + 1
+
+
+def _search_matches(em: dict, args: str) -> bool:
+    """Match a message against a simplified IMAP SEARCH query."""
+    q = (args or "").strip()
+    if not q:
+        return True
+    upper = q.upper()
+    if upper in ("ALL", "UNDELETED", "UNDRAFT"):
+        return True
+    header_m = re.search(r'\bHEADER\s+"?MESSAGE-ID"?\s+"([^"]*)"', q, re.I)
+    if header_m:
+        needle = header_m.group(1).strip()
+        if not needle:
+            return False
+        raw = em.get("raw") or b""
+        if isinstance(raw, str):
+            raw = raw.encode("utf-8", "replace")
+        if needle.encode("utf-8", "replace") in raw:
+            return True
+        generated = f"<{em.get('id')}@{settings.MAIL_DOMAIN}>"
+        return needle in generated or needle.strip("<>") in generated
+    subject_m = re.search(r'\bSUBJECT\s+"([^"]*)"', q, re.I)
+    if subject_m:
+        return subject_m.group(1).lower() in (em.get("subject") or "").lower()
+    if "UNSEEN" in upper:
+        return "\\Seen" not in em.get("flags", [])
+    if "SEEN" in upper:
+        return "\\Seen" in em.get("flags", [])
+    return True
 
 
 def _normalize_mailbox(args: str) -> str:
@@ -632,7 +662,7 @@ class IMAPSession:
     # ------------------------------------------------------------------
 
     async def _capability(self, tag, cmd, args):
-        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE SPECIAL-USE'
+        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
@@ -878,16 +908,38 @@ class IMAPSession:
         )
         uidnext = _uidnext(emails)
 
-        # Same SELECT shape as when Outlook still issued FETCH 1:N. Do not append
-        # extra text after [UIDVALIDITY]/[UIDNEXT] and do not advertise \*.
         await self._send('* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)')
         await self._send('* OK [PERMANENTFLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)]')
         await self._send(f'* {n} EXISTS')
-        await self._send('* 0 RECENT')
+        # Outlook's cloud proxy SELECTs INBOX and LOGOUT without FETCH. Marking
+        # everything RECENT + UNSEEN makes it treat the folder as needing download.
+        recent = n if self.selected_mailbox == 'INBOX' else 0
+        await self._send(f'* {recent} RECENT')
+        if n and not first_unseen:
+            first_unseen = 1
         if first_unseen:
             await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
         await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}]')
         await self._send(f'* OK [UIDNEXT {uidnext}]')
+        if n and self.selected_mailbox in ('INBOX', 'Sent'):
+            items = 'FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE'
+            for seq_num, em in enumerate(emails, start=1):
+                try:
+                    await self._send_bytes(
+                        _build_fetch_response(seq_num, em, items, True)
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        "IMAP SELECT prefetch failed uid=%s: %s",
+                        em.get("id"),
+                        exc,
+                    )
+            logger.info(
+                "IMAP SELECT prefetch mailbox=%s count=%s user=%s",
+                self.selected_mailbox,
+                n,
+                self.user.email if self.user else "?",
+            )
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
         logger.info(
@@ -900,9 +952,13 @@ class IMAPSession:
         )
 
     async def _list(self, tag, cmd, args):
-        await self._send('* LIST (\\HasNoChildren \\Inbox) "/" INBOX')
-        await self._send('* LIST (\\HasNoChildren \\Sent) "/" Sent')
-        await self._send('* LIST (\\HasNoChildren \\Drafts) "/" Drafts')
+        # Quoted names, no SPECIAL-USE \Inbox: Outlook FETCHed Sent but skipped
+        # INBOX (SELECT then LOGOUT) when LIST advertised it as the special inbox.
+        n_inbox = len(self._fetch_inbox()) if self.user else 0
+        inbox_flags = r'(\Marked \HasNoChildren)' if n_inbox else r'(\HasNoChildren)'
+        await self._send(f'* LIST {inbox_flags} "/" "INBOX"')
+        await self._send(r'* LIST (\HasNoChildren) "/" "Sent"')
+        await self._send(r'* LIST (\HasNoChildren) "/" "Drafts"')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
@@ -1026,21 +1082,24 @@ class IMAPSession:
         await self._send(f"{tag} OK FETCH completed")
 
     async def _do_search(self, tag: str, args: str, uid_mode: bool):
-        # Simplified: return all messages (handles ALL, UNSEEN, etc. as "all")
+        matched = [e for e in self.selected_emails if _search_matches(e, args)]
         if uid_mode:
-            nums = ' '.join(str(_imap_uid(e)) for e in self.selected_emails)
+            nums = " ".join(str(_imap_uid(e)) for e in matched)
         else:
-            nums = ' '.join(str(i + 1) for i in range(len(self.selected_emails)))
+            want = {id(e) for e in matched}
+            nums = " ".join(
+                str(i + 1) for i, e in enumerate(self.selected_emails) if id(e) in want
+            )
         logger.info(
             "IMAP SEARCH user=%s mailbox=%s uid=%s args=%s hits=%s",
             self.user.email if self.user else "?",
             self.selected_mailbox,
             uid_mode,
             (args or "")[:80],
-            len(self.selected_emails),
+            len(matched),
         )
-        await self._send(f'* SEARCH {nums}' if nums else '* SEARCH')
-        await self._send(f'{tag} OK SEARCH completed')
+        await self._send(f"* SEARCH {nums}" if nums else "* SEARCH")
+        await self._send(f"{tag} OK SEARCH completed")
 
     def _auth(self, username: str, password: str) -> User | None:
         if isinstance(username, (bytes, bytearray)):
