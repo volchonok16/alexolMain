@@ -48,9 +48,19 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
-function toLocalInput(iso: string) {
-  const d = new Date(iso)
+function formatLocalInput(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function toLocalInput(iso: string) {
+  return formatLocalInput(new Date(iso))
+}
+
+function plusOneHour(localValue: string) {
+  const d = new Date(localValue)
+  if (Number.isNaN(d.getTime())) return localValue
+  d.setHours(d.getHours() + 1)
+  return formatLocalInput(d)
 }
 
 function defaultStart() {
@@ -461,7 +471,10 @@ export default function CompanyCalendar() {
                     type="datetime-local"
                     required
                     value={form.start_at}
-                    onChange={(e) => setForm({ ...form, start_at: e.target.value })}
+                    onChange={(e) => {
+                      const start_at = e.target.value
+                      setForm({ ...form, start_at, end_at: plusOneHour(start_at) })
+                    }}
                   />
                 </div>
                 <div className="form-group">

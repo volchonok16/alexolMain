@@ -66,6 +66,15 @@ class JitsiJwtTests(unittest.TestCase):
         self.assertTrue(payload["context"]["user"]["moderator"])
         self.assertEqual(payload["context"]["user"]["affiliation"], "owner")
 
+    def test_room_prefix_flags(self):
+        from app.jitsi_jwt import is_auto_start_room, is_closed_room
+
+        self.assertTrue(is_auto_start_room("a-alexol-376-949992"))
+        self.assertTrue(is_auto_start_room("A-Alexol-376-949992"))
+        self.assertFalse(is_auto_start_room("o-alexol-376-949992"))
+        self.assertTrue(is_closed_room("c-alexol-1-abc"))
+        self.assertFalse(is_closed_room("a-alexol-1-abc"))
+
 
 if __name__ == "__main__":
     unittest.main()

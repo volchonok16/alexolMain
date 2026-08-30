@@ -137,9 +137,11 @@ class MeetingInviteLayoutTests(unittest.TestCase):
         self.assertIn("Стендап", html)
         self.assertIn("Переговорка", html)
         self.assertIn("<table", html)
-        self.assertIn("padding:16px 28px", html)
+        self.assertIn("padding:18px 28px", html)
         self.assertIn("color:#ffffff", html)
         self.assertIn("<span", html)
+        self.assertIn("background-color:#0e7490", html)
+        self.assertIn("Когда", html)
         plain = meeting_invite_plain(
             lead="Alexander приглашает на встречу.",
             title="Стендап",

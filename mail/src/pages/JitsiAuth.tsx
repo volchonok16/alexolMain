@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { PasswordInput } from '../components/PasswordInput'
 import { ThemeSwitch } from '../components/ThemeSwitch'
-import { JITSI_PUBLIC_URL } from '../utils/jitsi'
+import { JITSI_PUBLIC_URL, isAutoStartRoom } from '../utils/jitsi'
 import './Login.css'
 
 function avatarUrl(email?: string) {
@@ -72,24 +72,45 @@ export default function JitsiAuth() {
         return
       }
       try {
-        const { data } = await api.get<{ token?: string | null; open?: boolean }>('/jitsi/guest-token', {
-          params: { room },
-        })
-        if (!cancelled) setRoomOpen(data?.open !== false)
-      } catch {
-        if (!cancelled) setRoomOpen(true)
-      }
-      if (token) {
-        setEntering(true)
-        try {
-          await enterAsMailbox()
-        } catch {
-          if (!cancelled) {
-            setError('Не удалось выдать вход в конференцию.')
-            setEntering(false)
+        const { data } = await api.get<{ token?: string | null; open?: boolean; auto_start?: boolean }>(
+          '/jitsi/guest-token',
+          { params: { room } }
+        )
+        if (cancelled) return
+        setRoomOpen(data?.open !== false)
+        if (token) {
+          setEntering(true)
+          try {
+            await enterAsMailbox()
+          } catch {
+            if (!cancelled) {
+              setError('Не удалось выдать вход в конференцию.')
+              setEntering(false)
+            }
           }
+          return
         }
-        return
+        const autoStart = Boolean(data?.auto_start) || isAutoStartRoom(room)
+        if (autoStart && data?.token) {
+          setEntering(true)
+          await enterWithJwt(data.token, 'Гость')
+          return
+        }
+      } catch {
+        if (cancelled) return
+        setRoomOpen(true)
+        if (token) {
+          setEntering(true)
+          try {
+            await enterAsMailbox()
+          } catch {
+            if (!cancelled) {
+              setError('Не удалось выдать вход в конференцию.')
+              setEntering(false)
+            }
+          }
+          return
+        }
       }
       if (!cancelled) {
         setEntering(false)

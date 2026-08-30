@@ -30,7 +30,7 @@ from app.cal_invite import (
 )
 from app.config import settings
 from app.database import get_db
-from app.jitsi_jwt import is_closed_room, issue_guest_jwt, issue_jitsi_jwt
+from app.jitsi_jwt import is_auto_start_room, is_closed_room, issue_guest_jwt, issue_jitsi_jwt
 from app.mail_photos import user_to_vcard, vcard_filename
 from app.mail_body import format_meeting_when, meeting_invite_html, meeting_invite_plain
 from app.mail_sync import allocate_imap_uid
@@ -594,8 +594,12 @@ async def jitsi_token(
 async def jitsi_guest_token(room: str = Query("", max_length=200)):
     slug = (room or "*").strip() or "*"
     if is_closed_room(slug):
-        return {"token": None, "open": False}
-    return {"token": issue_guest_jwt(slug), "open": True}
+        return {"token": None, "open": False, "auto_start": False}
+    return {
+        "token": issue_guest_jwt(slug),
+        "open": True,
+        "auto_start": is_auto_start_room(slug),
+    }
 
 
 @router.get("/contacts", response_model=list[DirectoryPerson])

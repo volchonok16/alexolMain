@@ -29,9 +29,17 @@ export function firstHttpUrl(text: string): string | null {
   return parts.find((p) => /^https?:\/\//i.test(p)) || null
 }
 
+export function isAutoStartRoom(room: string): boolean {
+  const slug = (room || '').trim().toLowerCase()
+  return slug.startsWith('a-') || slug.startsWith('anyone-')
+}
+
 export function roomFromUrl(roomUrl: string): string {
   try {
-    const path = new URL(roomUrl, JITSI_PUBLIC_URL).pathname.replace(/^\/+/, '')
+    const parsed = new URL(roomUrl, JITSI_PUBLIC_URL)
+    const fromQuery = (parsed.searchParams.get('room') || '').trim()
+    if (fromQuery) return fromQuery
+    const path = parsed.pathname.replace(/^\/+/, '')
     return decodeURIComponent(path.split('/')[0] || '') || 'alexol'
   } catch {
     return 'alexol'
