@@ -22,6 +22,12 @@ def is_closed_room(room: str) -> bool:
     return slug.startswith("c-") or slug.startswith("closed-")
 
 
+def is_auto_start_room(room: str) -> bool:
+    """Open room where the first joiner (including a guest) is moderator."""
+    slug = (room or "").strip().lower()
+    return slug.startswith("a-") or slug.startswith("anyone-")
+
+
 def _encode(
     *,
     room: str,
@@ -77,5 +83,5 @@ def issue_guest_jwt(room: str = "*") -> Optional[str]:
         room=room,
         name="Гость",
         user_id="guest",
-        moderator=False,
+        moderator=is_auto_start_room(room),
     )

@@ -160,6 +160,7 @@ class CalendarEventCreate(BaseModel):
     is_company: bool = False
     video_jitsi: bool = True
     jitsi_open: bool = True
+    jitsi_no_host: bool = True
     attendees: List[CalendarAttendeeIn] = Field(default_factory=list)
 
 

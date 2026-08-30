@@ -88,6 +88,7 @@ export default function CompanyCalendar() {
     is_company: false,
     video_jitsi: true,
     jitsi_open: true,
+    jitsi_no_host: true,
     attendees: '',
   })
 
@@ -158,6 +159,7 @@ export default function CompanyCalendar() {
         is_company: form.is_company,
         video_jitsi: form.video_jitsi,
         jitsi_open: form.jitsi_open,
+        jitsi_no_host: form.jitsi_no_host,
         attendees: attendeeEmails.map((email) => ({ email })),
       })
       return data
@@ -178,6 +180,7 @@ export default function CompanyCalendar() {
         is_company: false,
         video_jitsi: true,
         jitsi_open: true,
+        jitsi_no_host: true,
         attendees: '',
       })
       if (created.conflicts && created.conflicts.length) {
@@ -496,14 +499,26 @@ export default function CompanyCalendar() {
                 Видеозвонок Jitsi
               </label>
               {form.video_jitsi ? (
-                <label className="org-check">
-                  <input
-                    type="checkbox"
-                    checked={form.jitsi_open}
-                    onChange={(e) => setForm({ ...form, jitsi_open: e.target.checked })}
-                  />
-                  Открытая комната (гости по ссылке, без входа в почту)
-                </label>
+                <>
+                  <label className="org-check">
+                    <input
+                      type="checkbox"
+                      checked={form.jitsi_open}
+                      onChange={(e) => setForm({ ...form, jitsi_open: e.target.checked })}
+                    />
+                    Открытая комната (гости по ссылке, без входа в почту)
+                  </label>
+                  {form.jitsi_open ? (
+                    <label className="org-check">
+                      <input
+                        type="checkbox"
+                        checked={form.jitsi_no_host}
+                        onChange={(e) => setForm({ ...form, jitsi_no_host: e.target.checked })}
+                      />
+                      Начинать без организатора (первый вошедший ведёт встречу)
+                    </label>
+                  ) : null}
+                </>
               ) : null}
               <label className="org-check">
                 <input

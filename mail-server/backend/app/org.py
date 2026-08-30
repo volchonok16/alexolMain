@@ -299,12 +299,19 @@ def _attach_jitsi_link(
     location: Optional[str],
     *,
     open_room: bool = True,
+    no_host: bool = True,
 ) -> None:
     loc = (location or "").strip()
     if not enabled:
         event.location = loc or None
         return
-    url = f"{_jitsi_base()}/{'c' if not open_room else 'o'}-alexol-{event.id}-{secrets.token_hex(3)}"
+    if not open_room:
+        prefix = "c"
+    elif no_host:
+        prefix = "a"
+    else:
+        prefix = "o"
+    url = f"{_jitsi_base()}/{prefix}-alexol-{event.id}-{secrets.token_hex(3)}"
     if not loc:
         event.location = url
         return
@@ -755,7 +762,13 @@ async def create_event(
     event.attendees = attendees
     db.add(event)
     await db.flush()
-    _attach_jitsi_link(event, payload.video_jitsi, payload.location, open_room=payload.jitsi_open)
+    _attach_jitsi_link(
+        event,
+        payload.video_jitsi,
+        payload.location,
+        open_room=payload.jitsi_open,
+        no_host=payload.jitsi_no_host,
+    )
     event.ical_uid = event.ical_uid or event_uid(event)
     await db.refresh(event, attribute_names=["attendees", "organizer"])
     await _write_busy(db, event)

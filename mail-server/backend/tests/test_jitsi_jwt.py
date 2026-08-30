@@ -52,6 +52,19 @@ class JitsiJwtTests(unittest.TestCase):
         payload = jwt.decode(token, "unit-test-secret", algorithms=["HS256"], audience="alexol")
         self.assertEqual(payload["context"]["user"]["name"], "Гость")
         self.assertEqual(payload["context"]["user"]["affiliation"], "member")
+        self.assertFalse(payload["context"]["user"]["moderator"])
+
+    def test_guest_is_moderator_when_room_starts_without_host(self):
+        from app.jitsi_jwt import issue_guest_jwt
+
+        with patch("app.jitsi_jwt.settings") as settings:
+            settings.JITSI_JWT_APP_SECRET = "unit-test-secret"
+            settings.JITSI_JWT_APP_ID = "alexol"
+            settings.JITSI_PUBLIC_URL = "https://meet.alexol.io"
+            token = issue_guest_jwt("a-alexol-1-abc")
+        payload = jwt.decode(token, "unit-test-secret", algorithms=["HS256"], audience="alexol")
+        self.assertTrue(payload["context"]["user"]["moderator"])
+        self.assertEqual(payload["context"]["user"]["affiliation"], "owner")
 
 
 if __name__ == "__main__":
