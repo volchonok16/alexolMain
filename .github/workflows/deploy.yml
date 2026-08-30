@@ -516,5 +516,6 @@ jobs:
                         $dc build --no-cache backend bot_news
                       fi
                       $dc up -d --force-recreate
+                      $dc up -d bot_news bot_requests bot_speak
                       $dc ps
                       '

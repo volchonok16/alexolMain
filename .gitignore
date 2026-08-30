@@ -29,6 +29,8 @@ build/
 # Temporary files
 *.tmp
 .cache/
+__pycache__/
+*.py[cod]
 
 # Backups (данные не в git — только scripts/)
 **/backups/*
