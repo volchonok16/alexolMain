@@ -128,6 +128,32 @@
   transform: translateY(-2px);
 }
 
+.btn-jitsi {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.btn-jitsi:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+}
+
+.sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
 .sidebar-menu {
   display: flex;
   flex-direction: column;

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward, ArrowLeft, Calendar } from 'lucide-react'
+import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward, ArrowLeft, Calendar, Video } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
@@ -30,6 +30,7 @@ import { ComposeToField } from '../components/ComposeToField'
 import { htmlForDisplay, previewTextFromParts } from '../utils/htmlEmail'
 import CompanyContacts from '../components/CompanyContacts'
 import CompanyCalendar from '../components/CompanyCalendar'
+import { personalJitsiUrl } from '../utils/jitsi'
 import './UserDashboard.css'
 
 interface Email {
@@ -380,6 +381,18 @@ export default function UserDashboard() {
     navigate('/login')
   }
 
+  const openMyJitsi = async () => {
+    const url = personalJitsiUrl(user?.username, user?.email)
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Ссылка комнаты скопирована — отправьте коллеге')
+    } catch {
+      /* clipboard may be blocked */
+    }
+    window.open(url, '_blank', 'noopener,noreferrer')
+    setMobileNavOpen(false)
+  }
+
   const emails = activeTab === 'inbox' ? inbox : sent
 
   const filteredTemplates = (templates || []).filter((t) => {
@@ -599,6 +612,7 @@ export default function UserDashboard() {
 
       <div className="dashboard-content">
         <aside className={`sidebar ${mobileNavOpen ? 'sidebar--open' : ''}`}>
+          <div className="sidebar-actions">
           <button
             onClick={() => {
               setShowCompose(true)
@@ -609,6 +623,11 @@ export default function UserDashboard() {
             <Send size={20} />
             Написать письмо
           </button>
+          <button type="button" onClick={openMyJitsi} className="btn-jitsi">
+            <Video size={20} />
+            Созвон Jitsi
+          </button>
+          </div>
 
           <div className="sidebar-menu">
             <button

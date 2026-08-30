@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type MouseEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download, Search, Users } from 'lucide-react'
+import { Download, Search, Users, Video } from 'lucide-react'
 import api from '../api/axios'
 import { PeerAvatar } from './PeerAvatar'
 import { useAuthStore } from '../store/authStore'
+import { useToast } from './Toast'
+import { personalJitsiUrl } from '../utils/jitsi'
 import './CompanyOrg.css'
 
 export type DirectoryPerson = {
@@ -21,6 +23,8 @@ export type DirectoryPerson = {
 
 export default function CompanyContacts() {
   const token = useAuthStore((s) => s.token)
+  const me = useAuthStore((s) => s.user)
+  const toast = useToast()
   const [q, setQ] = useState('')
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['contacts'],
@@ -42,6 +46,19 @@ export default function CompanyContacts() {
 
   const downloadVcf = () => {
     window.open(`/api/contacts.vcf?access_token=${encodeURIComponent(token || '')}`, '_blank')
+  }
+
+  const openCall = async (person: DirectoryPerson, event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const url = personalJitsiUrl(me?.username, me?.email)
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success(`Ссылка вашей комнаты скопирована. Отправьте ${person.full_name}`)
+    } catch {
+      /* clipboard may be blocked */
+    }
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   const onDownload = async () => {
@@ -100,7 +117,7 @@ export default function CompanyContacts() {
       ) : (
         <div className="org-contact-list">
           {filtered.map((person) => (
-            <a key={person.email} className="org-contact-card" href={`mailto:${person.email}`}>
+            <div key={person.email} className="org-contact-card">
               <PeerAvatar src={person.avatar_url} email={person.email} name={person.full_name} size={48} />
               <div>
                 <div className="org-contact-name">
@@ -121,7 +138,15 @@ export default function CompanyContacts() {
                 {person.phone ? <div className="org-contact-meta">{person.phone}</div> : null}
                 {person.telegram ? <div className="org-contact-meta">{person.telegram}</div> : null}
               </div>
-            </a>
+              <button
+                type="button"
+                className="org-call-btn"
+                onClick={(event) => openCall(person, event)}
+                title="Созвониться в Jitsi"
+              >
+                <Video size={18} />
+              </button>
+            </div>
           ))}
         </div>
       )}

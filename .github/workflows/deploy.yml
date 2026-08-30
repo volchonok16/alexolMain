@@ -371,6 +371,8 @@ jobs:
                   else
                     echo "jitsi_env not set — server keeps existing .env or env.public"
                   fi
+
+            - name: Prepare Jitsi directory
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.SERVER_IP }}

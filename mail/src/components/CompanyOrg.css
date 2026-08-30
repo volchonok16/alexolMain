@@ -79,6 +79,25 @@
   border-color: var(--color-primary);
 }
 
+.org-call-btn {
+  margin-left: auto;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.org-call-btn:hover {
+  border-color: var(--color-primary);
+}
+
 .org-busy-badge {
   margin-left: 0.45rem;
   font-size: 0.7rem;
