@@ -456,8 +456,11 @@ jobs:
                         fi
                       done
                       if [ "$all_up" = 1 ]; then
-                        jwt_ready=$(docker inspect jitsi_web --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -c "^ENABLE_AUTH=1" || true)
-                        if [ -z "$jwt_secret" ] || [ "${jwt_ready:-0}" != "0" ]; then
+                        jwt_ready=0
+                        if docker inspect jitsi_web 2>/dev/null | grep -q "ENABLE_AUTH=1"; then
+                          jwt_ready=1
+                        fi
+                        if [ -z "$jwt_secret" ] || [ "$jwt_ready" = 1 ]; then
                           echo "Jitsi already running, skip up"
                           $dc ps
                           exit 0
