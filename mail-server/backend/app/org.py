@@ -8,14 +8,13 @@ from datetime import datetime
 from email import policy as email_policy
 from email.message import EmailMessage
 from email.parser import BytesParser
-from email.utils import getaddresses
 from typing import Optional
 from urllib.parse import quote, unquote
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import PlainTextResponse, Response
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -32,6 +31,7 @@ from app.cal_invite import (
 )
 from app.config import settings
 from app.database import get_db
+from app.jitsi_jwt import issue_jitsi_jwt
 from app.mail_photos import user_to_vcard, vcard_filename
 from app.mail_sync import allocate_imap_uid
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
@@ -197,12 +197,17 @@ async def _write_busy(db: AsyncSession, event: CalendarEvent) -> None:
 
 
 def _visible_event_filter(user: User):
-    return or_(
-        CalendarEvent.is_company.is_(True),
+    """Organizer and invitees only. Whole company only when marked so and nobody was invited."""
+    invited = or_(
         CalendarEvent.organizer_id == user.id,
         CalendarEvent.attendees.any(CalendarAttendee.user_id == user.id),
         CalendarEvent.attendees.any(CalendarAttendee.email.ilike(user.email)),
     )
+    company_wide = and_(
+        CalendarEvent.is_company.is_(True),
+        ~CalendarEvent.attendees.any(),
+    )
+    return or_(invited, company_wide)
 
 
 async def _event_response(
@@ -410,20 +415,13 @@ async def ingest_calendar_message(
     parts = extract_calendar_parts(msg)
     if not parts:
         return
-    involved = list(local_users)
-    header_addrs = []
-    for hdr in ("To", "Cc"):
-        header_addrs.extend(addr for _, addr in getaddresses(msg.get_all(hdr) or []))
-    for addr in header_addrs:
-        peer = await _user_by_email(db, addr)
-        if peer and all(u.id != peer.id for u in involved):
-            involved.append(peer)
+    recipients = list(local_users)
     for method_hint, ics_text in parts:
         parsed = parse_calendar(ics_text, default_method=method_hint)
         if not parsed:
             continue
         try:
-            await _apply_parsed_event(db, parsed, sender=sender, local_users=involved)
+            await _apply_parsed_event(db, parsed, sender=sender, local_users=recipients)
         except Exception:
             logger.exception("Calendar ingest failed uid=%s", parsed.uid)
 
@@ -487,6 +485,7 @@ async def _apply_parsed_event(
         existing.all_day = bool(parsed.all_day)
         existing.ical_sequence = int(parsed.sequence or 0)
         existing.organizer_id = org_user.id
+        existing.is_company = False
         event = existing
         event.attendees.clear()
         await db.flush()
@@ -507,6 +506,7 @@ async def _apply_parsed_event(
         await db.flush()
 
     event.ical_uid = parsed.uid
+    event.is_company = False
     seen = {org_user.email.lower()}
     attendees: list[CalendarAttendee] = []
     for email, name, status in parsed.attendees:
@@ -522,6 +522,7 @@ async def _apply_parsed_event(
                 status=status or "invited",
             )
         )
+    # Recipients of this copy (SMTP RCPT / mailbox owner), not everyone on To/Cc.
     for peer in local_users or []:
         if not peer.email or peer.email.lower() in seen:
             continue
@@ -553,6 +554,15 @@ async def search_directory(
     users = await _load_colleagues(db, query, limit)
     busy = await _busy_now_by_email(db)
     return [_person(u, busy.get(u.email.lower())) for u in users]
+
+
+@router.get("/jitsi/token")
+async def jitsi_token(
+    room: str = Query("", max_length=200),
+    current_user: User = Depends(get_current_user),
+):
+    slug = (room or "*").strip() or "*"
+    return {"token": issue_jitsi_jwt(current_user, room=slug)}
 
 
 @router.get("/contacts", response_model=list[DirectoryPerson])

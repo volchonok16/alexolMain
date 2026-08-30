@@ -89,7 +89,7 @@ class CalendarEvent(Base):
     start_at = Column(DateTime, nullable=False, index=True)
     end_at = Column(DateTime, nullable=False)
     all_day = Column(Boolean, default=False, nullable=False)
-    is_company = Column(Boolean, default=True, nullable=False)
+    is_company = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     ical_uid = Column(String, unique=True, nullable=True, index=True)

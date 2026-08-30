@@ -5,7 +5,7 @@ import api from '../api/axios'
 import { PeerAvatar } from './PeerAvatar'
 import { useAuthStore } from '../store/authStore'
 import { useToast } from './Toast'
-import { personalJitsiUrl } from '../utils/jitsi'
+import { openJitsiRoom, personalJitsiUrl } from '../utils/jitsi'
 import './CompanyOrg.css'
 
 export type DirectoryPerson = {
@@ -71,7 +71,7 @@ export default function CompanyContacts() {
     } catch {
       /* clipboard may be blocked */
     }
-    window.open(url, '_blank', 'noopener,noreferrer')
+    await openJitsiRoom(url, me)
   }
 
   const onDownload = async () => {

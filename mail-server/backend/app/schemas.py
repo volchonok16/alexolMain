@@ -157,7 +157,7 @@ class CalendarEventCreate(BaseModel):
     start_at: datetime
     end_at: datetime
     all_day: bool = False
-    is_company: bool = True
+    is_company: bool = False
     video_jitsi: bool = True
     attendees: List[CalendarAttendeeIn] = Field(default_factory=list)
 

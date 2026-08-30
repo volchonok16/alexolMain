@@ -30,7 +30,7 @@ import { ComposeToField } from '../components/ComposeToField'
 import { htmlForDisplay, previewTextFromParts } from '../utils/htmlEmail'
 import CompanyContacts from '../components/CompanyContacts'
 import CompanyCalendar from '../components/CompanyCalendar'
-import { personalJitsiUrl } from '../utils/jitsi'
+import { openJitsiRoom, personalJitsiUrl } from '../utils/jitsi'
 import './UserDashboard.css'
 
 interface Email {
@@ -389,7 +389,7 @@ export default function UserDashboard() {
     } catch {
       /* clipboard may be blocked */
     }
-    window.open(url, '_blank', 'noopener,noreferrer')
+    await openJitsiRoom(url, user)
     setMobileNavOpen(false)
   }
 

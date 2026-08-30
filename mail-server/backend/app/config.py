@@ -80,8 +80,10 @@ class Settings(BaseSettings):
     # Public base URL of mail web/API (avatars in outbound HTML / Unavatar fallbacks)
     MAIL_PUBLIC_URL: str = "https://mail.alexol.io"
 
-    # Jitsi Meet (calendar join links)
+    # Jitsi Meet (calendar join links + optional JWT identity)
     JITSI_PUBLIC_URL: str = "https://meet.alexol.io"
+    JITSI_JWT_APP_ID: str = "alexol"
+    JITSI_JWT_APP_SECRET: Optional[str] = None
 
     # Site admin panel URL (for UI redirects / docs)
     ADMIN_PUBLIC_URL: str = "https://admin.alexol.io"

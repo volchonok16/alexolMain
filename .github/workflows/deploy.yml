@@ -422,6 +422,13 @@ jobs:
                         cp env.public .env
                       fi
                       ./gen-passwords.sh
+                      jwt_secret=$(grep -E "^JWT_APP_SECRET=" .env | tail -1 | cut -d= -f2- || true)
+                      if [ -n "$jwt_secret" ]; then
+                        sed -i "s/^ENABLE_AUTH=.*/ENABLE_AUTH=1/" .env
+                        grep -qE "^ENABLE_AUTH=" .env || echo "ENABLE_AUTH=1" >> .env
+                        grep -qE "^AUTH_TYPE=" .env || echo "AUTH_TYPE=jwt" >> .env
+                        grep -qE "^ENABLE_GUESTS=" .env || echo "ENABLE_GUESTS=1" >> .env
+                      fi
                       # UDP 10000 is occupied on this VPS; JVB listens on 10001
                       sed -i "s/^JVB_PORT=.*/JVB_PORT=10001/" .env
                       grep -qE "^JVB_PORT=" .env || echo "JVB_PORT=10001" >> .env
@@ -449,9 +456,13 @@ jobs:
                         fi
                       done
                       if [ "$all_up" = 1 ]; then
-                        echo "Jitsi already running, skip up"
-                        $dc ps
-                        exit 0
+                        jwt_ready=$(docker inspect jitsi_web --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -c "^ENABLE_AUTH=1" || true)
+                        if [ -z "$jwt_secret" ] || [ "${jwt_ready:-0}" != "0" ]; then
+                          echo "Jitsi already running, skip up"
+                          $dc ps
+                          exit 0
+                        fi
+                        echo "JWT enabled, recreating Jitsi to pick up auth"
                       fi
                       docker rm -f jitsi_jvb >/dev/null 2>&1 || true
                       if docker image inspect ghcr.io/jitsi/jvb:stable >/dev/null 2>&1; then
@@ -459,7 +470,11 @@ jobs:
                       else
                         $dc pull
                       fi
-                      $dc up -d
+                      if [ -n "$jwt_secret" ]; then
+                        $dc up -d --force-recreate
+                      else
+                        $dc up -d
+                      fi
                       $dc ps
                       '
 

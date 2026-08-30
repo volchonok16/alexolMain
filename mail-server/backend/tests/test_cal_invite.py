@@ -185,6 +185,11 @@ class SmtpIngestHookTests(unittest.TestCase):
         )
         self.assertIn("ingest_calendar_message", src)
         self.assertIn("from app.org import ingest_calendar_message", src)
+        org_src = (Path(__file__).resolve().parents[1] / "app" / "org.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("~CalendarEvent.attendees.any()", org_src)
+        self.assertIn("existing.is_company = False", org_src)
 
 
 if __name__ == "__main__":

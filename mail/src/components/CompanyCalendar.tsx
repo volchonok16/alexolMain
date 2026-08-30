@@ -6,6 +6,7 @@ import { ComposeToField } from './ComposeToField'
 import { useToast } from './Toast'
 import { parseRecipientChips } from '../utils/composeEmail'
 import { useAuthStore } from '../store/authStore'
+import { firstHttpUrl, openJitsiRoom } from '../utils/jitsi'
 import './CompanyOrg.css'
 
 type Attendee = {
@@ -74,6 +75,7 @@ export default function CompanyCalendar() {
   const toast = useToast()
   const queryClient = useQueryClient()
   const me = useAuthStore((s) => s.user?.email)
+  const user = useAuthStore((s) => s.user)
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()))
   const [selected, setSelected] = useState(() => new Date())
   const [showForm, setShowForm] = useState(false)
@@ -83,7 +85,7 @@ export default function CompanyCalendar() {
     description: '',
     start_at: defaultStart(),
     end_at: defaultEnd(),
-    is_company: true,
+    is_company: false,
     video_jitsi: true,
     attendees: '',
   })
@@ -171,7 +173,7 @@ export default function CompanyCalendar() {
         description: '',
         start_at: defaultStart(),
         end_at: defaultEnd(),
-        is_company: true,
+        is_company: false,
         video_jitsi: true,
         attendees: '',
       })
@@ -257,11 +259,10 @@ export default function CompanyCalendar() {
         </div>
       </div>
       <p className="org-cal-hint">
-        Встречи с участниками уходят в Outlook как приглашения Accept/Decline, не как обычное
-        письмо. Встречи из Outlook с участниками @alexol.io появляются здесь после открытия
-        календаря. Если встреча в другом месяце — листайте сетку или откройте её из списка
-        ближайших. Чтобы видеть все встречи сайта в Outlook — кнопка со ссылкой (календарь из
-        интернета).
+        Встреча видна организатору и тем, кого пригласили. Общей для всей компании она становится
+        только если включить галку и не указывать участников. Приглашения уходят в Outlook как
+        Accept/Decline. Чтобы видеть свои встречи сайта в Outlook — кнопка со ссылкой (календарь
+        из интернета).
       </p>
 
       <div className="cal-nav">
@@ -354,13 +355,26 @@ export default function CompanyCalendar() {
                 </div>
                 {ev.location && ev.location.includes('http') ? (
                   <div className="org-contact-meta">
-                    <a href={ev.location.split('·').map((p) => p.trim()).find((p) => p.startsWith('http')) || ev.location} target="_blank" rel="noreferrer">
+                    <a
+                      href={firstHttpUrl(ev.location) || ev.location}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => {
+                        const join = firstHttpUrl(ev.location || '')
+                        if (!join) return
+                        e.preventDefault()
+                        void openJitsiRoom(join, user)
+                      }}
+                    >
                       Открыть видеозвонок
                     </a>
                   </div>
                 ) : null}
                 <div className="org-contact-meta">
-                  {ev.is_company ? 'Календарь компании' : 'Личная'} · {ev.organizer_name}
+                  {ev.is_company && ev.attendees.length === 0
+                    ? 'Календарь компании'
+                    : 'Только участники'}{' '}
+                  · {ev.organizer_name}
                 </div>
                 {ev.attendees.length > 0 ? (
                   <div className="org-contact-meta">
@@ -483,7 +497,7 @@ export default function CompanyCalendar() {
                   checked={form.is_company}
                   onChange={(e) => setForm({ ...form, is_company: e.target.checked })}
                 />
-                Видно всей компании
+                Видно всей компании (если никого не пригласили)
               </label>
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowForm(false)}>
