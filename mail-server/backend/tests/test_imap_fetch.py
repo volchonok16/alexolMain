@@ -3,9 +3,11 @@ import unittest
 from datetime import datetime, timezone
 
 from app.imap_server import (
+    _OUTLOOK_LIST_FETCH,
     _build_fetch_response,
     _classify_mailbox,
     _normalize_mailbox,
+    _redact_imap_line,
     _safe_bodystructure,
     _section_payload,
 )
@@ -60,15 +62,19 @@ class FetchResponseTests(unittest.TestCase):
         self.assertNotIn(b'"100 10"', resp)
         self.assertIn(b"RFC822.SIZE", resp)
 
-    def test_select_prefetch_items_are_parseable(self):
-        from app.imap_server import _SELECT_PREFETCH_ITEMS
-
-        resp = _build_fetch_response(1, _sample(), _SELECT_PREFETCH_ITEMS, True)
+    def test_outlook_list_fetch_items_are_parseable(self):
+        resp = _build_fetch_response(1, _sample(), _OUTLOOK_LIST_FETCH, True)
         resp.decode("ascii")
         self.assertIn(b"UID 42", resp)
         self.assertIn(b"ENVELOPE", resp)
         self.assertIn(b"BODY[HEADER.FIELDS", resp)
         self.assertIn(b"RFC822.SIZE", resp)
+
+    def test_redact_authenticate_hides_sasl_payload(self):
+        line = "a AUTHENTICATE PLAIN Zm9vAGJhcgB0aGVyZQ=="
+        redacted = _redact_imap_line(line)
+        self.assertEqual(redacted, "a AUTHENTICATE PLAIN ***")
+        self.assertNotIn("Zm9v", redacted)
 
     def test_outlook_header_fields_fetch(self):
         items = (

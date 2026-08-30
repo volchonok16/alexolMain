@@ -45,14 +45,33 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
-# 19: emit FETCH *before* SELECT tagged OK. Outlook's proxy SELECT+LOGOUT and
-#     never sends FETCH; prefetch after OK was ignored. Hide Contacts from LIST.
-UIDVALIDITY = 19
-_SELECT_PREFETCH_ITEMS = (
+# 20: no unsolicited FETCH on SELECT (Office 365 15.21 reads it, then LOGOUT and
+#     never starts a real UID FETCH). CLOSED when switching Drafts→INBOX.
+#     UIDVALIDITY is a Dovecot-style large integer so the cloud cache resets.
+UIDVALIDITY = 1756542000
+_OUTLOOK_LIST_FETCH = (
     "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
     "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
 )
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+
+
+def _redact_imap_line(line: str) -> str:
+    """Never log LOGIN passwords or AUTHENTICATE SASL payloads."""
+    m = re.match(r'^(\S+)\s+(LOGIN|AUTHENTICATE)\b(.*)', line, re.I)
+    if not m:
+        return line
+    cmd = m.group(2).upper()
+    rest = m.group(3).strip()
+    if cmd == "LOGIN":
+        if rest.startswith('"'):
+            end = rest.find('"', 1)
+            user = rest[1:end] if end > 0 else "?"
+        else:
+            user = rest.split()[0] if rest else "?"
+        return f"{m.group(1)} LOGIN {user} ***"
+    mech = (rest.split() or ["?"])[0]
+    return f"{m.group(1)} AUTHENTICATE {mech} ***"
 
 
 def _imap_internaldate(dt: datetime) -> str:
@@ -581,7 +600,10 @@ class IMAPSession:
 
     async def handle(self):
         logger.info("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
-        await self._send(f'* OK {settings.smtp_hostname} IMAP4rev1 Service Ready')
+        await self._send(
+            f'* OK [CAPABILITY IMAP4rev1 SASL-IR AUTH=PLAIN ID IDLE NAMESPACE UIDPLUS CHILDREN] '
+            f'{settings.smtp_hostname} IMAP4rev1 ready.'
+        )
         try:
             while self.state != self.LOGOUT:
                 line = await asyncio.wait_for(self.reader.readline(), timeout=300)
@@ -590,7 +612,7 @@ class IMAPSession:
                 line = line.decode('utf-8', errors='replace').rstrip('\r\n')
                 if not line:
                     continue
-                logger.debug('IMAP < %s', line)
+                logger.debug('IMAP < %s', _redact_imap_line(line))
                 await self._dispatch(line)
         except asyncio.TimeoutError:
             try:
@@ -630,6 +652,14 @@ class IMAPSession:
         if cmd == "LOGIN":
             login = _parse_args(rest)[0] if rest else "?"
             logger.info("IMAP cmd=LOGIN user=%s peer=%s", login, self._peer())
+        elif cmd == "AUTHENTICATE":
+            mech = rest.split()[0] if rest else "?"
+            logger.info(
+                "IMAP cmd=AUTHENTICATE %s peer=%s user=%s",
+                mech,
+                self._peer(),
+                self.user.email if self.user else "-",
+            )
         else:
             logger.info(
                 "IMAP cmd=%s %s peer=%s user=%s",
@@ -887,6 +917,11 @@ class IMAPSession:
         if self.state not in (self.AUTHENTICATED, self.SELECTED):
             await self._send(f'{tag} NO Not authenticated')
             return
+        # Outlook SELECTs Drafts then INBOX on the same connection. RFC 3501
+        # SELECT implicitly deselects; Dovecot also emits CLOSED so the client
+        # does not keep treating Drafts (0 messages) as the selected mailbox.
+        if self.state == self.SELECTED and self.selected_mailbox:
+            await self._send('* OK [CLOSED] Previous mailbox closed.')
         kind = _classify_mailbox(_normalize_mailbox(args))
         if kind == 'INBOX':
             emails = self._fetch_inbox()
@@ -913,39 +948,23 @@ class IMAPSession:
             None,
         )
         uidnext = _uidnext(emails)
-        # RECENT = unseen on INBOX: Outlook's proxy skipped FETCH when RECENT was 0.
-        recent = n if kind == 'INBOX' else 0
-        if kind == 'INBOX' and first_unseen is None and n:
-            first_unseen = 1
 
+        # Dovecot-shaped SELECT. Do not push unsolicited FETCH here: Outlook's
+        # Office 365 15.21 proxy reads it, LOGOUT, and never starts UID FETCH.
         await self._send(r'* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
-        await self._send(r'* OK [PERMANENTFLAGS (\Answered \Flagged \Deleted \Seen \Draft \*)] Flags permitted')
+        await self._send(
+            r'* OK [PERMANENTFLAGS (\Answered \Flagged \Deleted \Seen \Draft \*)] Flags permitted.'
+        )
         await self._send(f'* {n} EXISTS')
-        await self._send(f'* {recent} RECENT')
+        await self._send('* 0 RECENT')
         if first_unseen:
-            await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
+            await self._send(
+                f'* OK [UNSEEN {first_unseen}] Message {first_unseen} is first unseen'
+            )
         await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}] UIDs valid')
         await self._send(f'* OK [UIDNEXT {uidnext}] Predicted next UID')
-        # Outlook cloud IMAP never sends FETCH for INBOX (SELECT then LOGOUT).
-        # Put the list payload *before* the tagged OK so it cannot skip it.
-        if emails and kind in ("INBOX", "Sent"):
-            for seq_num, em in enumerate(emails, start=1):
-                try:
-                    await self._send_bytes(
-                        _build_fetch_response(seq_num, em, _SELECT_PREFETCH_ITEMS, True)
-                    )
-                except Exception as exc:
-                    logger.exception(
-                        "IMAP SELECT prefetch uid=%s: %s", em.get("id"), exc
-                    )
-            logger.info(
-                "IMAP SELECT prefetch mailbox=%s count=%s user=%s",
-                self.selected_mailbox,
-                n,
-                self.user.email if self.user else "?",
-            )
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
-        await self._send(f'{tag} OK [{read_write}] {cmd} completed')
+        await self._send(f'{tag} OK [{read_write}] {cmd} completed.')
         logger.info(
             "IMAP %s mailbox=%s messages=%s uidnext=%s user=%s",
             cmd,
