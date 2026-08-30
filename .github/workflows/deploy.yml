@@ -422,15 +422,18 @@ jobs:
                         cp env.public .env
                       fi
                       ./gen-passwords.sh
+                      # UDP 10000 is occupied on this VPS; JVB listens on 10001
+                      sed -i "s/^JVB_PORT=.*/JVB_PORT=10001/" .env
+                      grep -qE "^JVB_PORT=" .env || echo "JVB_PORT=10001" >> .env
+                      jvb_port=10001
                       pub_ip=$(curl -4 -fsS --max-time 8 https://ifconfig.me || true)
                       if [ -z "$pub_ip" ]; then
                         pub_ip=$(hostname -I | awk "{print \$1}")
                       fi
-                      if [ -n "$pub_ip" ] && grep -qE "^JVB_ADVERTISE_IPS=$" .env; then
-                        sed -i "s#^JVB_ADVERTISE_IPS=#JVB_ADVERTISE_IPS=${pub_ip}#" .env
+                      if [ -n "$pub_ip" ]; then
+                        sed -i "s|^JVB_ADVERTISE_IPS=.*|JVB_ADVERTISE_IPS=${pub_ip}#${jvb_port}|" .env
+                        grep -qE "^JVB_ADVERTISE_IPS=" .env || echo "JVB_ADVERTISE_IPS=${pub_ip}#${jvb_port}" >> .env
                       fi
-                      jvb_port=$(grep -E "^JVB_PORT=" .env | tail -1 | cut -d= -f2)
-                      jvb_port=${jvb_port:-10000}
                       if command -v ufw >/dev/null 2>&1; then
                         ufw allow "${jvb_port}/udp" comment "Jitsi JVB" || true
                       fi
@@ -450,8 +453,13 @@ jobs:
                         $dc ps
                         exit 0
                       fi
-                      $dc pull
-                      $dc up -d --no-recreate
+                      docker rm -f jitsi_jvb >/dev/null 2>&1 || true
+                      if docker image inspect ghcr.io/jitsi/jvb:stable >/dev/null 2>&1; then
+                        echo "Jitsi images already present, skip pull"
+                      else
+                        $dc pull
+                      fi
+                      $dc up -d
                       $dc ps
                       '
 
