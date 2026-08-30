@@ -40,6 +40,13 @@ class MailboxNameTests(unittest.TestCase):
         self.assertEqual(_classify_mailbox(_normalize_mailbox("Drafts")), "Drafts")
         self.assertEqual(_classify_mailbox(_normalize_mailbox('"INBOX"')), "INBOX")
 
+    def test_hierarchical_inbox_clones_are_not_inbox(self):
+        self.assertIsNone(_classify_mailbox(_normalize_mailbox("INBOX/INBOX")))
+        self.assertIsNone(_classify_mailbox(_normalize_mailbox('"INBOX/INBOX/INBOX"')))
+        self.assertIsNone(_classify_mailbox(_normalize_mailbox("INBOX.INBOX")))
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("INBOX")), "INBOX")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("Sent")), "Sent")
+
     def test_list_children_of_inbox_are_empty(self):
         from app.imap_server import _list_pattern_is_children
 
@@ -47,6 +54,17 @@ class MailboxNameTests(unittest.TestCase):
         self.assertTrue(_list_pattern_is_children("", "INBOX/%"))
         self.assertFalse(_list_pattern_is_children("", "*"))
         self.assertFalse(_list_pattern_is_children("", "INBOX"))
+
+    def test_list_has_noinferiors_not_inbox_special_use(self):
+        from pathlib import Path
+
+        src = (Path(__file__).resolve().parents[1] / "app" / "imap_server.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(r'* LIST (\Noinferiors) "/" INBOX', src)
+        self.assertIn(r'* LIST (\HasNoChildren \Sent) "/" Sent', src)
+        self.assertNotIn(r"\Inbox) NIL INBOX", src)
+        self.assertIn("async def _subscribe", src)
 
     def test_contacts_mailbox(self):
         self.assertEqual(_classify_mailbox(_normalize_mailbox("Contacts")), "Contacts")

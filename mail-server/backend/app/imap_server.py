@@ -52,9 +52,8 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
-# 22: mailbox-local UIDs 1..N. DB ids made SELECT INBOX messages=18 uidnext=102;
-#     Office 365 then LOGOUT without UID FETCH (same skip as 72926ed).
-UIDVALIDITY = 22
+# 23: drop leftover INBOX/INBOX clones (NIL delimiter + SUBSCRIBE-ok kept them).
+UIDVALIDITY = 23
 _OUTLOOK_LIST_FETCH = (
     "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
     "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
@@ -113,7 +112,11 @@ def _normalize_mailbox(args: str) -> str:
 
 
 def _classify_mailbox(name: str) -> str | None:
-    n = (name or "").strip().strip('"').upper()
+    n = (name or "").strip().strip('"').replace("\\", "/")
+    # Outlook leftover children (INBOX/INBOX, INBOX.INBOX) are not real mailboxes.
+    if "/" in n or "." in n:
+        return None
+    n = n.upper()
     if n in ("INBOX", "", "ВХОДЯЩИЕ", "ВХОДЯЩИЕ СООБЩЕНИЯ"):
         return "INBOX"
     if n in (
@@ -723,8 +726,8 @@ class IMAPSession:
             'CLOSE': self._close,
             'NAMESPACE': self._namespace,
             'ID': self._id,
-            'SUBSCRIBE': self._ok,
-            'UNSUBSCRIBE': self._ok,
+            'SUBSCRIBE': self._subscribe,
+            'UNSUBSCRIBE': self._unsubscribe,
             'APPEND': self._append,
             'CREATE': self._create,
             'DELETE': self._delete_mailbox,
@@ -1061,9 +1064,10 @@ class IMAPSession:
         if _list_pattern_is_children(reference, mailbox):
             await self._send(f'{tag} OK LIST completed')
             return
-        # Flat namespace (delimiter NIL): Outlook must not grow INBOX/INBOX children.
-        await self._send(r'* LIST (\HasNoChildren \Inbox) NIL INBOX')
-        await self._send(r'* LIST (\HasNoChildren \Sent) NIL Sent')
+        # "/" + \Noinferiors: Outlook understands this delimiter, cannot nest INBOX.
+        # No \Inbox flag — RFC INBOX already maps to «Входящие»; \Inbox duplicated it.
+        await self._send(r'* LIST (\Noinferiors) "/" INBOX')
+        await self._send(r'* LIST (\HasNoChildren \Sent) "/" Sent')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
@@ -1073,8 +1077,8 @@ class IMAPSession:
         if _list_pattern_is_children(reference, mailbox):
             await self._send(f'{tag} OK LSUB completed')
             return
-        await self._send(r'* LSUB (\HasNoChildren \Inbox) NIL INBOX')
-        await self._send(r'* LSUB (\HasNoChildren \Sent) NIL Sent')
+        await self._send(r'* LSUB (\Noinferiors) "/" INBOX')
+        await self._send(r'* LSUB (\HasNoChildren \Sent) "/" Sent')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _create(self, tag, cmd, args):
@@ -1090,6 +1094,16 @@ class IMAPSession:
             await self._send(f'{tag} NO [NOPERM] Cannot delete {kind}')
             return
         await self._send(f'{tag} OK DELETE completed')
+
+    async def _subscribe(self, tag, cmd, args):
+        kind = _classify_mailbox(_normalize_mailbox(args))
+        if kind in ("INBOX", "Sent"):
+            await self._send(f'{tag} OK SUBSCRIBE completed')
+            return
+        await self._send(f'{tag} NO Mailbox not found')
+
+    async def _unsubscribe(self, tag, cmd, args):
+        await self._send(f'{tag} OK UNSUBSCRIBE completed')
 
     async def _status(self, tag, cmd, args):
         name = _normalize_mailbox(args)
@@ -1262,7 +1276,7 @@ class IMAPSession:
         await self._send(f'{tag} OK {cmd} completed')
 
     async def _namespace(self, tag, cmd, args):
-        await self._send('* NAMESPACE (("" NIL)) NIL NIL')
+        await self._send('* NAMESPACE (("" "/")) NIL NIL')
         await self._send(f'{tag} OK NAMESPACE completed')
 
     async def _id(self, tag, cmd, args):
