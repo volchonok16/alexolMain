@@ -1,0 +1,89 @@
+.jitsi-choice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.jitsi-choice-modal {
+  position: relative;
+  width: min(440px, 100%);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.jitsi-choice-modal h2 {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+}
+
+.jitsi-choice-modal p {
+  margin: 0 0 18px;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.jitsi-choice-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 999px;
+}
+
+.jitsi-choice-close:hover {
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.jitsi-choice-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.jitsi-choice-card {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary, var(--color-surface));
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.jitsi-choice-card svg {
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--color-primary);
+}
+
+.jitsi-choice-card span {
+  font-weight: 700;
+}
+
+.jitsi-choice-card small {
+  color: var(--color-text-muted);
+}
+
+.jitsi-choice-card:hover {
+  border-color: var(--color-primary);
+}
+
+.jitsi-choice-card--closed svg {
+  color: #f59e0b;
+}

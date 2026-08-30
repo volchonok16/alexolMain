@@ -133,19 +133,20 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: var(--color-surface);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
   color: var(--color-text);
-  border: 1px solid var(--color-border);
+  border: none;
   padding: 0.75rem;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  transition: transform 0.2s, border-color 0.2s;
+  opacity: 0.92;
+  transition: transform 0.2s, opacity 0.2s;
 }
 
 .btn-jitsi:hover {
   transform: translateY(-2px);
-  border-color: var(--color-primary);
+  opacity: 1;
 }
 
 .sidebar-actions {

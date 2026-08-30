@@ -6,6 +6,7 @@ import { PeerAvatar } from './PeerAvatar'
 import { useAuthStore } from '../store/authStore'
 import { useToast } from './Toast'
 import { openJitsiRoom, personalJitsiUrl } from '../utils/jitsi'
+import { JitsiRoomChoice } from './JitsiRoomChoice'
 import './CompanyOrg.css'
 
 export type DirectoryPerson = {
@@ -41,6 +42,7 @@ export default function CompanyContacts() {
   const me = useAuthStore((s) => s.user)
   const toast = useToast()
   const [q, setQ] = useState('')
+  const [showJitsiChoice, setShowJitsiChoice] = useState(false)
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['contacts'],
     queryFn: async () => {
@@ -63,11 +65,12 @@ export default function CompanyContacts() {
     window.open(`/api/contacts.vcf?access_token=${encodeURIComponent(token || '')}`, '_blank')
   }
 
-  const openMyJitsi = async () => {
-    const url = personalJitsiUrl(me?.username, me?.email)
+  const startJitsi = async (openRoom: boolean) => {
+    const url = personalJitsiUrl(me?.username, me?.email, openRoom)
+    setShowJitsiChoice(false)
     try {
       await navigator.clipboard.writeText(url)
-      toast.success('Ссылка комнаты скопирована — отправьте коллеге')
+      toast.success(openRoom ? 'Открытая комната — ссылка скопирована' : 'Закрытая комната — ссылка скопирована')
     } catch {
       /* clipboard may be blocked */
     }
@@ -93,7 +96,7 @@ export default function CompanyContacts() {
       <div className="content-header">
         <h2>Контакты компании</h2>
         <div className="org-header-actions">
-          <button type="button" className="btn-compose org-small-compose" onClick={openMyJitsi}>
+          <button type="button" className="btn-compose org-small-compose" onClick={() => setShowJitsiChoice(true)}>
             <Video size={16} />
             Созвон Jitsi
           </button>
@@ -179,6 +182,11 @@ export default function CompanyContacts() {
           ))}
         </div>
       )}
+      <JitsiRoomChoice
+        open={showJitsiChoice}
+        onClose={() => setShowJitsiChoice(false)}
+        onPick={(openRoom) => void startJitsi(openRoom)}
+      />
     </div>
   )
 }

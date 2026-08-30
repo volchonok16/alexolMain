@@ -31,6 +31,7 @@ import { htmlForDisplay, previewTextFromParts } from '../utils/htmlEmail'
 import CompanyContacts from '../components/CompanyContacts'
 import CompanyCalendar from '../components/CompanyCalendar'
 import { openJitsiRoom, personalJitsiUrl } from '../utils/jitsi'
+import { JitsiRoomChoice } from '../components/JitsiRoomChoice'
 import './UserDashboard.css'
 
 interface Email {
@@ -85,6 +86,7 @@ export default function UserDashboard() {
   
   const [activeTab, setActiveTab] = useState<'inbox' | 'sent' | 'contacts' | 'calendar'>('inbox')
   const [showCompose, setShowCompose] = useState(false)
+  const [showJitsiChoice, setShowJitsiChoice] = useState(false)
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [siteAdminLoading, setSiteAdminLoading] = useState(false)
@@ -381,11 +383,12 @@ export default function UserDashboard() {
     navigate('/login')
   }
 
-  const openMyJitsi = async () => {
-    const url = personalJitsiUrl(user?.username, user?.email)
+  const startJitsi = async (openRoom: boolean) => {
+    const url = personalJitsiUrl(user?.username, user?.email, openRoom)
+    setShowJitsiChoice(false)
     try {
       await navigator.clipboard.writeText(url)
-      toast.success('Ссылка комнаты скопирована — отправьте коллеге')
+      toast.success(openRoom ? 'Открытая комната — ссылка скопирована' : 'Закрытая комната — ссылка скопирована')
     } catch {
       /* clipboard may be blocked */
     }
@@ -623,7 +626,7 @@ export default function UserDashboard() {
             <Send size={20} />
             Написать письмо
           </button>
-          <button type="button" onClick={openMyJitsi} className="btn-jitsi">
+          <button type="button" onClick={() => setShowJitsiChoice(true)} className="btn-jitsi">
             <Video size={20} />
             Созвон Jitsi
           </button>
@@ -1330,6 +1333,11 @@ export default function UserDashboard() {
           </div>
         </div>
       )}
+      <JitsiRoomChoice
+        open={showJitsiChoice}
+        onClose={() => setShowJitsiChoice(false)}
+        onPick={(openRoom) => void startJitsi(openRoom)}
+      />
     </div>
   )
 }
