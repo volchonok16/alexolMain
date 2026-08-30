@@ -6,10 +6,13 @@ from app.imap_server import (
     _OUTLOOK_LIST_FETCH,
     _build_fetch_response,
     _classify_mailbox,
+    _imap_uid,
     _normalize_mailbox,
+    _parse_seq_set,
     _redact_imap_line,
     _safe_bodystructure,
     _section_payload,
+    _uidnext,
 )
 
 
@@ -114,6 +117,35 @@ class FetchResponseTests(unittest.TestCase):
         self.assertIn('"HTML"', structure)
         self.assertIn('"PLAIN"', structure)
         self.assertNotIn(" 100 ", structure)
+
+
+    def test_compact_uids_make_uidnext_exists_plus_one(self):
+        emails = [
+            {"id": 84, "uid": 1},
+            {"id": 90, "uid": 2},
+            {"id": 101, "uid": 18},
+        ]
+        self.assertEqual(_imap_uid(emails[0]), 1)
+        self.assertEqual(_uidnext(emails), 19)
+
+    def test_uid_fetch_1_exists_hits_all_when_db_ids_are_large(self):
+        emails = [{"id": 80 + i, "uid": i + 1, "flags": []} for i in range(18)]
+        pairs = _parse_seq_set("1:18", 18, True, emails)
+        self.assertEqual(len(pairs), 18)
+        self.assertEqual(_imap_uid(pairs[0][1]), 1)
+        self.assertEqual(_imap_uid(pairs[-1][1]), 18)
+
+    def test_uid_fetch_0_returns_all(self):
+        emails = [{"id": 84, "uid": 1, "flags": []}, {"id": 101, "uid": 2, "flags": []}]
+        pairs = _parse_seq_set("0", 2, True, emails)
+        self.assertEqual(len(pairs), 2)
+
+    def test_fetch_uses_mailbox_uid_not_db_id(self):
+        em = _sample()
+        em["uid"] = 1
+        resp = _build_fetch_response(1, em, "FLAGS", True)
+        self.assertIn(b"UID 1", resp)
+        self.assertNotIn(b"UID 42", resp)
 
 
 if __name__ == "__main__":

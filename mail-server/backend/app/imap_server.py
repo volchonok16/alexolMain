@@ -45,10 +45,9 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
-# 21: restore the handshake that last fetched mail (c3bc0a5 / ab93eb7):
-#     CAPABILITY without ID/SASL-IR, LIST INBOX+Sent with SPECIAL-USE, no Drafts.
-#     Advertising Drafts made Office 365 SELECT Drafts then INBOX then LOGOUT.
-UIDVALIDITY = 21
+# 22: mailbox-local UIDs 1..N. DB ids made SELECT INBOX messages=18 uidnext=102;
+#     Office 365 then LOGOUT without UID FETCH (same skip as 72926ed).
+UIDVALIDITY = 22
 _OUTLOOK_LIST_FETCH = (
     "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
     "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
@@ -85,10 +84,15 @@ def _imap_internaldate(dt: datetime) -> str:
     )
 
 
+def _imap_uid(em: dict) -> int:
+    """Mailbox-local IMAP UID. DB ids as UIDs make UIDNEXT >> EXISTS; Outlook skips FETCH."""
+    return int(em.get("uid") or em["id"])
+
+
 def _uidnext(emails: list[dict]) -> int:
     if not emails:
         return 1
-    return max(int(e["id"]) for e in emails) + 1
+    return max(_imap_uid(e) for e in emails) + 1
 
 
 def _ensure_crlf(data: bytes) -> bytes:
@@ -421,14 +425,20 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
         if ':' in part:
             a, b = part.split(':', 1)
             if uid_mode:
-                all_uids = [e['id'] for e in emails]
+                all_uids = [_imap_uid(e) for e in emails]
                 lo = _resolve(a, max(all_uids))
                 hi = _resolve(b, max(all_uids))
                 if lo == 0:
                     lo = min(all_uids)
+                matched = []
                 for idx, e in enumerate(emails):
-                    if lo <= e['id'] <= hi:
-                        result.append((idx + 1, e))
+                    if lo <= _imap_uid(e) <= hi:
+                        matched.append((idx + 1, e))
+                # Outlook sometimes UID FETCHes 1..EXISTS even when DB ids are larger.
+                if not matched and lo >= 1 and hi <= total:
+                    for seq in range(lo, min(hi, total) + 1):
+                        matched.append((seq, emails[seq - 1]))
+                result.extend(matched)
             else:
                 lo = _resolve(a, total)
                 hi = _resolve(b, total)
@@ -437,16 +447,20 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
                     result.append((seq, emails[seq - 1]))
         else:
             if uid_mode:
-                uid = _resolve(part, max(e['id'] for e in emails) if emails else 0)
+                uid = _resolve(part, max(_imap_uid(e) for e in emails) if emails else 0)
                 # UID 0 is invalid; Outlook sends it when a prior FETCH omitted UID.
                 if uid == 0:
                     for idx, e in enumerate(emails):
                         result.append((idx + 1, e))
                     continue
+                found = False
                 for idx, e in enumerate(emails):
-                    if e['id'] == uid:
+                    if _imap_uid(e) == uid:
                         result.append((idx + 1, e))
+                        found = True
                         break
+                if not found and 1 <= uid <= total:
+                    result.append((uid, emails[uid - 1]))
             else:
                 seq = _resolve(part, total)
                 seq = max(1, min(total, seq))
@@ -503,7 +517,7 @@ def _build_fetch_response(seq_num: int, em: dict, items_str: str,
                            uid_mode: bool) -> bytes:
     upper = items_str.upper()
     flags_str = " ".join(em.get("flags", []))
-    uid = em["id"]
+    uid = _imap_uid(em)
 
     date = em.get("date") or datetime.now(timezone.utc)
     if isinstance(date, datetime) and date.tzinfo is None:
@@ -740,6 +754,11 @@ class IMAPSession:
         if self.state != self.SELECTED:
             await self._send(f'{tag} NO Not in selected state')
             return
+        logger.info(
+            "IMAP IDLE start mailbox=%s user=%s",
+            self.selected_mailbox,
+            self.user.email if self.user else "?",
+        )
         await self._send('+ idling')
         try:
             while True:
@@ -753,6 +772,12 @@ class IMAPSession:
                 text = line.decode('utf-8', errors='replace').strip()
                 if text.upper() == 'DONE' or text.upper().endswith(' DONE'):
                     break
+                if text:
+                    logger.info("IMAP IDLE interrupted by %r", text[:120])
+                    await self._push_mailbox_updates()
+                    await self._send(f'{tag} OK IDLE completed')
+                    await self._dispatch(text)
+                    return
             await self._push_mailbox_updates()
             await self._send(f'{tag} OK IDLE completed')
         except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
@@ -941,13 +966,14 @@ class IMAPSession:
         )
         uidnext = _uidnext(emails)
 
-        # Same untagged SELECT as ab93eb7 (last FETCH+IDLE). Do not emit FLAGS,
-        # CLOSED, or prefetch FETCH — those sessions never issued UID FETCH.
+        # Compact UIDs 1..N so UIDNEXT = EXISTS+1. FLAGS like 72926ed (Outlook
+        # skipped FETCH when UIDNEXT was a DB id, e.g. 102 with EXISTS 18).
+        await self._send(r'* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        await self._send(r'* OK [PERMANENTFLAGS (\Answered \Flagged \Deleted \Seen \Draft)]')
         await self._send(f'* {n} EXISTS')
         await self._send('* 0 RECENT')
         if first_unseen:
             await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
-        await self._send(r'* OK [PERMANENTFLAGS (\Seen \Answered \Flagged \Deleted \Draft)]')
         await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}]')
         await self._send(f'* OK [UIDNEXT {uidnext}]')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
@@ -1100,7 +1126,7 @@ class IMAPSession:
                 or needle.decode("utf-8", "replace") in (e.get("subject") or "")
             ]
         if uid_mode:
-            nums = " ".join(str(e["id"]) for e in emails)
+            nums = " ".join(str(_imap_uid(e)) for e in emails)
         else:
             idset = {e["id"] for e in emails}
             nums = " ".join(
@@ -1158,7 +1184,7 @@ class IMAPSession:
                     .order_by(User.id)
                 ).scalars().all()
                 result = []
-                for u in rows:
+                for idx, u in enumerate(rows, start=1):
                     vcf = user_to_vcard(u)
                     msg = _text_part(vcf, "vcard")
                     msg["From"] = formataddr((u.full_name or "", u.email))
@@ -1169,6 +1195,7 @@ class IMAPSession:
                     raw = _ensure_crlf(msg.as_bytes(policy=_IMAP_GEN_POLICY))
                     result.append({
                         "id": u.id,
+                        "uid": idx,
                         "from": u.email,
                         "from_name": u.full_name,
                         "to": self.user.email,
@@ -1200,11 +1227,12 @@ class IMAPSession:
                     .order_by(Email.id)
                 ).scalars().all()
                 result = []
-                for e in rows:
+                for idx, e in enumerate(rows, start=1):
                     flags = ['\\Seen'] if (is_sent or e.is_read) else []
                     body, html_body = coerce_stored_bodies(e.body, e.html_body)
                     result.append({
                         'id': e.id,
+                        'uid': idx,
                         'from': e.from_address,
                         'from_name': e.from_name,
                         'to': e.to_address,
