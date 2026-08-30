@@ -45,10 +45,10 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
-# 20: no unsolicited FETCH on SELECT (Office 365 15.21 reads it, then LOGOUT and
-#     never starts a real UID FETCH). CLOSED when switching Drafts→INBOX.
-#     UIDVALIDITY is a Dovecot-style large integer so the cloud cache resets.
-UIDVALIDITY = 1756542000
+# 21: restore the handshake that last fetched mail (c3bc0a5 / ab93eb7):
+#     CAPABILITY without ID/SASL-IR, LIST INBOX+Sent with SPECIAL-USE, no Drafts.
+#     Advertising Drafts made Office 365 SELECT Drafts then INBOX then LOGOUT.
+UIDVALIDITY = 21
 _OUTLOOK_LIST_FETCH = (
     "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
     "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
@@ -600,10 +600,7 @@ class IMAPSession:
 
     async def handle(self):
         logger.info("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
-        await self._send(
-            f'* OK [CAPABILITY IMAP4rev1 SASL-IR AUTH=PLAIN ID IDLE NAMESPACE UIDPLUS CHILDREN] '
-            f'{settings.smtp_hostname} IMAP4rev1 ready.'
-        )
+        await self._send(f'* OK {settings.smtp_hostname} IMAP4rev1 Service Ready')
         try:
             while self.state != self.LOGOUT:
                 line = await asyncio.wait_for(self.reader.readline(), timeout=300)
@@ -705,9 +702,9 @@ class IMAPSession:
         await handler(tag, cmd, rest)
 
     async def _capability(self, tag, cmd, args):
-        # Do not advertise ENABLE/LITERAL+/AUTH=LOGIN/SPECIAL-USE: Outlook's
-        # cloud proxy maps \Inbox then SELECT+LOGOUT without FETCH.
-        caps = 'IMAP4rev1 SASL-IR AUTH=PLAIN ID IDLE NAMESPACE UIDPLUS CHILDREN'
+        # Exact set from the last Outlook FETCH+IDLE sessions. ID in CAPABILITY
+        # made the proxy send ID and treat the session as a folder probe.
+        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE SPECIAL-USE'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
@@ -917,11 +914,6 @@ class IMAPSession:
         if self.state not in (self.AUTHENTICATED, self.SELECTED):
             await self._send(f'{tag} NO Not authenticated')
             return
-        # Outlook SELECTs Drafts then INBOX on the same connection. RFC 3501
-        # SELECT implicitly deselects; Dovecot also emits CLOSED so the client
-        # does not keep treating Drafts (0 messages) as the selected mailbox.
-        if self.state == self.SELECTED and self.selected_mailbox:
-            await self._send('* OK [CLOSED] Previous mailbox closed.')
         kind = _classify_mailbox(_normalize_mailbox(args))
         if kind == 'INBOX':
             emails = self._fetch_inbox()
@@ -930,10 +922,10 @@ class IMAPSession:
             emails = self._fetch_sent()
             self.selected_mailbox = 'Sent'
         elif kind == 'Drafts':
+            # Cached Outlook folder; do not advertise Drafts in LIST.
             emails = []
             self.selected_mailbox = 'Drafts'
         elif kind == 'Contacts':
-            # Keep SELECT OK for leftover Outlook folders; do not dump vCards as mail.
             emails = []
             self.selected_mailbox = 'Contacts'
         else:
@@ -949,22 +941,17 @@ class IMAPSession:
         )
         uidnext = _uidnext(emails)
 
-        # Dovecot-shaped SELECT. Do not push unsolicited FETCH here: Outlook's
-        # Office 365 15.21 proxy reads it, LOGOUT, and never starts UID FETCH.
-        await self._send(r'* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
-        await self._send(
-            r'* OK [PERMANENTFLAGS (\Answered \Flagged \Deleted \Seen \Draft \*)] Flags permitted.'
-        )
+        # Same untagged SELECT as ab93eb7 (last FETCH+IDLE). Do not emit FLAGS,
+        # CLOSED, or prefetch FETCH — those sessions never issued UID FETCH.
         await self._send(f'* {n} EXISTS')
         await self._send('* 0 RECENT')
         if first_unseen:
-            await self._send(
-                f'* OK [UNSEEN {first_unseen}] Message {first_unseen} is first unseen'
-            )
-        await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}] UIDs valid')
-        await self._send(f'* OK [UIDNEXT {uidnext}] Predicted next UID')
+            await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
+        await self._send(r'* OK [PERMANENTFLAGS (\Seen \Answered \Flagged \Deleted \Draft)]')
+        await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}]')
+        await self._send(f'* OK [UIDNEXT {uidnext}]')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
-        await self._send(f'{tag} OK [{read_write}] {cmd} completed.')
+        await self._send(f'{tag} OK [{read_write}] {cmd} completed')
         logger.info(
             "IMAP %s mailbox=%s messages=%s uidnext=%s user=%s",
             cmd,
@@ -975,19 +962,16 @@ class IMAPSession:
         )
 
     async def _list(self, tag, cmd, args):
-        # Do not put SPECIAL-USE \Inbox on INBOX. Outlook's cloud proxy then
-        # SELECTs INBOX (to map the folder) and LOGOUT without FETCH.
-        n_inbox = len(self._fetch_inbox()) if self.user else 0
-        inbox_flags = r'(\Marked \HasNoChildren)' if n_inbox else r'(\HasNoChildren)'
-        await self._send(f'* LIST {inbox_flags} "/" "INBOX"')
-        await self._send('* LIST (\\HasNoChildren) "/" "Sent"')
-        await self._send('* LIST (\\HasNoChildren) "/" "Drafts"')
+        # Unquoted INBOX + SPECIAL-USE, no Drafts — this is the LIST Outlook
+        # used when it actually FETCHed. Quoted names / Drafts / no \Inbox
+        # produced SELECT Drafts → SELECT INBOX → LOGOUT.
+        await self._send('* LIST (\\HasNoChildren \\Inbox) "/" INBOX')
+        await self._send('* LIST (\\HasNoChildren \\Sent) "/" Sent')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
         await self._send('* LSUB () "/" "INBOX"')
         await self._send('* LSUB () "/" "Sent"')
-        await self._send('* LSUB () "/" "Drafts"')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _status(self, tag, cmd, args):
