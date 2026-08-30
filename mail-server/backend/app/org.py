@@ -591,12 +591,15 @@ async def jitsi_token(
 
 
 @router.get("/jitsi/guest-token")
-async def jitsi_guest_token(room: str = Query("", max_length=200)):
+async def jitsi_guest_token(
+    room: str = Query("", max_length=200),
+    name: str = Query("", max_length=80),
+):
     slug = (room or "*").strip() or "*"
     if is_closed_room(slug):
         return {"token": None, "open": False, "auto_start": False}
     return {
-        "token": issue_guest_jwt(slug),
+        "token": issue_guest_jwt(slug, name=name),
         "open": True,
         "auto_start": is_auto_start_room(slug),
     }

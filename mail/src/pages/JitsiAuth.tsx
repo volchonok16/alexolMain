@@ -12,17 +12,20 @@ function avatarUrl(email?: string) {
   return `${window.location.origin}/api/public/avatar/${encodeURIComponent(email.trim().toLowerCase())}`
 }
 
-function meetUrl(room: string, jwt?: string | null, name?: string, email?: string) {
+def meetUrl(room: string, jwt?: string | null, name?: string, email?: string) {
   const base = `${JITSI_PUBLIC_URL}/${encodeURIComponent(room || 'alexol')}`
   const parsed = new URL(base)
   if (jwt) parsed.searchParams.set('jwt', jwt)
-  const hash: string[] = []
+  const hash: string[] = [
+    'config.prejoinPageEnabled=false',
+    'config.prejoinConfig.enabled=false',
+    'config.requireDisplayName=false',
+  ]
   if (name) hash.push(`userInfo.displayName=${JSON.stringify(name)}`)
   if (email) hash.push(`userInfo.email=${JSON.stringify(email)}`)
   const photo = avatarUrl(email)
   if (photo) hash.push(`userInfo.avatarUrl=${JSON.stringify(photo)}`)
-  const href = parsed.toString()
-  return hash.length ? `${href}#${hash.join('&')}` : href
+  return `${parsed.toString()}#${hash.join('&')}`
 }
 
 function loginError(err: unknown) {
@@ -45,6 +48,8 @@ export default function JitsiAuth() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [guestLoading, setGuestLoading] = useState(false)
+  const [guestName, setGuestName] = useState('')
+  const [autoStart, setAutoStart] = useState(false)
   const [entering, setEntering] = useState(Boolean(token))
 
   async function enterWithJwt(jwt: string, name?: string, mail?: string) {
@@ -78,6 +83,7 @@ export default function JitsiAuth() {
         )
         if (cancelled) return
         setRoomOpen(data?.open !== false)
+        setAutoStart(Boolean(data?.auto_start) || isAutoStartRoom(room))
         if (token) {
           setEntering(true)
           try {
@@ -90,15 +96,10 @@ export default function JitsiAuth() {
           }
           return
         }
-        const autoStart = Boolean(data?.auto_start) || isAutoStartRoom(room)
-        if (autoStart && data?.token) {
-          setEntering(true)
-          await enterWithJwt(data.token, 'Гость')
-          return
-        }
       } catch {
         if (cancelled) return
         setRoomOpen(true)
+        setAutoStart(isAutoStartRoom(room))
         if (token) {
           setEntering(true)
           try {
@@ -156,14 +157,19 @@ export default function JitsiAuth() {
   }
 
   const enterAsGuest = async () => {
+    const display = guestName.trim()
+    if (!display) {
+      setError('Напишите, как вас представить в конференции')
+      return
+    }
     setError('')
     setGuestLoading(true)
     try {
       const { data } = await api.get<{ token?: string | null; open?: boolean }>('/jitsi/guest-token', {
-        params: { room },
+        params: { room, name: display },
       })
       if (data?.token) {
-        await enterWithJwt(data.token, 'Гость')
+        await enterWithJwt(data.token, display)
         return
       }
       setRoomOpen(false)
@@ -221,11 +227,49 @@ export default function JitsiAuth() {
         </div>
         <h1>Meet</h1>
         <h2>meet.alexol.io</h2>
-        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '-1rem', marginBottom: '1.5rem' }}>
-          Тот же ящик и пароль, что у почты. Имя и фото возьмутся из профиля.
-        </p>
+        {error ? <div className="error">{error}</div> : null}
 
-        <form onSubmit={handleSubmit}>
+        {roomOpen ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void enterAsGuest()
+            }}
+          >
+            <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '-1rem', marginBottom: '1.5rem' }}>
+              {autoStart
+                ? 'Напишите имя один раз — сразу попадёте в конференцию.'
+                : 'Гости заходят по имени. Организатор — ящиком почты.'}
+            </p>
+            <div className="form-group">
+              <label htmlFor="jitsi-guest-name">Как вас представить</label>
+              <input
+                id="jitsi-guest-name"
+                type="text"
+                autoComplete="name"
+                autoFocus
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Иван Иванов"
+                required
+              />
+            </div>
+            <button type="submit" disabled={guestLoading} className="btn-primary">
+              {guestLoading ? 'Вход…' : 'Войти в конференцию'}
+            </button>
+          </form>
+        ) : (
+          <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '-1rem', marginBottom: '1.5rem' }}>
+            Закрытая комната — тот же ящик и пароль, что у почты.
+          </p>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ marginTop: roomOpen ? '2rem' : 0 }}>
+          {roomOpen ? (
+            <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              Сотрудники @alexol.io
+            </p>
+          ) : null}
           <div className="form-group">
             <label htmlFor="jitsi-email">Email или логин</label>
             <input
@@ -248,29 +292,10 @@ export default function JitsiAuth() {
               required
             />
           </div>
-          {error ? <div className="error">{error}</div> : null}
           <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Вход…' : 'Войти в конференцию'}
+            {loading ? 'Вход…' : roomOpen ? 'Войти ящиком' : 'Войти в конференцию'}
           </button>
         </form>
-
-        {roomOpen ? (
-          <p style={{ textAlign: 'center', marginTop: '1.25rem' }}>
-            <button
-              type="button"
-              className="btn-primary"
-              style={{ background: 'transparent', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
-              disabled={guestLoading}
-              onClick={() => void enterAsGuest()}
-            >
-              {guestLoading ? '…' : 'Продолжить как гость'}
-            </button>
-          </p>
-        ) : (
-          <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '1rem' }}>
-            Закрытая комната — только сотрудники с ящиком.
-          </p>
-        )}
 
         <p style={{ textAlign: 'center', marginTop: '1rem' }}>
           <Link to="/login">Открыть почту</Link>

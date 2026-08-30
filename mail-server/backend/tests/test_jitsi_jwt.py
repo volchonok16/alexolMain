@@ -66,6 +66,18 @@ class JitsiJwtTests(unittest.TestCase):
         self.assertTrue(payload["context"]["user"]["moderator"])
         self.assertEqual(payload["context"]["user"]["affiliation"], "owner")
 
+    def test_guest_jwt_uses_given_name(self):
+        from app.jitsi_jwt import issue_guest_jwt
+
+        with patch("app.jitsi_jwt.settings") as settings:
+            settings.JITSI_JWT_APP_SECRET = "unit-test-secret"
+            settings.JITSI_JWT_APP_ID = "alexol"
+            settings.JITSI_PUBLIC_URL = "https://meet.alexol.io"
+            token = issue_guest_jwt("a-alexol-412-b7de45", name="Alexander ВАПВАП")
+        payload = jwt.decode(token, "unit-test-secret", algorithms=["HS256"], audience="alexol")
+        self.assertEqual(payload["context"]["user"]["name"], "Alexander ВАПВАП")
+        self.assertTrue(payload["context"]["user"]["id"].startswith("guest-"))
+
     def test_room_prefix_flags(self):
         from app.jitsi_jwt import is_auto_start_room, is_closed_room
 

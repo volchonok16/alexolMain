@@ -458,6 +458,10 @@ jobs:
                         sed -i "s/^JWT_ALLOW_EMPTY=.*/JWT_ALLOW_EMPTY=0/" .env
                         grep -qE "^JWT_ALLOW_EMPTY=" .env || echo "JWT_ALLOW_EMPTY=0" >> .env
                         grep -qE "^ENABLE_AUTO_OWNER=" .env || echo "ENABLE_AUTO_OWNER=1" >> .env
+                        sed -i "s/^ENABLE_PREJOIN_PAGE=.*/ENABLE_PREJOIN_PAGE=0/" .env
+                        grep -qE "^ENABLE_PREJOIN_PAGE=" .env || echo "ENABLE_PREJOIN_PAGE=0" >> .env
+                        sed -i "s/^ENABLE_REQUIRE_DISPLAY_NAME=.*/ENABLE_REQUIRE_DISPLAY_NAME=0/" .env
+                        grep -qE "^ENABLE_REQUIRE_DISPLAY_NAME=" .env || echo "ENABLE_REQUIRE_DISPLAY_NAME=0" >> .env
                         if grep -qE "^TOKEN_AUTH_URL_AUTO_REDIRECT=" .env; then
                           sed -i "s/^TOKEN_AUTH_URL_AUTO_REDIRECT=.*/TOKEN_AUTH_URL_AUTO_REDIRECT=1/" .env
                         else
@@ -512,6 +516,9 @@ jobs:
                           guests_lobby=1
                         fi
                         if docker inspect jitsi_web 2>/dev/null | grep -q "JWT_ALLOW_EMPTY=1"; then
+                          guests_lobby=1
+                        fi
+                        if docker inspect jitsi_web 2>/dev/null | grep -q "ENABLE_PREJOIN_PAGE=1"; then
                           guests_lobby=1
                         fi
                         if [ -z "$jwt_secret" ] || [ "$jwt_ready" = 1 -a "$auth_url_ready" = 1 -a "$guests_lobby" = 0 ]; then

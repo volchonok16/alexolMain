@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlparse
+import secrets
 
 from jose import jwt
 
@@ -76,12 +77,13 @@ def issue_jitsi_jwt(user: User, room: str = "*", *, moderator: bool = True) -> O
     )
 
 
-def issue_guest_jwt(room: str = "*") -> Optional[str]:
+def issue_guest_jwt(room: str = "*", name: str = "") -> Optional[str]:
     if is_closed_room(room):
         return None
+    label = " ".join((name or "").split())[:80] or "Гость"
     return _encode(
         room=room,
-        name="Гость",
-        user_id="guest",
+        name=label,
+        user_id=f"guest-{secrets.token_hex(6)}",
         moderator=is_auto_start_room(room),
     )
