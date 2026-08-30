@@ -82,7 +82,7 @@ app.include_router(carddav.router, prefix="/api")
 
 @app.api_route("/.well-known/carddav", methods=["GET", "HEAD", "OPTIONS", "PROPFIND"])
 async def well_known_carddav():
-    return RedirectResponse("/api/dav/contacts/", status_code=301)
+    return RedirectResponse("/api/dav/contacts", status_code=301)
 
 
 def verify_mail_sync_key(x_mail_sync_key: Optional[str] = Header(None, alias="X-Mail-Sync-Key")):

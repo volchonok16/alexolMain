@@ -6,7 +6,7 @@ from urllib.parse import unquote
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,8 +18,33 @@ from app.models import User
 
 router = APIRouter()
 
-_DAV = 'DAV: 1, addressbook'
+_DAV = "DAV: 1, addressbook"
 _ALLOW = "OPTIONS, GET, HEAD, PROPFIND"
+_HELP_HTML = """<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Контакты Alexol</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1.25rem;
+           color: #e8eef7; background: #0c0f16; line-height: 1.5; }
+    a { color: #7dd3fc; }
+    code { background: #1e293b; padding: 0.1em 0.4em; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Это не сайт, а CardDAV</h1>
+  <p>Браузером сюда заходить не нужно — Chrome тогда крутит авторизацию и показывает ERR_TOO_MANY_RETRIES.</p>
+  <p>Контакты компании:</p>
+  <ol>
+    <li>Откройте <a href="https://mail.alexol.io/">mail.alexol.io</a> → Контакты → скачайте vCard.</li>
+    <li>В Outlook: Люди → Импорт → файл <code>alexol-contacts.vcf</code>.</li>
+  </ol>
+  <p>CardDAV-клиентам: PROPFIND этого URL с HTTP Basic (логин и пароль почты).</p>
+</body>
+</html>
+"""
 
 
 async def _basic_user(request: Request, db: AsyncSession) -> User:
@@ -66,7 +91,7 @@ def _href(email: str) -> str:
 
 @router.api_route("/.well-known/carddav", methods=["GET", "HEAD", "OPTIONS", "PROPFIND"])
 async def well_known_under_api():
-    return RedirectResponse("/api/dav/contacts/", status_code=301)
+    return RedirectResponse("/api/dav/contacts", status_code=301)
 
 
 @router.api_route("/dav/contacts", methods=["OPTIONS", "PROPFIND", "GET", "HEAD"])
@@ -77,9 +102,10 @@ async def addressbook_collection(
 ):
     if request.method == "OPTIONS":
         return _options()
-    await _basic_user(request, db)
+    # Browser GET must not 401+WWW-Authenticate: Chrome then ERR_TOO_MANY_RETRIES.
     if request.method in ("GET", "HEAD"):
-        return PlainTextResponse("CardDAV address book\n", media_type="text/plain")
+        return HTMLResponse(_HELP_HTML)
+    await _basic_user(request, db)
     users = (
         await db.execute(
             select(User).where(User.is_active.is_(True)).order_by(User.full_name.asc())
@@ -90,7 +116,7 @@ async def addressbook_collection(
         '<?xml version="1.0" encoding="utf-8"?>',
         '<d:multistatus xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">',
         "<d:response>",
-        "<d:href>/api/dav/contacts/</d:href>",
+        "<d:href>/api/dav/contacts</d:href>",
         "<d:propstat><d:prop>",
         "<d:resourcetype><d:collection/><card:addressbook/></d:resourcetype>",
         f"<d:displayname>Alexol {domain}</d:displayname>",

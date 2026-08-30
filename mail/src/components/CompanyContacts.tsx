@@ -76,9 +76,8 @@ export default function CompanyContacts() {
         <span className="org-count">{filtered.length}</span>
       </div>
       <p className="org-outlook-hint">
-        Outlook: входящие идут по IMAP. Контакты — папка Contacts в том же ящике, либо CardDAV
-        <code> https://mail.alexol.io/api/dav/contacts/ </code>
-        (логин/пароль почты). Либо скачайте vCard → Outlook: Контакты → Импорт.
+        Чтобы контакты появились в Outlook: скачайте vCard кнопкой выше → Люди → Импорт.
+        CardDAV в браузере открывать не нужно.
       </p>
       {isLoading ? (
         <div className="empty-state">
