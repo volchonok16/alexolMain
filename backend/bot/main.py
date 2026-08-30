@@ -61,7 +61,9 @@ def schedule_news_posts():
             id=f"post_generator_{i}",
             name=f"Новости {i}/4 ({start_hour:02d}–{end_hour:02d}ч)",
             replace_existing=True,
-            misfire_grace_time=0,
+            # Не 0: планировщик всегда чуть позже слота, иначе пост никогда не уходит.
+            # 10 мин — задержка цикла, а не догон часов простоя после рестарта.
+            misfire_grace_time=600,
         )
         print(f"📅 Новости {i}/4: ежедневно в {hour:02d}:{minute:02d} ({tz})")
 
@@ -80,12 +82,11 @@ def schedule_lead_posts():
 
     scheduler.add_job(
         publish_lead_post,
-        # Каждый чётный день месяца в config.POST_HOUR:00
-        CronTrigger(day="2-31/2", hour=config.POST_HOUR, minute=0),
+        CronTrigger(day="2-31/2", hour=config.POST_HOUR, minute=0, timezone=config.TIMEZONE),
         id="lead_generator",
         name="Посты о поиске новых проектов",
         replace_existing=True,
-        misfire_grace_time=0,
+        misfire_grace_time=600,
     )
     print("📅 Промо-посты о поиске проектов будут публиковаться каждые 3 дня")
 
