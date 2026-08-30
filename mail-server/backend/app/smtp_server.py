@@ -19,6 +19,7 @@ from app.auth import verify_password
 from app.database import async_connect_args, sync_connect_args
 from app.mail_body import extract_text_and_html, sanitize_pg_text
 from app.mail_sync import allocate_imap_uid, is_outlook_probe
+from app.from_display import inject_from_display_name
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
 from app.logging_setup import configure_quiet_logging
@@ -196,28 +197,7 @@ class CustomSMTPHandler:
         logger.info("Receiving email from %s to %s", envelope.mail_from, envelope.rcpt_tos)
         authenticated = bool(getattr(session, "authenticated", False))
         try:
-            msg = BytesParser(policy=policy.default).parsebytes(envelope.content)
-            subject = msg.get("subject", "No Subject")
-            header_name, header_addr = parseaddr(msg.get("From") or "")
-            from_address = (header_addr or envelope.mail_from or "").strip().lower()
-            from_name = (header_name or "").strip() or None
-            body, html_body = extract_text_and_html(msg)
-            rcpt_norm = [(a or "").strip() for a in envelope.rcpt_tos if (a or "").strip()]
-            _local_addrs, external_addrs = partition_local_external(
-                [a.lower() for a in rcpt_norm], settings.MAIL_DOMAIN
-            )
-            subject = sanitize_pg_text(str(subject or ""))
-            from_name = sanitize_pg_text(from_name) or None
-            from_address = sanitize_pg_text(from_address)
-            header_to = sanitize_pg_text((msg.get("To") or "").strip() or ", ".join(rcpt_norm))
-
-            if is_outlook_probe(subject, from_name or ""):
-                logger.info("SMTP skip Outlook account-test message from %s", from_address)
-                return "250 2.0.0 Message accepted"
-
-            if external_addrs and not authenticated:
-                return "550 5.7.1 Relay denied"
-
+            content = envelope.content
             sender = None
             async with self._async_session_factory() as db:
                 if authenticated:
@@ -225,7 +205,7 @@ class CustomSMTPHandler:
                     login = (
                         _smtp_text(auth_data.login).strip().lower()
                         if isinstance(auth_data, LoginPassword)
-                        else from_address
+                        else (envelope.mail_from or "").strip().lower()
                     )
                     local_part = login.split("@", 1)[0]
                     sender = (
@@ -236,6 +216,35 @@ class CustomSMTPHandler:
                             )
                         )
                     ).scalar_one_or_none()
+                    if sender:
+                        content, _ = inject_from_display_name(
+                            content, sender.full_name or "", sender.email
+                        )
+
+                msg = BytesParser(policy=policy.default).parsebytes(content)
+                subject = msg.get("subject", "No Subject")
+                header_name, header_addr = parseaddr(msg.get("From") or "")
+                from_address = (
+                    (sender.email if sender else None)
+                    or (header_addr or envelope.mail_from or "")
+                ).strip().lower()
+                from_name = (header_name or "").strip() or None
+                body, html_body = extract_text_and_html(msg)
+                rcpt_norm = [(a or "").strip() for a in envelope.rcpt_tos if (a or "").strip()]
+                _local_addrs, external_addrs = partition_local_external(
+                    [a.lower() for a in rcpt_norm], settings.MAIL_DOMAIN
+                )
+                subject = sanitize_pg_text(str(subject or ""))
+                from_name = sanitize_pg_text(from_name) or None
+                from_address = sanitize_pg_text(from_address)
+                header_to = sanitize_pg_text((msg.get("To") or "").strip() or ", ".join(rcpt_norm))
+
+                if is_outlook_probe(subject, from_name or ""):
+                    logger.info("SMTP skip Outlook account-test message from %s", from_address)
+                    return "250 2.0.0 Message accepted"
+
+                if external_addrs and not authenticated:
+                    return "550 5.7.1 Relay denied"
 
                 for to_address in rcpt_norm:
                     to_norm = to_address.lower()
@@ -252,7 +261,7 @@ class CustomSMTPHandler:
                             subject=subject,
                             body=body,
                             html_body=html_body,
-                            raw_rfc822=envelope.content,
+                            raw_rfc822=content,
                             is_sent=False,
                             imap_uid=imap_uid,
                         )
@@ -267,7 +276,6 @@ class CustomSMTPHandler:
 
             if external_addrs:
                 from_addr = (sender.email if sender else from_address) or envelope.mail_from
-                content = envelope.content
                 addrs = list(external_addrs)
                 asyncio.create_task(self._deliver_external_later(content, from_addr, addrs))
 

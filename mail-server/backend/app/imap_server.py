@@ -47,6 +47,7 @@ from app.models import User, Email
 from app.auth import verify_password
 from app.config import settings
 from app.mail_body import coerce_stored_bodies, extract_text_and_html
+from app.from_display import inject_from_display_name
 from app.database import sync_connect_args
 
 logger = logging.getLogger(__name__)
@@ -890,6 +891,9 @@ class IMAPSession:
         if not self.user or not data:
             return
         try:
+            data, injected_name = inject_from_display_name(
+                data, self.user.full_name or "", self.user.email
+            )
             msg = BytesParser(policy=email_policy.default).parsebytes(data)
             mid = (msg.get('Message-ID') or '').strip()
             header_name, header_addr = parseaddr(msg.get('From') or '')
@@ -915,7 +919,7 @@ class IMAPSession:
                     user_id=self.user.id,
                     from_address=from_address,
                     to_address=(msg.get('To') or '').strip() or self.user.email,
-                    from_name=(header_name or '').strip() or self.user.full_name,
+                    from_name=(injected_name or header_name or "").strip() or self.user.full_name,
                     subject=msg.get('subject', '') or '',
                     body=body,
                     html_body=html_body,
