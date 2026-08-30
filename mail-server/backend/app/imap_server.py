@@ -61,7 +61,9 @@ logger = logging.getLogger(__name__)
 # 25: LIST Sent as Отправленные (modified UTF-7) + \Sent so Russian Outlook
 #     maps Sent Items. Do not advertise SPECIAL-USE / \Inbox (proxy skip).
 # 26: meeting invites as alternative+calendar; BODYSTRUCTURE METHOD param.
-UIDVALIDITY = 26
+# 27: LIST Trash as Удаленные элементы (Outlook's IMAP name); LIST "" "%"
+#     returns top-level folders so Deleted Items is not a ghost object.
+UIDVALIDITY = 27
 _OUTLOOK_LIST_FETCH = (
     "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
     "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
@@ -172,8 +174,8 @@ def _decode_mutf7(name: str) -> str:
 
 # Canonical LIST/LSUB atom for the sent mailbox (Russian Outlook folder name).
 _SENT_LIST_ATOM = _encode_mutf7("Отправленные")
-# Same idea for Trash: \Trash without advertising SPECIAL-USE.
-_TRASH_LIST_ATOM = _encode_mutf7("Удаленные")
+# Outlook LISTs/COPYs "Удаленные элементы", not the shorter "Удаленные".
+_TRASH_LIST_ATOM = _encode_mutf7("Удаленные элементы")
 
 
 def _normalize_mailbox(args: str) -> str:
@@ -221,12 +223,23 @@ def _classify_mailbox(name: str) -> str | None:
     return None
 
 
+def _quote_mailbox_atom(atom: str) -> str:
+    """Quote IMAP mailbox atoms that contain spaces (modified UTF-7 of two words)."""
+    text = (atom or "").strip()
+    if not text or text.upper() == "INBOX":
+        return text or "INBOX"
+    if any(ch in text for ch in (' ', '"', "\\", "(", ")")):
+        return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return text
+
+
 def _list_pattern_is_children(reference: str, mailbox: str) -> bool:
     """True when the client is listing children of INBOX (Outlook folder tree)."""
     ref = (reference or "").strip().strip('"')
     mb = (mailbox or "").strip().strip('"')
     combined = f"{ref}{mb}".upper().replace("\\", "/")
-    if mb in ("%", "INBOX/%", "INBOX/%/", "INBOX.*"):
+    # LIST "" "%" is top-level folders, not INBOX children.
+    if mb in ("INBOX/%", "INBOX/%/", "INBOX.*"):
         return True
     if ref.upper() in ("INBOX", "INBOX/") and mb in ("%", "*", "%/"):
         return True
@@ -1210,30 +1223,38 @@ class IMAPSession:
         )
 
     async def _list(self, tag, cmd, args):
-        parsed = _parse_args(args or "")
-        reference = parsed[0] if parsed else ""
-        mailbox = parsed[1] if len(parsed) > 1 else "*"
-        if _list_pattern_is_children(reference, mailbox):
-            await self._send(f'{tag} OK LIST completed')
-            return
-        # NIL delimiter + \Noinferiors: Outlook cannot nest INBOX/INBOX.
-        # \Sent without CAPABILITY SPECIAL-USE / \Inbox: map Sent Items, keep INBOX FETCH.
-        await self._send(r'* LIST (\Noinferiors) NIL INBOX')
-        await self._send(rf'* LIST (\HasNoChildren \Sent) NIL {_SENT_LIST_ATOM}')
-        await self._send(rf'* LIST (\HasNoChildren \Trash) NIL {_TRASH_LIST_ATOM}')
-        await self._send(f'{tag} OK LIST completed')
+        await self._list_or_lsub(tag, "LIST", args)
 
     async def _lsub(self, tag, cmd, args):
+        await self._list_or_lsub(tag, "LSUB", args)
+
+    async def _list_or_lsub(self, tag: str, verb: str, args: str):
         parsed = _parse_args(args or "")
         reference = parsed[0] if parsed else ""
         mailbox = parsed[1] if len(parsed) > 1 else "*"
+        if len(parsed) > 2:
+            mailbox = " ".join(parsed[1:])
         if _list_pattern_is_children(reference, mailbox):
-            await self._send(f'{tag} OK LSUB completed')
+            await self._send(f'{tag} OK {verb} completed')
             return
-        await self._send(r'* LSUB (\Noinferiors) NIL INBOX')
-        await self._send(rf'* LSUB (\HasNoChildren \Sent) NIL {_SENT_LIST_ATOM}')
-        await self._send(rf'* LSUB (\HasNoChildren \Trash) NIL {_TRASH_LIST_ATOM}')
-        await self._send(f'{tag} OK LSUB completed')
+        folders = (
+            (r"(\Noinferiors)", "INBOX"),
+            (r"(\HasNoChildren \Sent)", _SENT_LIST_ATOM),
+            (r"(\HasNoChildren \Trash)", _quote_mailbox_atom(_TRASH_LIST_ATOM)),
+        )
+        exact = mailbox not in ("*", "%", "")
+        if exact:
+            kind = _classify_mailbox(_decode_mutf7(mailbox))
+            by_kind = {"INBOX": folders[0], "Sent": folders[1], "Trash": folders[2]}
+            if kind in by_kind:
+                flags, _default = by_kind[kind]
+                atom = "INBOX" if kind == "INBOX" else _quote_mailbox_atom(mailbox)
+                await self._send(f"* {verb} {flags} NIL {atom}")
+            await self._send(f"{tag} OK {verb} completed")
+            return
+        for flags, name in folders:
+            await self._send(f"* {verb} {flags} NIL {name}")
+        await self._send(f"{tag} OK {verb} completed")
 
     async def _create(self, tag, cmd, args):
         kind = _classify_mailbox(_normalize_mailbox(args))
@@ -1388,12 +1409,14 @@ class IMAPSession:
         if len(parsed) < 2:
             await self._send(f'{tag} BAD Invalid {label}')
             return
-        seq_set, mailbox = parsed[0], parsed[1]
+        seq_set, mailbox = parsed[0], " ".join(parsed[1:])
         dest = _classify_mailbox(mailbox)
-        if dest not in ("INBOX", "Sent", "Trash"):
-            # Unknown folder: keep the old no-op OK so Outlook does not stall.
+        if dest in ("Drafts", "Contacts"):
             await self._send(f'{tag} OK {label} completed')
             return
+        if dest not in ("INBOX", "Sent", "Trash"):
+            dest = "Trash"
+        self.selected_emails = self._reload_selected()
         pairs = _parse_seq_set(
             seq_set, len(self.selected_emails), uid_mode, self.selected_emails
         )

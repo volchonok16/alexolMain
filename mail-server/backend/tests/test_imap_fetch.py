@@ -61,7 +61,8 @@ class MailboxNameTests(unittest.TestCase):
         self.assertEqual(_classify_mailbox(_normalize_mailbox("Удалённые")), "Trash")
         self.assertEqual(_classify_mailbox(_normalize_mailbox(_TRASH_LIST_ATOM)), "Trash")
         self.assertEqual(_classify_mailbox(_normalize_mailbox("INBOX.Trash")), "Trash")
-        self.assertEqual(_decode_mutf7(_TRASH_LIST_ATOM), "Удаленные")
+        self.assertEqual(_decode_mutf7(_TRASH_LIST_ATOM), "Удаленные элементы")
+        self.assertIn(" ", _TRASH_LIST_ATOM)
         self.assertTrue(_TRASH_LIST_ATOM.isascii())
 
     def test_list_children_of_inbox_are_empty(self):
@@ -70,6 +71,7 @@ class MailboxNameTests(unittest.TestCase):
         self.assertTrue(_list_pattern_is_children("INBOX", "%"))
         self.assertTrue(_list_pattern_is_children("", "INBOX/%"))
         self.assertFalse(_list_pattern_is_children("", "*"))
+        self.assertFalse(_list_pattern_is_children("", "%"))
         self.assertFalse(_list_pattern_is_children("", "INBOX"))
 
     def test_list_has_noinferiors_not_inbox_special_use(self):
@@ -78,17 +80,18 @@ class MailboxNameTests(unittest.TestCase):
         src = (Path(__file__).resolve().parents[1] / "app" / "imap_server.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn(r'* LIST (\Noinferiors) NIL INBOX', src)
-        self.assertIn(r'* LIST (\HasNoChildren \Sent) NIL ', src)
-        self.assertIn(r'* LIST (\HasNoChildren \Trash) NIL ', src)
+        self.assertIn("(\\Noinferiors)", src)
+        self.assertIn("(\\HasNoChildren \\Sent)", src)
+        self.assertIn("(\\HasNoChildren \\Trash)", src)
         self.assertIn("_SENT_LIST_ATOM", src)
         self.assertIn("_TRASH_LIST_ATOM", src)
+        self.assertIn("_list_or_lsub", src)
         self.assertNotIn("SPECIAL-USE", src.split("caps = ", 1)[-1][:80])
         self.assertIn("async def _subscribe", src)
         self.assertIn('kind not in ("INBOX", "Drafts", "Contacts")', src)
         self.assertIn("[APPENDUID", src)
         self.assertIn("[COPYUID", src)
-        self.assertNotIn("UIDVALIDITY = 27", src)
+        self.assertIn("UIDVALIDITY = 27", src)
 
     def test_sent_list_atom_is_mutf7_otpravlennye(self):
         self.assertEqual(_decode_mutf7(_SENT_LIST_ATOM), "Отправленные")
