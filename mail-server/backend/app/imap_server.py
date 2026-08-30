@@ -11,6 +11,7 @@ IMAP4rev1 сервер: даёт доступ к почте через стан�
   EXPUNGE, CLOSE, NAMESPACE, ID, SUBSCRIBE, UNSUBSCRIBE, APPEND
 """
 import asyncio
+import base64
 import ssl
 import os
 import re
@@ -53,8 +54,9 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
-# 24: no SPECIAL-USE / slash hierarchy — leftover INBOX/INBOX clones stay ghosts.
-UIDVALIDITY = 24
+# 25: LIST Sent as Отправленные (modified UTF-7) + \Sent so Russian Outlook
+#     maps Sent Items. Do not advertise SPECIAL-USE / \Inbox (proxy skip).
+UIDVALIDITY = 25
 _OUTLOOK_LIST_FETCH = (
     "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
     "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
@@ -106,28 +108,93 @@ def _ensure_crlf(data: bytes) -> bytes:
     return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n").replace(b"\n", b"\r\n")
 
 
+def _encode_mutf7(name: str) -> str:
+    """RFC 3501 modified UTF-7 mailbox name (7-bit; Outlook rejects UTF-8 atoms)."""
+    out: list[str] = []
+    buf: list[str] = []
+
+    def flush() -> None:
+        if not buf:
+            return
+        raw = "".join(buf).encode("utf-16-be")
+        b64 = base64.b64encode(raw).decode("ascii").rstrip("=").replace("/", ",")
+        out.append("&" + b64 + "-")
+        buf.clear()
+
+    for ch in name or "":
+        code = ord(ch)
+        if ch == "&":
+            flush()
+            out.append("&-")
+        elif 0x20 <= code <= 0x7E:
+            flush()
+            out.append(ch)
+        else:
+            buf.append(ch)
+    flush()
+    return "".join(out) or '""'
+
+
+def _decode_mutf7(name: str) -> str:
+    text = name or ""
+    if "&" not in text:
+        return text
+    out: list[str] = []
+    i = 0
+    while i < len(text):
+        amp = text.find("&", i)
+        if amp < 0:
+            out.append(text[i:])
+            break
+        out.append(text[i:amp])
+        dash = text.find("-", amp + 1)
+        if dash < 0:
+            out.append(text[amp:])
+            break
+        chunk = text[amp + 1:dash]
+        if chunk == "":
+            out.append("&")
+        else:
+            b64 = chunk.replace(",", "/")
+            pad = (-len(b64)) % 4
+            try:
+                out.append(base64.b64decode(b64 + "=" * pad).decode("utf-16-be"))
+            except Exception:
+                out.append(text[amp:dash + 1])
+        i = dash + 1
+    return "".join(out)
+
+
+# Canonical LIST/LSUB atom for the sent mailbox (Russian Outlook folder name).
+_SENT_LIST_ATOM = _encode_mutf7("Отправленные")
+
+
 def _normalize_mailbox(args: str) -> str:
     """First IMAP argument only — ignore SELECT/STATUS modifiers like (CONDSTORE)."""
     parsed = _parse_args(args or "")
-    return (parsed[0] if parsed else "INBOX").strip()
+    return _decode_mutf7((parsed[0] if parsed else "INBOX").strip())
 
 
 def _classify_mailbox(name: str) -> str | None:
-    n = (name or "").strip().strip('"').replace("\\", "/")
+    n = _decode_mutf7((name or "").strip().strip('"').replace("\\", "/"))
+    upper = n.upper()
+    # INBOX.Sent is a sent alias, not a nested clone.
+    if upper in ("INBOX.SENT", "INBOX/SENT", "INBOX.SENT ITEMS", "INBOX/SENT ITEMS"):
+        return "Sent"
     # Outlook leftover children (INBOX/INBOX, INBOX.INBOX) are not real mailboxes.
     if "/" in n or "." in n:
         return None
-    n = n.upper()
-    if n in ("INBOX", "", "ВХОДЯЩИЕ", "ВХОДЯЩИЕ СООБЩЕНИЯ"):
+    if upper in ("INBOX", "", "ВХОДЯЩИЕ", "ВХОДЯЩИЕ СООБЩЕНИЯ"):
         return "INBOX"
-    if n in (
-        "SENT", "SENT ITEMS", "SENT MESSAGES", "GESENDETE ELEMENTE",
+    if upper in (
+        "SENT", "SENT ITEMS", "SENT MESSAGES", "SENTITEMS",
+        "GESENDETE ELEMENTE",
         "ОТПРАВЛЕННЫЕ", "ОТПРАВЛЕННЫЕ СООБЩЕНИЯ",
     ):
         return "Sent"
-    if n in ("DRAFTS", "DRAFT", "ЧЕРНОВИКИ"):
+    if upper in ("DRAFTS", "DRAFT", "ЧЕРНОВИКИ"):
         return "Drafts"
-    if n in ("CONTACTS", "CONTACT", "КОНТАКТЫ"):
+    if upper in ("CONTACTS", "CONTACT", "КОНТАКТЫ"):
         return "Contacts"
     return None
 
@@ -683,6 +750,7 @@ class IMAPSession:
         m = re.match(r'^(\S+)\s+(\S+)(.*)', line)
         if not m:
             logger.info("IMAP unparsed %r peer=%s", line[:200], self._peer())
+            await self._send('* BAD malformed command')
             return
         tag, cmd, rest = m.group(1), m.group(2).upper(), m.group(3).strip()
         if cmd == "LOGIN":
@@ -739,7 +807,21 @@ class IMAPSession:
             'UNSELECT': self._close,
         }
         handler = dispatch.get(cmd, self._unknown)
-        await handler(tag, cmd, rest)
+        try:
+            await handler(tag, cmd, rest)
+        except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError, ssl.SSLError):
+            raise
+        except Exception:
+            logger.exception(
+                "IMAP %s failed peer=%s user=%s",
+                cmd,
+                self._peer(),
+                self.user.email if self.user else "-",
+            )
+            try:
+                await self._send(f'{tag} NO {cmd} failed')
+            except Exception:
+                raise
 
     async def _capability(self, tag, cmd, args):
         # Exact set from the last Outlook FETCH+IDLE sessions. ID in CAPABILITY
@@ -808,7 +890,12 @@ class IMAPSession:
         self.selected_emails = new
 
     async def _noop(self, tag, cmd, args):
-        await self._push_mailbox_updates()
+        try:
+            await self._push_mailbox_updates()
+        except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
+            raise
+        except Exception:
+            logger.exception("IMAP NOOP update failed")
         await self._send(f'{tag} OK {cmd} completed')
 
     async def _idle(self, tag, cmd, args):
@@ -832,7 +919,12 @@ class IMAPSession:
                 try:
                     line = await asyncio.wait_for(self.reader.readline(), timeout=20)
                 except asyncio.TimeoutError:
-                    await self._push_mailbox_updates()
+                    try:
+                        await self._push_mailbox_updates()
+                    except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
+                        raise
+                    except Exception:
+                        logger.exception("IMAP IDLE update failed")
                     continue
                 if not line:
                     break
@@ -878,12 +970,7 @@ class IMAPSession:
             await self._send(f'{tag} NO APPEND failed')
             return
 
-        box = (mailbox or 'INBOX').strip().strip('"').upper()
-        is_sent = box in (
-            'SENT', 'SENT ITEMS', 'SENT MESSAGES',
-            'ОТПРАВЛЕННЫЕ', 'ОТПРАВЛЕННЫЕ СООБЩЕНИЯ',
-        )
-        if is_sent:
+        if _classify_mailbox(mailbox) == 'Sent':
             self._save_appended_sent(data)
         await self._send(f'{tag} OK APPEND completed')
 
@@ -1069,8 +1156,9 @@ class IMAPSession:
             await self._send(f'{tag} OK LIST completed')
             return
         # NIL delimiter + \Noinferiors: Outlook cannot nest INBOX/INBOX.
+        # \Sent without CAPABILITY SPECIAL-USE / \Inbox: map Sent Items, keep INBOX FETCH.
         await self._send(r'* LIST (\Noinferiors) NIL INBOX')
-        await self._send(r'* LIST (\HasNoChildren) NIL Sent')
+        await self._send(rf'* LIST (\HasNoChildren \Sent) NIL {_SENT_LIST_ATOM}')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
@@ -1081,26 +1169,26 @@ class IMAPSession:
             await self._send(f'{tag} OK LSUB completed')
             return
         await self._send(r'* LSUB (\Noinferiors) NIL INBOX')
-        await self._send(r'* LSUB (\HasNoChildren) NIL Sent')
+        await self._send(rf'* LSUB (\HasNoChildren \Sent) NIL {_SENT_LIST_ATOM}')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _create(self, tag, cmd, args):
         kind = _classify_mailbox(_normalize_mailbox(args))
-        if kind in ("INBOX", "Sent"):
+        if kind in ("INBOX", "Sent", "Drafts", "Contacts"):
             await self._send(f'{tag} NO [ALREADYEXISTS] Mailbox exists')
             return
         await self._send(f'{tag} NO CREATE not supported')
 
     async def _delete_mailbox(self, tag, cmd, args):
         kind = _classify_mailbox(_normalize_mailbox(args))
-        if kind in ("INBOX", "Sent"):
+        if kind in ("INBOX", "Sent", "Drafts", "Contacts"):
             await self._send(f'{tag} NO [NOPERM] Cannot delete {kind}')
             return
         await self._send(f'{tag} OK DELETE completed')
 
     async def _subscribe(self, tag, cmd, args):
         kind = _classify_mailbox(_normalize_mailbox(args))
-        if kind in ("INBOX", "Sent"):
+        if kind in ("INBOX", "Sent", "Drafts", "Contacts"):
             await self._send(f'{tag} OK SUBSCRIBE completed')
             return
         await self._send(f'{tag} NO Mailbox not found')
@@ -1111,18 +1199,26 @@ class IMAPSession:
     async def _status(self, tag, cmd, args):
         name = _normalize_mailbox(args)
         kind = _classify_mailbox(name)
+        raw = (_parse_args(args or "") or [name])[0].strip().strip('"')
+        try:
+            listed = raw.encode("ascii").decode("ascii") or name
+        except UnicodeEncodeError:
+            listed = _encode_mutf7(name)
         if kind == 'INBOX':
             emails = self._fetch_inbox()
             listed = 'INBOX'
         elif kind == 'Sent':
             emails = self._fetch_sent()
-            listed = 'Sent'
+            if listed.upper() not in (
+                "SENT", "SENT ITEMS", "SENT MESSAGES", "SENTITEMS",
+            ) and not listed.startswith("&"):
+                listed = _SENT_LIST_ATOM
         elif kind == 'Drafts':
             emails = []
-            listed = 'Drafts'
+            listed = listed or 'Drafts'
         elif kind == 'Contacts':
             emails = self._fetch_contacts()
-            listed = 'Contacts'
+            listed = listed or 'Contacts'
         else:
             await self._send(f'{tag} NO Mailbox not found')
             return
@@ -1319,8 +1415,18 @@ class IMAPSession:
         sent = 0
         try:
             for seq_num, em in pairs:
-                await self._send_bytes(_build_fetch_response(seq_num, em, items_str, uid_mode))
-                sent += 1
+                try:
+                    await self._send_bytes(_build_fetch_response(seq_num, em, items_str, uid_mode))
+                    sent += 1
+                except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
+                    raise
+                except Exception:
+                    logger.exception(
+                        "IMAP FETCH item failed seq=%s uid=%s user=%s",
+                        seq_num,
+                        _imap_uid(em),
+                        self.user.email if self.user else "?",
+                    )
             await self._send(f"{tag} OK FETCH completed")
         except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
             logger.warning(

@@ -4,8 +4,11 @@ from datetime import datetime, timezone
 
 from app.imap_server import (
     _OUTLOOK_LIST_FETCH,
+    _SENT_LIST_ATOM,
     _build_fetch_response,
     _classify_mailbox,
+    _decode_mutf7,
+    _encode_mutf7,
     _imap_uid,
     _normalize_mailbox,
     _parse_seq_set,
@@ -46,6 +49,9 @@ class MailboxNameTests(unittest.TestCase):
         self.assertIsNone(_classify_mailbox(_normalize_mailbox("INBOX.INBOX")))
         self.assertEqual(_classify_mailbox(_normalize_mailbox("INBOX")), "INBOX")
         self.assertEqual(_classify_mailbox(_normalize_mailbox("Sent")), "Sent")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("Отправленные")), "Sent")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox(_SENT_LIST_ATOM)), "Sent")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("INBOX.Sent")), "Sent")
 
     def test_list_children_of_inbox_are_empty(self):
         from app.imap_server import _list_pattern_is_children
@@ -62,9 +68,16 @@ class MailboxNameTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(r'* LIST (\Noinferiors) NIL INBOX', src)
-        self.assertIn(r'* LIST (\HasNoChildren) NIL Sent', src)
+        self.assertIn(r'* LIST (\HasNoChildren \Sent) NIL ', src)
+        self.assertIn("_SENT_LIST_ATOM", src)
         self.assertNotIn("SPECIAL-USE", src.split("caps = ", 1)[-1][:80])
         self.assertIn("async def _subscribe", src)
+
+    def test_sent_list_atom_is_mutf7_otpravlennye(self):
+        self.assertEqual(_decode_mutf7(_SENT_LIST_ATOM), "Отправленные")
+        self.assertEqual(_encode_mutf7("Отправленные"), _SENT_LIST_ATOM)
+        self.assertTrue(_SENT_LIST_ATOM.isascii())
+        self.assertNotEqual(_SENT_LIST_ATOM, "Sent")
 
     def test_contacts_mailbox(self):
         self.assertEqual(_classify_mailbox(_normalize_mailbox("Contacts")), "Contacts")
