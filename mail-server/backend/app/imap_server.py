@@ -414,7 +414,8 @@ class IMAPSession:
     # ------------------------------------------------------------------
 
     async def _capability(self, tag, cmd, args):
-        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE SPECIAL-USE'
+        # We only support AUTHENTICATE PLAIN and the LOGIN command.
+        caps = 'IMAP4rev1 SASL-IR LOGIN-REFERRALS ID ENABLE IDLE AUTH=PLAIN LITERAL+ UIDPLUS'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
