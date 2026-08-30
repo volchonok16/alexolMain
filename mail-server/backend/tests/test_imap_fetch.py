@@ -72,6 +72,8 @@ class MailboxNameTests(unittest.TestCase):
         self.assertIn("_SENT_LIST_ATOM", src)
         self.assertNotIn("SPECIAL-USE", src.split("caps = ", 1)[-1][:80])
         self.assertIn("async def _subscribe", src)
+        self.assertIn('kind not in ("INBOX", "Drafts", "Contacts")', src)
+        self.assertIn("[APPENDUID", src)
 
     def test_sent_list_atom_is_mutf7_otpravlennye(self):
         self.assertEqual(_decode_mutf7(_SENT_LIST_ATOM), "Отправленные")

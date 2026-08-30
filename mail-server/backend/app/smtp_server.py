@@ -18,7 +18,7 @@ from app.config import settings
 from app.auth import verify_password
 from app.database import async_connect_args, sync_connect_args
 from app.mail_body import extract_text_and_html, sanitize_pg_text
-from app.mail_sync import allocate_imap_uid, is_outlook_probe
+from app.mail_sync import allocate_imap_uid, is_outlook_probe, raw_has_message_id
 from app.from_display import inject_from_display_name
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
@@ -272,6 +272,46 @@ class CustomSMTPHandler:
                             user.email,
                             from_address,
                             from_name,
+                        )
+
+                # Outlook IMAP submits via SMTP and often skips APPEND to Sent.
+                # Webmail already stores is_sent=True; authenticated SMTP did not.
+                if authenticated and sender:
+                    mid = (msg.get("Message-ID") or "").strip()
+                    recent_sent = (
+                        await db.execute(
+                            select(Email).where(
+                                Email.user_id == sender.id,
+                                Email.is_sent.is_(True),
+                            ).order_by(Email.id.desc()).limit(20)
+                        )
+                    ).scalars().all()
+                    already = any(
+                        raw_has_message_id(getattr(row, "raw_rfc822", None), mid)
+                        for row in recent_sent
+                    )
+                    if not already:
+                        sent_uid = await allocate_imap_uid(db, sender.id, True)
+                        db.add(Email(
+                            user_id=sender.id,
+                            from_address=from_address or sender.email,
+                            to_address=header_to or ", ".join(rcpt_norm) or sender.email,
+                            from_name=from_name or sender.full_name,
+                            to_name=None,
+                            subject=subject,
+                            body=body,
+                            html_body=html_body,
+                            raw_rfc822=content,
+                            is_sent=True,
+                            is_read=True,
+                            imap_uid=sent_uid,
+                        ))
+                        await db.commit()
+                        logger.info(
+                            "SMTP saved sent copy user=%s to=%s uid=%s",
+                            sender.email,
+                            header_to,
+                            sent_uid,
                         )
 
             if external_addrs:

@@ -43,6 +43,7 @@ from app.mail_sync import (
     flags_for_email,
     is_outlook_probe,
     parse_store_args,
+    raw_has_message_id,
 )
 from app.models import User, Email
 from app.auth import verify_password
@@ -970,13 +971,26 @@ class IMAPSession:
             await self._send(f'{tag} NO APPEND failed')
             return
 
-        if _classify_mailbox(mailbox) == 'Sent':
-            self._save_appended_sent(data)
-        await self._send(f'{tag} OK APPEND completed')
+        kind = _classify_mailbox(mailbox)
+        logger.info(
+            "IMAP APPEND mailbox=%r kind=%s size=%s user=%s",
+            mailbox,
+            kind,
+            size,
+            self.user.email if self.user else "-",
+        )
+        uid = None
+        # Unknown names (localized Sent Items) still get a sent copy. Skip INBOX/Drafts.
+        if kind not in ("INBOX", "Drafts", "Contacts"):
+            uid = self._save_appended_sent(data)
+        if uid:
+            await self._send(f'{tag} OK [APPENDUID {UIDVALIDITY} {uid}] APPEND completed')
+        else:
+            await self._send(f'{tag} OK APPEND completed')
 
-    def _save_appended_sent(self, data: bytes) -> None:
+    def _save_appended_sent(self, data: bytes) -> int | None:
         if not self.user or not data:
-            return
+            return None
         try:
             data, injected_name = inject_from_display_name(
                 data, self.user.full_name or "", self.user.email
@@ -986,7 +1000,7 @@ class IMAPSession:
             header_name, header_addr = parseaddr(msg.get('From') or '')
             from_address = (header_addr or self.user.email).strip().lower()
             if is_outlook_probe(msg.get("subject") or "", header_name):
-                return
+                return None
             body, html_body = extract_text_and_html(msg)
             with self._db() as db:
                 if mid:
@@ -996,11 +1010,11 @@ class IMAPSession:
                             Email.is_sent.is_(True),
                         ).order_by(Email.id.desc()).limit(20)
                     ).scalars().all()
-                    needle = mid.encode('utf-8', errors='ignore')
-                    for row in recent:
-                        raw = getattr(row, 'raw_rfc822', None) or b''
-                        if needle and needle in raw:
-                            return
+                    if any(
+                        raw_has_message_id(getattr(row, "raw_rfc822", None), mid)
+                        for row in recent
+                    ):
+                        return None
                 imap_uid = allocate_imap_uid_sync(db, self.user.id, True)
                 db.add(Email(
                     user_id=self.user.id,
@@ -1016,8 +1030,10 @@ class IMAPSession:
                     imap_uid=imap_uid,
                 ))
                 db.commit()
+                return imap_uid
         except Exception as exc:
             logger.warning('IMAP APPEND Sent save failed: %s', exc)
+            return None
 
     async def _unknown(self, tag, cmd, args):
         logger.info("IMAP unknown cmd=%s args=%s peer=%s", cmd, (args or "")[:80], self._peer())

@@ -2,7 +2,13 @@
 import unittest
 from types import SimpleNamespace
 
-from app.mail_sync import apply_store_flags, flags_for_email, is_outlook_probe, parse_store_args
+from app.mail_sync import (
+    apply_store_flags,
+    flags_for_email,
+    is_outlook_probe,
+    parse_store_args,
+    raw_has_message_id,
+)
 
 
 class StoreParseTests(unittest.TestCase):
@@ -55,3 +61,11 @@ class OutlookProbeTests(unittest.TestCase):
         self.assertTrue(is_outlook_probe("Тестовое сообщение Microsoft Outlook"))
         self.assertTrue(is_outlook_probe("Microsoft Outlook Test Message"))
         self.assertFalse(is_outlook_probe("Hello from Outlook"))
+
+
+class SentCopyDedupTests(unittest.TestCase):
+    def test_message_id_in_raw(self):
+        raw = b"Message-ID: <abc@alexol.io>\r\n\r\nbody"
+        self.assertTrue(raw_has_message_id(raw, "<abc@alexol.io>"))
+        self.assertFalse(raw_has_message_id(raw, "<other@alexol.io>"))
+        self.assertFalse(raw_has_message_id(raw, ""))

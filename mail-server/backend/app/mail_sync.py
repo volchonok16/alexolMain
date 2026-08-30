@@ -138,6 +138,12 @@ async def backfill_imap_uids(db: AsyncSession) -> None:
     await db.commit()
 
 
+def raw_has_message_id(raw: bytes | None, message_id: str) -> bool:
+    """True if this RFC822 blob already contains the Message-ID (sent-copy dedup)."""
+    needle = (message_id or "").strip().encode("utf-8", errors="ignore")
+    return bool(needle) and needle in (raw or b"")
+
+
 def is_outlook_probe(subject: str, from_name: str = "") -> bool:
     """Outlook 'Test Account Settings' mail — do not store it in the mailbox."""
     text = (subject or "").lower()

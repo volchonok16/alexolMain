@@ -14,6 +14,11 @@ _SMTP_SRC = (Path(__file__).resolve().parents[1] / "app" / "smtp_server.py").rea
 
 
 class MailSmtpAuthLoginSourceTests(unittest.TestCase):
+    def test_authenticated_smtp_stores_sent_copy(self):
+        self.assertIn("SMTP saved sent copy", _SMTP_SRC)
+        self.assertIn("is_sent=True", _SMTP_SRC)
+        self.assertIn("if authenticated and sender:", _SMTP_SRC)
+
     def test_source_uses_rfc_login_challenges(self):
         self.assertIn("class MailSMTP(SMTP):", _SMTP_SRC)
         self.assertIn('AuthLoginUsernameChallenge = "Username:"', _SMTP_SRC)
