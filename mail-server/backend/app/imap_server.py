@@ -1316,17 +1316,20 @@ class IMAPSession:
             items_str[:120],
             len(pairs),
         )
-        for seq_num, em in pairs:
-            try:
+        sent = 0
+        try:
+            for seq_num, em in pairs:
                 await self._send_bytes(_build_fetch_response(seq_num, em, items_str, uid_mode))
-            except Exception as exc:
-                logger.exception(
-                    "IMAP FETCH build failed uid=%s user=%s: %s",
-                    em.get("id"),
-                    self.user.email if self.user else "?",
-                    exc,
-                )
-        await self._send(f"{tag} OK FETCH completed")
+                sent += 1
+            await self._send(f"{tag} OK FETCH completed")
+        except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
+            logger.warning(
+                "IMAP FETCH client closed user=%s mailbox=%s sent=%s/%s",
+                self.user.email if self.user else "?",
+                self.selected_mailbox,
+                sent,
+                len(pairs),
+            )
 
     async def _do_search(self, tag: str, args: str, uid_mode: bool):
         emails = list(self.selected_emails)
