@@ -26,7 +26,6 @@ from app.recipients import partition_local_external
 from app.logging_setup import configure_quiet_logging
 import logging
 
-logging.basicConfig(level=logging.INFO)
 configure_quiet_logging()
 logger = logging.getLogger(__name__)
 
@@ -116,7 +115,7 @@ class CustomSMTPHandler:
             return AuthResult(success=False)
         login = _smtp_text(auth_data.login).strip().lower()
         password = _smtp_text(auth_data.password)
-        logger.info("SMTP AUTH %s login=%s peer=%s", mechanism, login or "-", getattr(session, "peer", None))
+        logger.debug("SMTP AUTH %s login=%s peer=%s", mechanism, login or "-", getattr(session, "peer", None))
         if not login or not password:
             logger.warning("SMTP auth: empty login or password for %r", login)
             return AuthResult(success=False)
@@ -169,7 +168,7 @@ class CustomSMTPHandler:
                 len(lines),
             )
             lines.insert(help_i, "250-AUTH LOGIN PLAIN")
-        logger.info(
+        logger.debug(
             "SMTP EHLO peer=%s host=%s tls=%s auth=%s",
             getattr(session, "peer", None),
             hostname,
@@ -179,7 +178,7 @@ class CustomSMTPHandler:
         return lines
 
     async def handle_AUTH(self, server, session, envelope, args):
-        logger.info(
+        logger.debug(
             "SMTP cmd AUTH %s peer=%s",
             (args or ["?"])[0],
             getattr(session, "peer", None),
@@ -241,7 +240,7 @@ class CustomSMTPHandler:
                 header_to = sanitize_pg_text((msg.get("To") or "").strip() or ", ".join(rcpt_norm))
 
                 if is_outlook_probe(subject, from_name or ""):
-                    logger.info("SMTP skip Outlook account-test message from %s", from_address)
+                    logger.debug("SMTP skip Outlook account-test message from %s", from_address)
                     return "250 2.0.0 Message accepted"
 
                 if external_addrs and not authenticated:
@@ -336,7 +335,7 @@ class CustomSMTPHandler:
         cause = error.__cause__ or error
         peer_drop = (ConnectionResetError, BrokenPipeError, ConnectionAbortedError)
         if isinstance(error, TLSSetupException) or isinstance(cause, peer_drop):
-            logger.info(
+            logger.debug(
                 "SMTP peer dropped during TLS/session (%s)",
                 cause.__class__.__name__,
             )

@@ -207,7 +207,7 @@ class LDAPSession:
         if identity is None and not password:
             self.bound_user = None
             await self._send(_bind_done(message_id, 0))
-            logger.info("LDAP anonymous bind peer=%s", self._peer())
+            logger.debug("LDAP anonymous bind peer=%s", self._peer())
             return
         if identity is None or not password:
             await self._send(_bind_done(message_id, 49, "invalid credentials"))
@@ -219,7 +219,7 @@ class LDAPSession:
             return
         self.bound_user = user
         await self._send(_bind_done(message_id, 0))
-        logger.info("LDAP bind ok user=%s peer=%s", user.email, self._peer())
+        logger.debug("LDAP bind ok user=%s peer=%s", user.email, self._peer())
 
     def _under_tree(self, base: str) -> bool:
         base_l = (base or "").strip().lower()
@@ -239,17 +239,17 @@ class LDAPSession:
         if not base and scope == _SCOPE_BASE:
             await self._send(_entry_bytes(message_id, "", _root_dse_attrs(), requested, types_only))
             await self._send(_search_done(message_id))
-            logger.info("LDAP search rootDSE peer=%s", self._peer())
+            logger.debug("LDAP search rootDSE peer=%s", self._peer())
             return
 
         if self.bound_user is None:
             await self._send(_search_done(message_id, 50, "bind required"))
-            logger.info("LDAP search denied bind required base=%r peer=%s", base, self._peer())
+            logger.debug("LDAP search denied bind required base=%r peer=%s", base, self._peer())
             return
 
         if not self._under_tree(base):
             await self._send(_search_done(message_id, 32, "no such object"))
-            logger.info("LDAP search no such object base=%r peer=%s", base, self._peer())
+            logger.debug("LDAP search no such object base=%r peer=%s", base, self._peer())
             return
 
         people = self._load_people()
@@ -302,7 +302,7 @@ class LDAPSession:
             if attrs.get("jpegPhoto") or attrs.get("thumbnailPhoto"):
                 photos += 1
         await self._send(_search_done(message_id))
-        logger.info(
+        logger.debug(
             "LDAP search user=%s base=%r filter=%s hits=%s photos=%s attrs=%s peer=%s",
             self.bound_user.email if self.bound_user else "-",
             base,

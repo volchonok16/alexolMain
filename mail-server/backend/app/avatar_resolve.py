@@ -177,7 +177,7 @@ def load_avatar_bytes(avatar_url: Optional[str]) -> Optional[Tuple[bytes, str, s
                 obj.release_conn()
             return data, _guess_image_type(object_name), object_name.split("/")[-1]
         except Exception as e:
-            logger.info("MinIO miss for %s (%s); trying admin /uploads", object_name, e)
+            logger.debug("MinIO miss for %s (%s); trying admin /uploads", object_name, e)
             for candidate in admin_upload_candidates(object_name.split("/")[-1]):
                 recovered = _http_fetch_image(candidate)
                 if recovered:

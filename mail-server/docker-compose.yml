@@ -1,9 +1,16 @@
+x-mail-logs: &mail-logs
+  driver: json-file
+  options:
+    max-size: "8m"
+    max-file: "3"
+
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: mail_postgres
     restart: unless-stopped
+    logging: *mail-logs
     environment:
       POSTGRES_USER: mailuser
       POSTGRES_PASSWORD: mailpass
@@ -28,6 +35,7 @@ services:
     image: minio/minio:latest
     container_name: mail_minio
     restart: unless-stopped
+    logging: *mail-logs
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -54,6 +62,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: mail_backend
+    logging: *mail-logs
     environment:
       # mail_postgres = container_name (stable DNS when backend is on two networks)
       DATABASE_URL: postgresql+asyncpg://mailuser:mailpass@mail_postgres:5432/maildb

@@ -20,6 +20,9 @@ from app.dkim_signer import sign_message
 from app.models import User
 from app.recipients import group_by_domain, partition_local_external
 from app.sig_inline import embed_signature_images
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def wrap_outbound_html(content_html: str, signature_html: str) -> str:
@@ -149,7 +152,7 @@ def _smtp_send(msg, *, host: str, port: int, from_addr: str, envelope: list[str]
 
 
 def _send_local(msg, from_addr: str, envelope: list[str]) -> None:
-    print(f"[EMAIL] Local delivery via localhost:{settings.SMTP_PORT} -> {envelope}")
+    logger.debug("Local delivery via localhost:%s -> %s", settings.SMTP_PORT, envelope)
     _smtp_send(
         msg,
         host="localhost",
@@ -161,8 +164,11 @@ def _send_local(msg, from_addr: str, envelope: list[str]) -> None:
 
 
 def _send_relay(msg, from_addr: str, envelope: list[str]) -> None:
-    print(
-        f"[EMAIL] SMTP relay {settings.SMTP_RELAY_HOST}:{settings.SMTP_RELAY_PORT} -> {envelope}"
+    logger.info(
+        "SMTP relay %s:%s -> %s",
+        settings.SMTP_RELAY_HOST,
+        settings.SMTP_RELAY_PORT,
+        envelope,
     )
     with smtplib.SMTP(settings.SMTP_RELAY_HOST, settings.SMTP_RELAY_PORT) as smtp:
         if settings.SMTP_RELAY_USE_TLS:
@@ -175,7 +181,7 @@ def _send_relay(msg, from_addr: str, envelope: list[str]) -> None:
 def _send_mx(msg, from_addr: str, domain: str, envelope: list[str]) -> None:
     import dns.resolver
 
-    print(f"[EMAIL] Direct MX for {domain} -> {envelope}")
+    logger.debug("Direct MX for %s -> %s", domain, envelope)
     try:
         mx_records = dns.resolver.resolve(domain, "MX")
         mx_records = sorted(mx_records, key=lambda r: r.preference)
@@ -196,12 +202,12 @@ def _send_mx(msg, from_addr: str, domain: str, envelope: list[str]) -> None:
                         smtp.starttls(context=tls_ctx)
                         smtp.ehlo()
                     smtp.send_message(msg, from_addr=from_addr, to_addrs=envelope)
-                print(f"[EMAIL] Sent via {mx_host}:25 (STARTTLS if available)")
+                logger.info("Sent via %s:25", mx_host)
                 sent = True
                 break
             except Exception as mx_error:
                 last_error = mx_error
-                print(f"Failed to send via {mx_host}: {mx_error}")
+                logger.warning("Failed to send via %s: %s", mx_host, mx_error)
                 continue
         if not sent:
             raise last_error or Exception("All MX servers failed")
@@ -254,7 +260,7 @@ async def _send_sendgrid(
     full_text: str,
     full_html: str,
 ) -> None:
-    print(f"[EMAIL] SendGrid API -> {envelope}")
+    logger.info("SendGrid API -> %s", envelope)
     payload = {
         "personalizations": [{"to": [{"email": addr} for addr in envelope]}],
         "from": {
@@ -307,8 +313,12 @@ async def deliver_composed_email(
     )
     from_addr = current_user.email
     local, external = partition_local_external(to_addresses, settings.MAIL_DOMAIN)
-    print(
-        f"[EMAIL] from={from_addr} to={to_addresses} local={local} external={external}"
+    logger.info(
+        "Outbound from=%s to=%s local=%s external=%s",
+        from_addr,
+        to_addresses,
+        local,
+        external,
     )
 
     errors: list[str] = []
