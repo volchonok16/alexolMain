@@ -755,14 +755,11 @@ class IMAPSession:
             await self._send(f'{tag} NO Not authenticated')
             return
         if self.state != self.SELECTED:
-            # Some clients IDLE right after LOGIN (see 128.0.128.246). RFC IDLE
-            # needs a mailbox; open INBOX so they are not stuck with NO.
+            # Some clients IDLE right after LOGIN. Do not emit EXISTS first:
+            # Outlook then drops the session. Select INBOX silently, then +.
             self.selected_mailbox = 'INBOX'
             self.selected_emails = self._fetch_inbox()
             self.state = self.SELECTED
-            n = len(self.selected_emails)
-            await self._send(f'* {n} EXISTS')
-            await self._send('* 0 RECENT')
         logger.info(
             "IMAP IDLE start mailbox=%s user=%s",
             self.selected_mailbox,

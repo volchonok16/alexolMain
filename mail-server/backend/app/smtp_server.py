@@ -152,11 +152,14 @@ class CustomSMTPHandler:
         return "250 OK"
 
     async def handle_EHLO(self, server, session, envelope, hostname, responses):
+        # aiosmtpd 5-arg EHLO hook does not set this; AUTH then returns
+        # "503 send EHLO first" and Outlook keeps reopening the password dialog.
+        session.host_name = hostname
         logger.info(
             "SMTP EHLO peer=%s host=%s tls=%s",
             getattr(session, "peer", None),
             hostname,
-            bool(getattr(session, "ssl", None)),
+            bool(getattr(session, "ssl", None) or getattr(session, "_tls_protocol", None)),
         )
         return responses
 
