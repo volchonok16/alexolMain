@@ -5,6 +5,10 @@ import asyncio
 import logging
 import secrets
 from datetime import datetime
+from email import policy as email_policy
+from email.message import EmailMessage
+from email.parser import BytesParser
+from email.utils import getaddresses
 from typing import Optional
 from urllib.parse import quote, unquote
 from xml.sax.saxutils import escape as xml_escape
@@ -322,13 +326,18 @@ async def _notify_meeting(
     if event.description:
         body += f"\n{event.description}\n"
     html = (
-        f"<p>{xml_escape(lead)}</p>"
-        f"<p><strong>{xml_escape(event.title)}</strong></p>"
-        f"<p>Когда: {xml_escape(start)}–{xml_escape(end)} UTC</p>"
+        '<div style="line-height:1.55;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">'
+        f'<p style="margin:0 0 10px">{xml_escape(lead)}</p>'
+        f'<p style="margin:0 0 12px;font-size:18px;font-weight:600">{xml_escape(event.title)}</p>'
+        f'<p style="margin:0 0 8px">Когда: {xml_escape(start)}–{xml_escape(end)} UTC</p>'
         f"{_join_html(where)}"
+        "</div>"
     )
     if event.description:
-        html += f"<p>{xml_escape(event.description)}</p>"
+        html = html.replace(
+            "</div>",
+            f'<p style="margin:12px 0 0">{xml_escape(event.description)}</p></div>',
+        )
     to_addrs = [a.email for a in (event.attendees or []) if a.email]
     raw = build_meeting_rfc822(
         organizer=organizer,
@@ -401,12 +410,20 @@ async def ingest_calendar_message(
     parts = extract_calendar_parts(msg)
     if not parts:
         return
+    involved = list(local_users)
+    header_addrs = []
+    for hdr in ("To", "Cc"):
+        header_addrs.extend(addr for _, addr in getaddresses(msg.get_all(hdr) or []))
+    for addr in header_addrs:
+        peer = await _user_by_email(db, addr)
+        if peer and all(u.id != peer.id for u in involved):
+            involved.append(peer)
     for method_hint, ics_text in parts:
         parsed = parse_calendar(ics_text, default_method=method_hint)
         if not parsed:
             continue
         try:
-            await _apply_parsed_event(db, parsed, sender=sender, local_users=local_users)
+            await _apply_parsed_event(db, parsed, sender=sender, local_users=involved)
         except Exception:
             logger.exception("Calendar ingest failed uid=%s", parsed.uid)
 
@@ -503,6 +520,18 @@ async def _apply_parsed_event(
                 email=peer.email if peer else email,
                 display_name=name or (peer.full_name if peer else None),
                 status=status or "invited",
+            )
+        )
+    for peer in local_users or []:
+        if not peer.email or peer.email.lower() in seen:
+            continue
+        seen.add(peer.email.lower())
+        attendees.append(
+            CalendarAttendee(
+                user_id=peer.id,
+                email=peer.email,
+                display_name=peer.full_name,
+                status="invited",
             )
         )
     event.attendees = attendees
@@ -606,6 +635,39 @@ async def public_vcard(email: str, db: AsyncSession = Depends(get_db)):
     )
 
 
+async def _backfill_calendar_from_mail(db: AsyncSession, user: User) -> None:
+    """Turn already-received Outlook invites into calendar rows (idempotent)."""
+    rows = (
+        await db.execute(
+            select(Email).where(Email.user_id == user.id).order_by(Email.id.desc()).limit(80)
+        )
+    ).scalars().all()
+    for row in rows:
+        raw = getattr(row, "raw_rfc822", None)
+        raw_text = ""
+        if raw:
+            try:
+                raw_text = bytes(raw).decode("utf-8", "replace")
+            except Exception:
+                raw_text = ""
+        stored = f"{row.body or ''}\n{row.html_body or ''}"
+        if "BEGIN:VCALENDAR" not in raw_text.upper() and "BEGIN:VCALENDAR" not in stored.upper():
+            continue
+        try:
+            if raw:
+                msg = BytesParser(policy=email_policy.default).parsebytes(bytes(raw))
+            else:
+                fake = EmailMessage()
+                fake["From"] = row.from_address or user.email
+                fake["To"] = row.to_address or user.email
+                fake.set_content(stored)
+                msg = fake
+            sender = await _user_by_email(db, row.from_address or "")
+            await ingest_calendar_message(db, msg, sender=sender or user, local_users=[user])
+        except Exception:
+            logger.exception("Calendar backfill failed email_id=%s", row.id)
+
+
 @router.get("/calendar/events", response_model=list[CalendarEventResponse])
 async def list_events(
     from_at: Optional[datetime] = None,
@@ -613,6 +675,7 @@ async def list_events(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    await _backfill_calendar_from_mail(db, current_user)
     stmt = (
         select(CalendarEvent)
         .options(selectinload(CalendarEvent.attendees), selectinload(CalendarEvent.organizer))

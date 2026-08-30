@@ -19,7 +19,7 @@ import logging
 import subprocess
 import tempfile
 from datetime import datetime, timezone
-from email.charset import Charset
+from email.charset import Charset, QP
 from email.header import Header
 from email.message import Message
 from email.mime.multipart import MIMEMultipart
@@ -28,10 +28,11 @@ from email.utils import format_datetime, formataddr, getaddresses, parseaddr
 from email.parser import BytesParser
 from email import policy as email_policy
 
-# CRLF like SMTP, but 8bit so reconstructed HTML is not BASE64 with mismatched sizes.
+# CRLF like SMTP. Quoted-printable UTF-8 so CTE matches the payload (do not
+# relabel Base64 as 8bit — Outlook then shows raw MIME instead of HTML).
 _IMAP_GEN_POLICY = email_policy.SMTP.clone(cte_type="8bit")
-_UTF8_8BIT = Charset("utf-8")
-_UTF8_8BIT.body_encoding = None
+_UTF8_QP = Charset("utf-8")
+_UTF8_QP.body_encoding = QP
 
 from sqlalchemy import create_engine, delete, func, nulls_last, select
 from sqlalchemy.orm import sessionmaker, Session
@@ -57,7 +58,8 @@ logger = logging.getLogger(__name__)
 # Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
 # 25: LIST Sent as Отправленные (modified UTF-7) + \Sent so Russian Outlook
 #     maps Sent Items. Do not advertise SPECIAL-USE / \Inbox (proxy skip).
-UIDVALIDITY = 25
+# 26: meeting invites as alternative+calendar; BODYSTRUCTURE METHOD param.
+UIDVALIDITY = 26
 _OUTLOOK_LIST_FETCH = (
     "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
     "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
@@ -304,8 +306,17 @@ def _bodystructure(part: Message) -> str:
     main, _, sub = ctype.partition("/")
     main = (main or "TEXT").upper()
     sub = (sub or "PLAIN").upper()
-    charset = part.get_content_charset() or "UTF-8"
-    params = f'("CHARSET" {_imap_quoted(charset)})'
+    charset = part.get_content_charset() or ("UTF-8" if main == "TEXT" else "")
+    filename = part.get_filename() or part.get_param("name") or ""
+    method = part.get_param("method")
+    param_bits: list[str] = []
+    if charset:
+        param_bits.append(f'"CHARSET" {_imap_quoted(charset)}')
+    if method:
+        param_bits.append(f'"METHOD" {_imap_quoted(str(method).upper())}')
+    if filename:
+        param_bits.append(f'"NAME" {_imap_quoted(str(filename))}')
+    params = f'({" ".join(param_bits)})' if param_bits else "NIL"
     cte = (part.get("Content-Transfer-Encoding") or "8BIT").split()[0].upper()
     if cte not in ("7BIT", "8BIT", "BINARY", "BASE64", "QUOTED-PRINTABLE"):
         cte = "8BIT"
@@ -563,12 +574,7 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
 
 
 def _text_part(content: str, subtype: str) -> MIMEText:
-    part = MIMEText(content or "", subtype)
-    part.set_charset(_UTF8_8BIT)
-    if part.get("Content-Transfer-Encoding"):
-        del part["Content-Transfer-Encoding"]
-    part["Content-Transfer-Encoding"] = "8bit"
-    return part
+    return MIMEText(content or "", subtype, _UTF8_QP)
 
 
 def _email_to_rfc822(em: dict) -> bytes:

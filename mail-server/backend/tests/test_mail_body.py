@@ -95,7 +95,7 @@ class CalendarAndBase64BodyTests(unittest.TestCase):
         self.assertNotIn("BEGIN:VCALENDAR", plain)
         self.assertIn("Planerka", plain)
         self.assertIn("Planerka", html)
-        self.assertIn("<p>", html)
+        self.assertIn("<p", html)
 
     def test_stored_base64_html_is_decoded(self):
         import base64

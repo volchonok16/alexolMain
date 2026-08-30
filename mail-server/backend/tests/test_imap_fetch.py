@@ -181,6 +181,42 @@ class FetchResponseTests(unittest.TestCase):
         pairs = _parse_seq_set("0", 2, True, emails)
         self.assertEqual(len(pairs), 2)
 
+    def test_bodystructure_includes_calendar_method(self):
+        from datetime import datetime as dt
+        from types import SimpleNamespace
+        from app.cal_invite import build_meeting_rfc822
+        from app.imap_server import _safe_bodystructure
+
+        org = SimpleNamespace(full_name="Alex", email="altaraskin@alexol.io")
+        att = SimpleNamespace(email="info@alexol.io", display_name="Info", status="invited")
+        event = SimpleNamespace(
+            id=7,
+            ical_uid="event-7@alexol.io",
+            ical_sequence=0,
+            title="Созвон",
+            description="Повестка",
+            location="Meet",
+            start_at=dt(2026, 8, 30, 14, 0),
+            end_at=dt(2026, 8, 30, 15, 0),
+            updated_at=dt(2026, 8, 30, 12, 0),
+            created_at=dt(2026, 8, 30, 12, 0),
+            organizer=org,
+            attendees=[att],
+        )
+        raw = build_meeting_rfc822(
+            organizer=org,
+            event=event,
+            to_addrs=["info@alexol.io"],
+            subject="Встреча: Созвон",
+            body="text",
+            html="<p>text</p>",
+            method="REQUEST",
+        )
+        structure = _safe_bodystructure(raw, {})
+        self.assertIn('"CALENDAR"', structure)
+        self.assertIn('"METHOD" "REQUEST"', structure)
+        self.assertIn('"ALTERNATIVE"', structure)
+
     def test_fetch_uses_mailbox_uid_not_db_id(self):
         em = _sample()
         em["uid"] = 1

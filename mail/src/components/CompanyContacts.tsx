@@ -1,6 +1,6 @@
-import { useMemo, useState, type MouseEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download, Search, Users, Video } from 'lucide-react'
+import { Download, Mail, Phone, Search, Users, Video } from 'lucide-react'
 import api from '../api/axios'
 import { PeerAvatar } from './PeerAvatar'
 import { useAuthStore } from '../store/authStore'
@@ -19,6 +19,21 @@ export type DirectoryPerson = {
   is_busy?: boolean
   busy_until?: string | null
   busy_title?: string | null
+}
+
+function telegramHref(value: string): string {
+  const raw = value.trim()
+  if (/^https?:\/\//i.test(raw)) return raw
+  const handle = raw.replace(/^@/, '').replace(/^t\.me\//i, '')
+  return `https://t.me/${handle}`
+}
+
+function TelegramIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M21.5 3.3 2.8 10.5c-1.3.5-1.3 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.7.4 1 .9 1 .5 0 .7-.2 1-.6l2.5-2.6 5.2 3.8c1 .5 1.6.2 1.9-.9l3.4-16.1c.3-1.4-.5-2-1.6-1.4z" />
+    </svg>
+  )
 }
 
 export default function CompanyContacts() {
@@ -48,13 +63,11 @@ export default function CompanyContacts() {
     window.open(`/api/contacts.vcf?access_token=${encodeURIComponent(token || '')}`, '_blank')
   }
 
-  const openCall = async (person: DirectoryPerson, event: MouseEvent) => {
-    event.preventDefault()
-    event.stopPropagation()
+  const openMyJitsi = async () => {
     const url = personalJitsiUrl(me?.username, me?.email)
     try {
       await navigator.clipboard.writeText(url)
-      toast.success(`Ссылка вашей комнаты скопирована. Отправьте ${person.full_name}`)
+      toast.success('Ссылка комнаты скопирована — отправьте коллеге')
     } catch {
       /* clipboard may be blocked */
     }
@@ -79,9 +92,15 @@ export default function CompanyContacts() {
     <div className="org-pane">
       <div className="content-header">
         <h2>Контакты компании</h2>
-        <button type="button" className="btn-refresh" onClick={onDownload} aria-label="Скачать vCard">
-          <Download size={20} />
-        </button>
+        <div className="org-header-actions">
+          <button type="button" className="btn-compose org-small-compose" onClick={openMyJitsi}>
+            <Video size={16} />
+            Созвон Jitsi
+          </button>
+          <button type="button" className="btn-refresh" onClick={onDownload} aria-label="Скачать vCard">
+            <Download size={20} />
+          </button>
+        </div>
       </div>
       <div className="org-toolbar">
         <Search size={16} />
@@ -119,7 +138,7 @@ export default function CompanyContacts() {
           {filtered.map((person) => (
             <div key={person.email} className="org-contact-card">
               <PeerAvatar src={person.avatar_url} email={person.email} name={person.full_name} size={48} />
-              <div>
+              <div className="org-contact-body">
                 <div className="org-contact-name">
                   {person.full_name}
                   {person.is_busy ? <span className="org-busy-badge">Занят</span> : null}
@@ -134,18 +153,28 @@ export default function CompanyContacts() {
                     })}
                   </div>
                 ) : null}
-                <div className="org-contact-meta">{person.email}</div>
-                {person.phone ? <div className="org-contact-meta">{person.phone}</div> : null}
-                {person.telegram ? <div className="org-contact-meta">{person.telegram}</div> : null}
+                <a className="org-contact-line" href={`mailto:${person.email}`}>
+                  <Mail size={14} />
+                  <span>{person.email}</span>
+                </a>
+                {person.phone ? (
+                  <a className="org-contact-line" href={`tel:${person.phone.replace(/\s+/g, '')}`}>
+                    <Phone size={14} />
+                    <span>{person.phone}</span>
+                  </a>
+                ) : null}
+                {person.telegram ? (
+                  <a
+                    className="org-contact-line"
+                    href={telegramHref(person.telegram)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <TelegramIcon />
+                    <span>{person.telegram}</span>
+                  </a>
+                ) : null}
               </div>
-              <button
-                type="button"
-                className="org-call-btn"
-                onClick={(event) => openCall(person, event)}
-                title="Созвониться в Jitsi"
-              >
-                <Video size={18} />
-              </button>
             </div>
           ))}
         </div>

@@ -84,6 +84,33 @@ class ParseIcsTests(unittest.TestCase):
         dt = parse_ics_datetime("20260830T140000Z", {})
         self.assertEqual(dt, datetime(2026, 8, 30, 14, 0))
 
+    def test_valarm_does_not_overwrite_description(self):
+        ics = "\r\n".join(
+            [
+                "BEGIN:VCALENDAR",
+                "METHOD:REQUEST",
+                "BEGIN:VEVENT",
+                "UID:alarm@alexol.io",
+                "SUMMARY:wqeqweqwe",
+                "DESCRIPTION:Повестка",
+                "DTSTART:20260907T143000Z",
+                "DTEND:20260907T150000Z",
+                "ORGANIZER:mailto:altaraskin@alexol.io",
+                "ATTENDEE:mailto:no-reply@alexol.io",
+                "BEGIN:VALARM",
+                "ACTION:DISPLAY",
+                "DESCRIPTION:Reminder",
+                "TRIGGER:-PT15M",
+                "END:VALARM",
+                "END:VEVENT",
+                "END:VCALENDAR",
+            ]
+        )
+        parsed = parse_calendar(ics)
+        self.assertEqual(parsed.title, "wqeqweqwe")
+        self.assertEqual(parsed.description, "Повестка")
+        self.assertNotEqual(parsed.description.lower(), "reminder")
+
 
 class InviteMimeTests(unittest.TestCase):
     def test_mime_has_calendar_part(self):
@@ -98,8 +125,13 @@ class InviteMimeTests(unittest.TestCase):
         )
         raw_text = raw.decode("utf-8", "replace")
         self.assertIn("text/calendar", raw_text.lower())
+        self.assertIn("quoted-printable", raw_text.lower())
+        self.assertIn("Date:", raw_text)
         self.assertIn("<p>text</p>", raw_text)
         self.assertNotIn("PHA+", raw_text)
+        self.assertNotIn("multipart/mixed", raw_text.lower())
+        html_section = raw.split(b"text/html", 1)[1]
+        self.assertNotIn(b"Content-Transfer-Encoding: base64", html_section.split(b"--", 1)[0])
         msg = BytesParser(policy=policy.default).parsebytes(raw)
         parts = extract_calendar_parts(msg)
         self.assertTrue(parts)
@@ -107,6 +139,41 @@ class InviteMimeTests(unittest.TestCase):
         self.assertIn("BEGIN:VCALENDAR", ics)
         parsed = parse_calendar(ics, default_method=method)
         self.assertEqual(parsed.uid, "event-7@alexol.io")
+
+    def test_html_cyrillic_is_not_8bit_base64(self):
+        raw = build_meeting_rfc822(
+            organizer=SimpleNamespace(full_name="No - Reply", email="no-reply@alexol.io"),
+            event=_event(),
+            to_addrs=["altaraskin@alexol.io"],
+            subject="Встреча: 123",
+            body="привет",
+            html="<p>No - Reply приглашает на встречу.</p>",
+            method="REQUEST",
+        )
+        self.assertNotIn(b"PHA+", raw)
+        self.assertIn(b"Content-Transfer-Encoding: quoted-printable", raw)
+        self.assertIn(b"Content-Class: urn:content-classes:calendarmessage", raw)
+
+    def test_extract_ics_from_outlook_text_plain(self):
+        ics = (
+            "BEGIN:VCALENDAR\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\n"
+            "UID:plain@alexol.io\r\nSUMMARY:FromOutlook\r\n"
+            "DTSTART:20260907T143000Z\r\nDTEND:20260907T150000Z\r\n"
+            "ORGANIZER:mailto:altaraskin@alexol.io\r\n"
+            "ATTENDEE:mailto:no-reply@alexol.io\r\n"
+            "END:VEVENT\r\nEND:VCALENDAR\r\n"
+        )
+        from email.message import EmailMessage
+
+        msg = EmailMessage()
+        msg["From"] = "altaraskin@alexol.io"
+        msg["To"] = "no-reply@alexol.io"
+        msg.set_content(ics)
+        parts = extract_calendar_parts(msg)
+        self.assertTrue(parts)
+        parsed = parse_calendar(parts[0][1])
+        self.assertEqual(parsed.title, "FromOutlook")
+        self.assertEqual(parsed.uid, "plain@alexol.io")
 
 
 class SmtpIngestHookTests(unittest.TestCase):

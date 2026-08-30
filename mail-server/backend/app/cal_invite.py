@@ -4,13 +4,9 @@ from __future__ import annotations
 import base64
 import re
 from datetime import datetime, timezone
-from email.charset import Charset
-from email import encoders, policy as email_policy
-from email.message import Message
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import formataddr, make_msgid
+from email import policy as email_policy
+from email.message import EmailMessage, Message
+from email.utils import formataddr, formatdate, make_msgid
 from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -18,8 +14,6 @@ from app.config import settings
 from app.models import CalendarEvent
 
 _FOLD = 75
-_UTF8_8BIT = Charset("utf-8")
-_UTF8_8BIT.body_encoding = None
 _WIN_TZ = {
     "russian standard time": "Europe/Moscow",
     "gmt standard time": "Europe/London",
@@ -169,15 +163,6 @@ def build_vcalendar(event: CalendarEvent, method: str = "REQUEST") -> str:
     return "\r\n".join(chunks) + "\r\n"
 
 
-def _text_part(content: str, subtype: str) -> MIMEText:
-    part = MIMEText(content or "", subtype)
-    part.set_charset(_UTF8_8BIT)
-    if part.get("Content-Transfer-Encoding"):
-        del part["Content-Transfer-Encoding"]
-    part["Content-Transfer-Encoding"] = "8bit"
-    return part
-
-
 def build_meeting_rfc822(
     *,
     organizer,
@@ -188,39 +173,30 @@ def build_meeting_rfc822(
     html: str,
     method: str = "REQUEST",
 ) -> bytes:
-    ics = build_vcalendar(event, method)
-    method = (method or "REQUEST").upper()
+    """Outlook iMIP: multipart/alternative with a real text/calendar part.
 
-    plain = _text_part(body or "", "plain")
-    rich = _text_part(html or body or "", "html")
-    calendar = _text_part(ics.replace("\r\n", "\n"), "calendar")
+    Do not wrap in mixed+attachment and do not label Base64 as 8bit — Outlook then
+    shows raw MIME in the inbox and never creates a calendar item.
+    """
+    method = (method or "REQUEST").upper()
+    ics = build_vcalendar(event, method)
+    msg = EmailMessage()
+    msg["From"] = formataddr((organizer.full_name or "", organizer.email))
+    msg["To"] = ", ".join(to_addrs) if to_addrs else organizer.email
+    msg["Subject"] = subject
+    msg["Date"] = formatdate(usegmt=True)
+    msg["Message-ID"] = make_msgid(domain=mail_domain())
+    msg.set_content(body or "", subtype="plain", charset="utf-8", cte="quoted-printable")
+    msg.add_alternative(html or body or "", subtype="html", charset="utf-8", cte="quoted-printable")
+    msg.add_alternative(ics, subtype="calendar", charset="utf-8", cte="8bit")
+    calendar = msg.get_payload()[-1]
     calendar.replace_header(
         "Content-Type",
-        f'text/calendar; method={method}; charset="UTF-8"; name="meeting.ics"',
+        f'text/calendar; method={method}; charset="UTF-8"; name="invite.ics"',
     )
-    calendar["Content-Class"] = "urn:content-classes:calendarmessage"
-    calendar["Content-Disposition"] = 'inline; filename="meeting.ics"'
-
-    alt = MIMEMultipart("alternative")
-    alt.attach(plain)
-    alt.attach(rich)
-    alt.attach(calendar)
-
-    ics_file = MIMEBase("application", "ics", name="meeting.ics")
-    ics_file.set_payload(ics.encode("utf-8"))
-    encoders.encode_base64(ics_file)
-    ics_file.add_header("Content-Disposition", "attachment", filename="meeting.ics")
-    ics_file.add_header("Content-Class", "urn:content-classes:calendarmessage")
-
-    mixed = MIMEMultipart("mixed")
-    mixed["From"] = formataddr((organizer.full_name or "", organizer.email))
-    mixed["To"] = ", ".join(to_addrs) if to_addrs else organizer.email
-    mixed["Subject"] = subject
-    mixed["Message-ID"] = make_msgid(domain=mail_domain())
-    mixed["Content-Class"] = "urn:content-classes:calendarmessage"
-    mixed.attach(alt)
-    mixed.attach(ics_file)
-    return mixed.as_bytes(policy=email_policy.SMTP)
+    calendar["Content-Disposition"] = 'inline; filename="invite.ics"'
+    msg["Content-Class"] = "urn:content-classes:calendarmessage"
+    return msg.as_bytes(policy=email_policy.SMTP)
 
 
 def _unfold(text: str) -> str:
@@ -313,6 +289,7 @@ def parse_calendar(ics_text: str, default_method: str = "REQUEST") -> Optional[P
     parsed = ParsedEvent()
     parsed.method = (default_method or "REQUEST").upper()
     in_event = False
+    in_alarm = False
     for raw in body.split("\n"):
         line = raw.strip("\n")
         if not line:
@@ -320,20 +297,30 @@ def parse_calendar(ics_text: str, default_method: str = "REQUEST") -> Optional[P
         name, params, value = _parse_prop(line)
         if name == "BEGIN" and value.upper() == "VEVENT":
             in_event = True
+            in_alarm = False
             continue
         if name == "END" and value.upper() == "VEVENT":
             break
+        if name == "BEGIN" and value.upper() == "VALARM":
+            in_alarm = True
+            continue
+        if name == "END" and value.upper() == "VALARM":
+            in_alarm = False
+            continue
         if name == "METHOD":
             parsed.method = (value or parsed.method).upper()
             continue
-        if not in_event:
+        if not in_event or in_alarm:
             continue
         if name == "UID":
             parsed.uid = value.strip()
         elif name == "SUMMARY":
             parsed.title = _ics_unescape(value).strip()
         elif name == "DESCRIPTION":
-            parsed.description = _ics_unescape(value).strip()
+            text = _ics_unescape(value).strip()
+            if text.lower() in ("reminder", "напоминание"):
+                continue
+            parsed.description = text
         elif name == "LOCATION":
             parsed.location = _ics_unescape(value).strip()
         elif name == "SEQUENCE":
@@ -372,34 +359,73 @@ def parse_calendar(ics_text: str, default_method: str = "REQUEST") -> Optional[P
     return parsed
 
 
-def extract_calendar_parts(msg: Message) -> list[tuple[str, str]]:
-    found: list[tuple[str, str]] = []
-    for part in msg.walk():
-        ctype = (part.get_content_type() or "").lower()
-        filename = (part.get_filename() or "").lower()
-        if ctype not in ("text/calendar", "application/ics") and not filename.endswith(".ics"):
-            continue
-        payload = part.get_payload(decode=True)
-        if not payload:
-            payload = part.get_payload()
-        if isinstance(payload, str):
-            text = payload
-        elif isinstance(payload, (bytes, bytearray)):
-            charset = part.get_content_charset() or "utf-8"
-            try:
-                text = bytes(payload).decode(charset, "replace")
-            except LookupError:
-                text = bytes(payload).decode("utf-8", "replace")
-        else:
-            continue
-        if not text.lstrip().startswith("BEGIN:"):
-            compact = re.sub(r"\s+", "", text)
+def _ics_blob(text: str) -> str:
+    if not text:
+        return ""
+    match = re.search(r"BEGIN:VCALENDAR", text, re.I)
+    if not match:
+        return ""
+    start = match.start()
+    end = re.search(r"END:VCALENDAR", text[start:], re.I)
+    if not end:
+        return text[start:]
+    return text[start : start + end.end()]
+
+
+def _part_as_text(part: Message) -> str:
+    payload = part.get_payload(decode=True)
+    if not payload:
+        payload = part.get_payload()
+    if isinstance(payload, str):
+        text = payload
+    elif isinstance(payload, (bytes, bytearray)):
+        charset = part.get_content_charset() or "utf-8"
+        try:
+            text = bytes(payload).decode(charset, "replace")
+        except LookupError:
+            text = bytes(payload).decode("utf-8", "replace")
+    else:
+        return ""
+    if not text.lstrip().upper().startswith("BEGIN:") and re.fullmatch(r"[A-Za-z0-9+/=\s]+", text or ""):
+        compact = re.sub(r"\s+", "", text)
+        if len(compact) >= 16:
             try:
                 text = base64.b64decode(compact).decode("utf-8")
             except Exception:
                 pass
-        if not text.strip():
+    return text
+
+
+def extract_calendar_parts(msg: Message) -> list[tuple[str, str]]:
+    """Find iMIP parts. Outlook often puts ICS in text/plain, not text/calendar."""
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    def add(method: str, text: str) -> None:
+        blob = _ics_blob(text) or (text if "BEGIN:VCALENDAR" in (text or "").upper() else "")
+        blob = (blob or "").strip()
+        if not blob:
+            return
+        key = re.sub(r"\s+", "", blob)[:240]
+        if key in seen:
+            return
+        seen.add(key)
+        found.append(((method or "REQUEST").upper(), blob))
+
+    for part in msg.walk():
+        ctype = (part.get_content_type() or "").lower()
+        filename = (part.get_filename() or "").lower()
+        is_cal = ctype in ("text/calendar", "application/ics") or filename.endswith(".ics")
+        if not is_cal and not ctype.startswith("text/"):
             continue
-        method = (part.get_param("method") or "").upper()
-        found.append((method or "REQUEST", text))
+        text = _part_as_text(part)
+        if not text:
+            continue
+        method = (part.get_param("method") or "").upper() if is_cal else ""
+        add(method, text)
+    if not found:
+        try:
+            add("REQUEST", msg.as_string())
+        except Exception:
+            pass
     return found

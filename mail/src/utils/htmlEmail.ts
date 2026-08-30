@@ -29,7 +29,7 @@ export function previewTextFromParts(htmlBody?: string | null, body?: string | n
 }
 
 const FRAME_CSS =
-  '<style>html,body{margin:0;padding:8px 0;height:auto!important;background:#fff;}</style>'
+  '<style>html,body{margin:0;padding:18px 20px;line-height:1.55;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1f2937;background:#fff;height:auto!important;}p{margin:0 0 10px;}p:last-child{margin-bottom:0;}</style>'
 
 /** Full document for iframe srcDoc so layout CSS in the letter actually applies. */
 export function wrapEmailDocument(html: string): string {

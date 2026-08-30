@@ -90,12 +90,33 @@ export default function CompanyCalendar() {
 
   const fromAt = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
   const toAt = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59)
+  const upcomingFrom = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+  const upcomingTo = useMemo(() => {
+    const d = new Date()
+    d.setMonth(d.getMonth() + 3)
+    d.setHours(23, 59, 59, 999)
+    return d
+  }, [])
 
   const { data: events = [] } = useQuery({
     queryKey: ['calendar', fromAt.toISOString(), toAt.toISOString()],
     queryFn: async () => {
       const { data } = await api.get<CalEvent[]>('/calendar/events', {
         params: { from_at: fromAt.toISOString(), to_at: toAt.toISOString() },
+      })
+      return data
+    },
+  })
+
+  const { data: upcoming = [] } = useQuery({
+    queryKey: ['calendar', 'upcoming', upcomingFrom.toISOString(), upcomingTo.toISOString()],
+    queryFn: async () => {
+      const { data } = await api.get<CalEvent[]>('/calendar/events', {
+        params: { from_at: upcomingFrom.toISOString(), to_at: upcomingTo.toISOString() },
       })
       return data
     },
@@ -197,6 +218,13 @@ export default function CompanyCalendar() {
   }, [cursor])
 
   const dayEvents = events.filter((ev) => sameDay(new Date(ev.start_at), selected))
+  const upcomingSoon = upcoming.filter((ev) => new Date(ev.end_at) >= new Date()).slice(0, 8)
+
+  const openEventDay = (ev: CalEvent) => {
+    const d = new Date(ev.start_at)
+    setCursor(new Date(d.getFullYear(), d.getMonth(), 1))
+    setSelected(d)
+  }
   const monthLabel = cursor.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
 
   return (
@@ -229,9 +257,11 @@ export default function CompanyCalendar() {
         </div>
       </div>
       <p className="org-cal-hint">
-        Встречи с участниками уходят в Outlook как приглашения. Встречи, созданные в Outlook
-        с участниками @alexol.io, появляются здесь. Чтобы видеть все встречи сайта в Outlook —
-        кнопка со ссылкой (календарь из интернета).
+        Встречи с участниками уходят в Outlook как приглашения Accept/Decline, не как обычное
+        письмо. Встречи из Outlook с участниками @alexol.io появляются здесь после открытия
+        календаря. Если встреча в другом месяце — листайте сетку или откройте её из списка
+        ближайших. Чтобы видеть все встречи сайта в Outlook — кнопка со ссылкой (календарь из
+        интернета).
       </p>
 
       <div className="cal-nav">
@@ -279,6 +309,30 @@ export default function CompanyCalendar() {
       </div>
 
       <div className="cal-day-list">
+        {upcomingSoon.length > 0 ? (
+          <div className="cal-upcoming">
+            <h3>Ближайшие</h3>
+            {upcomingSoon.map((ev) => (
+              <button
+                key={`up-${ev.id}`}
+                type="button"
+                className="cal-upcoming-item"
+                onClick={() => openEventDay(ev)}
+              >
+                <span className="cal-event-title">{ev.title}</span>
+                <span className="org-contact-meta">
+                  {new Date(ev.start_at).toLocaleString('ru-RU', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                  {ev.location ? ` · ${ev.location}` : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <h3>
           {selected.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
         </h3>

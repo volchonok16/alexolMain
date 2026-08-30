@@ -71,19 +71,23 @@ def meeting_bodies_from_ics(ics_text: str) -> tuple[str, str]:
     if parsed.description:
         lines.append(parsed.description)
     plain = "\n".join(lines)
-    html_bits = ["<p>Приглашение на встречу</p>"]
+    html = (
+        '<div style="line-height:1.55;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">'
+        '<p style="margin:0 0 10px;color:#64748b;font-size:13px">Приглашение на встречу</p>'
+    )
     if parsed.title:
-        html_bits.append(f"<p><strong>{_html(parsed.title)}</strong></p>")
+        html += f'<p style="margin:0 0 12px;font-size:18px;font-weight:600">{_html(parsed.title)}</p>'
     meta = []
     if when:
         meta.append(f"Когда: {_html(when)} UTC")
     if parsed.location:
         meta.append(f"Где: {_html(parsed.location)}")
     if meta:
-        html_bits.append("<p>" + "<br/>".join(meta) + "</p>")
+        html += '<p style="margin:0 0 8px;line-height:1.6">' + "<br/>".join(meta) + "</p>"
     if parsed.description:
-        html_bits.append(f"<p>{_html(parsed.description)}</p>")
-    return plain, "".join(html_bits)
+        html += f'<p style="margin:12px 0 0">{_html(parsed.description)}</p>'
+    html += "</div>"
+    return plain, html
 
 
 def _html(value: str) -> str:
@@ -243,7 +247,7 @@ def extract_text_and_html(msg) -> tuple[str, str]:
         return meeting_bodies_from_ics(html)
     if looks_like_ics(plain) and not html:
         return meeting_bodies_from_ics(plain)
-    return sanitize_pg_text(plain), sanitize_pg_text(html)
+    return sanitize_pg_text(plain).rstrip("\r\n"), sanitize_pg_text(html)
 
 
 def peek_rfc822_header(content: bytes, name: str) -> str:
