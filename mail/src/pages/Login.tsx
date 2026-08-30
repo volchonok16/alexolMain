@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Users, Mail, X, LayoutDashboard } from 'lucide-react'
+import { Users, Mail, X, LayoutDashboard, MessageCircle } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PasswordInput } from '../components/PasswordInput'
-import { openSiteAdmin } from '../sso'
+import { openChat, openSiteAdmin } from '../sso'
 import './Login.css'
 
 export default function Login() {
@@ -15,6 +15,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [showAdminChoice, setShowAdminChoice] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
+  const [chatLoading, setChatLoading] = useState(false)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const nextPath = searchParams.get('next') || ''
@@ -179,6 +180,26 @@ export default function Login() {
                 </div>
                 <h3>Пользователи почты</h3>
                 <p>Ящики и шаблоны на mail.alexol.io</p>
+              </button>
+
+              <button
+                className="choice-btn admin-btn"
+                onClick={async () => {
+                  setChatLoading(true)
+                  try {
+                    await openChat(api)
+                  } catch {
+                    setChatLoading(false)
+                    setError('Не удалось открыть chat.alexol.io')
+                  }
+                }}
+                disabled={chatLoading}
+              >
+                <div className="choice-icon">
+                  <MessageCircle size={40} />
+                </div>
+                <h3>Чат</h3>
+                <p>{chatLoading ? 'Вход…' : 'chat.alexol.io — ФИО и фото с почты'}</p>
               </button>
 
               <button

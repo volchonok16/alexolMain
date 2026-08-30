@@ -1,0 +1,88 @@
+"""OAuth2 identity for Rocket.Chat carries mailbox name, email and avatar."""
+import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from jose import jwt
+
+
+class OauthHelpersTests(unittest.TestCase):
+    def test_userinfo_maps_profile_fields(self):
+        from app.oauth import oauth_userinfo
+
+        user = SimpleNamespace(
+            id=7,
+            email="altaraskin@alexol.io",
+            username="altaraskin",
+            full_name="Alexander Taraskin",
+            is_admin=True,
+            phone="+79990001122",
+            telegram="altaraskin",
+            job_title="Engineer",
+        )
+        with patch(
+            "app.oauth.public_avatar_url",
+            return_value="https://mail.alexol.io/api/public/avatar/altaraskin@alexol.io",
+        ):
+            info = oauth_userinfo(user)
+        self.assertEqual(info["id"], "7")
+        self.assertEqual(info["username"], "altaraskin")
+        self.assertEqual(info["email"], "altaraskin@alexol.io")
+        self.assertTrue(info["email_verified"])
+        self.assertEqual(info["name"], "Alexander Taraskin")
+        self.assertEqual(info["given_name"], "Alexander")
+        self.assertEqual(info["family_name"], "Taraskin")
+        self.assertEqual(
+            info["picture"],
+            "https://mail.alexol.io/api/public/avatar/altaraskin@alexol.io",
+        )
+        self.assertEqual(info["avatarUrl"], info["picture"])
+        self.assertEqual(info["phone"], "+79990001122")
+        self.assertEqual(info["telegram"], "altaraskin")
+        self.assertEqual(info["job_title"], "Engineer")
+        self.assertIn("Engineer", info["bio"])
+        self.assertEqual(info["roles"], ["admin"])
+
+    def test_chat_handoff_starts_oauth(self):
+        from app.rocketchat_profile import chat_oauth_start_url
+
+        with patch("app.rocketchat_profile.settings") as settings:
+            settings.CHAT_PUBLIC_URL = "https://chat.alexol.io"
+            self.assertEqual(
+                chat_oauth_start_url(),
+                "https://chat.alexol.io/_oauth/alexol",
+            )
+
+    def test_redirect_uri_allows_configured_callback(self):
+        from app.oauth import redirect_uri_allowed
+
+        with patch("app.oauth.settings") as settings:
+            settings.OAUTH_ROCKETCHAT_REDIRECT_URI = "https://chat.alexol.io/_oauth/alexol"
+            settings.CHAT_PUBLIC_URL = "https://chat.alexol.io"
+            self.assertTrue(redirect_uri_allowed("https://chat.alexol.io/_oauth/alexol"))
+            self.assertTrue(
+                redirect_uri_allowed("https://chat.alexol.io/_oauth/alexol?close=true")
+            )
+            self.assertFalse(redirect_uri_allowed("https://evil.example/_oauth/alexol"))
+
+    def test_code_jwt_roundtrip(self):
+        from app.oauth import OAUTH_CODE_TYP, decode_oauth_jwt, encode_oauth_jwt
+
+        with patch("app.oauth.settings") as settings, patch(
+            "app.oauth._oauth_secret", return_value="unit-oauth-secret"
+        ):
+            settings.ALGORITHM = "HS256"
+            token = encode_oauth_jwt(
+                {
+                    "typ": OAUTH_CODE_TYP,
+                    "sub": "altaraskin@alexol.io",
+                    "redirect_uri": "https://chat.alexol.io/_oauth/alexol",
+                    "client_id": "alexol-chat",
+                },
+                120,
+            )
+            payload = decode_oauth_jwt(token, OAUTH_CODE_TYP)
+        self.assertEqual(payload["sub"], "altaraskin@alexol.io")
+        self.assertEqual(payload["client_id"], "alexol-chat")
+        raw = jwt.get_unverified_claims(token)
+        self.assertEqual(raw["typ"], OAUTH_CODE_TYP)

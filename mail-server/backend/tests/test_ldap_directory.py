@@ -3,8 +3,10 @@ import unittest
 from types import SimpleNamespace
 
 from app.ldap_directory import (
+    bind_name_matches_user,
     eval_ldap_filter,
     ldap_base_dn,
+    ldap_bind_dns,
     ldap_user_dn,
     parse_bind_identity,
     search_people,
@@ -26,8 +28,45 @@ class BindIdentityTests(unittest.TestCase):
     def test_email_and_dn(self):
         self.assertEqual(parse_bind_identity("altaraskin@alexol.io"), "altaraskin@alexol.io")
         self.assertEqual(parse_bind_identity("uid=altaraskin,ou=people,dc=alexol,dc=io"), "altaraskin")
+        self.assertEqual(
+            parse_bind_identity("cn=Alexander Taraskin,dc=alexol,dc=io"),
+            "Alexander Taraskin",
+        )
+        self.assertEqual(
+            parse_bind_identity("cn=Alexander Taraskin,uid=altaraskin,dc=alexol,dc=io"),
+            "altaraskin",
+        )
         self.assertEqual(parse_bind_identity("  "), None)
         self.assertEqual(parse_bind_identity(""), None)
+
+    def test_rocket_bind_uses_search_dn(self):
+        self.assertTrue(
+            bind_name_matches_user(
+                "cn=Alexander Taraskin,dc=alexol,dc=io",
+                username="altaraskin",
+                mail_domain="alexol.io",
+                display_name="Alexander Taraskin",
+                email="altaraskin@alexol.io",
+            )
+        )
+        self.assertIn(
+            "cn=Alexander Taraskin,dc=alexol,dc=io",
+            ldap_bind_dns(
+                "altaraskin",
+                "alexol.io",
+                "Alexander Taraskin",
+                "altaraskin@alexol.io",
+            ),
+        )
+        self.assertFalse(
+            bind_name_matches_user(
+                "cn=Someone Else,dc=alexol,dc=io",
+                username="altaraskin",
+                mail_domain="alexol.io",
+                display_name="Alexander Taraskin",
+                email="altaraskin@alexol.io",
+            )
+        )
 
 
 class DnTests(unittest.TestCase):
@@ -81,6 +120,16 @@ class FilterMatchTests(unittest.TestCase):
 
     def test_objectclass_present(self):
         self.assertTrue(eval_ldap_filter("(&(objectClass=*)(mail=*kapustkin*))", self.attrs))
+
+    def test_rocketchat_login_filter(self):
+        filt = "(&(objectclass=inetOrgPerson)(|(uid=kapustkin)(mail=kapustkin@alexol.io)))"
+        self.assertTrue(eval_ldap_filter(filt, self.attrs))
+        self.assertFalse(
+            eval_ldap_filter(
+                "(&(objectclass=inetOrgPerson)(uid=zzznotauser))",
+                self.attrs,
+            )
+        )
 
     def test_search_limits(self):
         people = [

@@ -55,6 +55,7 @@ from app.recipients import (
 from app import admin_sync
 from app import carddav
 from app.org import router as org_router
+from app.oauth import router as oauth_router
 from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy import text
 from urllib.parse import unquote
@@ -67,6 +68,7 @@ app = FastAPI(title="Mail Server API")
 _CORS_ORIGINS = [
     "https://mail.alexol.io",
     "https://admin.alexol.io",
+    "https://chat.alexol.io",
     "http://localhost:3000",
     "http://localhost:5174",
     "http://localhost:5176",
@@ -79,6 +81,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(org_router, prefix="/api")
+app.include_router(oauth_router, prefix="/api")
 app.include_router(carddav.router, prefix="/api")
 
 

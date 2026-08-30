@@ -16,6 +16,7 @@ from app.database import sync_connect_args
 from app.imap_server import _get_sync_db_url, _make_tls_context
 from app.ldap_ber import decode_ldap_request
 from app.ldap_directory import (
+    bind_name_matches_user,
     dn_in_scope,
     eval_ldap_filter,
     is_list_all_filter,
@@ -198,24 +199,45 @@ class LDAPSession:
                 return user
         return None
 
+    def _authenticate_bind(self, name: str, password: str) -> User | None:
+        """Simple bind: email/uid, or the exact DN returned by search (cn=ФИО,...)."""
+        identity = parse_bind_identity(name)
+        user = self._authenticate(identity or "", password) if identity else None
+        if user:
+            return user
+        if "=" not in (name or "") or not password:
+            return None
+        with self._sf() as db:
+            rows = db.execute(select(User).where(User.is_active.is_(True))).scalars().all()
+            for candidate in rows:
+                if bind_name_matches_user(
+                    name,
+                    username=candidate.username or "",
+                    mail_domain=settings.MAIL_DOMAIN,
+                    display_name=candidate.full_name or "",
+                    email=candidate.email or "",
+                ) and verify_password(password, candidate.hashed_password):
+                    return candidate
+        return None
+
     async def _handle_bind(self, message_id: int, name: str, password: str, sasl: bool) -> None:
         if sasl:
             await self._send(_bind_done(message_id, 7, "SASL not supported"))
             return
         password = (password or "").replace("\x00", "").strip()
         identity = parse_bind_identity(name)
-        if identity is None and not password:
+        if identity is None and not password and "=" not in (name or ""):
             self.bound_user = None
             await self._send(_bind_done(message_id, 0))
             logger.debug("LDAP anonymous bind peer=%s", self._peer())
             return
-        if identity is None or not password:
+        if not password:
             await self._send(_bind_done(message_id, 49, "invalid credentials"))
             return
-        user = self._authenticate(identity, password)
+        user = self._authenticate_bind(name, password)
         if not user:
             await self._send(_bind_done(message_id, 49, "invalid credentials"))
-            logger.info("LDAP bind failed identity=%s peer=%s", identity, self._peer())
+            logger.info("LDAP bind failed identity=%s peer=%s", identity or name, self._peer())
             return
         self.bound_user = user
         await self._send(_bind_done(message_id, 0))

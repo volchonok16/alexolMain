@@ -1,0 +1,126 @@
+name: rocket
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: rocket_mongo
+    restart: unless-stopped
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - rocket
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  mongodb-init:
+    image: mongo:7.0
+    container_name: rocket_mongo_init
+    restart: "no"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - rocket
+    command:
+      - mongosh
+      - --host
+      - mongodb:27017
+      - --eval
+      - |
+        try { rs.status() } catch (e) {
+          rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongodb:27017" }] })
+        }
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: rocket_nats
+    restart: unless-stopped
+    command: ["--jetstream"]
+    networks:
+      - rocket
+
+  rocketchat:
+    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-8.0.1}
+    container_name: rocket_chat
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mongodb-init:
+        condition: service_completed_successfully
+      nats:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "mail.alexol.io:host-gateway"
+    env_file: .env
+    environment:
+      ROOT_URL: ${ROOT_URL:-https://chat.alexol.io}
+      PORT: "3000"
+      DEPLOY_METHOD: docker
+      DEPLOY_PLATFORM: compose
+      MONGO_URL: mongodb://mongodb:27017/rocketchat?replicaSet=rs0
+      MONGO_OPLOG_URL: mongodb://mongodb:27017/local?replicaSet=rs0
+      TRANSPORTER: monolith+nats://nats:4222
+      OVERWRITE_SETTING_Site_Url: ${ROOT_URL:-https://chat.alexol.io}
+      OVERWRITE_SETTING_Show_Setup_Wizard: completed
+      OVERWRITE_SETTING_Register_Server: "false"
+      OVERWRITE_SETTING_Accounts_RegistrationAuthenticationServicesEnabled: "true"
+      OVERWRITE_SETTING_Accounts_AllowAnonymousRead: "false"
+      OVERWRITE_SETTING_Accounts_AllowAnonymousWrite: "false"
+      OVERWRITE_SETTING_Accounts_ShowFormLogin: "true"
+      OVERWRITE_SETTING_Accounts_Verify_Email_For_External_Accounts: "false"
+      OVERWRITE_SETTING_UTF8_Names_Validation: "[0-9a-zA-Z-_.]+"
+      OVERWRITE_SETTING_FileUpload_ProtectFiles: "true"
+      OVERWRITE_SETTING_API_Enable_CORS: "true"
+      OVERWRITE_SETTING_API_CORS_Origin: ${API_CORS_ORIGIN:-https://mail.alexol.io,https://chat.alexol.io,https://meet.alexol.io}
+    ports:
+      - "127.0.0.1:${HOST_PORT:-18300}:3000"
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - rocket
+
+  configure:
+    image: alpine:3.20
+    container_name: rocket_configure
+    restart: on-failure
+    depends_on:
+      - rocketchat
+    env_file: .env
+    environment:
+      RC_URL: http://rocketchat:3000
+      ROOT_URL: ${ROOT_URL:-https://chat.alexol.io}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASS: ${ADMIN_PASS:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@alexol.io}
+      ADMIN_NAME: ${ADMIN_NAME:-Alexol Admin}
+      OAUTH_ROCKETCHAT_CLIENT_ID: ${OAUTH_ROCKETCHAT_CLIENT_ID:-alexol-chat}
+      OAUTH_ROCKETCHAT_CLIENT_SECRET: ${OAUTH_ROCKETCHAT_CLIENT_SECRET:-}
+      MAIL_PUBLIC_URL: ${MAIL_PUBLIC_URL:-https://mail.alexol.io}
+      JITSI_PUBLIC_URL: ${JITSI_PUBLIC_URL:-https://meet.alexol.io}
+      JITSI_JWT_APP_ID: ${JITSI_JWT_APP_ID:-alexol}
+      JITSI_JWT_APP_SECRET: ${JITSI_JWT_APP_SECRET:-}
+      MAIL_LDAP_HOST: ${MAIL_LDAP_HOST:-host.docker.internal}
+      MAIL_LDAP_PORT: ${MAIL_LDAP_PORT:-389}
+      MAIL_LDAP_BIND_DN: ${MAIL_LDAP_BIND_DN:-admin@alexol.io}
+      MAIL_LDAP_BIND_PASSWORD: ${MAIL_LDAP_BIND_PASSWORD:-}
+      MAIL_LDAP_BASE_DN: ${MAIL_LDAP_BASE_DN:-dc=alexol,dc=io}
+    volumes:
+      - ./configure.sh:/configure.sh:ro
+    entrypoint: ["/bin/sh", "/configure.sh"]
+    networks:
+      - rocket
+
+volumes:
+  mongodb_data:
+  uploads:
+
+networks:
+  rocket:
+    driver: bridge

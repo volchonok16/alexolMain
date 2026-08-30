@@ -41,19 +41,60 @@ def ldap_user_dn(username: str, mail_domain: str, display_name: str = "") -> str
     return f"cn={_escape_dn_value(label)},{ldap_base_dn(mail_domain)}"
 
 
+def ldap_bind_dns(
+    username: str,
+    mail_domain: str,
+    display_name: str = "",
+    email: str = "",
+) -> list[str]:
+    """DNs Rocket.Chat / Outlook may bind as after a directory search."""
+    uid = (username or "").strip()
+    mail = (email or "").strip()
+    display = (display_name or "").strip() or uid
+    out: list[str] = []
+    if uid:
+        out.append(ldap_user_dn(uid, mail_domain, display))
+        out.append(f"uid={_escape_dn_value(uid)},{ldap_people_ou(mail_domain)}")
+        out.append(f"uid={_escape_dn_value(uid)},{ldap_base_dn(mail_domain)}")
+    if mail:
+        out.append(f"mail={_escape_dn_value(mail)},{ldap_base_dn(mail_domain)}")
+    return out
+
+
+def bind_name_matches_user(
+    bind_name: str,
+    *,
+    username: str,
+    mail_domain: str,
+    display_name: str = "",
+    email: str = "",
+) -> bool:
+    got = re.sub(r"\s+", " ", (bind_name or "").strip()).lower()
+    if not got:
+        return False
+    for dn in ldap_bind_dns(username, mail_domain, display_name, email):
+        if got == dn.lower():
+            return True
+    return False
+
+
 def parse_bind_identity(name: str) -> str | None:
     """Bind DN or mailbox login → lookup key (email or username). None = anonymous."""
     n = (name or "").strip()
     if not n:
         return None
     if "=" in n:
+        preferred = ""
+        cn_val = ""
         for part in n.split(","):
             key, _, val = part.strip().partition("=")
             key = key.strip().lower()
             val = val.strip()
-            if key in ("mail", "uid", "cn") and val:
-                return val
-        return None
+            if key in ("mail", "uid", "samaccountname") and val and not preferred:
+                preferred = val
+            elif key == "cn" and val and not cn_val:
+                cn_val = val
+        return preferred or cn_val or None
     return n
 
 

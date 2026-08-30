@@ -3,11 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward, ArrowLeft, Calendar, Video } from 'lucide-react'
+import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, LayoutDashboard, File, Edit, Trash2, PenLine, Reply, Forward, ArrowLeft, Calendar, Video, MessageCircle } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
-import { openSiteAdmin } from '../sso'
+import { openChat, openSiteAdmin } from '../sso'
 import {
   starterHtml,
   templateTypeLabel,
@@ -90,6 +90,7 @@ export default function UserDashboard() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [siteAdminLoading, setSiteAdminLoading] = useState(false)
+  const [chatLoading, setChatLoading] = useState(false)
   const [composeData, setComposeData] = useState({
     to_address: '',
     subject: '',
@@ -592,6 +593,25 @@ export default function UserDashboard() {
           >
             <FileText size={20} />
             <span className="btn-label">Шаблоны</span>
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              setChatLoading(true)
+              try {
+                await openChat(api)
+              } catch {
+                toast.error('Не удалось открыть чат')
+                window.open('https://chat.alexol.io', '_blank', 'noopener,noreferrer')
+                setChatLoading(false)
+              }
+            }}
+            className="btn-profile"
+            disabled={chatLoading}
+            title="chat.alexol.io — тот же вход, что у почты"
+          >
+            <MessageCircle size={20} />
+            <span className="btn-label">{chatLoading ? '…' : 'Чат'}</span>
           </button>
           <button onClick={() => navigate('/profile')} className="btn-profile">
             <User size={20} />

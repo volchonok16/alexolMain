@@ -87,6 +87,17 @@ class Settings(BaseSettings):
 
     # Site admin panel URL (for UI redirects / docs)
     ADMIN_PUBLIC_URL: str = "https://admin.alexol.io"
+
+    # Rocket.Chat SSO (Custom OAuth). Same client id/secret as rocket/env.example.
+    CHAT_PUBLIC_URL: str = "https://chat.alexol.io"
+    OAUTH_ROCKETCHAT_CLIENT_ID: str = "alexol-chat"
+    OAUTH_ROCKETCHAT_CLIENT_SECRET: Optional[str] = None
+    # Comma-separated exact callback URLs. Default: {CHAT_PUBLIC_URL}/_oauth/alexol
+    OAUTH_ROCKETCHAT_REDIRECT_URI: Optional[str] = None
+    # Admin API to push avatar / phone / telegram / job title into the RC profile.
+    ROCKETCHAT_API_URL: Optional[str] = None
+    ROCKETCHAT_ADMIN_USERNAME: str = "admin"
+    ROCKETCHAT_ADMIN_PASSWORD: Optional[str] = None
     
     class Config:
         env_file = ".env"

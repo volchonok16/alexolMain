@@ -3,11 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileText, LayoutDashboard } from 'lucide-react'
+import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileText, LayoutDashboard, MessageCircle } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PasswordInput } from '../components/PasswordInput'
 import { useToast } from '../components/Toast'
-import { openSiteAdmin } from '../sso'
+import { openChat, openSiteAdmin } from '../sso'
 import {
   starterHtml,
   templateTypeLabel,
@@ -35,6 +35,7 @@ export default function AdminDashboard() {
   const currentUser = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
   const [siteAdminLoading, setSiteAdminLoading] = useState(false)
+  const [chatLoading, setChatLoading] = useState(false)
   
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -327,6 +328,22 @@ export default function AdminDashboard() {
           >
             <LayoutDashboard size={20} />
             {siteAdminLoading ? '…' : 'Admin сайта'}
+          </button>
+          <button
+            onClick={async () => {
+              setChatLoading(true)
+              try {
+                await openChat(api)
+              } catch {
+                setChatLoading(false)
+                window.open('https://chat.alexol.io', '_blank', 'noopener,noreferrer')
+              }
+            }}
+            className="btn-templates"
+            disabled={chatLoading}
+          >
+            <MessageCircle size={20} />
+            {chatLoading ? '…' : 'Чат'}
           </button>
           <button
             onClick={() => {

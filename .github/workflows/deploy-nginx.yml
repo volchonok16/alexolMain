@@ -41,7 +41,7 @@ jobs:
                       if [ -f /tmp/alexol-nginx/upstream.conf ]; then
                         install -m 644 /tmp/alexol-nginx/upstream.conf /etc/nginx/sites-available/upstream
                       fi
-                      for name in upstream alexol.io admin.alexol.io api.alexol.io be.alexol.io lang.alexol.io mail.alexol.io meet.alexol.io minio.alexol.io prana.alexol.io voentorg77.ru; do
+                      for name in upstream alexol.io admin.alexol.io api.alexol.io be.alexol.io chat.alexol.io lang.alexol.io mail.alexol.io meet.alexol.io minio.alexol.io prana.alexol.io voentorg77.ru; do
                         if [ -f "/etc/nginx/sites-available/$name" ]; then
                           ln -sf "/etc/nginx/sites-available/$name" "/etc/nginx/sites-enabled/$name"
                         fi

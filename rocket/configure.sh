@@ -1,0 +1,182 @@
+#!/bin/sh
+# Wait for Rocket.Chat, create the first admin, register Custom OAuth "Alexol".
+set -eu
+
+apk add --no-cache curl jq >/dev/null
+
+RC_URL="${RC_URL:-http://rocketchat:3000}"
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+ADMIN_PASS="${ADMIN_PASS:-}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@alexol.io}"
+ADMIN_NAME="${ADMIN_NAME:-Alexol Admin}"
+CLIENT_ID="${OAUTH_ROCKETCHAT_CLIENT_ID:-alexol-chat}"
+CLIENT_SECRET="${OAUTH_ROCKETCHAT_CLIENT_SECRET:-}"
+MAIL_PUBLIC_URL="${MAIL_PUBLIC_URL:-https://mail.alexol.io}"
+ROOT_URL="${ROOT_URL:-https://chat.alexol.io}"
+JITSI_DOMAIN="$(echo "${JITSI_PUBLIC_URL:-https://meet.alexol.io}" | sed -e 's|^https://||' -e 's|^http://||' -e 's|/.*||')"
+JITSI_APP_ID="${JITSI_JWT_APP_ID:-alexol}"
+JITSI_APP_SECRET="${JITSI_JWT_APP_SECRET:-}"
+
+if [ -z "$ADMIN_PASS" ] || [ -z "$CLIENT_SECRET" ]; then
+  echo "configure: ADMIN_PASS and OAUTH_ROCKETCHAT_CLIENT_SECRET are required"
+  exit 1
+fi
+
+echo "configure: waiting for Rocket.Chat at $RC_URL"
+i=0
+while [ "$i" -lt 90 ]; do
+  if curl -sf "$RC_URL/api/info" >/dev/null 2>&1; then
+    echo "configure: API is up"
+    break
+  fi
+  i=$((i + 1))
+  sleep 4
+done
+if [ "$i" -ge 90 ]; then
+  echo "configure: Rocket.Chat did not become ready"
+  exit 1
+fi
+
+# Extra settle — first boot still compiles Meteor.
+sleep 8
+
+login() {
+  curl -sf -X POST "$RC_URL/api/v1/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"user\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASS\"}" || true
+}
+
+LOGIN_JSON="$(login)"
+if ! echo "$LOGIN_JSON" | jq -e '.data.authToken' >/dev/null 2>&1; then
+  echo "configure: registering first admin $ADMIN_EMAIL"
+  curl -sS -X POST "$RC_URL/api/v1/users.register" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\":\"$ADMIN_USERNAME\",\"email\":\"$ADMIN_EMAIL\",\"pass\":\"$ADMIN_PASS\",\"name\":\"$ADMIN_NAME\"}" \
+    >/dev/null || true
+  LOGIN_JSON="$(login)"
+fi
+
+TOKEN="$(echo "$LOGIN_JSON" | jq -r '.data.authToken // empty')"
+USER_ID="$(echo "$LOGIN_JSON" | jq -r '.data.userId // empty')"
+if [ -z "$TOKEN" ] || [ -z "$USER_ID" ]; then
+  echo "configure: login failed"
+  echo "$LOGIN_JSON"
+  exit 1
+fi
+
+auth() {
+  curl -sS "$@" \
+    -H "X-Auth-Token: $TOKEN" \
+    -H "X-User-Id: $USER_ID" \
+    -H "Content-Type: application/json"
+}
+
+echo "configure: adding Custom OAuth service Alexol"
+MSG='{"msg":"method","id":"1","method":"addOAuthService","params":["alexol"]}'
+auth -X POST "$RC_URL/api/v1/method.call/addOAuthService" \
+  -d "{\"message\":$(echo "$MSG" | jq -c -R .)}" >/dev/null || true
+
+set_bool() {
+  id="$1"
+  value="$2"
+  auth -X POST "$RC_URL/api/v1/settings/$id" -d "{\"value\":$value}" >/dev/null || true
+}
+
+set_string() {
+  id="$1"
+  value="$2"
+  payload="$(jq -n --arg v "$value" '{value:$v}')"
+  auth -X POST "$RC_URL/api/v1/settings/$id" -d "$payload" >/dev/null || true
+}
+
+MAIL="${MAIL_PUBLIC_URL%/}"
+
+set_bool "Accounts_OAuth_Custom-Alexol" "true"
+set_string "Accounts_OAuth_Custom-Alexol-url" "$MAIL"
+set_string "Accounts_OAuth_Custom-Alexol-token_path" "/api/oauth/token"
+set_string "Accounts_OAuth_Custom-Alexol-identity_path" "/api/oauth/userinfo"
+set_string "Accounts_OAuth_Custom-Alexol-authorize_path" "/api/oauth/authorize"
+set_string "Accounts_OAuth_Custom-Alexol-scope" "openid profile email"
+set_string "Accounts_OAuth_Custom-Alexol-token_sent_via" "header"
+set_string "Accounts_OAuth_Custom-Alexol-identity_token_sent_via" "header"
+set_string "Accounts_OAuth_Custom-Alexol-access_token_param" "access_token"
+set_string "Accounts_OAuth_Custom-Alexol-id" "$CLIENT_ID"
+set_string "Accounts_OAuth_Custom-Alexol-secret" "$CLIENT_SECRET"
+set_string "Accounts_OAuth_Custom-Alexol-login_style" "redirect"
+set_string "Accounts_OAuth_Custom-Alexol-button_label_text" "Войти через Alexol"
+set_string "Accounts_OAuth_Custom-Alexol-button_label_color" "#041018"
+set_string "Accounts_OAuth_Custom-Alexol-button_color" "#06b6d4"
+set_string "Accounts_OAuth_Custom-Alexol-key_field" "email"
+set_string "Accounts_OAuth_Custom-Alexol-username_field" "username"
+set_string "Accounts_OAuth_Custom-Alexol-email_field" "email"
+set_string "Accounts_OAuth_Custom-Alexol-name_field" "name"
+set_string "Accounts_OAuth_Custom-Alexol-avatar_field" "picture"
+set_bool "Accounts_OAuth_Custom-Alexol-merge_users" "true"
+set_bool "Accounts_OAuth_Custom-Alexol-show_button" "true"
+set_bool "Accounts_RegistrationAuthenticationServicesEnabled" "true"
+set_string "Accounts_RegistrationForm" "Disabled"
+set_string "Site_Url" "$ROOT_URL"
+set_bool "Accounts_CustomFieldsEnable" "true"
+set_string "Accounts_CustomFields" '{"phone":{"type":"text","required":false,"maxLength":40},"telegram":{"type":"text","required":false,"maxLength":64},"jobTitle":{"type":"text","required":false,"maxLength":80}}'
+set_string "VideoConf_Default_Provider" "jitsi"
+
+# Built-in Jitsi keys (ignored if the workspace uses the Marketplace app instead).
+set_bool "Jitsi_Enabled" "true"
+set_string "Jitsi_Domain" "$JITSI_DOMAIN"
+set_bool "Jitsi_SSL" "true"
+set_bool "Jitsi_Enable_JWT" "true"
+set_string "Jitsi_Application_ID" "$JITSI_APP_ID"
+if [ -n "$JITSI_APP_SECRET" ]; then
+  set_string "Jitsi_Application_Secret" "$JITSI_APP_SECRET"
+fi
+set_bool "Jitsi_Limit_Token_To_Room" "true"
+
+# LDAP: same mailbox password on the Rocket.Chat login form.
+LDAP_HOST="${MAIL_LDAP_HOST:-host.docker.internal}"
+LDAP_PORT="${MAIL_LDAP_PORT:-389}"
+LDAP_BIND_DN="${MAIL_LDAP_BIND_DN:-admin@alexol.io}"
+LDAP_BIND_PASSWORD="${MAIL_LDAP_BIND_PASSWORD:-$ADMIN_PASS}"
+LDAP_BASE_DN="${MAIL_LDAP_BASE_DN:-dc=alexol,dc=io}"
+
+set_int() {
+  id="$1"
+  value="$2"
+  auth -X POST "$RC_URL/api/v1/settings/$id" -d "{\"value\":$value}" >/dev/null || true
+}
+
+if [ -n "$LDAP_BIND_PASSWORD" ]; then
+  echo "configure: enabling LDAP against $LDAP_HOST:$LDAP_PORT ($LDAP_BASE_DN)"
+  set_string "LDAP_Server_Type" ""
+  set_string "LDAP_Host" "$LDAP_HOST"
+  set_int "LDAP_Port" "$LDAP_PORT"
+  set_bool "LDAP_Reconnect" "true"
+  set_bool "LDAP_Login_Fallback" "true"
+  set_bool "LDAP_Authentication" "true"
+  set_string "LDAP_Authentication_UserDN" "$LDAP_BIND_DN"
+  set_string "LDAP_Authentication_Password" "$LDAP_BIND_PASSWORD"
+  set_string "LDAP_Encryption" "plain"
+  set_int "LDAP_Connect_Timeout" "10000"
+  set_int "LDAP_Timeout" "60000"
+  set_string "LDAP_BaseDN" "$LDAP_BASE_DN"
+  set_string "LDAP_User_Search_Filter" "(objectclass=inetOrgPerson)"
+  set_string "LDAP_User_Search_Scope" "sub"
+  set_string "LDAP_User_Search_Field" "uid,mail,sAMAccountName"
+  set_int "LDAP_Search_Page_Size" "0"
+  set_string "LDAP_Unique_Identifier_Field" "mail,uid"
+  set_bool "LDAP_Merge_Existing_Users" "true"
+  set_bool "LDAP_Update_Data_On_Login" "true"
+  set_string "LDAP_Default_Domain" "alexol.io"
+  set_string "LDAP_Username_Field" "uid"
+  set_string "LDAP_Email_Field" "mail"
+  set_string "LDAP_Name_Field" "cn"
+  set_bool "LDAP_Sync_User_Avatar" "true"
+  set_string "LDAP_Avatar_Field" "jpegPhoto"
+  set_bool "LDAP_Enable" "true"
+  echo "configure: LDAP is ready — form login uses mailbox passwords"
+else
+  echo "configure: LDAP skipped (set MAIL_LDAP_BIND_PASSWORD or ADMIN_PASS)"
+fi
+
+echo "configure: Custom OAuth Alexol is ready"
+echo "configure: Jitsi app still needs Marketplace install — Domain=$JITSI_DOMAIN AppID=$JITSI_APP_ID"
+exit 0

@@ -87,3 +87,17 @@ docker compose up -d --build
 ```
 
 API listens on `127.0.0.1:17000`. SMTP/IMAP on 25/465/587/143/993.
+
+## Rocket.Chat SSO
+
+OAuth2 на этом API (`/api/oauth/*`). Секреты — в MAIL_ENV, те же что в `rocket/env.example`:
+
+```
+CHAT_PUBLIC_URL=https://chat.alexol.io
+OAUTH_ROCKETCHAT_CLIENT_ID=alexol-chat
+OAUTH_ROCKETCHAT_CLIENT_SECRET=
+OAUTH_ROCKETCHAT_REDIRECT_URI=https://chat.alexol.io/_oauth/alexol
+```
+
+Профиль чата берёт email, username, full_name и публичный аватар ящика.
+Подробности: `rocket/README.md`.
