@@ -342,6 +342,10 @@ jobs:
                       fi
                       $dc up -d --force-recreate
                       $dc ps
+                      if command -v ufw >/dev/null 2>&1; then
+                        ufw allow 389/tcp comment "LDAP GAL" || true
+                        ufw allow 636/tcp comment "LDAPS GAL" || true
+                      fi
                       '
 
     deploy-admin:
