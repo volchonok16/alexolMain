@@ -396,6 +396,20 @@ jobs:
                   overwrite: true
                   strip_components: 1
 
+            # scp jitsi/** skips dotfiles, so the GitHub secret never landed in /var/www/jitsi/.env
+            - name: Deploy Jitsi .env
+              if: hashFiles('jitsi/.env') != ''
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "jitsi/.env"
+                  target: "/var/www/jitsi"
+                  overwrite: true
+                  strip_components: 1
+
             - name: Start Jitsi if not running
               uses: appleboy/ssh-action@v1.0.3
               with:
@@ -406,9 +420,12 @@ jobs:
                   script_stop: true
                   command_timeout: 30m
                   script: |
-                      echo "${{ secrets.PWD }}" | sudo -S bash -lc '
+                      echo "${{ secrets.PWD }}" | sudo -S -p '' bash -lc '
+                      trap "echo JITSIDEPLOY_ERR:\$LINENO" ERR
                       set -e
+                      echo JITSIDEPLOY_1
                       cd /var/www/jitsi
+                      sed -i "s/\r$//" gen-passwords.sh .env env.public 2>/dev/null || true
                       chmod +x gen-passwords.sh
                       if docker compose version >/dev/null 2>&1; then
                         dc="docker compose"
@@ -421,8 +438,18 @@ jobs:
                       if [ ! -f .env ]; then
                         cp env.public .env
                       fi
-                      ./gen-passwords.sh
-                      jwt_secret=$(grep -E "^JWT_APP_SECRET=" .env | tail -1 | cut -d= -f2- || true)
+                      while IFS= read -r line || [ -n "$line" ]; do
+                        case "$line" in
+                          ""|"#"*) continue ;;
+                        esac
+                        key="${line%%=*}"
+                        case "$key" in
+                          *" "*) echo JITSIDEPLOY_bad_env_key; exit 1 ;;
+                        esac
+                      done < .env
+                      echo JITSIDEPLOY_2
+                      bash gen-passwords.sh
+                      jwt_secret=$(grep -E "^JWT_APP_SECRET=" .env | tail -1 | cut -d= -f2- | tr -d "\r" || true)
                       if [ -n "$jwt_secret" ]; then
                         sed -i "s/^ENABLE_AUTH=.*/ENABLE_AUTH=1/" .env
                         grep -qE "^ENABLE_AUTH=" .env || echo "ENABLE_AUTH=1" >> .env
@@ -430,13 +457,15 @@ jobs:
                         grep -qE "^ENABLE_GUESTS=" .env || echo "ENABLE_GUESTS=1" >> .env
                         grep -qE "^JWT_ALLOW_EMPTY=" .env || echo "JWT_ALLOW_EMPTY=1" >> .env
                         grep -qE "^ENABLE_AUTO_OWNER=" .env || echo "ENABLE_AUTO_OWNER=1" >> .env
+                        tok="https://mail.alexol.io/jitsi-auth?room="
+                        tok="${tok}""{""room""}"
                         if grep -qE "^TOKEN_AUTH_URL=" .env; then
-                          sed -i "s|^TOKEN_AUTH_URL=.*|TOKEN_AUTH_URL=https://mail.alexol.io/jitsi-auth?room={room}|" .env
+                          sed -i "s|^TOKEN_AUTH_URL=.*|TOKEN_AUTH_URL=${tok}|" .env
                         else
-                          echo "TOKEN_AUTH_URL=https://mail.alexol.io/jitsi-auth?room={room}" >> .env
+                          echo "TOKEN_AUTH_URL=${tok}" >> .env
                         fi
                       fi
-                      # UDP 10000 is occupied on this VPS; JVB listens on 10001
+                      echo JITSIDEPLOY_3
                       sed -i "s/^JVB_PORT=.*/JVB_PORT=10001/" .env
                       grep -qE "^JVB_PORT=" .env || echo "JVB_PORT=10001" >> .env
                       jvb_port=10001
@@ -445,8 +474,8 @@ jobs:
                         pub_ip=$(hostname -I | awk "{print \$1}")
                       fi
                       if [ -n "$pub_ip" ]; then
-                        sed -i "s|^JVB_ADVERTISE_IPS=.*|JVB_ADVERTISE_IPS=${pub_ip}#${jvb_port}|" .env
-                        grep -qE "^JVB_ADVERTISE_IPS=" .env || echo "JVB_ADVERTISE_IPS=${pub_ip}#${jvb_port}" >> .env
+                        sed -i "s|^JVB_ADVERTISE_IPS=.*|JVB_ADVERTISE_IPS=\"${pub_ip}#${jvb_port}\"|" .env
+                        grep -qE "^JVB_ADVERTISE_IPS=" .env || echo "JVB_ADVERTISE_IPS=\"${pub_ip}#${jvb_port}\"" >> .env
                       fi
                       if command -v ufw >/dev/null 2>&1; then
                         ufw allow "${jvb_port}/udp" comment "Jitsi JVB" || true
@@ -462,6 +491,7 @@ jobs:
                           all_up=0
                         fi
                       done
+                      echo JITSIDEPLOY_4_all_up_$all_up
                       if [ "$all_up" = 1 ]; then
                         jwt_ready=0
                         auth_url_ready=0
@@ -471,24 +501,27 @@ jobs:
                         if docker inspect jitsi_web 2>/dev/null | grep -q "jitsi-auth"; then
                           auth_url_ready=1
                         fi
-                        if [ -z "$jwt_secret" ] || { [ "$jwt_ready" = 1 ] && [ "$auth_url_ready" = 1 ]; }; then
+                        if [ -z "$jwt_secret" ] || [ "$jwt_ready" = 1 -a "$auth_url_ready" = 1 ]; then
                           echo "Jitsi already running, skip up"
                           $dc ps
                           exit 0
                         fi
                         echo "JWT/TOKEN_AUTH_URL changed, recreating Jitsi"
                       fi
+                      echo JITSIDEPLOY_5
                       docker rm -f jitsi_jvb >/dev/null 2>&1 || true
                       if docker image inspect ghcr.io/jitsi/jvb:stable >/dev/null 2>&1; then
                         echo "Jitsi images already present, skip pull"
                       else
                         $dc pull
                       fi
+                      echo JITSIDEPLOY_6
                       if [ -n "$jwt_secret" ]; then
                         $dc up -d --force-recreate
                       else
                         $dc up -d
                       fi
+                      echo JITSIDEPLOY_7
                       $dc ps
                       '
 
