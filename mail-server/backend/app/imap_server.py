@@ -40,6 +40,7 @@ from app.mail_sync import (
     allocate_imap_uid_sync,
     apply_store_flags,
     flags_for_email,
+    is_outlook_probe,
     parse_store_args,
 )
 from app.models import User, Email
@@ -125,6 +126,20 @@ def _classify_mailbox(name: str) -> str | None:
     if n in ("CONTACTS", "CONTACT", "КОНТАКТЫ"):
         return "Contacts"
     return None
+
+
+def _list_pattern_is_children(reference: str, mailbox: str) -> bool:
+    """True when the client is listing children of INBOX (Outlook folder tree)."""
+    ref = (reference or "").strip().strip('"')
+    mb = (mailbox or "").strip().strip('"')
+    combined = f"{ref}{mb}".upper().replace("\\", "/")
+    if mb in ("%", "INBOX/%", "INBOX/%/", "INBOX.*"):
+        return True
+    if ref.upper() in ("INBOX", "INBOX/") and mb in ("%", "*", "%/"):
+        return True
+    if combined.startswith("INBOX/") and ("%" in mb or "*" in mb):
+        return True
+    return False
 
 
 def _imap_quoted(s: str) -> str:
@@ -711,7 +726,8 @@ class IMAPSession:
             'SUBSCRIBE': self._ok,
             'UNSUBSCRIBE': self._ok,
             'APPEND': self._append,
-            'CREATE': self._ok,
+            'CREATE': self._create,
+            'DELETE': self._delete_mailbox,
             'CHECK': self._noop,
             'COPY': self._ok,
             'ENABLE': self._ok,
@@ -875,6 +891,8 @@ class IMAPSession:
             mid = (msg.get('Message-ID') or '').strip()
             header_name, header_addr = parseaddr(msg.get('From') or '')
             from_address = (header_addr or self.user.email).strip().lower()
+            if is_outlook_probe(msg.get("subject") or "", header_name):
+                return
             body, html_body = extract_text_and_html(msg)
             with self._db() as db:
                 if mid:
@@ -1037,17 +1055,41 @@ class IMAPSession:
         )
 
     async def _list(self, tag, cmd, args):
-        # Unquoted INBOX + SPECIAL-USE, no Drafts — this is the LIST Outlook
-        # used when it actually FETCHed. Quoted names / Drafts / no \Inbox
-        # produced SELECT Drafts → SELECT INBOX → LOGOUT.
-        await self._send('* LIST (\\HasNoChildren \\Inbox) "/" INBOX')
-        await self._send('* LIST (\\HasNoChildren \\Sent) "/" Sent')
+        parsed = _parse_args(args or "")
+        reference = parsed[0] if parsed else ""
+        mailbox = parsed[1] if len(parsed) > 1 else "*"
+        if _list_pattern_is_children(reference, mailbox):
+            await self._send(f'{tag} OK LIST completed')
+            return
+        # Flat namespace (delimiter NIL): Outlook must not grow INBOX/INBOX children.
+        await self._send(r'* LIST (\HasNoChildren \Inbox) NIL INBOX')
+        await self._send(r'* LIST (\HasNoChildren \Sent) NIL Sent')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
-        await self._send('* LSUB () "/" "INBOX"')
-        await self._send('* LSUB () "/" "Sent"')
+        parsed = _parse_args(args or "")
+        reference = parsed[0] if parsed else ""
+        mailbox = parsed[1] if len(parsed) > 1 else "*"
+        if _list_pattern_is_children(reference, mailbox):
+            await self._send(f'{tag} OK LSUB completed')
+            return
+        await self._send(r'* LSUB (\HasNoChildren \Inbox) NIL INBOX')
+        await self._send(r'* LSUB (\HasNoChildren \Sent) NIL Sent')
         await self._send(f'{tag} OK LSUB completed')
+
+    async def _create(self, tag, cmd, args):
+        kind = _classify_mailbox(_normalize_mailbox(args))
+        if kind in ("INBOX", "Sent"):
+            await self._send(f'{tag} NO [ALREADYEXISTS] Mailbox exists')
+            return
+        await self._send(f'{tag} NO CREATE not supported')
+
+    async def _delete_mailbox(self, tag, cmd, args):
+        kind = _classify_mailbox(_normalize_mailbox(args))
+        if kind in ("INBOX", "Sent"):
+            await self._send(f'{tag} NO [NOPERM] Cannot delete {kind}')
+            return
+        await self._send(f'{tag} OK DELETE completed')
 
     async def _status(self, tag, cmd, args):
         name = _normalize_mailbox(args)
@@ -1220,7 +1262,7 @@ class IMAPSession:
         await self._send(f'{tag} OK {cmd} completed')
 
     async def _namespace(self, tag, cmd, args):
-        await self._send('* NAMESPACE (("" "/")) NIL NIL')
+        await self._send('* NAMESPACE (("" NIL)) NIL NIL')
         await self._send(f'{tag} OK NAMESPACE completed')
 
     async def _id(self, tag, cmd, args):

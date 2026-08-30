@@ -40,6 +40,14 @@ class MailboxNameTests(unittest.TestCase):
         self.assertEqual(_classify_mailbox(_normalize_mailbox("Drafts")), "Drafts")
         self.assertEqual(_classify_mailbox(_normalize_mailbox('"INBOX"')), "INBOX")
 
+    def test_list_children_of_inbox_are_empty(self):
+        from app.imap_server import _list_pattern_is_children
+
+        self.assertTrue(_list_pattern_is_children("INBOX", "%"))
+        self.assertTrue(_list_pattern_is_children("", "INBOX/%"))
+        self.assertFalse(_list_pattern_is_children("", "*"))
+        self.assertFalse(_list_pattern_is_children("", "INBOX"))
+
     def test_contacts_mailbox(self):
         self.assertEqual(_classify_mailbox(_normalize_mailbox("Contacts")), "Contacts")
 

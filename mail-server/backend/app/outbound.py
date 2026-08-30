@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import ssl
 from email.mime.application import MIMEApplication
-from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
@@ -16,12 +15,11 @@ import httpx
 import smtplib
 from fastapi import HTTPException
 
-from app.avatar_resolve import load_avatar_bytes
 from app.config import settings
 from app.dkim_signer import sign_message
-from app.mail_photos import attach_sender_vcard
 from app.models import User
 from app.recipients import group_by_domain, partition_local_external
+from app.sig_inline import embed_signature_images
 
 
 def wrap_outbound_html(content_html: str, signature_html: str) -> str:
@@ -91,19 +89,10 @@ def _build_mime(
             f"{html_escape(body or '')}</pre>"
         )
 
-    avatar_bytes = load_avatar_bytes(current_user.avatar_url)
-    photo_html = ""
-    if avatar_bytes:
-        photo_html = (
-            '<img src="cid:sender-avatar" width="48" height="48" alt="" '
-            'style="border-radius:24px;display:block;margin-bottom:8px;'
-            'object-fit:cover" />'
-        )
     signature_html = (
         "<div data-alexol-sig=\"1\" style='margin-top:28px;padding-top:16px;"
         "border-top:1px solid #e2e8f0;"
         "font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'>"
-        f"{photo_html}"
         f"<div style='font-weight:600;color:#0f172a;font-size:14px'>"
         f"{html_escape(display_name)}</div>"
         f"<div style='color:#64748b;font-size:13px;margin-top:2px'>"
@@ -112,6 +101,7 @@ def _build_mime(
     )
     signature_text = f"\n\n--\n{display_name}\n{current_user.email}\n"
     full_html = wrap_outbound_html(content_html, signature_html)
+    full_html, inline_images = embed_signature_images(full_html)
     full_text = (body or "") + signature_text
 
     alternative = MIMEMultipart("alternative")
@@ -120,19 +110,7 @@ def _build_mime(
 
     related = MIMEMultipart("related")
     related.attach(alternative)
-    if avatar_bytes:
-        data, content_type, name = avatar_bytes
-        subtype = "jpeg"
-        lower = (content_type or "").lower()
-        if "png" in lower:
-            subtype = "png"
-        elif "gif" in lower:
-            subtype = "gif"
-        elif "webp" in lower:
-            subtype = "webp"
-        image = MIMEImage(data, _subtype=subtype)
-        image.add_header("Content-ID", "<sender-avatar>")
-        image.add_header("Content-Disposition", "inline", filename=name or "avatar.jpg")
+    for image in inline_images:
         related.attach(image)
 
     msg = MIMEMultipart("mixed")
@@ -149,7 +127,6 @@ def _build_mime(
                 part.add_header("Content-Type", content_type)
             msg.attach(part)
 
-    attach_sender_vcard(msg, current_user)
     return sign_message(msg), full_text, full_html
 
 

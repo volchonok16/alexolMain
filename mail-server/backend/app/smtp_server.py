@@ -18,7 +18,7 @@ from app.config import settings
 from app.auth import verify_password
 from app.database import async_connect_args, sync_connect_args
 from app.mail_body import extract_text_and_html, sanitize_pg_text
-from app.mail_sync import allocate_imap_uid
+from app.mail_sync import allocate_imap_uid, is_outlook_probe
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
 from app.logging_setup import configure_quiet_logging
@@ -211,6 +211,10 @@ class CustomSMTPHandler:
             from_address = sanitize_pg_text(from_address)
             header_to = sanitize_pg_text((msg.get("To") or "").strip() or ", ".join(rcpt_norm))
 
+            if is_outlook_probe(subject, from_name or ""):
+                logger.info("SMTP skip Outlook account-test message from %s", from_address)
+                return "250 2.0.0 Message accepted"
+
             if external_addrs and not authenticated:
                 return "550 5.7.1 Relay denied"
 
@@ -260,24 +264,6 @@ class CustomSMTPHandler:
                             from_address,
                             from_name,
                         )
-
-                if authenticated and sender:
-                    sent_uid = await allocate_imap_uid(db, sender.id, True)
-                    sent = Email(
-                        user_id=sender.id,
-                        from_address=from_address or sender.email,
-                        to_address=header_to,
-                        from_name=from_name or sender.full_name,
-                        to_name=None,
-                        subject=subject,
-                        body=body,
-                        html_body=html_body,
-                        raw_rfc822=envelope.content,
-                        is_sent=True,
-                        imap_uid=sent_uid,
-                    )
-                    db.add(sent)
-                    await db.commit()
 
             if external_addrs:
                 from_addr = (sender.email if sender else from_address) or envelope.mail_from

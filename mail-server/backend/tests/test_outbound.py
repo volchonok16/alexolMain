@@ -15,10 +15,10 @@ class OutboundSourceTests(unittest.TestCase):
         self.assertIn("from app.dkim_signer import sign_message", _OUTBOUND_SRC)
         self.assertIn("return sign_message(msg)", _OUTBOUND_SRC)
 
-    def test_inline_sender_avatar_cid(self):
-        self.assertIn("cid:sender-avatar", _OUTBOUND_SRC)
-        self.assertIn("MIMEImage", _OUTBOUND_SRC)
-        self.assertIn("Content-ID", _OUTBOUND_SRC)
+    def test_no_vcard_or_profile_photo_attachments(self):
+        self.assertNotIn("attach_sender_vcard", _OUTBOUND_SRC)
+        self.assertNotIn("cid:sender-avatar", _OUTBOUND_SRC)
+        self.assertIn("embed_signature_images", _OUTBOUND_SRC)
 
 
 class PublicAvatarSourceTests(unittest.TestCase):

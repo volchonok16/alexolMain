@@ -136,3 +136,14 @@ async def backfill_imap_uids(db: AsyncSession) -> None:
             current = int(getattr(user, attr) or 1)
             setattr(user, attr, max(current, max_uid + 1))
     await db.commit()
+
+
+def is_outlook_probe(subject: str, from_name: str = "") -> bool:
+    """Outlook 'Test Account Settings' mail — do not store it in the mailbox."""
+    text = (subject or "").lower()
+    sender = (from_name or "").strip().lower()
+    if "microsoft outlook test message" in text:
+        return True
+    if "тестовое сообщение microsoft outlook" in text:
+        return True
+    return sender == "microsoft outlook" and "outlook" in text

@@ -2,7 +2,7 @@
 import unittest
 from types import SimpleNamespace
 
-from app.mail_sync import apply_store_flags, flags_for_email, parse_store_args
+from app.mail_sync import apply_store_flags, flags_for_email, is_outlook_probe, parse_store_args
 
 
 class StoreParseTests(unittest.TestCase):
@@ -48,3 +48,10 @@ class FlagApplyTests(unittest.TestCase):
         self.assertTrue(row.is_deleted)
         self.assertIn("\\Deleted", flags_for_email(row))
         self.assertIn("\\Seen", flags_for_email(row))
+
+
+class OutlookProbeTests(unittest.TestCase):
+    def test_russian_and_english_subjects(self):
+        self.assertTrue(is_outlook_probe("Тестовое сообщение Microsoft Outlook"))
+        self.assertTrue(is_outlook_probe("Microsoft Outlook Test Message"))
+        self.assertFalse(is_outlook_probe("Hello from Outlook"))
