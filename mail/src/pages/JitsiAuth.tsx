@@ -12,7 +12,7 @@ function avatarUrl(email?: string) {
   return `${window.location.origin}/api/public/avatar/${encodeURIComponent(email.trim().toLowerCase())}`
 }
 
-def meetUrl(room: string, jwt?: string | null, name?: string, email?: string) {
+function meetUrl(room: string, jwt?: string | null, name?: string, email?: string) {
   const base = `${JITSI_PUBLIC_URL}/${encodeURIComponent(room || 'alexol')}`
   const parsed = new URL(base)
   if (jwt) parsed.searchParams.set('jwt', jwt)
@@ -84,34 +84,27 @@ export default function JitsiAuth() {
         if (cancelled) return
         setRoomOpen(data?.open !== false)
         setAutoStart(Boolean(data?.auto_start) || isAutoStartRoom(room))
-        if (token) {
-          setEntering(true)
-          try {
-            await enterAsMailbox()
-          } catch {
-            if (!cancelled) {
-              setError('Не удалось выдать вход в конференцию.')
-              setEntering(false)
-            }
-          }
-          return
-        }
       } catch {
         if (cancelled) return
         setRoomOpen(true)
         setAutoStart(isAutoStartRoom(room))
-        if (token) {
-          setEntering(true)
-          try {
-            await enterAsMailbox()
-          } catch {
-            if (!cancelled) {
-              setError('Не удалось выдать вход в конференцию.')
-              setEntering(false)
-            }
+      }
+      if (token) {
+        setEntering(true)
+        try {
+          if (!useAuthStore.getState().user) {
+            const me = await api.get('/auth/me')
+            if (!cancelled) setAuth(me.data, token)
           }
-          return
+          await enterAsMailbox()
+        } catch {
+          if (!cancelled) {
+            setError('Не удалось выдать вход в конференцию.')
+            setEntering(false)
+            setReady(true)
+          }
         }
+        return
       }
       if (!cancelled) {
         setEntering(false)
@@ -123,7 +116,6 @@ export default function JitsiAuth() {
     return () => {
       cancelled = true
     }
-    // enterAsMailbox uses current token from the store interceptor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, token])
 
@@ -227,6 +219,11 @@ export default function JitsiAuth() {
         </div>
         <h1>Meet</h1>
         <h2>meet.alexol.io</h2>
+        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '-1rem', marginBottom: '1.5rem' }}>
+          {roomOpen
+            ? 'Укажите имя и фамилию или войдите ящиком почты.'
+            : 'Закрытая комната — войдите ящиком @alexol.io.'}
+        </p>
         {error ? <div className="error">{error}</div> : null}
 
         {roomOpen ? (
@@ -236,13 +233,8 @@ export default function JitsiAuth() {
               void enterAsGuest()
             }}
           >
-            <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '-1rem', marginBottom: '1.5rem' }}>
-              {autoStart
-                ? 'Напишите имя один раз — сразу попадёте в конференцию.'
-                : 'Гости заходят по имени. Организатор — ящиком почты.'}
-            </p>
             <div className="form-group">
-              <label htmlFor="jitsi-guest-name">Как вас представить</label>
+              <label htmlFor="jitsi-guest-name">Имя и фамилия</label>
               <input
                 id="jitsi-guest-name"
                 type="text"
@@ -255,12 +247,12 @@ export default function JitsiAuth() {
               />
             </div>
             <button type="submit" disabled={guestLoading} className="btn-primary">
-              {guestLoading ? 'Вход…' : 'Войти в конференцию'}
+              {guestLoading ? 'Вход…' : autoStart ? 'Войти с этим именем' : 'Войти как гость'}
             </button>
           </form>
         ) : (
-          <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '-1rem', marginBottom: '1.5rem' }}>
-            Закрытая комната — тот же ящик и пароль, что у почты.
+          <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
+            Закрытая комната — только ящик @alexol.io.
           </p>
         )}
 
