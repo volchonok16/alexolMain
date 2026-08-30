@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user, get_current_user_token_or_query
+from app.admin_sync import ensure_user_avatar
 from app.avatar_resolve import load_avatar_bytes, local_avatar_api_path, to_browser_avatar_url
 from app.config import settings
 from app.database import get_db
@@ -399,13 +400,16 @@ async def public_avatar(email: str, db: AsyncSession = Depends(get_db)):
         addr = addr[7:]
     result = await db.execute(select(User).where(func.lower(User.email) == addr))
     user = result.scalar_one_or_none()
-    if not user or not user.avatar_url:
+    if not user:
         raise HTTPException(
             status_code=404,
             detail="No photo",
             headers={"Cache-Control": "no-store"},
         )
-    loaded = load_avatar_bytes(user.avatar_url)
+    loaded = load_avatar_bytes(user.avatar_url) if user.avatar_url else None
+    if not loaded:
+        await ensure_user_avatar(user, db)
+        loaded = load_avatar_bytes(user.avatar_url)
     if not loaded:
         raise HTTPException(
             status_code=404,

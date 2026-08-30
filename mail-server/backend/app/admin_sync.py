@@ -164,7 +164,7 @@ async def fetch_admin_photo_url(username: str) -> Optional[str]:
     if until > time.monotonic():
         return None
     try:
-        async with httpx.AsyncClient(timeout=1.5) as client:
+        async with httpx.AsyncClient(timeout=8.0) as client:
             res = await client.get(
                 f"{_base()}/api/internal/mail-sync/users/{quote(login, safe='')}",
                 headers=_headers(),

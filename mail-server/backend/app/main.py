@@ -901,6 +901,7 @@ async def _commit_and_deliver(
     )
     db.add(email_obj)
     await db.commit()
+    await admin_sync.ensure_user_avatar(current_user, db)
     raw = await deliver_composed_email(
         current_user=current_user,
         to_addresses=addresses,
