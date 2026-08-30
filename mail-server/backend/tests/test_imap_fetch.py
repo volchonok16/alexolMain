@@ -60,6 +60,16 @@ class FetchResponseTests(unittest.TestCase):
         self.assertNotIn(b'"100 10"', resp)
         self.assertIn(b"RFC822.SIZE", resp)
 
+    def test_select_prefetch_items_are_parseable(self):
+        from app.imap_server import _SELECT_PREFETCH_ITEMS
+
+        resp = _build_fetch_response(1, _sample(), _SELECT_PREFETCH_ITEMS, True)
+        resp.decode("ascii")
+        self.assertIn(b"UID 42", resp)
+        self.assertIn(b"ENVELOPE", resp)
+        self.assertIn(b"BODY[HEADER.FIELDS", resp)
+        self.assertIn(b"RFC822.SIZE", resp)
+
     def test_outlook_header_fields_fetch(self):
         items = (
             "UID RFC822.SIZE FLAGS BODY.PEEK[HEADER.FIELDS "

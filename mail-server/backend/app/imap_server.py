@@ -45,9 +45,13 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
-# 18: no SPECIAL-USE \Inbox on LIST — Outlook's cloud proxy SELECTed INBOX then
-#     LOGOUT without FETCH, so the folder stayed empty despite EXISTS=17.
-UIDVALIDITY = 18
+# 19: emit FETCH *before* SELECT tagged OK. Outlook's proxy SELECT+LOGOUT and
+#     never sends FETCH; prefetch after OK was ignored. Hide Contacts from LIST.
+UIDVALIDITY = 19
+_SELECT_PREFETCH_ITEMS = (
+    "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
+    "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
+)
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -673,7 +677,7 @@ class IMAPSession:
     async def _capability(self, tag, cmd, args):
         # Do not advertise ENABLE/LITERAL+/AUTH=LOGIN/SPECIAL-USE: Outlook's
         # cloud proxy maps \Inbox then SELECT+LOGOUT without FETCH.
-        caps = 'IMAP4rev1 AUTH=PLAIN IDLE UIDPLUS CHILDREN'
+        caps = 'IMAP4rev1 SASL-IR AUTH=PLAIN ID IDLE NAMESPACE UIDPLUS CHILDREN'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
@@ -894,7 +898,8 @@ class IMAPSession:
             emails = []
             self.selected_mailbox = 'Drafts'
         elif kind == 'Contacts':
-            emails = self._fetch_contacts()
+            # Keep SELECT OK for leftover Outlook folders; do not dump vCards as mail.
+            emails = []
             self.selected_mailbox = 'Contacts'
         else:
             await self._send(f'{tag} NO Mailbox "{args.strip()}" not found')
@@ -921,6 +926,24 @@ class IMAPSession:
             await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
         await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}] UIDs valid')
         await self._send(f'* OK [UIDNEXT {uidnext}] Predicted next UID')
+        # Outlook cloud IMAP never sends FETCH for INBOX (SELECT then LOGOUT).
+        # Put the list payload *before* the tagged OK so it cannot skip it.
+        if emails and kind in ("INBOX", "Sent"):
+            for seq_num, em in enumerate(emails, start=1):
+                try:
+                    await self._send_bytes(
+                        _build_fetch_response(seq_num, em, _SELECT_PREFETCH_ITEMS, True)
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        "IMAP SELECT prefetch uid=%s: %s", em.get("id"), exc
+                    )
+            logger.info(
+                "IMAP SELECT prefetch mailbox=%s count=%s user=%s",
+                self.selected_mailbox,
+                n,
+                self.user.email if self.user else "?",
+            )
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
         logger.info(
@@ -940,14 +963,12 @@ class IMAPSession:
         await self._send(f'* LIST {inbox_flags} "/" "INBOX"')
         await self._send('* LIST (\\HasNoChildren) "/" "Sent"')
         await self._send('* LIST (\\HasNoChildren) "/" "Drafts"')
-        await self._send('* LIST (\\HasNoChildren) "/" "Contacts"')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
         await self._send('* LSUB () "/" "INBOX"')
         await self._send('* LSUB () "/" "Sent"')
         await self._send('* LSUB () "/" "Drafts"')
-        await self._send('* LSUB () "/" "Contacts"')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _status(self, tag, cmd, args):
