@@ -112,8 +112,8 @@ def meeting_invite_html(
     urls = join_urls(location)
     join_url = urls[0] if urls and not cancelled else ""
     where = location_label(location)
-    accent = "#94a3b8" if cancelled else "#0891b2"
-    badge = "Встреча отменена" if cancelled else "Встреча"
+    accent = "#94a3b8" if cancelled else "#0e7490"
+    badge = "Встреча отменена" if cancelled else "Видеовстреча"
     people = [name for name in (attendees or []) if name]
     rows: list[tuple[str, str]] = []
     if when:
@@ -125,57 +125,61 @@ def meeting_invite_html(
     if people:
         rows.append(("Участники", ", ".join(people)))
 
+    font = "Segoe UI,Roboto,Helvetica,Arial,sans-serif"
     meta_html = ""
-    for label, value in rows:
+    for i, (label, value) in enumerate(rows):
+        pad = "12px 0" if i else "0 0 12px"
+        line = "border-top:1px solid #e2e8f0;" if i else ""
         meta_html += (
             "<tr>"
-            f'<td style="padding:0 0 10px;width:118px;color:#64748b;font-size:13px;'
-            'font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;vertical-align:top">'
-            f"{_html(label)}</td>"
-            f'<td style="padding:0 0 10px;color:#0f172a;font-size:14px;font-weight:600;'
-            'font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;vertical-align:top">'
-            f"{_html(value)}</td>"
+            f'<td style="padding:{pad};width:120px;color:#64748b;font-size:13px;'
+            f'font-family:{font};vertical-align:top;{line}">{_html(label)}</td>'
+            f'<td style="padding:{pad};color:#0f172a;font-size:15px;font-weight:600;'
+            f'font-family:{font};vertical-align:top;{line}">{_html(value)}</td>'
             "</tr>"
         )
 
     button = ""
     if join_url:
         href = _html(join_url)
+        # Padding lives on <td>: Outlook strips padding/display on <a>.
+        # Color lives on <span>: Outlook paints <a> with the theme hyperlink color.
         button = (
-            '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 6px">'
+            '<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:20px 0 8px">'
             "<tr>"
-            f'<td align="center" bgcolor="#0891b2" style="border-radius:8px;background:#0891b2">'
-            f'<a href="{href}" style="display:inline-block;padding:12px 22px;color:#ffffff;'
-            "font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;"
-            'font-weight:700;text-decoration:none;border-radius:8px">'
-            "Присоединиться к видеозвонку</a>"
+            '<td align="center" bgcolor="#0e7490" '
+            'style="background-color:#0e7490;border-radius:10px;padding:16px 28px;">'
+            f'<a class="alexol-join" href="{href}" target="_blank" '
+            'style="text-decoration:none;display:block;text-align:center;">'
+            f'<span class="alexol-join" style="font-family:{font};font-size:16px;'
+            'font-weight:700;color:#ffffff;line-height:20px;text-decoration:none;">'
+            "Присоединиться к видеозвонку</span></a>"
             "</td></tr></table>"
-            f'<p style="margin:0 0 16px;font-size:12px;color:#64748b;'
-            'font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
-            f'Если кнопка не открывается: <a href="{href}" style="color:#0891b2">{href}</a></p>'
+            f'<p style="margin:0 0 8px;font-size:12px;line-height:1.45;color:#64748b;font-family:{font}">'
+            "Если кнопка не открывается, скопируйте ссылку:<br/>"
+            f'<a class="alexol-join-fallback" href="{href}" style="color:#0e7490;word-break:break-all">{href}</a></p>'
         )
 
     desc = ""
     if description and description.strip():
         desc = (
-            f'<p style="margin:4px 0 0;font-size:14px;line-height:1.55;color:#334155;'
-            'font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+            f'<p style="margin:16px 0 0;font-size:14px;line-height:1.55;color:#334155;font-family:{font}">'
             f"{_html(description.strip())}</p>"
         )
 
     return f"""
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#eef2f6">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#e8eef3">
   <tr>
-    <td align="center" style="padding:16px 12px">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="width:560px;max-width:560px;background:#ffffff;border-radius:12px">
+    <td align="center" style="padding:24px 12px">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="width:560px;max-width:560px;background:#ffffff;border-radius:16px;border:1px solid #dbe4ee">
         <tr>
-          <td style="height:6px;line-height:6px;font-size:0;background:{accent}">&nbsp;</td>
+          <td style="height:8px;line-height:8px;font-size:0;background:{accent};border-radius:16px 16px 0 0">&nbsp;</td>
         </tr>
         <tr>
-          <td style="padding:28px 28px 24px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">
-            <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;color:{accent};font-weight:700">{_html(badge)}</p>
-            <p style="margin:0 0 10px;font-size:15px;color:#64748b">{_html(lead)}</p>
+          <td style="padding:28px 32px 32px;font-family:{font}">
+            <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:{accent};font-weight:700">{_html(badge)}</p>
             <p style="margin:0 0 18px;font-size:22px;line-height:1.3;font-weight:700;color:#0f172a">{_html(title or "Встреча")}</p>
+            <p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#475569">{_html(lead)}</p>
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">{meta_html}</table>
             {button}
             {desc}

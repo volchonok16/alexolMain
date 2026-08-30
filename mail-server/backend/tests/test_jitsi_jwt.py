@@ -37,6 +37,7 @@ class JitsiJwtTests(unittest.TestCase):
         self.assertEqual(payload["context"]["user"]["name"], "Alexander Taraskin")
         self.assertEqual(payload["context"]["user"]["email"], "altaraskin@alexol.io")
         self.assertEqual(payload["context"]["user"]["affiliation"], "owner")
+        self.assertTrue(payload["context"]["user"]["moderator"])
         self.assertIn("/api/public/avatar/", payload["context"]["user"]["avatar"])
 
     def test_guest_token_skipped_for_closed_room(self):

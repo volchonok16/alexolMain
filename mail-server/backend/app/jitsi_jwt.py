@@ -40,6 +40,7 @@ def _encode(
         "id": user_id or email or "guest",
         "name": name,
         "affiliation": "owner" if moderator else "member",
+        "moderator": moderator,
     }
     if email:
         user["email"] = email
