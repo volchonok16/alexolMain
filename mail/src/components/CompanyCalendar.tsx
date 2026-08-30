@@ -84,6 +84,7 @@ export default function CompanyCalendar() {
     start_at: defaultStart(),
     end_at: defaultEnd(),
     is_company: true,
+    video_jitsi: true,
     attendees: '',
   })
 
@@ -131,6 +132,7 @@ export default function CompanyCalendar() {
         start_at: new Date(form.start_at).toISOString(),
         end_at: new Date(form.end_at).toISOString(),
         is_company: form.is_company,
+        video_jitsi: form.video_jitsi,
         attendees: attendeeEmails.map((email) => ({ email })),
       })
       return data
@@ -149,6 +151,7 @@ export default function CompanyCalendar() {
         start_at: defaultStart(),
         end_at: defaultEnd(),
         is_company: true,
+        video_jitsi: true,
         attendees: '',
       })
       if (created.conflicts && created.conflicts.length) {
@@ -295,6 +298,13 @@ export default function CompanyCalendar() {
                   {new Date(ev.end_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                   {ev.location ? ` · ${ev.location}` : ''}
                 </div>
+                {ev.location && ev.location.includes('http') ? (
+                  <div className="org-contact-meta">
+                    <a href={ev.location.split('·').map((p) => p.trim()).find((p) => p.startsWith('http')) || ev.location} target="_blank" rel="noreferrer">
+                      Открыть видеозвонок
+                    </a>
+                  </div>
+                ) : null}
                 <div className="org-contact-meta">
                   {ev.is_company ? 'Календарь компании' : 'Личная'} · {ev.organizer_name}
                 </div>
@@ -394,7 +404,7 @@ export default function CompanyCalendar() {
                 <input
                   value={form.location}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  placeholder="Переговорка или Zoom"
+                  placeholder="Переговорка, если нужна. Ссылку Jitsi можно не писать"
                 />
               </div>
               <div className="form-group">
@@ -405,6 +415,14 @@ export default function CompanyCalendar() {
                   rows={3}
                 />
               </div>
+              <label className="org-check">
+                <input
+                  type="checkbox"
+                  checked={form.video_jitsi}
+                  onChange={(e) => setForm({ ...form, video_jitsi: e.target.checked })}
+                />
+                Видеозвонок Jitsi
+              </label>
               <label className="org-check">
                 <input
                   type="checkbox"

@@ -1,0 +1,61 @@
+name: jitsi
+
+services:
+  web:
+    image: ${JITSI_IMAGE_REPO:-ghcr.io/jitsi}/web:${JITSI_IMAGE_VERSION:-stable}
+    container_name: jitsi_web
+    restart: ${RESTART_POLICY:-unless-stopped}
+    env_file: .env
+    ports:
+      - "127.0.0.1:18080:8000"
+    volumes:
+      - ${CONFIG}/web:/config:Z
+    depends_on:
+      - jvb
+    networks:
+      - meet.jitsi
+
+  prosody:
+    image: ${JITSI_IMAGE_REPO:-ghcr.io/jitsi}/prosody:${JITSI_IMAGE_VERSION:-stable}
+    container_name: jitsi_prosody
+    restart: ${RESTART_POLICY:-unless-stopped}
+    env_file: .env
+    volumes:
+      - ${CONFIG}/prosody/config:/config:Z
+      - ${CONFIG}/prosody/prosody-plugins-custom:/prosody-plugins-custom:Z
+    networks:
+      meet.jitsi:
+        aliases:
+          - xmpp.meet.jitsi
+
+  jicofo:
+    image: ${JITSI_IMAGE_REPO:-ghcr.io/jitsi}/jicofo:${JITSI_IMAGE_VERSION:-stable}
+    container_name: jitsi_jicofo
+    restart: ${RESTART_POLICY:-unless-stopped}
+    env_file: .env
+    volumes:
+      - ${CONFIG}/jicofo:/config:Z
+    depends_on:
+      - prosody
+    networks:
+      - meet.jitsi
+
+  jvb:
+    image: ${JITSI_IMAGE_REPO:-ghcr.io/jitsi}/jvb:${JITSI_IMAGE_VERSION:-stable}
+    container_name: jitsi_jvb
+    restart: ${RESTART_POLICY:-unless-stopped}
+    env_file: .env
+    ports:
+      - "${JVB_PORT:-10000}:${JVB_PORT:-10000}/udp"
+      - "127.0.0.1:18081:8080"
+    volumes:
+      - ${CONFIG}/jvb:/config:Z
+    depends_on:
+      - prosody
+    networks:
+      meet.jitsi:
+        aliases:
+          - jvb.meet.jitsi
+
+networks:
+  meet.jitsi:

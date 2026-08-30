@@ -355,6 +355,104 @@ jobs:
                       fi
                       '
 
+    deploy-jitsi:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Create jitsi .env from secret
+              env:
+                  JITSI_ENV: ${{ secrets.jitsi_env }}
+              run: |
+                  if [ -n "$JITSI_ENV" ]; then
+                    printf '%s\n' "$JITSI_ENV" > jitsi/.env
+                    echo "jitsi_env written ($(wc -l < jitsi/.env) lines)"
+                  else
+                    echo "jitsi_env not set — server keeps existing .env or env.public"
+                  fi
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/jitsi
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/jitsi
+                      echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/jitsi
+
+            - name: Deploy Jitsi compose
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "jitsi/**"
+                  target: "/var/www/jitsi"
+                  overwrite: true
+                  strip_components: 1
+
+            - name: Start Jitsi if not running
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script_stop: true
+                  command_timeout: 30m
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc '
+                      set -e
+                      cd /var/www/jitsi
+                      chmod +x gen-passwords.sh
+                      if docker compose version >/dev/null 2>&1; then
+                        dc="docker compose"
+                      elif command -v docker-compose >/dev/null 2>&1; then
+                        dc="docker-compose"
+                      else
+                        echo "Docker Compose not found"
+                        exit 1
+                      fi
+                      if [ ! -f .env ]; then
+                        cp env.public .env
+                      fi
+                      ./gen-passwords.sh
+                      pub_ip=$(curl -4 -fsS --max-time 8 https://ifconfig.me || true)
+                      if [ -z "$pub_ip" ]; then
+                        pub_ip=$(hostname -I | awk "{print \$1}")
+                      fi
+                      if [ -n "$pub_ip" ] && grep -qE "^JVB_ADVERTISE_IPS=$" .env; then
+                        sed -i "s#^JVB_ADVERTISE_IPS=#JVB_ADVERTISE_IPS=${pub_ip}#" .env
+                      fi
+                      jvb_port=$(grep -E "^JVB_PORT=" .env | tail -1 | cut -d= -f2)
+                      jvb_port=${jvb_port:-10000}
+                      if command -v ufw >/dev/null 2>&1; then
+                        ufw allow "${jvb_port}/udp" comment "Jitsi JVB" || true
+                      fi
+                      mkdir -p /var/www/jitsi/.jitsi-meet-cfg/web \
+                        /var/www/jitsi/.jitsi-meet-cfg/jvb \
+                        /var/www/jitsi/.jitsi-meet-cfg/jicofo \
+                        /var/www/jitsi/.jitsi-meet-cfg/prosody/config \
+                        /var/www/jitsi/.jitsi-meet-cfg/prosody/prosody-plugins-custom
+                      all_up=1
+                      for c in jitsi_web jitsi_prosody jitsi_jicofo jitsi_jvb; do
+                        if [ -z "$(docker ps -q -f name=^${c}$ -f status=running)" ]; then
+                          all_up=0
+                        fi
+                      done
+                      if [ "$all_up" = 1 ]; then
+                        echo "Jitsi already running, skip up"
+                        $dc ps
+                        exit 0
+                      fi
+                      $dc pull
+                      $dc up -d --no-recreate
+                      $dc ps
+                      '
+
     deploy-admin:
         runs-on: ubuntu-latest
         steps:

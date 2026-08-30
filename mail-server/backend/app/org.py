@@ -268,6 +268,34 @@ async def _resolve_attendees(
     return out
 
 
+def _jitsi_base() -> str:
+    return (settings.JITSI_PUBLIC_URL or "https://meet.alexol.io").rstrip("/")
+
+
+def _attach_jitsi_link(event: CalendarEvent, enabled: bool, location: Optional[str]) -> None:
+    loc = (location or "").strip()
+    if not enabled:
+        event.location = loc or None
+        return
+    url = f"{_jitsi_base()}/alexol-{event.id}-{secrets.token_hex(3)}"
+    if not loc:
+        event.location = url
+        return
+    if "meet.alexol.io" in loc.lower() or loc.lower().startswith("http"):
+        event.location = loc
+        return
+    event.location = f"{loc} · {url}"
+
+
+def _join_html(where: str) -> str:
+    safe = xml_escape(where or "—")
+    urls = [p.strip() for p in (where or "").replace("·", " ").split() if p.strip().startswith("http")]
+    links = "".join(
+        f'<p><a href="{xml_escape(u)}">Присоединиться к видеозвонку</a></p>' for u in urls
+    )
+    return f"<p>Где: {safe}</p>{links}"
+
+
 async def _notify_meeting(
     db: AsyncSession,
     event: CalendarEvent,
@@ -296,7 +324,8 @@ async def _notify_meeting(
     html = (
         f"<p>{xml_escape(lead)}</p>"
         f"<p><strong>{xml_escape(event.title)}</strong></p>"
-        f"<p>Когда: {xml_escape(start)}–{xml_escape(end)} UTC<br/>Где: {xml_escape(where)}</p>"
+        f"<p>Когда: {xml_escape(start)}–{xml_escape(end)} UTC</p>"
+        f"{_join_html(where)}"
     )
     if event.description:
         html += f"<p>{xml_escape(event.description)}</p>"
@@ -618,7 +647,7 @@ async def create_event(
         organizer_id=current_user.id,
         title=title,
         description=(payload.description or "").strip() or None,
-        location=(payload.location or "").strip() or None,
+        location=None,
         start_at=start,
         end_at=end,
         all_day=payload.all_day,
@@ -627,6 +656,7 @@ async def create_event(
     event.attendees = attendees
     db.add(event)
     await db.flush()
+    _attach_jitsi_link(event, payload.video_jitsi, payload.location)
     event.ical_uid = event.ical_uid or event_uid(event)
     await db.refresh(event, attribute_names=["attendees", "organizer"])
     await _write_busy(db, event)
