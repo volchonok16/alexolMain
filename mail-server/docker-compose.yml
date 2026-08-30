@@ -94,6 +94,8 @@ services:
       - "0.0.0.0:587:587"       # SMTP Submission STARTTLS (публичный - для почтовых клиентов)
       - "0.0.0.0:143:143"       # IMAP plain/STARTTLS (публичный - для почтовых клиентов)
       - "0.0.0.0:993:993"       # IMAP SSL/TLS (публичный - для почтовых клиентов)
+      - "0.0.0.0:389:389"       # LDAP (Outlook адресная книга / проверка имён)
+      - "0.0.0.0:636:636"       # LDAPS
     depends_on:
       postgres:
         condition: service_healthy

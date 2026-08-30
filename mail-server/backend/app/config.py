@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     IMAP_HOST: str = "0.0.0.0"
     IMAP_PORT: int = 143
     IMAP_SSL_PORT: int = 993
+
+    # LDAP (Outlook Address Book / Check Names)
+    LDAP_HOST: str = "0.0.0.0"
+    LDAP_PORT: int = 389
+    LDAP_SSL_PORT: int = 636
     
     # Domain
     MAIL_DOMAIN: str = "alexol.io"

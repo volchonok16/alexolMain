@@ -76,8 +76,13 @@ export default function CompanyContacts() {
         <span className="org-count">{filtered.length}</span>
       </div>
       <p className="org-outlook-hint">
-        Чтобы контакты появились в Outlook: скачайте vCard кнопкой выше → Люди → Импорт.
-        CardDAV в браузере открывать не нужно.
+        Единая книга в Outlook: Файл → Настройка учетных записей → Адресные книги → Создать
+        → Служба каталогов Интернета (LDAP). Сервер <code>mail.alexol.io</code>, порт 389,
+        база <code>dc=alexol,dc=io</code>, вход — почта и пароль ящика. Включить этот список
+        при проверке имен. ФИО коллег подтянутся сами (Kapustkin → почта).
+        Имя в «Настройка учетных записей» — это имя вашего ящика: Изменить → Другие
+        настройки → Общие → Ваше имя.
+        vCard кнопкой выше — запасной импорт в «Люди», если LDAP ещё не добавлен.
       </p>
       {isLoading ? (
         <div className="empty-state">

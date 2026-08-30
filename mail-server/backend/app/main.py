@@ -43,6 +43,7 @@ from app.mail_sync import allocate_imap_uid, backfill_imap_uids
 from app.config import settings
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
+from app.ldap_server import ldap_server
 from app.minio_client import minio_client
 from app.avatar_resolve import peer_info_map, to_browser_avatar_url, parse_from_header, import_avatar_to_minio
 from app.outbound import deliver_composed_email
@@ -190,8 +191,8 @@ async def startup_event():
     
     # Start SMTP server
     smtp_server.start()
-    # Start IMAP server
     imap_server.start()
+    ldap_server.start()
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -199,6 +200,7 @@ async def shutdown_event():
     smtp_server.stop()
     await smtp_server.cleanup()
     imap_server.stop()
+    ldap_server.stop()
 
 # Auth endpoints
 @app.post("/api/auth/login", response_model=Token)
