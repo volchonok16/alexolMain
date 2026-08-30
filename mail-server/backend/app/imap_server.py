@@ -8,7 +8,7 @@ IMAP4rev1 сервер: даёт доступ к почте через стан�
 Поддерживаемые команды:
   CAPABILITY, NOOP, IDLE, LOGOUT, LOGIN, AUTHENTICATE, STARTTLS,
   SELECT, EXAMINE, LIST, LSUB, STATUS, SEARCH, FETCH, UID, STORE,
-  EXPUNGE, CLOSE, NAMESPACE, ID, SUBSCRIBE, UNSUBSCRIBE
+  EXPUNGE, CLOSE, NAMESPACE, ID, SUBSCRIBE, UNSUBSCRIBE, APPEND
 """
 import asyncio
 import ssl
@@ -18,27 +18,34 @@ import logging
 import subprocess
 import tempfile
 from datetime import datetime, timezone
+from email.charset import Charset
+from email.header import Header
+from email.message import Message
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import format_datetime, formataddr
+from email.utils import format_datetime, formataddr, getaddresses, parseaddr
 from email.parser import BytesParser
 from email import policy as email_policy
 
-from sqlalchemy import create_engine, select
+# CRLF like SMTP, but 8bit so reconstructed HTML is not BASE64 with mismatched sizes.
+_IMAP_GEN_POLICY = email_policy.SMTP.clone(cte_type="8bit")
+_UTF8_8BIT = Charset("utf-8")
+_UTF8_8BIT.body_encoding = None
+
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.models import User, Email
 from app.auth import verify_password
 from app.config import settings
-from app.mail_body import coerce_stored_bodies
+from app.mail_body import coerce_stored_bodies, extract_text_and_html
 from app.database import sync_connect_args
 
 logger = logging.getLogger(__name__)
 
-# c3bc0a5 protocol (Outlook FETCH + IDLE) plus Drafts/APPEND Outlook still uses.
-# 16: Drafts must SELECT OK — after we advertised Drafts, Outlook always opens it first;
-#     c3bc0a5 answered NO and the cloud proxy skipped INBOX FETCH.
-UIDVALIDITY = 16
+# Bump when FETCH/SELECT format changes so Outlook drops a stale empty cache.
+# 17: RFC FLAGS on SELECT, real BODYSTRUCTURE, BODY[n] parts, 7-bit ENVELOPE, raw RFC822.
+UIDVALIDITY = 17
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -52,9 +59,256 @@ def _imap_internaldate(dt: datetime) -> str:
         f"{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d} +0000\""
     )
 
-# ---------------------------------------------------------------------------
-# TLS helpers
-# ---------------------------------------------------------------------------
+
+def _uidnext(emails: list[dict]) -> int:
+    if not emails:
+        return 1
+    return max(int(e["id"]) for e in emails) + 1
+
+
+def _ensure_crlf(data: bytes) -> bytes:
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n").replace(b"\n", b"\r\n")
+
+
+def _normalize_mailbox(args: str) -> str:
+    """First IMAP argument only — ignore SELECT/STATUS modifiers like (CONDSTORE)."""
+    parsed = _parse_args(args or "")
+    return (parsed[0] if parsed else "INBOX").strip()
+
+
+def _classify_mailbox(name: str) -> str | None:
+    n = (name or "").strip().strip('"').upper()
+    if n in ("INBOX", "", "ВХОДЯЩИЕ", "ВХОДЯЩИЕ СООБЩЕНИЯ"):
+        return "INBOX"
+    if n in (
+        "SENT", "SENT ITEMS", "SENT MESSAGES", "GESENDETE ELEMENTE",
+        "ОТПРАВЛЕННЫЕ", "ОТПРАВЛЕННЫЕ СООБЩЕНИЯ",
+    ):
+        return "Sent"
+    if n in ("DRAFTS", "DRAFT", "ЧЕРНОВИКИ"):
+        return "Drafts"
+    return None
+
+
+def _imap_quoted(s: str) -> str:
+    """7-bit IMAP quoted-string. Non-ASCII becomes RFC 2047 (Outlook rejects UTF-8 here)."""
+    text = (s or "").replace("\r", " ").replace("\n", " ").replace("\x00", "")
+    try:
+        text.encode("ascii")
+    except UnicodeEncodeError:
+        text = Header(text, "utf-8", maxlinelen=998).encode()
+        text = text.replace("\r", " ").replace("\n", " ")
+    text = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{text}"'
+
+
+def _envelope_one_addr(display: str, addr: str) -> str:
+    name, email_addr = parseaddr(addr or "")
+    personal = (display or name or "").strip()
+    if not email_addr:
+        raw = (addr or "").strip()
+        if raw.count("@") == 1 and "<" not in raw:
+            email_addr = raw
+    mailbox, _, host = (email_addr or "").partition("@")
+    pers = _imap_quoted(personal) if personal else "NIL"
+    mb = _imap_quoted(mailbox) if mailbox else "NIL"
+    ht = _imap_quoted(host) if host else "NIL"
+    return f"({pers} NIL {mb} {ht})"
+
+
+def _envelope_addr_list(raw: str, display: str = "") -> str:
+    if not (raw or "").strip():
+        return "NIL"
+    pairs = getaddresses([raw])
+    parts: list[str] = []
+    for name, addr in pairs:
+        if not addr and not name:
+            continue
+        parts.append(_envelope_one_addr(name or display, addr or name))
+    if not parts:
+        return f"({_envelope_one_addr(display, raw)})"
+    return "(" + "".join(parts) + ")"
+
+
+def _imap_envelope(parsed: Message, em: dict) -> str:
+    date_hdr = parsed.get("Date") or ""
+    if date_hdr:
+        date_s = _imap_quoted(str(date_hdr))
+    else:
+        date = em.get("date") or datetime.now(timezone.utc)
+        if isinstance(date, datetime) and date.tzinfo is None:
+            date = date.replace(tzinfo=timezone.utc)
+        date_s = _imap_quoted(format_datetime(date))
+    subj = parsed.get("Subject")
+    if subj is None:
+        subj = em.get("subject") or ""
+    frm_raw = parsed.get("From") or em.get("from") or ""
+    to_raw = parsed.get("To") or em.get("to") or ""
+    cc_raw = parsed.get("Cc") or ""
+    bcc_raw = parsed.get("Bcc") or ""
+    irt = parsed.get("In-Reply-To")
+    mid = parsed.get("Message-ID") or f"<{em['id']}@{settings.MAIL_DOMAIN}>"
+    frm = _envelope_addr_list(str(frm_raw), em.get("from_name") or "")
+    sender = _envelope_addr_list(str(parsed.get("Sender") or frm_raw), em.get("from_name") or "")
+    reply_to = _envelope_addr_list(str(parsed.get("Reply-To") or frm_raw), em.get("from_name") or "")
+    to = _envelope_addr_list(str(to_raw), em.get("to_name") or "")
+    cc = _envelope_addr_list(str(cc_raw)) if cc_raw else "NIL"
+    bcc = _envelope_addr_list(str(bcc_raw)) if bcc_raw else "NIL"
+    irt_s = _imap_quoted(str(irt)) if irt else "NIL"
+    return (
+        f"({date_s} {_imap_quoted(str(subj))} {frm} {sender} {reply_to} {to} "
+        f"{cc} {bcc} {irt_s} {_imap_quoted(str(mid))})"
+    )
+
+
+def _part_octets_and_lines(part: Message) -> tuple[int, int]:
+    """Octets/lines of the transfer-encoded part body — must match BODY[n]."""
+    payload = _raw_part_body(part)
+    return len(payload), payload.count(b"\n") + (1 if payload else 0)
+
+
+def _bodystructure(part: Message) -> str:
+    """RFC 3501 BODYSTRUCTURE from a parsed message (sizes match the real MIME)."""
+    if part.is_multipart():
+        payload = part.get_payload()
+        if not isinstance(payload, list):
+            payload = []
+        children = "".join(_bodystructure(p) for p in payload)
+        subtype = (part.get_content_subtype() or "mixed").upper()
+        return f"({children} {_imap_quoted(subtype)})"
+    ctype = part.get_content_type() or "text/plain"
+    main, _, sub = ctype.partition("/")
+    main = (main or "TEXT").upper()
+    sub = (sub or "PLAIN").upper()
+    charset = part.get_content_charset() or "UTF-8"
+    params = f'("CHARSET" {_imap_quoted(charset)})'
+    cte = (part.get("Content-Transfer-Encoding") or "8BIT").split()[0].upper()
+    if cte not in ("7BIT", "8BIT", "BINARY", "BASE64", "QUOTED-PRINTABLE"):
+        cte = "8BIT"
+    octets, lines = _part_octets_and_lines(part)
+    cid = part.get("Content-ID")
+    cid_s = _imap_quoted(str(cid)) if cid else "NIL"
+    desc = part.get("Content-Description")
+    desc_s = _imap_quoted(str(desc)) if desc else "NIL"
+    if main == "TEXT":
+        return (
+            f"({_imap_quoted(main)} {_imap_quoted(sub)} {params} {cid_s} {desc_s} "
+            f"{_imap_quoted(cte)} {octets} {lines})"
+        )
+    return (
+        f"({_imap_quoted(main)} {_imap_quoted(sub)} {params} {cid_s} {desc_s} "
+        f"{_imap_quoted(cte)} {octets})"
+    )
+
+
+def _safe_bodystructure(rfc: bytes, em: dict) -> str:
+    try:
+        parsed = BytesParser(policy=email_policy.compat32).parsebytes(rfc)
+        return _bodystructure(parsed)
+    except Exception:
+        n = len(rfc)
+        lines = rfc.count(b"\n") + 1
+        kind = "HTML" if em.get("html_body") else "PLAIN"
+        return f'("TEXT" "{kind}" ("CHARSET" "UTF-8") NIL NIL "8BIT" {n} {lines})'
+
+
+def _header_subset_bytes(parsed: Message, wanted: set[str] | None) -> bytes:
+    lines: list[str] = []
+    for key, value in parsed.items():
+        if wanted is not None and key.upper() not in wanted:
+            continue
+        val = value if isinstance(value, str) else str(value)
+        val = val.replace("\r", " ").replace("\n", " ")
+        try:
+            val.encode("ascii")
+        except UnicodeEncodeError:
+            val = Header(val, "utf-8", maxlinelen=998).encode().replace("\r", " ").replace("\n", " ")
+        lines.append(f"{key}: {val}\r\n")
+    return ("".join(lines) + "\r\n").encode("utf-8")
+
+
+def _walk_part(msg: Message, nums: list[int]) -> Message | None:
+    if not nums:
+        return msg
+    n, rest = nums[0], nums[1:]
+    if not msg.is_multipart():
+        return msg if n == 1 and not rest else None
+    payload = msg.get_payload()
+    if not isinstance(payload, list) or n < 1 or n > len(payload):
+        return None
+    return _walk_part(payload[n - 1], rest)
+
+
+def _raw_part_body(part: Message) -> bytes:
+    payload = part.get_payload(decode=False)
+    if isinstance(payload, bytes):
+        return _ensure_crlf(payload)
+    if isinstance(payload, str):
+        charset = part.get_content_charset() or "utf-8"
+        try:
+            return _ensure_crlf(payload.encode(charset, "replace"))
+        except LookupError:
+            return _ensure_crlf(payload.encode("utf-8", "replace"))
+    raw = _ensure_crlf(part.as_bytes(policy=email_policy.compat32))
+    sep = b"\r\n\r\n"
+    if sep in raw:
+        return raw.split(sep, 1)[1]
+    return raw
+
+
+def _raw_part_headers(part: Message) -> bytes:
+    raw = _ensure_crlf(part.as_bytes(policy=email_policy.compat32))
+    sep = b"\r\n\r\n"
+    if sep in raw:
+        return raw.split(sep, 1)[0] + sep
+    return raw
+
+
+def _header_fields_wanted(spec: str, target: Message) -> set[str] | None:
+    fm = re.match(r"HEADER\.FIELDS(\.NOT)?\s*\((.*)\)\s*$", spec, re.I | re.S)
+    if not fm:
+        return None
+    named = {n.strip().upper() for n in fm.group(2).split() if n.strip()}
+    if fm.group(1):
+        return {k.upper() for k in target.keys()} - named
+    return named
+
+
+def _section_payload(rfc: bytes, section: str) -> tuple[str, bytes]:
+    """Return (BODY[section] label, octets) for an IMAP BODY[section] fetch."""
+    parsed = BytesParser(policy=email_policy.compat32).parsebytes(rfc)
+    section = (section or "").strip()
+    label = "BODY[]" if not section else f"BODY[{section}]"
+    if not section:
+        return label, rfc
+
+    nums: list[int] = []
+    rest = section
+    numbered = re.match(
+        r"^(\d+(?:\.\d+)*)(?:\.(HEADER(?:\.FIELDS(?:\.NOT)?\s*\([^)]*\))?|MIME|TEXT))?$",
+        section,
+        re.I | re.S,
+    )
+    if numbered:
+        nums = [int(x) for x in numbered.group(1).split(".")]
+        rest = (numbered.group(2) or "").strip()
+
+    target = _walk_part(parsed, nums) if nums else parsed
+    if target is None:
+        return label, b""
+
+    rest_up = rest.upper()
+    wanted = _header_fields_wanted(rest, target)
+    if wanted is not None:
+        return label, _header_subset_bytes(target, wanted)
+    if rest_up in ("HEADER", "MIME"):
+        return label, _raw_part_headers(target)
+    if rest_up == "TEXT" or (nums and not rest):
+        return label, _raw_part_body(target)
+    if not nums and rest_up == "HEADER":
+        return label, _raw_part_headers(parsed)
+    return label, rfc
+
 
 def _get_sync_db_url() -> str:
     if settings.DATABASE_URL_SYNC:
@@ -63,10 +317,17 @@ def _get_sync_db_url() -> str:
 
 
 def _make_tls_context() -> ssl.SSLContext | None:
-    """Return TLS context; fall back to ephemeral self-signed cert."""
+    """Server TLS for IMAPS/STARTTLS. TLS 1.2+; no client certs."""
+    def _server_ctx() -> ssl.SSLContext:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+
     if settings.SMTP_TLS_CERT_FILE and settings.SMTP_TLS_KEY_FILE:
         if os.path.isfile(settings.SMTP_TLS_CERT_FILE) and os.path.isfile(settings.SMTP_TLS_KEY_FILE):
-            ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ctx = _server_ctx()
             ctx.load_cert_chain(settings.SMTP_TLS_CERT_FILE, settings.SMTP_TLS_KEY_FILE)
             logger.info("IMAP TLS: using configured cert %s", settings.SMTP_TLS_CERT_FILE)
             return ctx
@@ -84,7 +345,7 @@ def _make_tls_context() -> ssl.SSLContext | None:
             ],
             capture_output=True, check=True, timeout=30,
         )
-        ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        ctx = _server_ctx()
         ctx.load_cert_chain(cert, key)
         logger.info("IMAP TLS: generated self-signed cert (CN=%s)", settings.MAIL_DOMAIN)
         return ctx
@@ -92,10 +353,6 @@ def _make_tls_context() -> ssl.SSLContext | None:
         logger.warning("IMAP: cannot create TLS context: %s - ports 993/STARTTLS disabled", exc)
         return None
 
-
-# ---------------------------------------------------------------------------
-# Protocol helpers
-# ---------------------------------------------------------------------------
 
 def _parse_args(s: str) -> list[str]:
     """Parse IMAP argument string honouring quoted strings."""
@@ -153,7 +410,7 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
                     result.append((seq, emails[seq - 1]))
         else:
             if uid_mode:
-                uid = _resolve(part, emails[-1]['id'] if emails else 0)
+                uid = _resolve(part, max(e['id'] for e in emails) if emails else 0)
                 # UID 0 is invalid; Outlook sends it when a prior FETCH omitted UID.
                 if uid == 0:
                     for idx, e in enumerate(emails):
@@ -171,6 +428,15 @@ def _parse_seq_set(seq_set: str, total: int, uid_mode: bool,
     return result
 
 
+def _text_part(content: str, subtype: str) -> MIMEText:
+    part = MIMEText(content or "", subtype)
+    part.set_charset(_UTF8_8BIT)
+    if part.get("Content-Transfer-Encoding"):
+        del part["Content-Transfer-Encoding"]
+    part["Content-Transfer-Encoding"] = "8bit"
+    return part
+
+
 def _email_to_rfc822(em: dict) -> bytes:
     date = em.get('date') or datetime.now(timezone.utc)
     if isinstance(date, datetime) and date.tzinfo is None:
@@ -179,19 +445,26 @@ def _email_to_rfc822(em: dict) -> bytes:
 
     if em.get('html_body'):
         msg = MIMEMultipart('alternative')
-        msg.attach(MIMEText(em.get('body', '') or '', 'plain', 'utf-8'))
-        msg.attach(MIMEText(em['html_body'], 'html', 'utf-8'))
+        msg.attach(_text_part(em.get('body', '') or '', 'plain'))
+        msg.attach(_text_part(em['html_body'], 'html'))
     else:
-        msg = MIMEText(em.get('body', '') or '', 'plain', 'utf-8')
+        msg = _text_part(em.get('body', '') or '', 'plain')
 
     from_addr = em.get('from', '') or ''
     from_name = (em.get('from_name') or '').strip()
     msg['From'] = formataddr((from_name, from_addr)) if from_addr else from_name
     msg['To'] = em.get('to', '')
-    msg['Subject'] = em.get('subject', '')
+    msg['Subject'] = em.get('subject', '') or ''
     msg['Date'] = date_str
     msg['Message-ID'] = f"<{em['id']}@{settings.MAIL_DOMAIN}>"
-    return msg.as_bytes()
+    return _ensure_crlf(msg.as_bytes(policy=_IMAP_GEN_POLICY))
+
+
+def _message_bytes(em: dict) -> bytes:
+    raw = em.get("raw")
+    if raw:
+        return _ensure_crlf(bytes(raw))
+    return _email_to_rfc822(em)
 
 
 def _imap_literal(name: str, payload: bytes) -> bytes:
@@ -208,12 +481,15 @@ def _build_fetch_response(seq_num: int, em: dict, items_str: str,
     date = em.get("date") or datetime.now(timezone.utc)
     if isinstance(date, datetime) and date.tzinfo is None:
         date = date.replace(tzinfo=timezone.utc)
-    date_str = format_datetime(date)
 
     parts: list[bytes] = []
 
     def add_text(piece: str) -> None:
-        parts.append(piece.encode("utf-8"))
+        try:
+            parts.append(piece.encode("ascii"))
+        except UnicodeEncodeError:
+            logger.warning("IMAP FETCH non-ascii metadata uid=%s", uid)
+            parts.append(piece.encode("utf-8", "replace"))
 
     add_text(f"UID {uid}")
 
@@ -225,77 +501,54 @@ def _build_fetch_response(seq_num: int, em: dict, items_str: str,
 
     peek = "BODY.PEEK[" in upper
     body_bracket = "BODY[" in upper.replace(" ", "") or peek
-    needs_body = "RFC822" in upper or body_bracket
+    wants_full_rfc822 = bool(re.search(r"(?<![.\w])RFC822(?![.\w])", upper))
     rfc: bytes | None = None
-    if needs_body or "RFC822.SIZE" in upper:
-        rfc = _email_to_rfc822(em)
-        if "RFC822.SIZE" in upper:
-            add_text(f"RFC822.SIZE {len(rfc)}")
+    if (
+        wants_full_rfc822
+        or body_bracket
+        or "RFC822.SIZE" in upper
+        or "ENVELOPE" in upper
+        or "BODYSTRUCTURE" in upper
+        or re.search(r"(?<![.\w])BODY(?![.\w\[])", upper)
+    ):
+        rfc = _message_bytes(em)
 
-        if "RFC822" in upper and "RFC822.SIZE" not in upper:
-            parts.append(_imap_literal("RFC822", rfc))
-        elif body_bracket:
-            section_match = re.search(
-                r"BODY(?:\.PEEK)?\[([^\]]*)\](?:<(\d+)\.(\d+)>)?",
-                items_str,
-                re.IGNORECASE,
-            )
-            section = (section_match.group(1) if section_match else "").strip()
-            section_up = section.upper()
-            fields_match = re.match(r"HEADER\.FIELDS(?:\.NOT)?\s*\((.*)\)\s*$", section, re.I | re.S)
+    if rfc is not None and "RFC822.SIZE" in upper:
+        add_text(f"RFC822.SIZE {len(rfc)}")
 
-            if section_up in ("HEADER",) or fields_match:
-                parsed = BytesParser(policy=email_policy.compat32).parsebytes(rfc)
-                if fields_match:
-                    wanted = {n.strip().upper() for n in fields_match.group(1).split() if n.strip()}
-                    headers_str = (
-                        "".join(f"{k}: {v}\r\n" for k, v in parsed.items() if k.upper() in wanted)
-                        + "\r\n"
-                    )
-                    label = f"BODY[{section}]"
-                else:
-                    headers_str = "".join(f"{k}: {v}\r\n" for k, v in parsed.items()) + "\r\n"
-                    label = "BODY[HEADER]"
-                parts.append(_imap_literal(label, headers_str.encode("utf-8")))
-            elif section_up == "TEXT":
-                body_text = em.get("body") or ""
-                parts.append(_imap_literal("BODY[TEXT]", body_text.encode("utf-8")))
-            else:
-                label = "BODY[]" if not section else f"BODY[{section}]"
-                parts.append(_imap_literal(label, rfc))
+    if rfc is not None and wants_full_rfc822:
+        parts.append(_imap_literal("RFC822", rfc))
 
-    if "ENVELOPE" in upper:
-        def _mbox(addr: str) -> str:
-            at = addr.find("@")
-            if at == -1:
-                return f'("" NIL "{addr}" "")'
-            return f'("" NIL "{addr[:at]}" "{addr[at + 1:]}")'
+    if rfc is not None and body_bracket:
+        for section_match in re.finditer(
+            r"BODY(?:\.PEEK)?\[([^\]]*)\](?:<(\d+)\.(\d+)>)?",
+            items_str,
+            re.IGNORECASE,
+        ):
+            section = (section_match.group(1) or "").strip()
+            origin = section_match.group(2)
+            slen = section_match.group(3)
+            label, payload = _section_payload(rfc, section)
+            if origin is not None and slen is not None:
+                o, ln = int(origin), int(slen)
+                payload = payload[o:o + ln]
+                label = f"{label}<{o}>"
+            parts.append(_imap_literal(label, payload))
 
-        frm = em.get("from", "")
-        to = em.get("to", "")
-        subj = (em.get("subject") or "").replace("\\", "\\\\").replace('"', '\\"')
-        add_text(
-            f'ENVELOPE ("{date_str}" "{subj}" '
-            f"({_mbox(frm)}) ({_mbox(frm)}) ({_mbox(frm)}) ({_mbox(to)}) "
-            f'NIL NIL NIL "<{uid}@{settings.MAIL_DOMAIN}>")'
-        )
+    if rfc is not None and "ENVELOPE" in upper:
+        parsed = BytesParser(policy=email_policy.compat32).parsebytes(rfc)
+        add_text(f"ENVELOPE {_imap_envelope(parsed, em)}")
 
-    if "BODYSTRUCTURE" in upper and "BODY[" not in upper:
-        if em.get("html_body"):
-            bs = '("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "8BIT" 100 10)'
-        else:
-            bs = '("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "8BIT" 100 10)'
-        add_text(f"BODYSTRUCTURE {bs}")
+    if rfc is not None and "BODYSTRUCTURE" in upper:
+        add_text(f"BODYSTRUCTURE {_safe_bodystructure(rfc, em)}")
+    elif rfc is not None and re.search(r"(?<![.\w])BODY(?![.\w\[])", upper):
+        add_text(f"BODY {_safe_bodystructure(rfc, em)}")
 
     if not parts:
         add_text(f"FLAGS ({flags_str})")
 
     return b"* " + str(seq_num).encode("ascii") + b" FETCH (" + b" ".join(parts) + b")\r\n"
 
-
-# ---------------------------------------------------------------------------
-# IMAP session handler
-# ---------------------------------------------------------------------------
 
 class IMAPSession:
     NOT_AUTH = 'NOT_AUTHENTICATED'
@@ -337,8 +590,9 @@ class IMAPSession:
             except Exception:
                 pass
         except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
-            # Client closed connection - normal for iOS/Outlook
             logger.debug('IMAP: client disconnected')
+        except ssl.SSLError as exc:
+            logger.warning('IMAP TLS peer=%s: %s', self._peer(), exc)
         except Exception as exc:
             logger.error('IMAP session error: %s', exc, exc_info=True)
         finally:
@@ -405,17 +659,17 @@ class IMAPSession:
             'CREATE': self._ok,
             'CHECK': self._noop,
             'COPY': self._ok,
+            'ENABLE': self._ok,
+            'MOVE': self._ok,
+            'UNSELECT': self._close,
         }
         handler = dispatch.get(cmd, self._unknown)
         await handler(tag, cmd, rest)
 
-    # ------------------------------------------------------------------
-    # Commands
-    # ------------------------------------------------------------------
-
     async def _capability(self, tag, cmd, args):
-        # We only support AUTHENTICATE PLAIN and the LOGIN command.
-        caps = 'IMAP4rev1 SASL-IR LOGIN-REFERRALS ID ENABLE IDLE AUTH=PLAIN LITERAL+ UIDPLUS'
+        # Do not advertise ENABLE/LITERAL+/AUTH=LOGIN: Outlook then sends SELECT
+        # modifiers we used to reject, and Apple Mail mis-handles AUTH=LOGIN.
+        caps = 'IMAP4rev1 AUTH=PLAIN IDLE UIDPLUS SPECIAL-USE CHILDREN'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
@@ -480,10 +734,12 @@ class IMAPSession:
             await self._send(f'{tag} BAD APPEND requires a literal')
             return
         size = int(literal.group(1))
-        if not literal.group(2):
+        non_sync = bool(literal.group(2))
+        mailbox = (_parse_args(args[: literal.start()]) or ['INBOX'])[0]
+        if not non_sync:
             await self._send('+ Ready for literal data')
         try:
-            await asyncio.wait_for(self.reader.readexactly(size), timeout=120)
+            data = await asyncio.wait_for(self.reader.readexactly(size), timeout=120)
             try:
                 await asyncio.wait_for(self.reader.readexactly(2), timeout=10)
             except Exception:
@@ -492,9 +748,56 @@ class IMAPSession:
             logger.warning('IMAP APPEND read failed: %s', exc)
             await self._send(f'{tag} NO APPEND failed')
             return
+
+        box = (mailbox or 'INBOX').strip().strip('"').upper()
+        is_sent = box in (
+            'SENT', 'SENT ITEMS', 'SENT MESSAGES',
+            'ОТПРАВЛЕННЫЕ', 'ОТПРАВЛЕННЫЕ СООБЩЕНИЯ',
+        )
+        if is_sent:
+            self._save_appended_sent(data)
         await self._send(f'{tag} OK APPEND completed')
 
+    def _save_appended_sent(self, data: bytes) -> None:
+        if not self.user or not data:
+            return
+        try:
+            msg = BytesParser(policy=email_policy.default).parsebytes(data)
+            mid = (msg.get('Message-ID') or '').strip()
+            header_name, header_addr = parseaddr(msg.get('From') or '')
+            from_address = (header_addr or self.user.email).strip().lower()
+            body, html_body = extract_text_and_html(msg)
+            with self._db() as db:
+                if mid:
+                    recent = db.execute(
+                        select(Email).where(
+                            Email.user_id == self.user.id,
+                            Email.is_sent.is_(True),
+                        ).order_by(Email.id.desc()).limit(20)
+                    ).scalars().all()
+                    needle = mid.encode('utf-8', errors='ignore')
+                    for row in recent:
+                        raw = getattr(row, 'raw_rfc822', None) or b''
+                        if needle and needle in raw:
+                            return
+                db.add(Email(
+                    user_id=self.user.id,
+                    from_address=from_address,
+                    to_address=(msg.get('To') or '').strip() or self.user.email,
+                    from_name=(header_name or '').strip() or self.user.full_name,
+                    subject=msg.get('subject', '') or '',
+                    body=body,
+                    html_body=html_body,
+                    raw_rfc822=data,
+                    is_sent=True,
+                    is_read=True,
+                ))
+                db.commit()
+        except Exception as exc:
+            logger.warning('IMAP APPEND Sent save failed: %s', exc)
+
     async def _unknown(self, tag, cmd, args):
+        logger.info("IMAP unknown cmd=%s args=%s peer=%s", cmd, (args or "")[:80], self._peer())
         await self._send(f'{tag} BAD Command {cmd} not supported')
 
     async def _logout(self, tag, cmd, args):
@@ -518,10 +821,8 @@ class IMAPSession:
             await self._send(f'{tag} NO [AUTHENTICATIONFAILED] Invalid credentials')
 
     async def _authenticate(self, tag, cmd, args):
-        # Simple AUTH=PLAIN inline (some clients send it as: AUTHENTICATE PLAIN <base64>)
         mech = args.strip().split()[0].upper() if args.strip() else ''
         if mech == 'PLAIN':
-            # Expect base64-encoded \0user\0pass or wait for it on next line
             rest = args.strip()[len('PLAIN'):].strip()
             if not rest:
                 await self._send('+ ')
@@ -576,15 +877,14 @@ class IMAPSession:
         if self.state not in (self.AUTHENTICATED, self.SELECTED):
             await self._send(f'{tag} NO Not authenticated')
             return
-        mailbox = args.strip().strip('"').upper()
-        if mailbox in ('INBOX', ''):
+        kind = _classify_mailbox(_normalize_mailbox(args))
+        if kind == 'INBOX':
             emails = self._fetch_inbox()
             self.selected_mailbox = 'INBOX'
-        elif mailbox in ('SENT', 'SENT ITEMS', 'SENT MESSAGES', 'GESENDETE ELEMENTE',
-                         'ОТПРАВЛЕННЫЕ', 'ОТПРАВЛЕННЫЕ СООБЩЕНИЯ'):
+        elif kind == 'Sent':
             emails = self._fetch_sent()
             self.selected_mailbox = 'Sent'
-        elif mailbox in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ'):
+        elif kind == 'Drafts':
             emails = []
             self.selected_mailbox = 'Drafts'
         else:
@@ -598,21 +898,25 @@ class IMAPSession:
             (i + 1 for i, e in enumerate(emails) if '\\Seen' not in e['flags']),
             None,
         )
+        uidnext = _uidnext(emails)
 
+        # RFC 3501: FLAGS, EXISTS, RECENT are required. Outlook skips FETCH without FLAGS.
+        await self._send(r'* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        await self._send(r'* OK [PERMANENTFLAGS (\Answered \Flagged \Deleted \Seen \Draft \*)] Flags permitted')
         await self._send(f'* {n} EXISTS')
         await self._send(f'* 0 RECENT')
         if first_unseen:
             await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
-        await self._send(f'* OK [PERMANENTFLAGS (\\Seen \\Answered \\Flagged \\Deleted \\Draft)]')
-        await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}]')
-        await self._send(f'* OK [UIDNEXT {(emails[-1]["id"] + 1) if emails else 1}]')
+        await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}] UIDs valid')
+        await self._send(f'* OK [UIDNEXT {uidnext}] Predicted next UID')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
         logger.info(
-            "IMAP %s mailbox=%s messages=%s user=%s",
+            "IMAP %s mailbox=%s messages=%s uidnext=%s user=%s",
             cmd,
             self.selected_mailbox,
             n,
+            uidnext,
             self.user.email if self.user else "?",
         )
 
@@ -629,22 +933,27 @@ class IMAPSession:
         await self._send(f'{tag} OK LSUB completed')
 
     async def _status(self, tag, cmd, args):
-        parts = args.strip().split(' ', 1)
-        mbox = parts[0].strip('"').upper()
-        if mbox in ('INBOX',):
+        name = _normalize_mailbox(args)
+        kind = _classify_mailbox(name)
+        if kind == 'INBOX':
             emails = self._fetch_inbox()
-        elif mbox in ('SENT', 'SENT ITEMS', 'SENT MESSAGES', 'ОТПРАВЛЕННЫЕ'):
+            listed = 'INBOX'
+        elif kind == 'Sent':
             emails = self._fetch_sent()
-        elif mbox in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ'):
+            listed = 'Sent'
+        elif kind == 'Drafts':
             emails = []
+            listed = 'Drafts'
         else:
             await self._send(f'{tag} NO Mailbox not found')
             return
         n = len(emails)
         unseen = sum(1 for e in emails if '\\Seen' not in e['flags'])
-        uid_next = (emails[-1]['id'] + 1) if emails else 1
-        await self._send(f'* STATUS "{parts[0].strip(chr(34))}" '
-                         f'(MESSAGES {n} RECENT 0 UNSEEN {unseen} UIDNEXT {uid_next} UIDVALIDITY {UIDVALIDITY})')
+        uid_next = _uidnext(emails)
+        await self._send(
+            f'* STATUS "{listed}" '
+            f'(MESSAGES {n} RECENT 0 UNSEEN {unseen} UIDNEXT {uid_next} UIDVALIDITY {UIDVALIDITY})'
+        )
         await self._send(f'{tag} OK STATUS completed')
 
     async def _search(self, tag, cmd, args):
@@ -672,7 +981,6 @@ class IMAPSession:
         await self._do_store(tag, args, uid_mode=False)
 
     async def _do_store(self, tag, args, uid_mode=False):
-        # Minimal: parse flags and acknowledge - persistence not needed for basic client support
         await self._send(f'{tag} OK STORE completed')
 
     async def _expunge(self, tag, cmd, args):
@@ -682,7 +990,7 @@ class IMAPSession:
         self.state = self.AUTHENTICATED
         self.selected_mailbox = None
         self.selected_emails = []
-        await self._send(f'{tag} OK CLOSE completed')
+        await self._send(f'{tag} OK {cmd} completed')
 
     async def _namespace(self, tag, cmd, args):
         await self._send('* NAMESPACE (("" "/")) NIL NIL')
@@ -692,10 +1000,6 @@ class IMAPSession:
         await self._send('* ID ("name" "MailServer" "version" "1.0")')
         await self._send(f'{tag} OK ID completed')
 
-    # ------------------------------------------------------------------
-    # Core logic helpers
-    # ------------------------------------------------------------------
-
     async def _do_fetch(self, tag: str, args: str, uid_mode: bool):
         if self.state != self.SELECTED:
             await self._send(f'{tag} NO Not in selected state')
@@ -703,7 +1007,6 @@ class IMAPSession:
         parts = args.strip().split(' ', 1)
         seq_set = parts[0]
         items_str = parts[1] if len(parts) > 1 else 'FLAGS'
-        # Strip outer parens if present
         if items_str.startswith('(') and items_str.endswith(')'):
             items_str = items_str[1:-1]
 
@@ -722,19 +1025,34 @@ class IMAPSession:
             self.selected_mailbox,
             uid_mode,
             seq_set,
-            items_str[:80],
+            items_str[:120],
             len(pairs),
         )
         for seq_num, em in pairs:
-            await self._send_bytes(_build_fetch_response(seq_num, em, items_str, uid_mode))
+            try:
+                await self._send_bytes(_build_fetch_response(seq_num, em, items_str, uid_mode))
+            except Exception as exc:
+                logger.exception(
+                    "IMAP FETCH build failed uid=%s user=%s: %s",
+                    em.get("id"),
+                    self.user.email if self.user else "?",
+                    exc,
+                )
         await self._send(f"{tag} OK FETCH completed")
 
     async def _do_search(self, tag: str, args: str, uid_mode: bool):
-        # Simplified: return all messages (handles ALL, UNSEEN, etc. as "all")
         if uid_mode:
             nums = ' '.join(str(e['id']) for e in self.selected_emails)
         else:
             nums = ' '.join(str(i + 1) for i in range(len(self.selected_emails)))
+        logger.info(
+            "IMAP SEARCH user=%s mailbox=%s uid=%s args=%s hits=%s",
+            self.user.email if self.user else "?",
+            self.selected_mailbox,
+            uid_mode,
+            (args or "")[:80],
+            len(self.selected_emails),
+        )
         await self._send(f'* SEARCH {nums}' if nums else '* SEARCH')
         await self._send(f'{tag} OK SEARCH completed')
 
@@ -749,7 +1067,8 @@ class IMAPSession:
             with self._db() as db:
                 user = db.execute(
                     select(User).where(
-                        (User.email == login) | (User.username == local)
+                        (func.lower(User.email) == login)
+                        | (func.lower(User.username) == local)
                     )
                 ).scalar_one_or_none()
                 if user and user.is_active and verify_password(password, user.hashed_password):
@@ -771,7 +1090,11 @@ class IMAPSession:
             with self._db() as db:
                 rows = db.execute(
                     select(Email)
-                    .where(Email.user_id == self.user.id, Email.is_sent == is_sent)
+                    .where(
+                        Email.user_id == self.user.id,
+                        Email.is_sent == is_sent,
+                        Email.is_draft.is_not(True),
+                    )
                     .order_by(Email.id)
                 ).scalars().all()
                 result = []
@@ -783,9 +1106,11 @@ class IMAPSession:
                         'from': e.from_address,
                         'from_name': e.from_name,
                         'to': e.to_address,
+                        'to_name': e.to_name,
                         'subject': e.subject or '',
                         'body': body,
                         'html_body': html_body,
+                        'raw': getattr(e, 'raw_rfc822', None),
                         'date': e.received_at,
                         'flags': flags,
                     })
@@ -794,10 +1119,6 @@ class IMAPSession:
             logger.error('IMAP fetch error: %s', exc)
             return []
 
-
-# ---------------------------------------------------------------------------
-# Server
-# ---------------------------------------------------------------------------
 
 class IMAPServer:
     """Запускает IMAP4 на портах 143 (plain+STARTTLS) и 993 (SSL)."""
@@ -834,7 +1155,7 @@ class IMAPServer:
 
         self._tls_ctx = _make_tls_context()
         host = settings.IMAP_HOST
-        port_plain = settings.IMAP_PORT           # 143
+        port_plain = settings.IMAP_PORT
         port_ssl = getattr(settings, 'IMAP_SSL_PORT', 993)
 
         async def _handle_plain(reader, writer):
