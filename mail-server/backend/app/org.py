@@ -546,9 +546,9 @@ async def _apply_parsed_event(
                 status="invited",
             )
         )
-    loaded = await event.awaitable_attrs.attendees
-    loaded.clear()
-    loaded.extend(attendees)
+    await db.refresh(event, attribute_names=["attendees"])
+    event.attendees.clear()
+    event.attendees.extend(attendees)
     await db.refresh(event, attribute_names=["organizer", "attendees"])
     added_jitsi = False
     if not _has_jitsi(event.location):
