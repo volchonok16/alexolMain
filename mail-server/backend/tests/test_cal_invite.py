@@ -111,6 +111,38 @@ class ParseIcsTests(unittest.TestCase):
         self.assertEqual(parsed.description, "Повестка")
         self.assertNotEqual(parsed.description.lower(), "reminder")
 
+    def test_fold_long_cyrillic_does_not_break_utf8(self):
+        from app.cal_invite import _fold_line
+
+        line = "LOCATION:Переговорка · https://meet.alexol.io/a-alexol-376-949992/" + "я" * 40
+        folded = _fold_line(line)
+        folded.encode("utf-8")
+        self.assertIn("\r\n ", folded)
+        ics = build_vcalendar(
+            _event(
+                title="ФЫВФЫВ",
+                location="Переговорка у окна · https://meet.alexol.io/a-alexol-376-949992",
+                description="Повестка " * 25,
+            ),
+            "REQUEST",
+        )
+        ics.encode("utf-8")
+        parsed = parse_calendar(ics)
+        self.assertEqual(parsed.title, "ФЫВФЫВ")
+        self.assertIn("meet.alexol.io", parsed.location)
+        raw = build_meeting_rfc822(
+            organizer=SimpleNamespace(full_name="Alexol Info", email="info@alexol.io"),
+            event=_event(
+                title="ФЫВФЫВ",
+                location="Переговорка · https://meet.alexol.io/a-alexol-376-949992",
+            ),
+            to_addrs=["altaraskin@alexol.io"],
+            subject="Встреча: ФЫВФЫВ",
+            body="text",
+            html="<p>text</p>",
+        )
+        self.assertTrue(raw.startswith(b"From:") or b"text/calendar" in raw)
+
 
 class InviteMimeTests(unittest.TestCase):
     def test_mime_has_calendar_part(self):
@@ -191,6 +223,7 @@ class SmtpIngestHookTests(unittest.TestCase):
         self.assertIn("~CalendarEvent.attendees.any()", org_src)
         self.assertIn("existing.is_company = False", org_src)
         self.assertIn("_attach_jitsi_link", org_src)
+        self.assertIn("awaitable_attrs.attendees", org_src)
         self.assertIn("added_jitsi", org_src)
 
 

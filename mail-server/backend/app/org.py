@@ -500,8 +500,6 @@ async def _apply_parsed_event(
         existing.organizer_id = org_user.id
         existing.is_company = False
         event = existing
-        event.attendees.clear()
-        await db.flush()
     else:
         event = CalendarEvent(
             organizer_id=org_user.id,
@@ -548,7 +546,9 @@ async def _apply_parsed_event(
                 status="invited",
             )
         )
-    event.attendees = attendees
+    loaded = await event.awaitable_attrs.attendees
+    loaded.clear()
+    loaded.extend(attendees)
     await db.refresh(event, attribute_names=["organizer", "attendees"])
     added_jitsi = False
     if not _has_jitsi(event.location):

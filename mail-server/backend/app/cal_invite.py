@@ -65,17 +65,27 @@ def _ics_unescape(value: str) -> str:
 
 
 def _fold_line(line: str) -> str:
-    raw = line.encode("utf-8")
-    if len(raw) <= _FOLD:
+    """RFC 5545 fold at 75 octets without splitting a UTF-8 character."""
+    if len(line.encode("utf-8")) <= _FOLD:
         return line
-    chunks: list[bytes] = []
-    while raw:
-        piece = raw[:_FOLD]
-        while len(piece) > 1 and (piece[-1] & 0xC0) == 0x80:
-            piece = piece[:-1]
-        chunks.append(piece)
-        raw = raw[len(piece):]
-    return "\r\n ".join(c.decode("utf-8") for c in chunks)
+    chunks: list[str] = []
+    current = ""
+    current_bytes = 0
+    first = True
+    for ch in line:
+        n = len(ch.encode("utf-8"))
+        limit = _FOLD if first else _FOLD - 1
+        if current and current_bytes + n > limit:
+            chunks.append(current)
+            current = ch
+            current_bytes = n
+            first = False
+        else:
+            current += ch
+            current_bytes += n
+    if current:
+        chunks.append(current)
+    return "\r\n ".join(chunks)
 
 
 def _stamp(dt: datetime) -> str:
