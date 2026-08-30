@@ -306,6 +306,12 @@ class CustomSMTPHandler:
         return self._async_engine
 
 
+class MailSMTP(SMTP):
+    """Outlook AUTH LOGIN expects Username:/Password:, not aiosmtpd's 'User Name\\0'."""
+    AuthLoginUsernameChallenge = "Username:"
+    AuthLoginPasswordChallenge = "Password:"
+
+
 def _run_smtp_servers(handler, tls_ctx, loop):
     """В одном потоке поднимает три слушателя: 25, 587 (STARTTLS) и 465 (SSL)."""
     bind_host = settings.SMTP_HOST              # адрес привязки (0.0.0.0)
@@ -317,7 +323,7 @@ def _run_smtp_servers(handler, tls_ctx, loop):
     def factory_25():
         # Offer STARTTLS on 25 so Gmail can encrypt inbound (require_starttls=False
         # keeps plain clients working if any).
-        return SMTP(
+        return MailSMTP(
             handler,
             hostname=smtp_hostname,
             tls_context=tls_ctx,
@@ -326,7 +332,7 @@ def _run_smtp_servers(handler, tls_ctx, loop):
         )
 
     def factory_587():
-        return SMTP(
+        return MailSMTP(
             handler,
             hostname=smtp_hostname,
             authenticator=handler._authenticator,
@@ -339,7 +345,7 @@ def _run_smtp_servers(handler, tls_ctx, loop):
     def factory_465():
         # Implicit TLS on the socket (smtps). aiosmtpd still thinks AUTH needs STARTTLS
         # unless auth_require_tls is off — Outlook then gets 538 5.7.11.
-        return SMTP(
+        return MailSMTP(
             handler,
             hostname=smtp_hostname,
             authenticator=handler._authenticator,
