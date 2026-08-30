@@ -751,9 +751,18 @@ class IMAPSession:
         await self._send(f'{tag} OK {cmd} completed')
 
     async def _idle(self, tag, cmd, args):
-        if self.state != self.SELECTED:
-            await self._send(f'{tag} NO Not in selected state')
+        if self.state not in (self.AUTHENTICATED, self.SELECTED) or not self.user:
+            await self._send(f'{tag} NO Not authenticated')
             return
+        if self.state != self.SELECTED:
+            # Some clients IDLE right after LOGIN (see 128.0.128.246). RFC IDLE
+            # needs a mailbox; open INBOX so they are not stuck with NO.
+            self.selected_mailbox = 'INBOX'
+            self.selected_emails = self._fetch_inbox()
+            self.state = self.SELECTED
+            n = len(self.selected_emails)
+            await self._send(f'* {n} EXISTS')
+            await self._send('* 0 RECENT')
         logger.info(
             "IMAP IDLE start mailbox=%s user=%s",
             self.selected_mailbox,

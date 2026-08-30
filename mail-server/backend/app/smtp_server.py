@@ -113,7 +113,7 @@ class CustomSMTPHandler:
             return AuthResult(success=False)
         login = _smtp_text(auth_data.login).strip().lower()
         password = _smtp_text(auth_data.password)
-        logger.debug("SMTP auth attempt: login=%r mechanism=%s", login, mechanism)
+        logger.info("SMTP AUTH %s login=%s peer=%s", mechanism, login or "-", getattr(session, "peer", None))
         if not login or not password:
             logger.warning("SMTP auth: empty login or password for %r", login)
             return AuthResult(success=False)
@@ -150,6 +150,15 @@ class CustomSMTPHandler:
             return "550 5.7.1 Relay denied"
         envelope.rcpt_tos.append(addr)
         return "250 OK"
+
+    async def handle_EHLO(self, server, session, envelope, hostname, responses):
+        logger.info(
+            "SMTP EHLO peer=%s host=%s tls=%s",
+            getattr(session, "peer", None),
+            hostname,
+            bool(getattr(session, "ssl", None)),
+        )
+        return responses
 
     async def _deliver_external_later(self, content: bytes, from_addr: str, external_addrs: list[str]) -> None:
         try:
@@ -287,6 +296,7 @@ def _run_smtp_servers(handler, tls_ctx, loop):
             hostname=smtp_hostname,
             tls_context=tls_ctx,
             require_starttls=False,
+            ident="ESMTP",
         )
 
     def factory_587():
@@ -297,6 +307,7 @@ def _run_smtp_servers(handler, tls_ctx, loop):
             require_starttls=(tls_ctx is not None),
             tls_context=tls_ctx,
             auth_required=True,
+            ident="ESMTP",
         )
 
     def factory_465():
@@ -310,6 +321,7 @@ def _run_smtp_servers(handler, tls_ctx, loop):
             tls_context=None,
             auth_require_tls=False,
             auth_required=True,
+            ident="ESMTP",
         )
 
     async def run():
