@@ -6,7 +6,7 @@ import logging
 import ssl
 import threading
 
-from pyasn1.codec.ber import decoder, encoder
+from pyasn1.codec.ber import encoder
 from sqlalchemy import create_engine, func, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -14,6 +14,7 @@ from app.auth import verify_password
 from app.config import settings
 from app.database import sync_connect_args
 from app.imap_server import _get_sync_db_url, _make_tls_context
+from app.ldap_ber import decode_ldap_request
 from app.ldap_directory import (
     dn_in_scope,
     eval_ldap_filter,
@@ -24,8 +25,7 @@ from app.ldap_directory import (
     user_ldap_attrs,
 )
 from app.models import User
-from ldap3.operation.bind import bind_request_to_dict, bind_response_operation
-from ldap3.operation.search import search_request_to_dict
+from ldap3.operation.bind import bind_response_operation
 from ldap3.protocol.rfc4511 import (
     AttributeDescription,
     AttributeValue,
@@ -79,6 +79,8 @@ def _bind_done(message_id: int, result_code: int = 0, diagnostic: str = "") -> b
 
 def _entry_bytes(message_id: int, dn: str, attrs: dict[str, list[str]], requested: list[str], types_only: bool) -> bytes:
     want = {a.lower() for a in requested if a not in ("*", "1.1", "")}
+    if want:
+        want |= {"cn", "mail", "name", "displayname", "sn", "givenname", "objectclass"}
     no_vals = "1.1" in requested
     entry = SearchResultEntry()
     entry["object"] = LDAPDN(dn)
@@ -110,6 +112,7 @@ def _root_dse_attrs() -> dict[str, list[str]]:
         "namingContexts": [base],
         "defaultNamingContext": [base],
         "supportedLDAPVersion": ["3"],
+        "supportedControl": ["1.2.840.113556.1.4.319"],
         "vendorName": ["alexol-mail"],
         "vendorVersion": ["1"],
     }
@@ -192,15 +195,11 @@ class LDAPSession:
                 return user
         return None
 
-    async def _handle_bind(self, message_id: int, request) -> None:
-        info = bind_request_to_dict(request)
-        name = info.get("name") or ""
-        auth = info.get("authentication") or {}
-        if auth.get("sasl"):
+    async def _handle_bind(self, message_id: int, name: str, password: str, sasl: bool) -> None:
+        if sasl:
             await self._send(_bind_done(message_id, 7, "SASL not supported"))
             return
-        simple = auth.get("simple")
-        password = "" if simple is None else str(simple).replace("\x00", "").strip()
+        password = (password or "").replace("\x00", "").strip()
         identity = parse_bind_identity(name)
         if identity is None and not password:
             self.bound_user = None
@@ -226,8 +225,7 @@ class LDAPSession:
             return True
         return base_l == ours or base_l.endswith("," + ours) or base_l == _people_ou().lower()
 
-    async def _handle_search(self, message_id: int, request) -> None:
-        info = search_request_to_dict(request)
+    async def _handle_search(self, message_id: int, info: dict) -> None:
         base = (info.get("base") or "").strip()
         scope = int(info.get("scope") or 0)
         ldap_filter = info.get("filter") or "(objectClass=*)"
@@ -238,14 +236,17 @@ class LDAPSession:
         if not base and scope == _SCOPE_BASE:
             await self._send(_entry_bytes(message_id, "", _root_dse_attrs(), requested, types_only))
             await self._send(_search_done(message_id))
+            logger.info("LDAP search rootDSE peer=%s", self._peer())
             return
 
         if self.bound_user is None:
             await self._send(_search_done(message_id, 50, "bind required"))
+            logger.info("LDAP search denied bind required base=%r peer=%s", base, self._peer())
             return
 
         if not self._under_tree(base):
             await self._send(_search_done(message_id, 32, "no such object"))
+            logger.info("LDAP search no such object base=%r peer=%s", base, self._peer())
             return
 
         people = self._load_people()
@@ -256,7 +257,8 @@ class LDAPSession:
             try:
                 return eval_ldap_filter(ldap_filter, attrs)
             except ValueError:
-                return False
+                logger.warning("LDAP filter parse failed %s", ldap_filter[:200])
+                return True
 
         if scope == _SCOPE_BASE and search_base.lower() == _base_dn().lower():
             dc_attrs = {
@@ -275,6 +277,10 @@ class LDAPSession:
             for dn, attrs in people:
                 if dn_in_scope(dn, search_base, scope) and _matches(attrs):
                     hits.append((dn, attrs))
+            if not hits:
+                for dn, attrs in people:
+                    if _matches(attrs):
+                        hits.append((dn, attrs))
 
         sent = 0
         for dn, attrs in hits:
@@ -287,7 +293,7 @@ class LDAPSession:
             "LDAP search user=%s base=%r filter=%s hits=%s peer=%s",
             self.bound_user.email if self.bound_user else "-",
             base,
-            ldap_filter[:120],
+            ldap_filter[:160],
             sent,
             self._peer(),
         )
@@ -299,19 +305,18 @@ class LDAPSession:
                 if not pdu:
                     return
                 try:
-                    msg, _ = decoder.decode(pdu, asn1Spec=LDAPMessage())
+                    req = decode_ldap_request(pdu)
                 except Exception:
-                    logger.warning("LDAP decode failed peer=%s", self._peer())
+                    logger.warning("LDAP decode failed peer=%s pdu=%s", self._peer(), pdu[:48].hex())
                     return
-                message_id = int(msg["messageID"])
-                op = msg["protocolOp"]
-                name = op.getName()
+                message_id = int(req["id"])
+                name = req["op"]
                 if name == "bindRequest":
-                    await self._handle_bind(message_id, op["bindRequest"])
+                    await self._handle_bind(message_id, req.get("name") or "", req.get("password") or "", bool(req.get("sasl")))
                 elif name == "unbindRequest":
                     return
                 elif name == "searchRequest":
-                    await self._handle_search(message_id, op["searchRequest"])
+                    await self._handle_search(message_id, req)
                 elif name == "abandonRequest":
                     continue
                 else:

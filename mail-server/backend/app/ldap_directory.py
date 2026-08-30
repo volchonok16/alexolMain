@@ -64,14 +64,20 @@ def user_ldap_attrs(user: Any, mail_domain: str) -> dict[str, list[str]]:
     given = parts[0] if parts else (full or username)
     sn = parts[-1] if len(parts) > 1 else (full or username)
     display = full or email or username
+    dn = ldap_user_dn(username, mail_domain, display)
     attrs: dict[str, list[str]] = {
-        "objectClass": ["top", "person", "organizationalPerson", "inetOrgPerson"],
+        "objectClass": ["top", "person", "organizationalPerson", "inetOrgPerson", "user"],
+        "objectCategory": ["person"],
         "cn": [display],
         "sn": [sn],
         "givenName": [given],
         "displayName": [display],
+        "name": [display],
         "mail": [email] if email else [],
         "uid": [username],
+        "mailNickname": [username],
+        "sAMAccountName": [username],
+        "distinguishedName": [dn],
     }
     phone = (getattr(user, "phone", None) or "").strip()
     if phone:
@@ -79,10 +85,13 @@ def user_ldap_attrs(user: Any, mail_domain: str) -> dict[str, list[str]]:
     title = (getattr(user, "job_title", None) or "").strip()
     if title:
         attrs["title"] = [title]
-    attrs["entryDN"] = [ldap_user_dn(username, mail_domain, display)]
+    attrs["entryDN"] = [dn]
     if email:
         attrs["rfc822Mailbox"] = [email]
+        attrs["userPrincipalName"] = [email]
+        attrs["proxyAddresses"] = [f"SMTP:{email}", email]
     attrs["o"] = [mail_domain]
+    attrs["company"] = [mail_domain]
     return {k: v for k, v in attrs.items() if v}
 
 
@@ -195,16 +204,34 @@ def _match_ava(attr: str, op: str, value: str, attrs: dict[str, list[str]]) -> b
         for name in ANR_ATTRS:
             hay.extend(_values(attrs, name))
         return _word_initial(hay, needle) or _contains(hay, needle)
+    if attr_l == "objectcategory":
+        needle = value.lower().replace("*", "")
+        return (not needle) or "person" in needle or "user" in needle or "contact" in needle
+    if attr_l == "objectclass" and value.lower().replace("*", "") in (
+        "user",
+        "person",
+        "organizationalperson",
+        "inetorgperson",
+        "contact",
+        "top",
+    ):
+        return True
     vals = _values(attrs, attr_l)
     if op == "=*":
-        return bool(vals) or attr_l == "objectclass"
+        return bool(vals) or attr_l in ("objectclass", "objectcategory")
     if op == "~=":
         return _word_initial(vals, value) or _contains(vals, value)
     if op in (">=", "<="):
         return _contains(vals, value) or _exact(vals, value)
     if "*" in value:
-        return _match_substring(vals, value) or _contains(vals, value.replace("*", ""))
-    if attr_l in ("cn", "displayname", "sn", "givenname", "mail", "uid", "rfc822mailbox"):
+        ok = _match_substring(vals, value) or _contains(vals, value.replace("*", ""))
+        if not ok and attr_l in ("cn", "displayname", "name", "sn", "givenname"):
+            extra: list[str] = []
+            for name in ("mail", "uid", "rfc822mailbox", "samaccountname"):
+                extra.extend(_values(attrs, name))
+            ok = _match_substring(extra, value) or _contains(extra, value.replace("*", ""))
+        return ok
+    if attr_l in ("cn", "displayname", "name", "sn", "givenname", "mail", "uid", "rfc822mailbox"):
         return _exact(vals, value) or _word_initial(vals, value) or _contains(vals, value)
     return _exact(vals, value)
 

@@ -49,6 +49,12 @@ class FilterMatchTests(unittest.TestCase):
         self.assertTrue(eval_ldap_filter("(mail=ikapustkin*)", self.attrs))
         self.assertTrue(eval_ldap_filter("(cn=ikapustkin*)", self.attrs))
         self.assertFalse(eval_ldap_filter("(sn=Taraskin*)", self.attrs))
+        self.assertTrue(eval_ldap_filter("(objectClass=user)", self.attrs))
+        self.assertTrue(eval_ldap_filter("(objectCategory=person)", self.attrs))
+        self.assertTrue(eval_ldap_filter("(&(objectClass=*)(cn=Kapustkin*))", self.attrs))
+        self.assertEqual(self.attrs["name"], ["Ivan Kapustkin"])
+        ika = user_ldap_attrs(_person(username="ikapustkin", email="ikapustkin@alexol.io"), "alexol.io")
+        self.assertTrue(eval_ldap_filter("(cn=ika*)", ika))
 
     def test_outlook_or_filter(self):
         filt = "(|(cn=Kapustkin*)(mail=Kapustkin*)(sn=Kapustkin*)(givenName=Kapustkin*))"
@@ -110,3 +116,49 @@ class LdapBerTests(unittest.TestCase):
         entry, _ = decoder.decode(raw, asn1Spec=LDAPMessage())
         self.assertEqual(entry["protocolOp"].getName(), "searchResEntry")
         self.assertIn("kapustkin", str(entry["protocolOp"]["searchResEntry"]["object"]))
+
+    def test_outlook_present_filter_is_primitive(self):
+        from app.ldap_ber import decode_ldap_request
+        from app.ldap_directory import eval_ldap_filter, user_ldap_attrs
+
+        def tlv(tag: int, val: bytes) -> bytes:
+            n = len(val)
+            if n < 128:
+                return bytes([tag, n]) + val
+            lb = n.to_bytes((n.bit_length() + 7) // 8, "big")
+            return bytes([tag, 0x80 | len(lb)]) + lb + val
+
+        present = tlv(0x87, b"objectClass")
+        cn_sub = tlv(0xA4, tlv(0x04, b"cn") + tlv(0x30, tlv(0x80, b"Kapustkin")))
+        filt = tlv(0xA0, present + tlv(0xA1, cn_sub + tlv(0xA4, tlv(0x04, b"sn") + tlv(0x30, tlv(0x80, b"Kapustkin")))))
+        body = (
+            tlv(0x04, b"dc=alexol,dc=io")
+            + bytes([0x0A, 0x01, 0x02])
+            + bytes([0x0A, 0x01, 0x00])
+            + bytes([0x02, 0x01, 0x00])
+            + bytes([0x02, 0x01, 0x00])
+            + bytes([0x01, 0x01, 0x00])
+            + filt
+            + tlv(0x30, tlv(0x04, b"cn") + tlv(0x04, b"mail") + tlv(0x04, b"name"))
+        )
+        pdu = tlv(0x30, tlv(0x02, b"\x02") + tlv(0x63, body))
+        req = decode_ldap_request(pdu)
+        self.assertEqual(req["op"], "searchRequest")
+        self.assertEqual(req["base"], "dc=alexol,dc=io")
+        self.assertIn("objectClass=*", req["filter"])
+        self.assertIn("Kapustkin", req["filter"])
+        attrs = user_ldap_attrs(_person(), "alexol.io")
+        self.assertTrue(eval_ldap_filter(req["filter"], attrs))
+
+    def test_bind_simple(self):
+        from app.ldap_ber import decode_ldap_request
+
+        def tlv(tag: int, val: bytes) -> bytes:
+            return bytes([tag, len(val)]) + val
+
+        body = tlv(0x02, b"\x03") + tlv(0x04, b"altaraskin@alexol.io") + tlv(0x80, b"secret")
+        pdu = tlv(0x30, tlv(0x02, b"\x01") + tlv(0x60, body))
+        req = decode_ldap_request(pdu)
+        self.assertEqual(req["op"], "bindRequest")
+        self.assertEqual(req["name"], "altaraskin@alexol.io")
+        self.assertEqual(req["password"], "secret")
