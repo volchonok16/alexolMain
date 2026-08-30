@@ -34,8 +34,8 @@ class DnTests(unittest.TestCase):
     def test_domain_split(self):
         self.assertEqual(ldap_base_dn("alexol.io"), "dc=alexol,dc=io")
         self.assertEqual(
-            ldap_user_dn("kapustkin", "alexol.io"),
-            "uid=kapustkin,ou=people,dc=alexol,dc=io",
+            ldap_user_dn("kapustkin", "alexol.io", "Ivan Kapustkin"),
+            "cn=Ivan Kapustkin,dc=alexol,dc=io",
         )
 
 
@@ -46,7 +46,8 @@ class FilterMatchTests(unittest.TestCase):
     def test_sn_and_word_in_cn(self):
         self.assertTrue(eval_ldap_filter("(sn=Kapustkin*)", self.attrs))
         self.assertTrue(eval_ldap_filter("(cn=Kapustkin*)", self.attrs))
-        self.assertTrue(eval_ldap_filter("(mail=kapustkin@alexol.io)", self.attrs))
+        self.assertTrue(eval_ldap_filter("(mail=ikapustkin*)", self.attrs))
+        self.assertTrue(eval_ldap_filter("(cn=ikapustkin*)", self.attrs))
         self.assertFalse(eval_ldap_filter("(sn=Taraskin*)", self.attrs))
 
     def test_outlook_or_filter(self):
@@ -79,6 +80,15 @@ class FilterMatchTests(unittest.TestCase):
         self.assertEqual(len(hits), 1)
         self.assertEqual(hits[0]["mail"], ["kapustkin@alexol.io"])
         self.assertEqual(hits[0]["displayName"], ["Ivan Kapustkin"])
+
+    def test_one_level_under_dc(self):
+        from app.ldap_directory import dn_in_scope
+
+        dn = "cn=Ivan Kapustkin,dc=alexol,dc=io"
+        self.assertTrue(dn_in_scope(dn, "dc=alexol,dc=io", 1))
+        self.assertTrue(dn_in_scope(dn, "dc=alexol,dc=io", 2))
+        self.assertFalse(dn_in_scope(dn, "dc=alexol,dc=io", 0))
+        self.assertFalse(dn_in_scope("uid=x,ou=people,dc=alexol,dc=io", "dc=alexol,dc=io", 1))
 
 
 class LdapBerTests(unittest.TestCase):

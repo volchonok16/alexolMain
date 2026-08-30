@@ -15,6 +15,7 @@ from app.config import settings
 from app.database import sync_connect_args
 from app.imap_server import _get_sync_db_url, _make_tls_context
 from app.ldap_directory import (
+    dn_in_scope,
     eval_ldap_filter,
     ldap_base_dn,
     ldap_people_ou,
@@ -44,6 +45,8 @@ from ldap3.protocol.rfc4511 import (
 logger = logging.getLogger(__name__)
 
 _SCOPE_BASE = 0
+_SCOPE_ONE = 1
+_SCOPE_SUB = 2
 _MAX_PDU = 8_000_000
 
 
@@ -158,10 +161,15 @@ class LDAPSession:
     def _load_people(self) -> list[tuple[str, dict[str, list[str]]]]:
         with self._sf() as db:
             rows = db.execute(select(User).where(User.is_active.is_(True)).order_by(User.full_name.asc())).scalars().all()
-            out = []
+            out: list[tuple[str, dict[str, list[str]]]] = []
+            used: set[str] = set()
             for user in rows:
                 attrs = user_ldap_attrs(user, settings.MAIL_DOMAIN)
-                dn = ldap_user_dn(user.username, settings.MAIL_DOMAIN)
+                dn = ldap_user_dn(user.username, settings.MAIL_DOMAIN, user.full_name or "")
+                if dn.lower() in used:
+                    dn = ldap_user_dn(user.username, settings.MAIL_DOMAIN, f"{user.full_name or user.username} ({user.username})")
+                    attrs["entryDN"] = [dn]
+                used.add(dn.lower())
                 out.append((dn, attrs))
             return out
 
@@ -192,7 +200,7 @@ class LDAPSession:
             await self._send(_bind_done(message_id, 7, "SASL not supported"))
             return
         simple = auth.get("simple")
-        password = "" if simple is None else str(simple)
+        password = "" if simple is None else str(simple).replace("\x00", "").strip()
         identity = parse_bind_identity(name)
         if identity is None and not password:
             self.bound_user = None
@@ -242,24 +250,30 @@ class LDAPSession:
 
         people = self._load_people()
         hits: list[tuple[str, dict[str, list[str]]]] = []
-        if scope == _SCOPE_BASE and base.lower() == _base_dn().lower():
+        search_base = base or _base_dn()
+
+        def _matches(attrs: dict[str, list[str]]) -> bool:
+            try:
+                return eval_ldap_filter(ldap_filter, attrs)
+            except ValueError:
+                return False
+
+        if scope == _SCOPE_BASE and search_base.lower() == _base_dn().lower():
             dc_attrs = {
                 "objectClass": ["top", "domain", "organization"],
                 "dc": [_base_dn().split(",", 1)[0].removeprefix("dc=")],
                 "o": [settings.MAIL_DOMAIN],
             }
-            if eval_ldap_filter(ldap_filter, dc_attrs):
+            if _matches(dc_attrs):
                 hits.append((_base_dn(), dc_attrs))
-        elif scope == _SCOPE_BASE and base.lower() == _people_ou().lower():
-            ou_attrs = {"objectClass": ["top", "organizationalUnit"], "ou": ["people"]}
-            if eval_ldap_filter(ldap_filter, ou_attrs):
-                hits.append((_people_ou(), ou_attrs))
+        elif scope == _SCOPE_BASE:
+            for dn, attrs in people:
+                if dn.lower() == search_base.lower() and _matches(attrs):
+                    hits.append((dn, attrs))
+                    break
         else:
             for dn, attrs in people:
-                if scope == _SCOPE_BASE:
-                    if dn.lower() != base.lower():
-                        continue
-                if eval_ldap_filter(ldap_filter, attrs):
+                if dn_in_scope(dn, search_base, scope) and _matches(attrs):
                     hits.append((dn, attrs))
 
         sent = 0

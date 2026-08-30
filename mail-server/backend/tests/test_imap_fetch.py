@@ -61,9 +61,9 @@ class MailboxNameTests(unittest.TestCase):
         src = (Path(__file__).resolve().parents[1] / "app" / "imap_server.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn(r'* LIST (\Noinferiors) "/" INBOX', src)
-        self.assertIn(r'* LIST (\HasNoChildren \Sent) "/" Sent', src)
-        self.assertNotIn(r"\Inbox) NIL INBOX", src)
+        self.assertIn(r'* LIST (\Noinferiors) NIL INBOX', src)
+        self.assertIn(r'* LIST (\HasNoChildren) NIL Sent', src)
+        self.assertNotIn("SPECIAL-USE", src.split("caps = ", 1)[-1][:80])
         self.assertIn("async def _subscribe", src)
 
     def test_contacts_mailbox(self):

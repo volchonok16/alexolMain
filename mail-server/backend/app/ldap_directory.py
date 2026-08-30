@@ -23,9 +23,21 @@ def ldap_people_ou(mail_domain: str) -> str:
     return f"ou=people,{ldap_base_dn(mail_domain)}"
 
 
-def ldap_user_dn(username: str, mail_domain: str) -> str:
+def _escape_dn_value(value: str) -> str:
+    s = (value or "").replace("\\", "\\\\").replace(",", "\\,").replace("+", "\\+")
+    s = s.replace('"', '\\"').replace(";", "\\;").replace("<", "\\<").replace(">", "\\>")
+    if s.startswith("#") or s.startswith(" "):
+        s = "\\" + s
+    if s.endswith(" "):
+        s = s[:-1] + "\\ "
+    return s
+
+
+def ldap_user_dn(username: str, mail_domain: str, display_name: str = "") -> str:
+    """Direct child of dc=alexol,dc=io so Outlook one-level browse lists people."""
     uid = (username or "user").strip() or "user"
-    return f"uid={uid},{ldap_people_ou(mail_domain)}"
+    label = (display_name or "").strip() or uid
+    return f"cn={_escape_dn_value(label)},{ldap_base_dn(mail_domain)}"
 
 
 def parse_bind_identity(name: str) -> str | None:
@@ -67,7 +79,10 @@ def user_ldap_attrs(user: Any, mail_domain: str) -> dict[str, list[str]]:
     title = (getattr(user, "job_title", None) or "").strip()
     if title:
         attrs["title"] = [title]
-    attrs["entryDN"] = [ldap_user_dn(username, mail_domain)]
+    attrs["entryDN"] = [ldap_user_dn(username, mail_domain, display)]
+    if email:
+        attrs["rfc822Mailbox"] = [email]
+    attrs["o"] = [mail_domain]
     return {k: v for k, v in attrs.items() if v}
 
 
@@ -113,10 +128,20 @@ def _word_initial(values: Iterable[str], prefix: str) -> bool:
 
 
 def _contains(values: Iterable[str], needle: str) -> bool:
-    n = needle.lower()
+    n = needle.lower().replace(" ", "")
     if not n:
         return True
-    return any(n in raw.lower() for raw in values)
+    for raw in values:
+        lower = raw.lower()
+        compact = lower.replace(" ", "")
+        local = compact.split("@", 1)[0]
+        if n in compact or compact in n or n in local or local in n:
+            return True
+        for word in lower.replace("@", " ").replace(".", " ").replace(",", " ").split():
+            w = word.strip()
+            if len(w) >= 2 and (n in w or w in n):
+                return True
+    return False
 
 
 def _exact(values: Iterable[str], needle: str) -> bool:
@@ -178,9 +203,9 @@ def _match_ava(attr: str, op: str, value: str, attrs: dict[str, list[str]]) -> b
     if op in (">=", "<="):
         return _contains(vals, value) or _exact(vals, value)
     if "*" in value:
-        return _match_substring(vals, value)
-    if attr_l in ("cn", "displayname", "sn", "givenname", "mail", "uid"):
-        return _exact(vals, value) or _word_initial(vals, value)
+        return _match_substring(vals, value) or _contains(vals, value.replace("*", ""))
+    if attr_l in ("cn", "displayname", "sn", "givenname", "mail", "uid", "rfc822mailbox"):
+        return _exact(vals, value) or _word_initial(vals, value) or _contains(vals, value)
     return _exact(vals, value)
 
 
@@ -236,6 +261,24 @@ def eval_ldap_filter(filt: str, attrs: dict[str, list[str]]) -> bool:
         text = f"({text})"
     result, _pos = _parse_filter(text, 0, _norm_map(attrs))
     return result
+
+
+def dn_in_scope(dn: str, base: str, scope: int) -> bool:
+    """RFC 4511 scopes: 0=base, 1=one, 2=sub."""
+    dn_l = (dn or "").strip().lower()
+    base_l = (base or "").strip().lower()
+    if not base_l:
+        return scope != 0 or not dn_l
+    if scope == 0:
+        return dn_l == base_l
+    if not dn_l.endswith("," + base_l) and dn_l != base_l:
+        return False
+    if scope == 2:
+        return True
+    if dn_l == base_l:
+        return False
+    rest = dn_l[: -(len(base_l) + 1)]
+    return "," not in rest
 
 
 def search_people(

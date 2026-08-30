@@ -53,8 +53,8 @@ from app.database import sync_connect_args
 logger = logging.getLogger(__name__)
 
 # Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
-# 23: drop leftover INBOX/INBOX clones (NIL delimiter + SUBSCRIBE-ok kept them).
-UIDVALIDITY = 23
+# 24: no SPECIAL-USE / slash hierarchy — leftover INBOX/INBOX clones stay ghosts.
+UIDVALIDITY = 24
 _OUTLOOK_LIST_FETCH = (
     "FLAGS UID INTERNALDATE RFC822.SIZE ENVELOPE "
     "BODY.PEEK[HEADER.FIELDS (DATE FROM SUBJECT TO CC BCC MESSAGE-ID CONTENT-TYPE)]"
@@ -744,7 +744,7 @@ class IMAPSession:
     async def _capability(self, tag, cmd, args):
         # Exact set from the last Outlook FETCH+IDLE sessions. ID in CAPABILITY
         # made the proxy send ID and treat the session as a folder probe.
-        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE SPECIAL-USE'
+        caps = 'IMAP4rev1 AUTH=PLAIN AUTH=LOGIN IDLE'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
@@ -1068,10 +1068,9 @@ class IMAPSession:
         if _list_pattern_is_children(reference, mailbox):
             await self._send(f'{tag} OK LIST completed')
             return
-        # "/" + \Noinferiors: Outlook understands this delimiter, cannot nest INBOX.
-        # No \Inbox flag — RFC INBOX already maps to «Входящие»; \Inbox duplicated it.
-        await self._send(r'* LIST (\Noinferiors) "/" INBOX')
-        await self._send(r'* LIST (\HasNoChildren \Sent) "/" Sent')
+        # NIL delimiter + \Noinferiors: Outlook cannot nest INBOX/INBOX.
+        await self._send(r'* LIST (\Noinferiors) NIL INBOX')
+        await self._send(r'* LIST (\HasNoChildren) NIL Sent')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
@@ -1081,8 +1080,8 @@ class IMAPSession:
         if _list_pattern_is_children(reference, mailbox):
             await self._send(f'{tag} OK LSUB completed')
             return
-        await self._send(r'* LSUB (\Noinferiors) "/" INBOX')
-        await self._send(r'* LSUB (\HasNoChildren \Sent) "/" Sent')
+        await self._send(r'* LSUB (\Noinferiors) NIL INBOX')
+        await self._send(r'* LSUB (\HasNoChildren) NIL Sent')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _create(self, tag, cmd, args):
@@ -1280,7 +1279,7 @@ class IMAPSession:
         await self._send(f'{tag} OK {cmd} completed')
 
     async def _namespace(self, tag, cmd, args):
-        await self._send('* NAMESPACE (("" "/")) NIL NIL')
+        await self._send('* NAMESPACE (("" NIL)) NIL NIL')
         await self._send(f'{tag} OK NAMESPACE completed')
 
     async def _id(self, tag, cmd, args):
