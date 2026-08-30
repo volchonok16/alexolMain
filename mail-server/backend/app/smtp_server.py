@@ -21,6 +21,7 @@ from app.mail_body import extract_text_and_html, sanitize_pg_text
 from app.mail_sync import allocate_imap_uid, is_outlook_probe, raw_has_message_id
 from app.from_display import inject_from_display_name
 from app.outbound import deliver_raw_outbound
+from app.org import ingest_calendar_message
 from app.recipients import partition_local_external
 from app.logging_setup import configure_quiet_logging
 import logging
@@ -246,11 +247,13 @@ class CustomSMTPHandler:
                 if external_addrs and not authenticated:
                     return "550 5.7.1 Relay denied"
 
+                local_users: list[User] = []
                 for to_address in rcpt_norm:
                     to_norm = to_address.lower()
                     result = await db.execute(select(User).where(func.lower(User.email) == to_norm))
                     user = result.scalar_one_or_none()
                     if user:
+                        local_users.append(user)
                         imap_uid = await allocate_imap_uid(db, user.id, False)
                         email_obj = Email(
                             user_id=user.id,
@@ -313,6 +316,10 @@ class CustomSMTPHandler:
                             header_to,
                             sent_uid,
                         )
+
+                await ingest_calendar_message(
+                    db, msg, sender=sender, local_users=local_users
+                )
 
             if external_addrs:
                 from_addr = (sender.email if sender else from_address) or envelope.mail_from

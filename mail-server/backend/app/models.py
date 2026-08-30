@@ -92,6 +92,8 @@ class CalendarEvent(Base):
     is_company = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    ical_uid = Column(String, unique=True, nullable=True, index=True)
+    ical_sequence = Column(Integer, default=0, nullable=False)
 
     organizer = relationship("User", back_populates="organized_events")
     attendees = relationship(

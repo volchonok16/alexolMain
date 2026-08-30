@@ -131,6 +131,27 @@ async def startup_event():
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_feed_token VARCHAR")
         )
         await conn.execute(
+            text("ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS ical_uid VARCHAR")
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS ical_sequence "
+                "INTEGER NOT NULL DEFAULT 0"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_calendar_events_ical_uid "
+                "ON calendar_events (ical_uid) WHERE ical_uid IS NOT NULL"
+            )
+        )
+        await conn.execute(
+            text(
+                "UPDATE calendar_events SET ical_uid = 'event-' || id::text || '@alexol.io' "
+                "WHERE ical_uid IS NULL"
+            )
+        )
+        await conn.execute(
             text("ALTER TABLE emails ADD COLUMN IF NOT EXISTS raw_rfc822 BYTEA")
         )
         await conn.execute(

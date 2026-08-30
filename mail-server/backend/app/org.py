@@ -1,8 +1,10 @@
 """Company directory, calendar meetings, vCard and ICS feeds."""
 from __future__ import annotations
 
+import asyncio
+import logging
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from urllib.parse import quote, unquote
 from xml.sax.saxutils import escape as xml_escape
@@ -16,11 +18,21 @@ from sqlalchemy.orm import selectinload
 from app.auth import get_current_user, get_current_user_token_or_query
 from app.admin_sync import ensure_user_avatar
 from app.avatar_resolve import load_avatar_bytes, local_avatar_api_path, to_browser_avatar_url
+from app.cal_invite import (
+    build_meeting_rfc822,
+    build_vevent,
+    event_uid,
+    extract_calendar_parts,
+    mail_domain,
+    parse_calendar,
+)
 from app.config import settings
 from app.database import get_db
 from app.mail_photos import user_to_vcard, vcard_filename
 from app.mail_sync import allocate_imap_uid
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
+from app.outbound import deliver_raw_outbound
+from app.recipients import partition_local_external
 from app.schemas import (
     BusyMapResponse,
     BusySlotOut,
@@ -33,6 +45,7 @@ from app.schemas import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _naive(dt: datetime) -> datetime:
@@ -56,58 +69,12 @@ def _person(user: User, busy: Optional[CalendarBusySlot] = None) -> DirectoryPer
     )
 
 
-def _dt_utc(dt: datetime) -> datetime:
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
-
-
-def _ics_text(value: str) -> str:
-    return (
-        (value or "")
-        .replace("\\", "\\\\")
-        .replace(";", "\\;")
-        .replace(",", "\\,")
-        .replace("\r\n", "\\n")
-        .replace("\n", "\\n")
-    )
-
-
-def _ics_stamp(dt: datetime) -> str:
-    return _dt_utc(dt).strftime("%Y%m%dT%H%M%SZ")
-
-
 def _user_to_vcard(user: User) -> str:
     return user_to_vcard(user)
 
 
-def _event_to_ics(event: CalendarEvent, domain: str) -> str:
-    uid = f"event-{event.id}@{domain}"
-    stamp = _ics_stamp(event.updated_at or event.created_at or datetime.utcnow())
-    lines = [
-        "BEGIN:VEVENT",
-        f"UID:{uid}",
-        f"DTSTAMP:{stamp}",
-        f"DTSTART:{_ics_stamp(event.start_at)}",
-        f"DTEND:{_ics_stamp(event.end_at)}",
-        f"SUMMARY:{_ics_text(event.title)}",
-    ]
-    if event.description:
-        lines.append(f"DESCRIPTION:{_ics_text(event.description)}")
-    if event.location:
-        lines.append(f"LOCATION:{_ics_text(event.location)}")
-    org = event.organizer
-    if org:
-        lines.append(f"ORGANIZER;CN={_ics_text(org.full_name)}:mailto:{org.email}")
-    for att in event.attendees or []:
-        cn = _ics_text(att.display_name or att.email)
-        lines.append(f"ATTENDEE;CN={cn};ROLE=REQ-PARTICIPANT:mailto:{att.email}")
-    lines.append("END:VEVENT")
-    return "\r\n".join(lines)
-
-
 def _calendar_ics(events: list[CalendarEvent]) -> str:
-    domain = (settings.MAIL_DOMAIN or "alexol.io").replace("@", "")
+    domain = mail_domain()
     chunks = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -118,7 +85,7 @@ def _calendar_ics(events: list[CalendarEvent]) -> str:
         "X-WR-TIMEZONE:UTC",
     ]
     for event in events:
-        chunks.append(_event_to_ics(event, domain))
+        chunks.append(build_vevent(event, method="PUBLISH"))
     chunks.append("END:VCALENDAR")
     return "\r\n".join(chunks) + "\r\n"
 
@@ -295,20 +262,31 @@ async def _resolve_attendees(
                 user_id=peer.id if peer else None,
                 email=peer.email if peer else email,
                 display_name=(item.display_name or (peer.full_name if peer else None)),
-                status="accepted",
+                status="invited",
             )
         )
     return out
 
 
 async def _notify_meeting(
-    db: AsyncSession, event: CalendarEvent, organizer: User
+    db: AsyncSession,
+    event: CalendarEvent,
+    organizer: User,
+    *,
+    method: str = "REQUEST",
 ) -> None:
     start = event.start_at.strftime("%d.%m.%Y %H:%M") if event.start_at else ""
     end = event.end_at.strftime("%H:%M") if event.end_at else ""
     where = event.location or "—"
+    method = (method or "REQUEST").upper()
+    if method == "CANCEL":
+        subject = f"Отмена встречи: {event.title}"
+        lead = f"{organizer.full_name} отменяет встречу."
+    else:
+        subject = f"Встреча: {event.title}"
+        lead = f"{organizer.full_name} приглашает на встречу."
     body = (
-        f"{organizer.full_name} приглашает на встречу.\n\n"
+        f"{lead}\n\n"
         f"{event.title}\n"
         f"Когда: {start}–{end} UTC\n"
         f"Где: {where}\n"
@@ -316,13 +294,23 @@ async def _notify_meeting(
     if event.description:
         body += f"\n{event.description}\n"
     html = (
-        f"<p>{xml_escape(organizer.full_name)} приглашает на встречу.</p>"
+        f"<p>{xml_escape(lead)}</p>"
         f"<p><strong>{xml_escape(event.title)}</strong></p>"
         f"<p>Когда: {xml_escape(start)}–{xml_escape(end)} UTC<br/>Где: {xml_escape(where)}</p>"
     )
     if event.description:
         html += f"<p>{xml_escape(event.description)}</p>"
-    for att in event.attendees:
+    to_addrs = [a.email for a in (event.attendees or []) if a.email]
+    raw = build_meeting_rfc822(
+        organizer=organizer,
+        event=event,
+        to_addrs=to_addrs or [organizer.email],
+        subject=subject,
+        body=body,
+        html=html,
+        method=method,
+    )
+    for att in event.attendees or []:
         if not att.user_id:
             continue
         db.add(
@@ -332,9 +320,10 @@ async def _notify_meeting(
                 to_address=att.email,
                 from_name=organizer.full_name,
                 to_name=att.display_name,
-                subject=f"Встреча: {event.title}",
+                subject=subject,
                 body=body,
                 html_body=html,
+                raw_rfc822=raw,
                 is_read=False,
                 is_sent=False,
                 imap_uid=await allocate_imap_uid(db, att.user_id, False),
@@ -344,16 +333,154 @@ async def _notify_meeting(
         Email(
             user_id=organizer.id,
             from_address=organizer.email,
-            to_address=", ".join(a.email for a in event.attendees) or organizer.email,
+            to_address=", ".join(to_addrs) or organizer.email,
             from_name=organizer.full_name,
-            subject=f"Встреча: {event.title}",
+            subject=subject,
             body=body,
             html_body=html,
+            raw_rfc822=raw,
             is_read=True,
             is_sent=True,
             imap_uid=await allocate_imap_uid(db, organizer.id, True),
         )
     )
+    _local, external = partition_local_external(to_addrs, settings.MAIL_DOMAIN)
+    if external:
+        try:
+            await asyncio.to_thread(deliver_raw_outbound, raw, organizer.email, external)
+        except Exception:
+            logger.exception("Calendar invite SMTP failed to %s", external)
+
+
+async def _user_by_email(db: AsyncSession, email: str) -> Optional[User]:
+    addr = (email or "").strip().lower()
+    if not addr:
+        return None
+    return (
+        await db.execute(select(User).where(func.lower(User.email) == addr))
+    ).scalar_one_or_none()
+
+
+async def ingest_calendar_message(
+    db: AsyncSession,
+    msg,
+    *,
+    sender: Optional[User],
+    local_users: list[User],
+) -> None:
+    """Create/update/cancel a meeting from an Outlook/iMIP calendar part."""
+    parts = extract_calendar_parts(msg)
+    if not parts:
+        return
+    for method_hint, ics_text in parts:
+        parsed = parse_calendar(ics_text, default_method=method_hint)
+        if not parsed:
+            continue
+        try:
+            await _apply_parsed_event(db, parsed, sender=sender, local_users=local_users)
+        except Exception:
+            logger.exception("Calendar ingest failed uid=%s", parsed.uid)
+
+
+async def _apply_parsed_event(
+    db: AsyncSession,
+    parsed,
+    *,
+    sender: Optional[User],
+    local_users: list[User],
+) -> None:
+    existing = (
+        await db.execute(
+            select(CalendarEvent)
+            .options(
+                selectinload(CalendarEvent.attendees),
+                selectinload(CalendarEvent.organizer),
+            )
+            .where(CalendarEvent.ical_uid == parsed.uid)
+        )
+    ).scalar_one_or_none()
+    method = (parsed.method or "REQUEST").upper()
+    cancelled = method == "CANCEL" or parsed.status == "CANCELLED"
+    if cancelled:
+        if existing:
+            await db.delete(existing)
+            await db.commit()
+            logger.info("Calendar cancelled uid=%s", parsed.uid)
+        return
+    if method == "REPLY":
+        if not existing:
+            return
+        replies = {email: status for email, _name, status in parsed.attendees}
+        if sender and sender.email.lower() not in replies:
+            replies[sender.email.lower()] = "accepted"
+        for att in existing.attendees:
+            if att.email.lower() in replies:
+                att.status = replies[att.email.lower()]
+        await db.commit()
+        return
+    if existing and int(existing.ical_sequence or 0) > int(parsed.sequence or 0):
+        return
+
+    org_user = await _user_by_email(db, parsed.organizer_email)
+    if org_user is None:
+        org_user = sender
+    if org_user is None and local_users:
+        org_user = local_users[0]
+    if org_user is None:
+        return
+
+    title = parsed.title or "Встреча"
+    start = parsed.start_at
+    end = parsed.end_at or parsed.start_at
+    if existing:
+        existing.title = title
+        existing.description = parsed.description or None
+        existing.location = parsed.location or None
+        existing.start_at = start
+        existing.end_at = end
+        existing.all_day = bool(parsed.all_day)
+        existing.ical_sequence = int(parsed.sequence or 0)
+        existing.organizer_id = org_user.id
+        event = existing
+        event.attendees.clear()
+        await db.flush()
+    else:
+        event = CalendarEvent(
+            organizer_id=org_user.id,
+            title=title,
+            description=parsed.description or None,
+            location=parsed.location or None,
+            start_at=start,
+            end_at=end,
+            all_day=bool(parsed.all_day),
+            is_company=False,
+            ical_uid=parsed.uid,
+            ical_sequence=int(parsed.sequence or 0),
+        )
+        db.add(event)
+        await db.flush()
+
+    event.ical_uid = parsed.uid
+    seen = {org_user.email.lower()}
+    attendees: list[CalendarAttendee] = []
+    for email, name, status in parsed.attendees:
+        if not email or email in seen:
+            continue
+        seen.add(email)
+        peer = await _user_by_email(db, email)
+        attendees.append(
+            CalendarAttendee(
+                user_id=peer.id if peer else None,
+                email=peer.email if peer else email,
+                display_name=name or (peer.full_name if peer else None),
+                status=status or "invited",
+            )
+        )
+    event.attendees = attendees
+    await db.refresh(event, attribute_names=["organizer", "attendees"])
+    await _write_busy(db, event)
+    await db.commit()
+    logger.info("Calendar ingested uid=%s title=%s", parsed.uid, title)
 
 
 @router.get("/directory", response_model=list[DirectoryPerson])
@@ -500,6 +627,7 @@ async def create_event(
     event.attendees = attendees
     db.add(event)
     await db.flush()
+    event.ical_uid = event.ical_uid or event_uid(event)
     await db.refresh(event, attribute_names=["attendees", "organizer"])
     await _write_busy(db, event)
     await _notify_meeting(db, event, current_user)
@@ -519,12 +647,19 @@ async def delete_event(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(CalendarEvent).where(CalendarEvent.id == event_id))
+    result = await db.execute(
+        select(CalendarEvent)
+        .options(selectinload(CalendarEvent.attendees), selectinload(CalendarEvent.organizer))
+        .where(CalendarEvent.id == event_id)
+    )
     event = result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Встреча не найдена")
     if event.organizer_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Нельзя удалить чужую встречу")
+    event.ical_sequence = int(event.ical_sequence or 0) + 1
+    if event.organizer:
+        await _notify_meeting(db, event, event.organizer, method="CANCEL")
     await db.delete(event)
     await db.commit()
     return None

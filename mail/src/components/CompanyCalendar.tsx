@@ -174,7 +174,7 @@ export default function CompanyCalendar() {
     try {
       const { data } = await api.get<{ url: string }>('/calendar/feed-url')
       await navigator.clipboard.writeText(data.url)
-      toast.success('Ссылка календаря скопирована — вставьте в Outlook: Добавить календарь → из интернета')
+      toast.success('Ссылка скопирована. Outlook: Календарь → Добавить календарь → Из интернета')
     } catch {
       toast.error('Не удалось получить ссылку календаря')
     }
@@ -225,6 +225,11 @@ export default function CompanyCalendar() {
           </button>
         </div>
       </div>
+      <p className="org-cal-hint">
+        Встречи с участниками уходят в Outlook как приглашения. Встречи, созданные в Outlook
+        с участниками @alexol.io, появляются здесь. Чтобы видеть все встречи сайта в Outlook —
+        кнопка со ссылкой (календарь из интернета).
+      </p>
 
       <div className="cal-nav">
         <button

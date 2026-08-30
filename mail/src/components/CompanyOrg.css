@@ -123,6 +123,13 @@
   align-items: center;
 }
 
+.org-cal-hint {
+  margin: 0 1.25rem 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
 .org-small-compose {
   padding: 0.4rem 0.8rem !important;
   font-size: 0.9rem;
