@@ -35,6 +35,9 @@ class MailboxNameTests(unittest.TestCase):
         self.assertEqual(_classify_mailbox(_normalize_mailbox("Drafts")), "Drafts")
         self.assertEqual(_classify_mailbox(_normalize_mailbox('"INBOX"')), "INBOX")
 
+    def test_contacts_mailbox(self):
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("Contacts")), "Contacts")
+
 
 class FetchResponseTests(unittest.TestCase):
     def test_uid_always_present(self):

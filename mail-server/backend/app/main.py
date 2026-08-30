@@ -51,8 +51,9 @@ from app.recipients import (
     split_address_field,
 )
 from app import admin_sync
+from app import carddav
 from app.org import router as org_router
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy import text
 from urllib.parse import unquote
 
@@ -76,6 +77,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(org_router, prefix="/api")
+app.include_router(carddav.router, prefix="/api")
+
+
+@app.api_route("/.well-known/carddav", methods=["GET", "HEAD", "OPTIONS", "PROPFIND"])
+async def well_known_carddav():
+    return RedirectResponse("/api/dav/contacts/", status_code=301)
 
 
 def verify_mail_sync_key(x_mail_sync_key: Optional[str] = Header(None, alias="X-Mail-Sync-Key")):

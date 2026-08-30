@@ -35,6 +35,7 @@ _UTF8_8BIT.body_encoding = None
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker, Session
 
+from app.mail_photos import user_to_vcard
 from app.models import User, Email
 from app.auth import verify_password
 from app.config import settings
@@ -43,9 +44,10 @@ from app.database import sync_connect_args
 
 logger = logging.getLogger(__name__)
 
-# Bump when FETCH/SELECT format changes so Outlook drops a stale empty cache.
-# 17: RFC FLAGS on SELECT, real BODYSTRUCTURE, BODY[n] parts, 7-bit ENVELOPE, raw RFC822.
-UIDVALIDITY = 17
+# Bump when FETCH/SELECT/LIST format changes so Outlook drops a stale empty cache.
+# 18: no SPECIAL-USE \Inbox on LIST — Outlook's cloud proxy SELECTed INBOX then
+#     LOGOUT without FETCH, so the folder stayed empty despite EXISTS=17.
+UIDVALIDITY = 18
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -87,6 +89,8 @@ def _classify_mailbox(name: str) -> str | None:
         return "Sent"
     if n in ("DRAFTS", "DRAFT", "ЧЕРНОВИКИ"):
         return "Drafts"
+    if n in ("CONTACTS", "CONTACT", "КОНТАКТЫ"):
+        return "Contacts"
     return None
 
 
@@ -667,9 +671,9 @@ class IMAPSession:
         await handler(tag, cmd, rest)
 
     async def _capability(self, tag, cmd, args):
-        # Do not advertise ENABLE/LITERAL+/AUTH=LOGIN: Outlook then sends SELECT
-        # modifiers we used to reject, and Apple Mail mis-handles AUTH=LOGIN.
-        caps = 'IMAP4rev1 AUTH=PLAIN IDLE UIDPLUS SPECIAL-USE CHILDREN'
+        # Do not advertise ENABLE/LITERAL+/AUTH=LOGIN/SPECIAL-USE: Outlook's
+        # cloud proxy maps \Inbox then SELECT+LOGOUT without FETCH.
+        caps = 'IMAP4rev1 AUTH=PLAIN IDLE UIDPLUS CHILDREN'
         if self._tls_ctx and not self._is_ssl:
             caps += ' STARTTLS'
         await self._send(f'* CAPABILITY {caps}')
@@ -685,6 +689,8 @@ class IMAPSession:
             emails = self._fetch_sent()
         elif self.selected_mailbox == 'Drafts':
             emails = []
+        elif self.selected_mailbox == 'Contacts':
+            emails = self._fetch_contacts()
         else:
             emails = self._fetch_inbox()
         self.selected_emails = emails
@@ -887,6 +893,9 @@ class IMAPSession:
         elif kind == 'Drafts':
             emails = []
             self.selected_mailbox = 'Drafts'
+        elif kind == 'Contacts':
+            emails = self._fetch_contacts()
+            self.selected_mailbox = 'Contacts'
         else:
             await self._send(f'{tag} NO Mailbox "{args.strip()}" not found')
             return
@@ -899,12 +908,15 @@ class IMAPSession:
             None,
         )
         uidnext = _uidnext(emails)
+        # RECENT = unseen on INBOX: Outlook's proxy skipped FETCH when RECENT was 0.
+        recent = n if kind == 'INBOX' else 0
+        if kind == 'INBOX' and first_unseen is None and n:
+            first_unseen = 1
 
-        # RFC 3501: FLAGS, EXISTS, RECENT are required. Outlook skips FETCH without FLAGS.
         await self._send(r'* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
         await self._send(r'* OK [PERMANENTFLAGS (\Answered \Flagged \Deleted \Seen \Draft \*)] Flags permitted')
         await self._send(f'* {n} EXISTS')
-        await self._send(f'* 0 RECENT')
+        await self._send(f'* {recent} RECENT')
         if first_unseen:
             await self._send(f'* OK [UNSEEN {first_unseen}] First unseen')
         await self._send(f'* OK [UIDVALIDITY {UIDVALIDITY}] UIDs valid')
@@ -921,15 +933,21 @@ class IMAPSession:
         )
 
     async def _list(self, tag, cmd, args):
-        await self._send('* LIST (\\HasNoChildren \\Inbox) "/" INBOX')
-        await self._send('* LIST (\\HasNoChildren \\Sent) "/" Sent')
-        await self._send('* LIST (\\HasNoChildren \\Drafts) "/" Drafts')
+        # Do not put SPECIAL-USE \Inbox on INBOX. Outlook's cloud proxy then
+        # SELECTs INBOX (to map the folder) and LOGOUT without FETCH.
+        n_inbox = len(self._fetch_inbox()) if self.user else 0
+        inbox_flags = r'(\Marked \HasNoChildren)' if n_inbox else r'(\HasNoChildren)'
+        await self._send(f'* LIST {inbox_flags} "/" "INBOX"')
+        await self._send('* LIST (\\HasNoChildren) "/" "Sent"')
+        await self._send('* LIST (\\HasNoChildren) "/" "Drafts"')
+        await self._send('* LIST (\\HasNoChildren) "/" "Contacts"')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
         await self._send('* LSUB () "/" "INBOX"')
         await self._send('* LSUB () "/" "Sent"')
         await self._send('* LSUB () "/" "Drafts"')
+        await self._send('* LSUB () "/" "Contacts"')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _status(self, tag, cmd, args):
@@ -944,6 +962,9 @@ class IMAPSession:
         elif kind == 'Drafts':
             emails = []
             listed = 'Drafts'
+        elif kind == 'Contacts':
+            emails = self._fetch_contacts()
+            listed = 'Contacts'
         else:
             await self._send(f'{tag} NO Mailbox not found')
             return
@@ -1016,6 +1037,8 @@ class IMAPSession:
                 self.selected_emails = self._fetch_sent()
             elif self.selected_mailbox == "Drafts":
                 self.selected_emails = []
+            elif self.selected_mailbox == "Contacts":
+                self.selected_emails = self._fetch_contacts()
             else:
                 self.selected_emails = self._fetch_inbox()
             pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
@@ -1041,20 +1064,36 @@ class IMAPSession:
         await self._send(f"{tag} OK FETCH completed")
 
     async def _do_search(self, tag: str, args: str, uid_mode: bool):
+        emails = list(self.selected_emails)
+        header_m = re.search(
+            r'HEADER\s+"?MESSAGE-ID"?\s+"([^"]+)"', args or "", re.I
+        )
+        if header_m:
+            needle = header_m.group(1).encode("utf-8", "replace")
+            emails = [
+                e for e in emails
+                if needle in (e.get("raw") or b"")
+                or needle.decode("utf-8", "replace") in (e.get("subject") or "")
+            ]
         if uid_mode:
-            nums = ' '.join(str(e['id']) for e in self.selected_emails)
+            nums = " ".join(str(e["id"]) for e in emails)
         else:
-            nums = ' '.join(str(i + 1) for i in range(len(self.selected_emails)))
+            idset = {e["id"] for e in emails}
+            nums = " ".join(
+                str(i + 1)
+                for i, e in enumerate(self.selected_emails)
+                if e["id"] in idset
+            )
         logger.info(
             "IMAP SEARCH user=%s mailbox=%s uid=%s args=%s hits=%s",
             self.user.email if self.user else "?",
             self.selected_mailbox,
             uid_mode,
             (args or "")[:80],
-            len(self.selected_emails),
+            len(emails),
         )
-        await self._send(f'* SEARCH {nums}' if nums else '* SEARCH')
-        await self._send(f'{tag} OK SEARCH completed')
+        await self._send(f"* SEARCH {nums}" if nums else "* SEARCH")
+        await self._send(f"{tag} OK SEARCH completed")
 
     def _auth(self, username: str, password: str) -> User | None:
         if isinstance(username, (bytes, bytearray)):
@@ -1082,6 +1121,45 @@ class IMAPSession:
 
     def _fetch_sent(self) -> list[dict]:
         return self._fetch_emails(is_sent=True)
+
+    def _fetch_contacts(self) -> list[dict]:
+        """Virtual mailbox: one vCard message per colleague for Outlook People."""
+        if not self.user:
+            return []
+        try:
+            with self._db() as db:
+                rows = db.execute(
+                    select(User)
+                    .where(User.is_active.is_(True))
+                    .order_by(User.id)
+                ).scalars().all()
+                result = []
+                for u in rows:
+                    vcf = user_to_vcard(u)
+                    msg = _text_part(vcf, "vcard")
+                    msg["From"] = formataddr((u.full_name or "", u.email))
+                    msg["To"] = self.user.email
+                    msg["Subject"] = u.full_name or u.email
+                    msg["Date"] = format_datetime(datetime.now(timezone.utc))
+                    msg["Message-ID"] = f"<contact-{u.id}@{settings.MAIL_DOMAIN}>"
+                    raw = _ensure_crlf(msg.as_bytes(policy=_IMAP_GEN_POLICY))
+                    result.append({
+                        "id": u.id,
+                        "from": u.email,
+                        "from_name": u.full_name,
+                        "to": self.user.email,
+                        "to_name": self.user.full_name,
+                        "subject": u.full_name or u.email,
+                        "body": vcf,
+                        "html_body": "",
+                        "raw": raw,
+                        "date": datetime.now(timezone.utc),
+                        "flags": ["\\Seen"],
+                    })
+                return result
+        except Exception as exc:
+            logger.error("IMAP contacts fetch error: %s", exc)
+            return []
 
     def _fetch_emails(self, is_sent: bool) -> list[dict]:
         if not self.user:

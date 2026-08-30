@@ -16,7 +16,7 @@ import smtplib
 from fastapi import HTTPException
 
 from app.config import settings
-from app.dkim_signer import sign_message
+from app.mail_photos import attach_sender_vcard
 from app.models import User
 from app.recipients import group_by_domain, partition_local_external
 
@@ -120,6 +120,7 @@ def _build_mime(
                 part.add_header("Content-Type", content_type)
             msg.attach(part)
 
+    attach_sender_vcard(msg, current_user)
     return sign_message(msg), full_text, full_html
 
 

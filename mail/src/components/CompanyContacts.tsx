@@ -76,9 +76,9 @@ export default function CompanyContacts() {
         <span className="org-count">{filtered.length}</span>
       </div>
       <p className="org-outlook-hint">
-        Для фото отправителей в Outlook: скачайте vCard (кнопка выше) → в Outlook: Контакты →
-        Импорт → файл <strong>alexol-contacts.vcf</strong>. Круги в списке писем берутся только
-        из контактов, не с сервера.
+        Outlook: входящие идут по IMAP. Контакты — папка Contacts в том же ящике, либо CardDAV
+        <code> https://mail.alexol.io/api/dav/contacts/ </code>
+        (логин/пароль почты). Либо скачайте vCard → Outlook: Контакты → Импорт.
       </p>
       {isLoading ? (
         <div className="empty-state">

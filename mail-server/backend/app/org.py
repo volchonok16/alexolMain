@@ -13,7 +13,7 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_user_token_or_query
 from app.avatar_resolve import load_avatar_bytes, local_avatar_api_path, to_browser_avatar_url
 from app.config import settings
 from app.database import get_db
@@ -379,7 +379,7 @@ async def list_contacts(
 
 @router.get("/contacts.vcf")
 async def download_contacts_vcf(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_token_or_query),
     db: AsyncSession = Depends(get_db),
 ):
     _ = current_user
