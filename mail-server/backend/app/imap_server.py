@@ -35,9 +35,10 @@ from app.database import sync_connect_args
 
 logger = logging.getLogger(__name__)
 
-# Protocol restored from c3bc0a5 (Outlook FETCH hits=6 + notifications).
-# 15: invalidate empty cache from UIDVALIDITY 9–13 experiments.
-UIDVALIDITY = 15
+# c3bc0a5 protocol (Outlook FETCH + IDLE) plus Drafts/APPEND Outlook still uses.
+# 16: Drafts must SELECT OK — after we advertised Drafts, Outlook always opens it first;
+#     c3bc0a5 answered NO and the cloud proxy skipped INBOX FETCH.
+UIDVALIDITY = 16
 _IMAP_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -361,8 +362,20 @@ class IMAPSession:
     async def _dispatch(self, line: str):
         m = re.match(r'^(\S+)\s+(\S+)(.*)', line)
         if not m:
+            logger.info("IMAP unparsed %r peer=%s", line[:200], self._peer())
             return
         tag, cmd, rest = m.group(1), m.group(2).upper(), m.group(3).strip()
+        if cmd == "LOGIN":
+            login = _parse_args(rest)[0] if rest else "?"
+            logger.info("IMAP cmd=LOGIN user=%s peer=%s", login, self._peer())
+        else:
+            logger.info(
+                "IMAP cmd=%s %s peer=%s user=%s",
+                cmd,
+                rest[:160],
+                self._peer(),
+                self.user.email if self.user else "-",
+            )
 
         dispatch = {
             'CAPABILITY': self._capability,
@@ -388,7 +401,8 @@ class IMAPSession:
             'ID': self._id,
             'SUBSCRIBE': self._ok,
             'UNSUBSCRIBE': self._ok,
-            'APPEND': self._ok,
+            'APPEND': self._append,
+            'CREATE': self._ok,
             'CHECK': self._noop,
             'COPY': self._ok,
         }
@@ -414,6 +428,8 @@ class IMAPSession:
         old_ids = {e['id'] for e in self.selected_emails}
         if self.selected_mailbox == 'Sent':
             emails = self._fetch_sent()
+        elif self.selected_mailbox == 'Drafts':
+            emails = []
         else:
             emails = self._fetch_inbox()
         self.selected_emails = emails
@@ -452,6 +468,30 @@ class IMAPSession:
 
     async def _ok(self, tag, cmd, args):
         await self._send(f'{tag} OK {cmd} completed')
+
+    async def _append(self, tag, cmd, args):
+        """Read APPEND body. ACKing without consuming the literal hangs Outlook send."""
+        if self.state not in (self.AUTHENTICATED, self.SELECTED) or not self.user:
+            await self._send(f'{tag} NO Not authenticated')
+            return
+        literal = re.search(r'~?\{(\d+)(\+)?\}\s*$', args or '')
+        if not literal:
+            await self._send(f'{tag} BAD APPEND requires a literal')
+            return
+        size = int(literal.group(1))
+        if not literal.group(2):
+            await self._send('+ Ready for literal data')
+        try:
+            await asyncio.wait_for(self.reader.readexactly(size), timeout=120)
+            try:
+                await asyncio.wait_for(self.reader.readexactly(2), timeout=10)
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.warning('IMAP APPEND read failed: %s', exc)
+            await self._send(f'{tag} NO APPEND failed')
+            return
+        await self._send(f'{tag} OK APPEND completed')
 
     async def _unknown(self, tag, cmd, args):
         await self._send(f'{tag} BAD Command {cmd} not supported')
@@ -523,7 +563,13 @@ class IMAPSession:
             self.reader._transport = new_transport  # type: ignore[attr-defined]
             self._is_ssl = True
         except Exception as exc:
-            logger.error('STARTTLS upgrade failed: %s', exc)
+            logger.warning('STARTTLS upgrade failed: %s', exc)
+            try:
+                self.writer.close()
+            except Exception:
+                pass
+            self.state = self.LOGOUT
+            return
 
     async def _select(self, tag, cmd, args):
         if self.state not in (self.AUTHENTICATED, self.SELECTED):
@@ -537,6 +583,9 @@ class IMAPSession:
                          'ОТПРАВЛЕННЫЕ', 'ОТПРАВЛЕННЫЕ СООБЩЕНИЯ'):
             emails = self._fetch_sent()
             self.selected_mailbox = 'Sent'
+        elif mailbox in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ'):
+            emails = []
+            self.selected_mailbox = 'Drafts'
         else:
             await self._send(f'{tag} NO Mailbox "{args.strip()}" not found')
             return
@@ -569,11 +618,13 @@ class IMAPSession:
     async def _list(self, tag, cmd, args):
         await self._send('* LIST (\\HasNoChildren \\Inbox) "/" INBOX')
         await self._send('* LIST (\\HasNoChildren \\Sent) "/" Sent')
+        await self._send('* LIST (\\HasNoChildren \\Drafts) "/" Drafts')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
         await self._send('* LSUB () "/" "INBOX"')
         await self._send('* LSUB () "/" "Sent"')
+        await self._send('* LSUB () "/" "Drafts"')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _status(self, tag, cmd, args):
@@ -583,6 +634,8 @@ class IMAPSession:
             emails = self._fetch_inbox()
         elif mbox in ('SENT', 'SENT ITEMS', 'SENT MESSAGES', 'ОТПРАВЛЕННЫЕ'):
             emails = self._fetch_sent()
+        elif mbox in ('DRAFTS', 'DRAFT', 'ЧЕРНОВИКИ'):
+            emails = []
         else:
             await self._send(f'{tag} NO Mailbox not found')
             return
@@ -657,6 +710,8 @@ class IMAPSession:
         if not pairs and uid_mode:
             if self.selected_mailbox == "Sent":
                 self.selected_emails = self._fetch_sent()
+            elif self.selected_mailbox == "Drafts":
+                self.selected_emails = []
             else:
                 self.selected_emails = self._fetch_inbox()
             pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
