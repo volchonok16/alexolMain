@@ -1,8 +1,10 @@
 """iMIP/iCalendar helpers so Outlook and mail.alexol.io share meetings."""
 from __future__ import annotations
 
+import base64
 import re
 from datetime import datetime, timezone
+from email.charset import Charset
 from email import encoders, policy as email_policy
 from email.message import Message
 from email.mime.base import MIMEBase
@@ -16,6 +18,8 @@ from app.config import settings
 from app.models import CalendarEvent
 
 _FOLD = 75
+_UTF8_8BIT = Charset("utf-8")
+_UTF8_8BIT.body_encoding = None
 _WIN_TZ = {
     "russian standard time": "Europe/Moscow",
     "gmt standard time": "Europe/London",
@@ -165,6 +169,15 @@ def build_vcalendar(event: CalendarEvent, method: str = "REQUEST") -> str:
     return "\r\n".join(chunks) + "\r\n"
 
 
+def _text_part(content: str, subtype: str) -> MIMEText:
+    part = MIMEText(content or "", subtype)
+    part.set_charset(_UTF8_8BIT)
+    if part.get("Content-Transfer-Encoding"):
+        del part["Content-Transfer-Encoding"]
+    part["Content-Transfer-Encoding"] = "8bit"
+    return part
+
+
 def build_meeting_rfc822(
     *,
     organizer,
@@ -178,14 +191,15 @@ def build_meeting_rfc822(
     ics = build_vcalendar(event, method)
     method = (method or "REQUEST").upper()
 
-    plain = MIMEText(body or "", "plain", "utf-8")
-    rich = MIMEText(html or body or "", "html", "utf-8")
-    calendar = MIMEText(ics, "calendar", "utf-8")
+    plain = _text_part(body or "", "plain")
+    rich = _text_part(html or body or "", "html")
+    calendar = _text_part(ics.replace("\r\n", "\n"), "calendar")
     calendar.replace_header(
         "Content-Type",
         f'text/calendar; method={method}; charset="UTF-8"; name="meeting.ics"',
     )
     calendar["Content-Class"] = "urn:content-classes:calendarmessage"
+    calendar["Content-Disposition"] = 'inline; filename="meeting.ics"'
 
     alt = MIMEMultipart("alternative")
     alt.attach(plain)
@@ -367,12 +381,25 @@ def extract_calendar_parts(msg: Message) -> list[tuple[str, str]]:
             continue
         payload = part.get_payload(decode=True)
         if not payload:
+            payload = part.get_payload()
+        if isinstance(payload, str):
+            text = payload
+        elif isinstance(payload, (bytes, bytearray)):
+            charset = part.get_content_charset() or "utf-8"
+            try:
+                text = bytes(payload).decode(charset, "replace")
+            except LookupError:
+                text = bytes(payload).decode("utf-8", "replace")
+        else:
             continue
-        charset = part.get_content_charset() or "utf-8"
-        try:
-            text = bytes(payload).decode(charset, "replace")
-        except LookupError:
-            text = bytes(payload).decode("utf-8", "replace")
+        if not text.lstrip().startswith("BEGIN:"):
+            compact = re.sub(r"\s+", "", text)
+            try:
+                text = base64.b64decode(compact).decode("utf-8")
+            except Exception:
+                pass
+        if not text.strip():
+            continue
         method = (part.get_param("method") or "").upper()
         found.append((method or "REQUEST", text))
     return found

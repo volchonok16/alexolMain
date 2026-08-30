@@ -96,6 +96,10 @@ class InviteMimeTests(unittest.TestCase):
             html="<p>text</p>",
             method="REQUEST",
         )
+        raw_text = raw.decode("utf-8", "replace")
+        self.assertIn("text/calendar", raw_text.lower())
+        self.assertIn("<p>text</p>", raw_text)
+        self.assertNotIn("PHA+", raw_text)
         msg = BytesParser(policy=policy.default).parsebytes(raw)
         parts = extract_calendar_parts(msg)
         self.assertTrue(parts)
@@ -103,7 +107,6 @@ class InviteMimeTests(unittest.TestCase):
         self.assertIn("BEGIN:VCALENDAR", ics)
         parsed = parse_calendar(ics, default_method=method)
         self.assertEqual(parsed.uid, "event-7@alexol.io")
-        self.assertIn("text/calendar", raw.decode("utf-8", "replace").lower())
 
 
 class SmtpIngestHookTests(unittest.TestCase):
