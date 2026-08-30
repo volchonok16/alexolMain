@@ -17,7 +17,7 @@ from app.models import User, Email
 from app.config import settings
 from app.auth import verify_password
 from app.database import async_connect_args, sync_connect_args
-from app.mail_body import extract_text_and_html
+from app.mail_body import extract_text_and_html, sanitize_pg_text
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
 from app.logging_setup import configure_quiet_logging
@@ -182,7 +182,10 @@ class CustomSMTPHandler:
             _local_addrs, external_addrs = partition_local_external(
                 [a.lower() for a in rcpt_norm], settings.MAIL_DOMAIN
             )
-            header_to = (msg.get("To") or "").strip() or ", ".join(rcpt_norm)
+            subject = sanitize_pg_text(str(subject or ""))
+            from_name = sanitize_pg_text(from_name) or None
+            from_address = sanitize_pg_text(from_address)
+            header_to = sanitize_pg_text((msg.get("To") or "").strip() or ", ".join(rcpt_norm))
 
             if external_addrs and not authenticated:
                 return "550 5.7.1 Relay denied"

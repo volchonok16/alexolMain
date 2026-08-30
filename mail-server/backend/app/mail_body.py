@@ -23,8 +23,8 @@ def looks_like_html(text: str | None) -> bool:
 
 def coerce_stored_bodies(body: str | None, html_body: str | None) -> tuple[str, str]:
     """If HTML arrived as a single-part / text/plain payload, expose it as html_body."""
-    body = body or ""
-    html_body = html_body or ""
+    body = sanitize_pg_text(body or "")
+    html_body = sanitize_pg_text(html_body or "")
     if html_body.strip():
         return body, html_body
     if looks_like_html(body):
@@ -32,8 +32,28 @@ def coerce_stored_bodies(body: str | None, html_body: str | None) -> tuple[str, 
     return body, html_body
 
 
+def sanitize_pg_text(value: str | None) -> str:
+    """Postgres text/varchar cannot store NUL (0x00). ZIP/DMARC payloads often have it."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+    return str(value).replace("\x00", "").replace("\ufeff", "")
+
+
+def _looks_binary(text: str) -> bool:
+    if not text:
+        return False
+    if "\x00" in text:
+        return True
+    return text.startswith("PK") and len(text) > 4 and not text[2:4].isprintable()
+
+
 def _decode_part(part) -> str:
     if part is None:
+        return ""
+    main = (part.get_content_maintype() or "").lower()
+    if main and main not in ("text", "multipart", "message"):
         return ""
     try:
         content = part.get_content()
@@ -48,7 +68,11 @@ def _decode_part(part) -> str:
             content = raw.decode("utf-8", errors="replace")
     if isinstance(content, bytes):
         content = content.decode("utf-8", errors="replace")
-    return (content or "").replace("\ufeff", "")
+    text = (content or "").replace("\ufeff", "")
+    if _looks_binary(text):
+        name = part.get_filename() or part.get_content_type() or "attachment"
+        return f"[{name}]"
+    return sanitize_pg_text(text)
 
 
 def extract_text_and_html(msg) -> tuple[str, str]:
@@ -83,13 +107,18 @@ def extract_text_and_html(msg) -> tuple[str, str]:
 
     if not html and not plain:
         ctype = (msg.get_content_type() or "").lower()
-        text = _decode_part(msg)
-        if ctype == "text/html" or looks_like_html(text):
-            html = text
+        main = (msg.get_content_maintype() or "").lower()
+        if main != "text":
+            name = msg.get_filename() or ctype or "attachment"
+            plain = f"[{name}]"
         else:
-            plain = text
+            text = _decode_part(msg)
+            if ctype == "text/html" or looks_like_html(text):
+                html = text
+            else:
+                plain = text
 
-    return plain, html
+    return sanitize_pg_text(plain), sanitize_pg_text(html)
 
 
 def peek_rfc822_header(content: bytes, name: str) -> str:
