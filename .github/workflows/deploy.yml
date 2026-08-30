@@ -343,6 +343,11 @@ jobs:
                       $dc up -d --force-recreate
                       $dc ps
                       if command -v ufw >/dev/null 2>&1; then
+                        ufw allow 25/tcp comment "SMTP inbound" || true
+                        ufw allow 465/tcp comment "SMTPS" || true
+                        ufw allow 587/tcp comment "SMTP submission" || true
+                        ufw allow 143/tcp comment "IMAP" || true
+                        ufw allow 993/tcp comment "IMAPS" || true
                         ufw allow 389/tcp comment "LDAP GAL" || true
                         ufw allow 636/tcp comment "LDAPS GAL" || true
                       fi
