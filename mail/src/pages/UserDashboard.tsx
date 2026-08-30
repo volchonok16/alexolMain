@@ -137,7 +137,7 @@ export default function UserDashboard() {
       const { data } = await api.get<Email[]>('/emails/inbox')
       return data
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 10000,
   })
 
   // Fetch sent
@@ -147,6 +147,7 @@ export default function UserDashboard() {
       const { data } = await api.get<Email[]>('/emails/sent')
       return data
     },
+    refetchInterval: 10000,
   })
 
   // Templates

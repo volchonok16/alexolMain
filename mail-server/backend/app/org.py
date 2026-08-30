@@ -19,6 +19,7 @@ from app.avatar_resolve import load_avatar_bytes, local_avatar_api_path, to_brow
 from app.config import settings
 from app.database import get_db
 from app.mail_photos import user_to_vcard, vcard_filename
+from app.mail_sync import allocate_imap_uid
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
 from app.schemas import (
     BusyMapResponse,
@@ -336,6 +337,7 @@ async def _notify_meeting(
                 html_body=html,
                 is_read=False,
                 is_sent=False,
+                imap_uid=await allocate_imap_uid(db, att.user_id, False),
             )
         )
     db.add(
@@ -349,6 +351,7 @@ async def _notify_meeting(
             html_body=html,
             is_read=True,
             is_sent=True,
+            imap_uid=await allocate_imap_uid(db, organizer.id, True),
         )
     )
 

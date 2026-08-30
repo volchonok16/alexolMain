@@ -18,6 +18,7 @@ from app.config import settings
 from app.auth import verify_password
 from app.database import async_connect_args, sync_connect_args
 from app.mail_body import extract_text_and_html, sanitize_pg_text
+from app.mail_sync import allocate_imap_uid
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
 from app.logging_setup import configure_quiet_logging
@@ -237,6 +238,7 @@ class CustomSMTPHandler:
                     result = await db.execute(select(User).where(func.lower(User.email) == to_norm))
                     user = result.scalar_one_or_none()
                     if user:
+                        imap_uid = await allocate_imap_uid(db, user.id, False)
                         email_obj = Email(
                             user_id=user.id,
                             from_address=from_address or (envelope.mail_from or ""),
@@ -248,6 +250,7 @@ class CustomSMTPHandler:
                             html_body=html_body,
                             raw_rfc822=envelope.content,
                             is_sent=False,
+                            imap_uid=imap_uid,
                         )
                         db.add(email_obj)
                         await db.commit()
@@ -259,6 +262,7 @@ class CustomSMTPHandler:
                         )
 
                 if authenticated and sender:
+                    sent_uid = await allocate_imap_uid(db, sender.id, True)
                     sent = Email(
                         user_id=sender.id,
                         from_address=from_address or sender.email,
@@ -270,6 +274,7 @@ class CustomSMTPHandler:
                         html_body=html_body,
                         raw_rfc822=envelope.content,
                         is_sent=True,
+                        imap_uid=sent_uid,
                     )
                     db.add(sent)
                     await db.commit()

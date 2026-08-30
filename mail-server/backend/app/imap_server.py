@@ -32,10 +32,16 @@ _IMAP_GEN_POLICY = email_policy.SMTP.clone(cte_type="8bit")
 _UTF8_8BIT = Charset("utf-8")
 _UTF8_8BIT.body_encoding = None
 
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, delete, func, nulls_last, select
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.mail_photos import user_to_vcard
+from app.mail_sync import (
+    allocate_imap_uid_sync,
+    apply_store_flags,
+    flags_for_email,
+    parse_store_args,
+)
 from app.models import User, Email
 from app.auth import verify_password
 from app.config import settings
@@ -724,27 +730,62 @@ class IMAPSession:
         await self._send(f'* CAPABILITY {caps}')
         await self._send(f'{tag} OK CAPABILITY completed')
 
+    def _reload_selected(self) -> list[dict]:
+        if self.selected_mailbox == 'Sent':
+            return self._fetch_sent()
+        if self.selected_mailbox == 'Drafts':
+            return []
+        if self.selected_mailbox == 'Contacts':
+            return self._fetch_contacts()
+        return self._fetch_inbox()
+
+    def _uidnext_for(self, is_sent: bool) -> int:
+        if not self.user:
+            return 1
+        try:
+            with self._db() as db:
+                user = db.get(User, self.user.id)
+                if not user:
+                    return 1
+                val = user.sent_uidnext if is_sent else user.inbox_uidnext
+                return int(val or 1)
+        except Exception:
+            return 1
+
+    def _mailbox_uidnext(self) -> int:
+        return self._uidnext_for(self.selected_mailbox == 'Sent')
+
     async def _push_mailbox_updates(self) -> None:
-        """Re-read DB and tell the client if new messages appeared (NOOP/IDLE)."""
+        """IDLE/NOOP: EXPUNGE deletions, FETCH FLAGS for Seen, EXISTS for new mail."""
         if self.state != self.SELECTED or not self.selected_mailbox:
             return
-        old_n = len(self.selected_emails)
-        old_ids = {e['id'] for e in self.selected_emails}
-        if self.selected_mailbox == 'Sent':
-            emails = self._fetch_sent()
-        elif self.selected_mailbox == 'Drafts':
-            emails = []
-        elif self.selected_mailbox == 'Contacts':
-            emails = self._fetch_contacts()
-        else:
-            emails = self._fetch_inbox()
-        self.selected_emails = emails
-        n = len(emails)
-        recent = sum(1 for e in emails if e['id'] not in old_ids)
-        if n != old_n or recent:
-            await self._send(f'* {n} EXISTS')
-            if recent:
-                await self._send(f'* {recent} RECENT')
+        if self.selected_mailbox in ('Drafts', 'Contacts'):
+            return
+        old = list(self.selected_emails)
+        new = self._reload_selected()
+        new_by_id = {e['id']: e for e in new}
+
+        for i in range(len(old) - 1, -1, -1):
+            if old[i]['id'] not in new_by_id:
+                await self._send(f'* {i + 1} EXPUNGE')
+                old.pop(i)
+
+        for i, em in enumerate(old):
+            nxt = new_by_id[em['id']]
+            if set(em.get('flags') or []) != set(nxt.get('flags') or []):
+                flags_str = ' '.join(nxt.get('flags') or [])
+                await self._send(
+                    f'* {i + 1} FETCH (FLAGS ({flags_str}) UID {_imap_uid(nxt)})'
+                )
+                old[i] = nxt
+
+        old_ids = {e['id'] for e in old}
+        added = [e for e in new if e['id'] not in old_ids]
+        if added:
+            await self._send(f'* {len(new)} EXISTS')
+            if added:
+                await self._send(f'* {len(added)} RECENT')
+        self.selected_emails = new
 
     async def _noop(self, tag, cmd, args):
         await self._push_mailbox_updates()
@@ -848,6 +889,7 @@ class IMAPSession:
                         raw = getattr(row, 'raw_rfc822', None) or b''
                         if needle and needle in raw:
                             return
+                imap_uid = allocate_imap_uid_sync(db, self.user.id, True)
                 db.add(Email(
                     user_id=self.user.id,
                     from_address=from_address,
@@ -859,6 +901,7 @@ class IMAPSession:
                     raw_rfc822=data,
                     is_sent=True,
                     is_read=True,
+                    imap_uid=imap_uid,
                 ))
                 db.commit()
         except Exception as exc:
@@ -970,7 +1013,7 @@ class IMAPSession:
             (i + 1 for i, e in enumerate(emails) if '\\Seen' not in e['flags']),
             None,
         )
-        uidnext = _uidnext(emails)
+        uidnext = self._mailbox_uidnext()
 
         # Compact UIDs 1..N so UIDNEXT = EXISTS+1. FLAGS like 72926ed (Outlook
         # skipped FETCH when UIDNEXT was a DB id, e.g. 102 with EXISTS 18).
@@ -1026,7 +1069,7 @@ class IMAPSession:
             return
         n = len(emails)
         unseen = sum(1 for e in emails if '\\Seen' not in e['flags'])
-        uid_next = _uidnext(emails)
+        uid_next = self._uidnext_for(kind == 'Sent')
         await self._send(
             f'* STATUS "{listed}" '
             f'(MESSAGES {n} RECENT 0 UNSEEN {unseen} UIDNEXT {uid_next} UIDVALIDITY {UIDVALIDITY})'
@@ -1049,6 +1092,8 @@ class IMAPSession:
             await self._do_search(tag, sub_args, uid_mode=True)
         elif sub == 'STORE':
             await self._do_store(tag, sub_args, uid_mode=True)
+        elif sub == 'EXPUNGE':
+            await self._expunge_uids(tag, sub_args)
         elif sub == 'COPY':
             await self._send(f'{tag} OK UID COPY completed')
         else:
@@ -1058,12 +1103,117 @@ class IMAPSession:
         await self._do_store(tag, args, uid_mode=False)
 
     async def _do_store(self, tag, args, uid_mode=False):
+        if self.state != self.SELECTED or not self.user:
+            await self._send(f'{tag} NO Not in selected state')
+            return
+        parsed = parse_store_args(args)
+        if not parsed:
+            await self._send(f'{tag} BAD Invalid STORE')
+            return
+        seq_set, mode, silent, flags = parsed
+        pairs = _parse_seq_set(
+            seq_set, len(self.selected_emails), uid_mode, self.selected_emails
+        )
+        if not pairs:
+            await self._send(f'{tag} OK STORE completed')
+            return
+        updates: list[tuple[int, dict]] = []
+        try:
+            with self._db() as db:
+                ids = [em['id'] for _, em in pairs]
+                rows = db.execute(
+                    select(Email).where(
+                        Email.id.in_(ids),
+                        Email.user_id == self.user.id,
+                    )
+                ).scalars().all()
+                by_id = {row.id: row for row in rows}
+                for seq_num, em in pairs:
+                    row = by_id.get(em['id'])
+                    if not row:
+                        continue
+                    apply_store_flags(row, flags, mode)
+                    em['flags'] = flags_for_email(row)
+                    updates.append((seq_num, em))
+                db.commit()
+        except Exception as exc:
+            logger.exception("IMAP STORE failed: %s", exc)
+            await self._send(f'{tag} NO STORE failed')
+            return
+        if not silent:
+            for seq_num, em in updates:
+                flags_str = ' '.join(em.get('flags') or [])
+                await self._send(
+                    f'* {seq_num} FETCH (FLAGS ({flags_str}) UID {_imap_uid(em)})'
+                )
+        logger.info(
+            "IMAP STORE user=%s mode=%s silent=%s flags=%s count=%s",
+            self.user.email if self.user else "?",
+            mode,
+            silent,
+            flags,
+            len(updates),
+        )
         await self._send(f'{tag} OK STORE completed')
 
+    async def _expunge_deleted(self, *, only_uids: set[int] | None, silent: bool) -> None:
+        victims = []
+        for i, em in enumerate(self.selected_emails):
+            if '\\Deleted' not in (em.get('flags') or []):
+                continue
+            if only_uids is not None and _imap_uid(em) not in only_uids:
+                continue
+            victims.append((i + 1, em))
+        if not victims or not self.user:
+            return
+        ids = [em['id'] for _, em in victims]
+        try:
+            with self._db() as db:
+                db.execute(
+                    delete(Email).where(
+                        Email.id.in_(ids),
+                        Email.user_id == self.user.id,
+                    )
+                )
+                db.commit()
+        except Exception as exc:
+            logger.exception("IMAP EXPUNGE failed: %s", exc)
+            return
+        if not silent:
+            for seq, _em in reversed(victims):
+                await self._send(f'* {seq} EXPUNGE')
+        gone = {em['id'] for _, em in victims}
+        self.selected_emails = [em for em in self.selected_emails if em['id'] not in gone]
+        logger.info(
+            "IMAP EXPUNGE user=%s removed=%s",
+            self.user.email if self.user else "?",
+            len(ids),
+        )
+
     async def _expunge(self, tag, cmd, args):
+        if self.state != self.SELECTED:
+            await self._send(f'{tag} NO Not in selected state')
+            return
+        await self._expunge_deleted(only_uids=None, silent=False)
         await self._send(f'{tag} OK EXPUNGE completed')
 
+    async def _expunge_uids(self, tag, args):
+        if self.state != self.SELECTED:
+            await self._send(f'{tag} NO Not in selected state')
+            return
+        pairs = _parse_seq_set(
+            args.strip() or '*',
+            len(self.selected_emails),
+            True,
+            self.selected_emails,
+        )
+        uids = {_imap_uid(em) for _, em in pairs}
+        await self._expunge_deleted(only_uids=uids, silent=False)
+        await self._send(f'{tag} OK UID EXPUNGE completed')
+
     async def _close(self, tag, cmd, args):
+        if self.state == self.SELECTED:
+            await self._expunge_deleted(only_uids=None, silent=True)
         self.state = self.AUTHENTICATED
         self.selected_mailbox = None
         self.selected_emails = []
@@ -1230,15 +1380,15 @@ class IMAPSession:
                         Email.is_sent == is_sent,
                         Email.is_draft.is_not(True),
                     )
-                    .order_by(Email.id)
+                    .order_by(nulls_last(Email.imap_uid), Email.id)
                 ).scalars().all()
                 result = []
                 for idx, e in enumerate(rows, start=1):
-                    flags = ['\\Seen'] if (is_sent or e.is_read) else []
+                    flags = flags_for_email(e)
                     body, html_body = coerce_stored_bodies(e.body, e.html_body)
                     result.append({
                         'id': e.id,
-                        'uid': idx,
+                        'uid': int(e.imap_uid or idx),
                         'from': e.from_address,
                         'from_name': e.from_name,
                         'to': e.to_address,

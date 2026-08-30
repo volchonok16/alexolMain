@@ -39,6 +39,7 @@ from app.auth import (
     get_current_user, get_current_admin_user
 )
 from app.mail_body import coerce_stored_bodies
+from app.mail_sync import allocate_imap_uid, backfill_imap_uids
 from app.config import settings
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
@@ -137,6 +138,27 @@ async def startup_event():
                 "BOOLEAN NOT NULL DEFAULT FALSE"
             )
         )
+        await conn.execute(
+            text("ALTER TABLE emails ADD COLUMN IF NOT EXISTS imap_uid INTEGER")
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_deleted "
+                "BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS inbox_uidnext "
+                "INTEGER NOT NULL DEFAULT 1"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS sent_uidnext "
+                "INTEGER NOT NULL DEFAULT 1"
+            )
+        )
         # Existing admin-created templates become org-shared so users keep access
         await conn.execute(
             text(
@@ -164,6 +186,7 @@ async def startup_event():
             db.add(admin)
             await db.commit()
             print(f"Default admin created: {settings.DEFAULT_ADMIN_EMAIL}")
+        await backfill_imap_uids(db)
     
     # Start SMTP server
     smtp_server.start()
@@ -888,6 +911,7 @@ async def _commit_and_deliver(
         names[addr] if addr in names else addr
         for addr in addresses
     ]
+    imap_uid = await allocate_imap_uid(db, current_user.id, True)
     email_obj = Email(
         user_id=current_user.id,
         from_address=current_user.email,
@@ -898,6 +922,8 @@ async def _commit_and_deliver(
         body=body,
         html_body=html_body,
         is_sent=True,
+        is_read=True,
+        imap_uid=imap_uid,
     )
     db.add(email_obj)
     await db.commit()
@@ -1087,7 +1113,11 @@ async def get_inbox(
     """Get user inbox"""
     result = await db.execute(
         select(Email)
-        .where(Email.user_id == current_user.id, Email.is_sent == False)
+        .where(
+            Email.user_id == current_user.id,
+            Email.is_sent == False,
+            Email.is_deleted.is_(False),
+        )
         .order_by(Email.received_at.desc())
     )
     emails = result.scalars().all()
@@ -1101,7 +1131,11 @@ async def get_sent(
     """Get sent emails"""
     result = await db.execute(
         select(Email)
-        .where(Email.user_id == current_user.id, Email.is_sent == True)
+        .where(
+            Email.user_id == current_user.id,
+            Email.is_sent == True,
+            Email.is_deleted.is_(False),
+        )
         .order_by(Email.received_at.desc())
     )
     emails = result.scalars().all()
@@ -1119,7 +1153,7 @@ async def get_email(
     )
     email = result.scalar_one_or_none()
     
-    if not email:
+    if not email or email.is_deleted:
         raise HTTPException(status_code=404, detail="Email not found")
     
     # Mark as read
@@ -1143,7 +1177,7 @@ async def mark_email_read(
         select(Email).where(Email.id == email_id, Email.user_id == current_user.id)
     )
     email = result.scalar_one_or_none()
-    if not email:
+    if not email or email.is_deleted:
         raise HTTPException(status_code=404, detail="Email not found")
     if email.is_sent:
         raise HTTPException(status_code=400, detail="Sent emails cannot be marked unread/read this way")

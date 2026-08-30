@@ -18,6 +18,8 @@ class User(Base):
     avatar_url = Column(String, nullable=True)
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    inbox_uidnext = Column(Integer, nullable=False, default=1)
+    sent_uidnext = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -52,6 +54,8 @@ class Email(Base):
     is_read = Column(Boolean, default=False)
     is_sent = Column(Boolean, default=False)
     is_draft = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+    imap_uid = Column(Integer, nullable=True, index=True)
     received_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="emails")
