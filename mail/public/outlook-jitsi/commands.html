@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Jitsi</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  </head>
+  <body>
+    <script>
+      Office.onReady(function () {})
+
+      function insertJitsi(event) {
+        var slug = 'outlook-' + Math.random().toString(16).slice(2, 10)
+        var url = 'https://meet.alexol.io/' + slug
+        var item = Office.context.mailbox.item
+        item.location.getAsync(function (got) {
+          var prev = (got.status === Office.AsyncResultStatus.Succeeded && got.value) || ''
+          var next = prev
+            ? prev.toLowerCase().indexOf('meet.alexol.io') >= 0
+              ? prev
+              : prev + ' · ' + url
+            : url
+          item.location.setAsync(next, function () {
+            event.completed()
+          })
+        })
+      }
+
+      if (Office.actions && Office.actions.associate) {
+        Office.actions.associate('insertJitsi', insertJitsi)
+      }
+    </script>
+  </body>
+</html>

@@ -17,6 +17,10 @@ function isSsoPage(): boolean {
   return window.location.pathname.startsWith('/sso')
 }
 
+function isJitsiAuthPage(): boolean {
+  return window.location.pathname.startsWith('/jitsi-auth')
+}
+
 api.interceptors.request.use((config) => {
   const headers = config.headers
   const hasAuth =
@@ -40,7 +44,7 @@ api.interceptors.response.use(
     const url = error.config?.url as string | undefined
 
     // На /sso не выкидываем на /login - страница сама обработает ошибку/ретрай.
-    if (status === 401 && !isPublicAuthRequest(url) && !isSsoPage()) {
+    if (status === 401 && !isPublicAuthRequest(url) && !isSsoPage() && !isJitsiAuthPage()) {
       useAuthStore.getState().logout()
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login'

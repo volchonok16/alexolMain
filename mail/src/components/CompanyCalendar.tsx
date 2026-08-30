@@ -87,6 +87,7 @@ export default function CompanyCalendar() {
     end_at: defaultEnd(),
     is_company: false,
     video_jitsi: true,
+    jitsi_open: true,
     attendees: '',
   })
 
@@ -156,6 +157,7 @@ export default function CompanyCalendar() {
         end_at: new Date(form.end_at).toISOString(),
         is_company: form.is_company,
         video_jitsi: form.video_jitsi,
+        jitsi_open: form.jitsi_open,
         attendees: attendeeEmails.map((email) => ({ email })),
       })
       return data
@@ -175,6 +177,7 @@ export default function CompanyCalendar() {
         end_at: defaultEnd(),
         is_company: false,
         video_jitsi: true,
+        jitsi_open: true,
         attendees: '',
       })
       if (created.conflicts && created.conflicts.length) {
@@ -261,8 +264,9 @@ export default function CompanyCalendar() {
       <p className="org-cal-hint">
         Встреча видна организатору и тем, кого пригласили. Общей для всей компании она становится
         только если включить галку и не указывать участников. Приглашения уходят в Outlook как
-        Accept/Decline. Чтобы видеть свои встречи сайта в Outlook — кнопка со ссылкой (календарь
-        из интернета).
+        Accept/Decline, со ссылкой Jitsi в поле «Место». Если создать встречу сразу в Outlook —
+        ссылка Jitsi допишется участникам автоматически (кнопка как у Teams на IMAP-ящике не
+        ставится). Чтобы видеть встречи сайта в Outlook — кнопка со ссылкой ICS.
       </p>
 
       <div className="cal-nav">
@@ -491,6 +495,16 @@ export default function CompanyCalendar() {
                 />
                 Видеозвонок Jitsi
               </label>
+              {form.video_jitsi ? (
+                <label className="org-check">
+                  <input
+                    type="checkbox"
+                    checked={form.jitsi_open}
+                    onChange={(e) => setForm({ ...form, jitsi_open: e.target.checked })}
+                  />
+                  Открытая комната (гости по ссылке, без входа в почту)
+                </label>
+              ) : null}
               <label className="org-check">
                 <input
                   type="checkbox"

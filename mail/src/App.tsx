@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import SsoPage from './pages/SsoPage'
+import JitsiAuth from './pages/JitsiAuth'
 import AdminDashboard from './pages/AdminDashboard'
 import UserDashboard from './pages/UserDashboard'
 import Profile from './pages/Profile'
@@ -27,11 +28,9 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route
-          path="/login"
-          element={token ? <Navigate to={user?.is_admin ? '/admin' : '/dashboard'} /> : <Login />}
-        />
+        <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/jitsi-auth" element={<JitsiAuth />} />
         <Route path="/sso" element={<SsoPage />} />
         
         <Route

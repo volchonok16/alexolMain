@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { Users, Mail, X, LayoutDashboard } from 'lucide-react'
@@ -16,7 +16,35 @@ export default function Login() {
   const [showAdminChoice, setShowAdminChoice] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const nextPath = searchParams.get('next') || ''
+  const safeNext = nextPath.startsWith('/') && !nextPath.startsWith('//') ? nextPath : ''
+  const token = useAuthStore((s) => s.token)
+  const authedUser = useAuthStore((s) => s.user)
   const setAuth = useAuthStore((state) => state.setAuth)
+
+  useEffect(() => {
+    if (!token) return
+    if (safeNext) {
+      navigate(safeNext, { replace: true })
+      return
+    }
+    if (!showAdminChoice) {
+      navigate(authedUser?.is_admin ? '/admin' : '/dashboard', { replace: true })
+    }
+  }, [token, safeNext, authedUser?.is_admin, navigate, showAdminChoice])
+
+  const afterLogin = (isAdmin: boolean) => {
+    if (safeNext) {
+      navigate(safeNext)
+      return
+    }
+    if (isAdmin) {
+      setShowAdminChoice(true)
+      return
+    }
+    navigate('/dashboard')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,12 +69,7 @@ export default function Login() {
       }
 
       setAuth(userData, accessToken)
-
-      if (userData.is_admin) {
-        setShowAdminChoice(true)
-      } else {
-        navigate('/dashboard')
-      }
+      afterLogin(Boolean(userData.is_admin))
     } catch (err: any) {
       const detail = err.response?.data?.detail
       setError(

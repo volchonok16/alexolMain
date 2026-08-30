@@ -36,7 +36,21 @@ class JitsiJwtTests(unittest.TestCase):
         self.assertEqual(payload["room"], "altaraskin")
         self.assertEqual(payload["context"]["user"]["name"], "Alexander Taraskin")
         self.assertEqual(payload["context"]["user"]["email"], "altaraskin@alexol.io")
+        self.assertEqual(payload["context"]["user"]["affiliation"], "owner")
         self.assertIn("/api/public/avatar/", payload["context"]["user"]["avatar"])
+
+    def test_guest_token_skipped_for_closed_room(self):
+        from app.jitsi_jwt import issue_guest_jwt
+
+        with patch("app.jitsi_jwt.settings") as settings:
+            settings.JITSI_JWT_APP_SECRET = "unit-test-secret"
+            settings.JITSI_JWT_APP_ID = "alexol"
+            settings.JITSI_PUBLIC_URL = "https://meet.alexol.io"
+            self.assertIsNone(issue_guest_jwt("c-alexol-1-abc"))
+            token = issue_guest_jwt("o-alexol-1-abc")
+        payload = jwt.decode(token, "unit-test-secret", algorithms=["HS256"], audience="alexol")
+        self.assertEqual(payload["context"]["user"]["name"], "Гость")
+        self.assertEqual(payload["context"]["user"]["affiliation"], "member")
 
 
 if __name__ == "__main__":

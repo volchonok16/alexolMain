@@ -118,5 +118,46 @@ class CalendarAndBase64BodyTests(unittest.TestCase):
         self.assertNotIn("BEGIN:VCALENDAR", html)
 
 
+class MeetingInviteLayoutTests(unittest.TestCase):
+    def test_html_has_join_button(self):
+        from datetime import datetime
+        from app.mail_body import meeting_invite_html, meeting_invite_plain
+
+        html = meeting_invite_html(
+            lead="Alexander приглашает на встречу.",
+            title="Стендап",
+            when="30 августа 2026, 10:00–11:00",
+            location="Переговорка · https://meet.alexol.io/alexol-1-abc",
+            description="Повестка дня",
+            organizer="Alexander Taraskin",
+            attendees=["Info"],
+        )
+        self.assertIn("Присоединиться к видеозвонку", html)
+        self.assertIn("https://meet.alexol.io/alexol-1-abc", html)
+        self.assertIn("Стендап", html)
+        self.assertIn("Переговорка", html)
+        self.assertIn("<table", html)
+        plain = meeting_invite_plain(
+            lead="Alexander приглашает на встречу.",
+            title="Стендап",
+            when="30 августа 2026, 10:00–11:00",
+            location="https://meet.alexol.io/alexol-1-abc",
+        )
+        self.assertIn("Видеозвонок:", plain)
+
+    def test_cancel_has_no_join_button(self):
+        from app.mail_body import meeting_invite_html
+
+        html = meeting_invite_html(
+            lead="Встреча отменена",
+            title="Стендап",
+            when="30 августа 2026, 10:00–11:00",
+            location="https://meet.alexol.io/room",
+            method="CANCEL",
+        )
+        self.assertIn("Встреча отменена", html)
+        self.assertNotIn("Присоединиться к видеозвонку", html)
+
+
 if __name__ == "__main__":
     unittest.main()

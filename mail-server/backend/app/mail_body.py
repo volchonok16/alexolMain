@@ -30,6 +30,164 @@ def looks_like_ics(text: str | None) -> bool:
     return t.startswith("BEGIN:VCALENDAR")
 
 
+_MONTHS_RU = (
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+)
+
+
+def join_urls(location: str | None) -> list[str]:
+    urls: list[str] = []
+    for part in (location or "").replace("·", " ").split():
+        token = part.strip().rstrip(".,;)")
+        if token.lower().startswith("http://") or token.lower().startswith("https://"):
+            urls.append(token)
+    return urls
+
+
+def location_label(location: str | None) -> str:
+    text = location or ""
+    for url in join_urls(text):
+        text = text.replace(url, "")
+    text = " ".join(text.replace("·", " ").split()).strip(" ·")
+    if text:
+        return text
+    return "Видеозвонок Jitsi" if join_urls(location) else "—"
+
+
+def format_meeting_when(start, end) -> str:
+    if not start:
+        return ""
+    day = f"{start.day} {_MONTHS_RU[start.month - 1]} {start.year}"
+    stamp = start.strftime("%H:%M")
+    if end:
+        stamp += "–" + end.strftime("%H:%M")
+    return f"{day}, {stamp}"
+
+
+def meeting_invite_plain(
+    *,
+    lead: str,
+    title: str,
+    when: str,
+    location: str | None,
+    description: str | None = None,
+) -> str:
+    lines = [lead.strip(), "", title.strip() or "Встреча"]
+    if when:
+        lines.append(f"Когда: {when}")
+    if location:
+        lines.append(f"Где: {location}")
+    urls = join_urls(location)
+    if urls:
+        lines.append(f"Видеозвонок: {urls[0]}")
+    if description:
+        lines.extend(["", description.strip()])
+    return "\n".join(lines).strip() + "\n"
+
+
+def meeting_invite_html(
+    *,
+    lead: str,
+    title: str,
+    when: str,
+    location: str | None,
+    description: str | None = None,
+    organizer: str | None = None,
+    attendees: list[str] | None = None,
+    method: str = "REQUEST",
+) -> str:
+    """Outlook-safe table layout with a join button. Also renders in our webmail."""
+    cancelled = (method or "REQUEST").upper() == "CANCEL"
+    urls = join_urls(location)
+    join_url = urls[0] if urls and not cancelled else ""
+    where = location_label(location)
+    accent = "#94a3b8" if cancelled else "#0891b2"
+    badge = "Встреча отменена" if cancelled else "Встреча"
+    people = [name for name in (attendees or []) if name]
+    rows: list[tuple[str, str]] = []
+    if when:
+        rows.append(("Когда", when))
+    if where and where != "—":
+        rows.append(("Где", where))
+    if organizer:
+        rows.append(("Организатор", organizer))
+    if people:
+        rows.append(("Участники", ", ".join(people)))
+
+    meta_html = ""
+    for label, value in rows:
+        meta_html += (
+            "<tr>"
+            f'<td style="padding:0 0 10px;width:118px;color:#64748b;font-size:13px;'
+            'font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;vertical-align:top">'
+            f"{_html(label)}</td>"
+            f'<td style="padding:0 0 10px;color:#0f172a;font-size:14px;font-weight:600;'
+            'font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;vertical-align:top">'
+            f"{_html(value)}</td>"
+            "</tr>"
+        )
+
+    button = ""
+    if join_url:
+        href = _html(join_url)
+        button = (
+            '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 6px">'
+            "<tr>"
+            f'<td align="center" bgcolor="#0891b2" style="border-radius:8px;background:#0891b2">'
+            f'<a href="{href}" style="display:inline-block;padding:12px 22px;color:#ffffff;'
+            "font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;"
+            'font-weight:700;text-decoration:none;border-radius:8px">'
+            "Присоединиться к видеозвонку</a>"
+            "</td></tr></table>"
+            f'<p style="margin:0 0 16px;font-size:12px;color:#64748b;'
+            'font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+            f'Если кнопка не открывается: <a href="{href}" style="color:#0891b2">{href}</a></p>'
+        )
+
+    desc = ""
+    if description and description.strip():
+        desc = (
+            f'<p style="margin:4px 0 0;font-size:14px;line-height:1.55;color:#334155;'
+            'font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+            f"{_html(description.strip())}</p>"
+        )
+
+    return f"""
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#eef2f6">
+  <tr>
+    <td align="center" style="padding:16px 12px">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="width:560px;max-width:560px;background:#ffffff;border-radius:12px">
+        <tr>
+          <td style="height:6px;line-height:6px;font-size:0;background:{accent}">&nbsp;</td>
+        </tr>
+        <tr>
+          <td style="padding:28px 28px 24px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+            <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;color:{accent};font-weight:700">{_html(badge)}</p>
+            <p style="margin:0 0 10px;font-size:15px;color:#64748b">{_html(lead)}</p>
+            <p style="margin:0 0 18px;font-size:22px;line-height:1.3;font-weight:700;color:#0f172a">{_html(title or "Встреча")}</p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">{meta_html}</table>
+            {button}
+            {desc}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+""".strip()
+
+
 def maybe_decode_stored(text: str) -> str:
     """Undo CTE left in the body (base64 HTML/ICS shown as garbage in webmail)."""
     raw = sanitize_pg_text(text or "")
@@ -55,38 +213,29 @@ def meeting_bodies_from_ics(ics_text: str) -> tuple[str, str]:
     parsed = parse_calendar(ics_text)
     if not parsed:
         plain = "Приглашение на встречу"
-        return plain, f"<p>{plain}</p>"
-    when = ""
-    if parsed.start_at:
-        when = parsed.start_at.strftime("%d.%m.%Y %H:%M")
-        if parsed.end_at:
-            when += "–" + parsed.end_at.strftime("%H:%M")
-    lines = ["Приглашение на встречу"]
-    if parsed.title:
-        lines.append(parsed.title)
-    if when:
-        lines.append(f"Когда: {when} UTC")
-    if parsed.location:
-        lines.append(f"Где: {parsed.location}")
-    if parsed.description:
-        lines.append(parsed.description)
-    plain = "\n".join(lines)
-    html = (
-        '<div style="line-height:1.55;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">'
-        '<p style="margin:0 0 10px;color:#64748b;font-size:13px">Приглашение на встречу</p>'
+        return plain, meeting_invite_html(lead=plain, title="Встреча", when="", location=None)
+    when = format_meeting_when(parsed.start_at, parsed.end_at)
+    lead = "Приглашение на встречу"
+    if (parsed.method or "").upper() == "CANCEL":
+        lead = "Встреча отменена"
+    attendee_names = [name or email for email, name, _status in parsed.attendees]
+    plain = meeting_invite_plain(
+        lead=lead,
+        title=parsed.title or "Встреча",
+        when=when,
+        location=parsed.location,
+        description=parsed.description,
     )
-    if parsed.title:
-        html += f'<p style="margin:0 0 12px;font-size:18px;font-weight:600">{_html(parsed.title)}</p>'
-    meta = []
-    if when:
-        meta.append(f"Когда: {_html(when)} UTC")
-    if parsed.location:
-        meta.append(f"Где: {_html(parsed.location)}")
-    if meta:
-        html += '<p style="margin:0 0 8px;line-height:1.6">' + "<br/>".join(meta) + "</p>"
-    if parsed.description:
-        html += f'<p style="margin:12px 0 0">{_html(parsed.description)}</p>'
-    html += "</div>"
+    html = meeting_invite_html(
+        lead=lead,
+        title=parsed.title or "Встреча",
+        when=when,
+        location=parsed.location,
+        description=parsed.description,
+        organizer=parsed.organizer_name or parsed.organizer_email,
+        attendees=attendee_names,
+        method=parsed.method or "REQUEST",
+    )
     return plain, html
 
 

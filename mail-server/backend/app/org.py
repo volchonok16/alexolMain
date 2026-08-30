@@ -10,7 +10,6 @@ from email.message import EmailMessage
 from email.parser import BytesParser
 from typing import Optional
 from urllib.parse import quote, unquote
-from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import PlainTextResponse, Response
@@ -31,8 +30,9 @@ from app.cal_invite import (
 )
 from app.config import settings
 from app.database import get_db
-from app.jitsi_jwt import issue_jitsi_jwt
+from app.jitsi_jwt import is_closed_room, issue_guest_jwt, issue_jitsi_jwt
 from app.mail_photos import user_to_vcard, vcard_filename
+from app.mail_body import format_meeting_when, meeting_invite_html, meeting_invite_plain
 from app.mail_sync import allocate_imap_uid
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
 from app.outbound import deliver_raw_outbound
@@ -277,16 +277,34 @@ async def _resolve_attendees(
     return out
 
 
+def _has_jitsi(location: Optional[str]) -> bool:
+    return "meet.alexol.io" in (location or "").lower()
+
+
+def _first_jitsi_url(location: Optional[str]) -> Optional[str]:
+    for part in (location or "").replace("·", " ").split():
+        token = part.strip().rstrip(".,;)")
+        if "meet.alexol.io" in token.lower() and token.lower().startswith("http"):
+            return token
+    return None
+
+
 def _jitsi_base() -> str:
     return (settings.JITSI_PUBLIC_URL or "https://meet.alexol.io").rstrip("/")
 
 
-def _attach_jitsi_link(event: CalendarEvent, enabled: bool, location: Optional[str]) -> None:
+def _attach_jitsi_link(
+    event: CalendarEvent,
+    enabled: bool,
+    location: Optional[str],
+    *,
+    open_room: bool = True,
+) -> None:
     loc = (location or "").strip()
     if not enabled:
         event.location = loc or None
         return
-    url = f"{_jitsi_base()}/alexol-{event.id}-{secrets.token_hex(3)}"
+    url = f"{_jitsi_base()}/{'c' if not open_room else 'o'}-alexol-{event.id}-{secrets.token_hex(3)}"
     if not loc:
         event.location = url
         return
@@ -296,15 +314,6 @@ def _attach_jitsi_link(event: CalendarEvent, enabled: bool, location: Optional[s
     event.location = f"{loc} · {url}"
 
 
-def _join_html(where: str) -> str:
-    safe = xml_escape(where or "—")
-    urls = [p.strip() for p in (where or "").replace("·", " ").split() if p.strip().startswith("http")]
-    links = "".join(
-        f'<p><a href="{xml_escape(u)}">Присоединиться к видеозвонку</a></p>' for u in urls
-    )
-    return f"<p>Где: {safe}</p>{links}"
-
-
 async def _notify_meeting(
     db: AsyncSession,
     event: CalendarEvent,
@@ -312,9 +321,8 @@ async def _notify_meeting(
     *,
     method: str = "REQUEST",
 ) -> None:
-    start = event.start_at.strftime("%d.%m.%Y %H:%M") if event.start_at else ""
-    end = event.end_at.strftime("%H:%M") if event.end_at else ""
-    where = event.location or "—"
+    when = format_meeting_when(event.start_at, event.end_at)
+    where = event.location or ""
     method = (method or "REQUEST").upper()
     if method == "CANCEL":
         subject = f"Отмена встречи: {event.title}"
@@ -322,27 +330,24 @@ async def _notify_meeting(
     else:
         subject = f"Встреча: {event.title}"
         lead = f"{organizer.full_name} приглашает на встречу."
-    body = (
-        f"{lead}\n\n"
-        f"{event.title}\n"
-        f"Когда: {start}–{end} UTC\n"
-        f"Где: {where}\n"
+    people = [a.display_name or a.email for a in (event.attendees or []) if a.email]
+    body = meeting_invite_plain(
+        lead=lead,
+        title=event.title or "Встреча",
+        when=when,
+        location=where,
+        description=event.description,
     )
-    if event.description:
-        body += f"\n{event.description}\n"
-    html = (
-        '<div style="line-height:1.55;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">'
-        f'<p style="margin:0 0 10px">{xml_escape(lead)}</p>'
-        f'<p style="margin:0 0 12px;font-size:18px;font-weight:600">{xml_escape(event.title)}</p>'
-        f'<p style="margin:0 0 8px">Когда: {xml_escape(start)}–{xml_escape(end)} UTC</p>'
-        f"{_join_html(where)}"
-        "</div>"
+    html = meeting_invite_html(
+        lead=lead,
+        title=event.title or "Встреча",
+        when=when,
+        location=where,
+        description=event.description,
+        organizer=organizer.full_name,
+        attendees=people,
+        method=method,
     )
-    if event.description:
-        html = html.replace(
-            "</div>",
-            f'<p style="margin:12px 0 0">{xml_escape(event.description)}</p></div>',
-        )
     to_addrs = [a.email for a in (event.attendees or []) if a.email]
     raw = build_meeting_rfc822(
         organizer=organizer,
@@ -476,6 +481,7 @@ async def _apply_parsed_event(
     title = parsed.title or "Встреча"
     start = parsed.start_at
     end = parsed.end_at or parsed.start_at
+    previous_location = existing.location if existing else None
     if existing:
         existing.title = title
         existing.description = parsed.description or None
@@ -537,9 +543,21 @@ async def _apply_parsed_event(
         )
     event.attendees = attendees
     await db.refresh(event, attribute_names=["organizer", "attendees"])
+    added_jitsi = False
+    if not _has_jitsi(event.location):
+        prev = _first_jitsi_url(previous_location)
+        if prev:
+            loc = (event.location or "").strip()
+            event.location = f"{loc} · {prev}" if loc else prev
+        else:
+            _attach_jitsi_link(event, True, event.location)
+            added_jitsi = True
+            event.ical_sequence = max(int(event.ical_sequence or 0), int(parsed.sequence or 0)) + 1
     await _write_busy(db, event)
+    if added_jitsi:
+        await _notify_meeting(db, event, org_user)
     await db.commit()
-    logger.info("Calendar ingested uid=%s title=%s", parsed.uid, title)
+    logger.info("Calendar ingested uid=%s title=%s jitsi=%s", parsed.uid, title, added_jitsi)
 
 
 @router.get("/directory", response_model=list[DirectoryPerson])
@@ -562,7 +580,15 @@ async def jitsi_token(
     current_user: User = Depends(get_current_user),
 ):
     slug = (room or "*").strip() or "*"
-    return {"token": issue_jitsi_jwt(current_user, room=slug)}
+    return {"token": issue_jitsi_jwt(current_user, room=slug, moderator=True), "open": not is_closed_room(slug)}
+
+
+@router.get("/jitsi/guest-token")
+async def jitsi_guest_token(room: str = Query("", max_length=200)):
+    slug = (room or "*").strip() or "*"
+    if is_closed_room(slug):
+        return {"token": None, "open": False}
+    return {"token": issue_guest_jwt(slug), "open": True}
 
 
 @router.get("/contacts", response_model=list[DirectoryPerson])
@@ -729,7 +755,7 @@ async def create_event(
     event.attendees = attendees
     db.add(event)
     await db.flush()
-    _attach_jitsi_link(event, payload.video_jitsi, payload.location)
+    _attach_jitsi_link(event, payload.video_jitsi, payload.location, open_room=payload.jitsi_open)
     event.ical_uid = event.ical_uid or event_uid(event)
     await db.refresh(event, attribute_names=["attendees", "organizer"])
     await _write_busy(db, event)

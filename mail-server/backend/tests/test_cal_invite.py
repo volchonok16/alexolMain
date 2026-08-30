@@ -190,6 +190,8 @@ class SmtpIngestHookTests(unittest.TestCase):
         )
         self.assertIn("~CalendarEvent.attendees.any()", org_src)
         self.assertIn("existing.is_company = False", org_src)
+        self.assertIn("_attach_jitsi_link", org_src)
+        self.assertIn("added_jitsi", org_src)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Встреча Jitsi</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Roboto, sans-serif;
+        margin: 16px;
+        color: #0f172a;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        border: 0;
+        border-radius: 8px;
+        background: #0891b2;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      p { font-size: 14px; line-height: 1.45; color: #475569; }
+    </style>
+  </head>
+  <body>
+    <p>Вставить ссылку видеозвонка Jitsi в поле «Место» этой встречи Outlook.</p>
+    <button type="button" id="go">Вставить Jitsi</button>
+    <p id="status"></p>
+    <script>
+      Office.onReady(function () {
+        document.getElementById("go").onclick = function () {
+          var slug = "outlook-" + Math.random().toString(16).slice(2, 10)
+          var url = "https://meet.alexol.io/" + slug
+          var item = Office.context.mailbox.item
+          item.location.getAsync(function (got) {
+            var prev = (got.status === Office.AsyncResultStatus.Succeeded && got.value) || ""
+            var next = prev
+              ? prev.toLowerCase().indexOf("meet.alexol.io") >= 0
+                ? prev
+                : prev + " · " + url
+              : url
+            item.location.setAsync(next, function (res) {
+              document.getElementById("status").textContent =
+                res.status === Office.AsyncResultStatus.Succeeded
+                  ? "Ссылка в поле «Место». Можно отправлять."
+                  : "Outlook не дал записать место (часто так на IMAP-ящике)."
+            })
+          })
+        }
+      })
+    </script>
+  </body>
+</html>

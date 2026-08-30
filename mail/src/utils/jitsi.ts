@@ -1,5 +1,3 @@
-import api from '../api/axios'
-
 export const JITSI_PUBLIC_URL = (import.meta.env.VITE_JITSI_URL || 'https://meet.alexol.io').replace(
   /\/$/,
   ''
@@ -17,8 +15,13 @@ export function jitsiRoomSlug(value: string): string {
   return slug || 'alexol'
 }
 
-export function personalJitsiUrl(username?: string | null, email?: string | null): string {
-  return `${JITSI_PUBLIC_URL}/${jitsiRoomSlug(username || email || 'room')}`
+export function personalJitsiUrl(
+  username?: string | null,
+  email?: string | null,
+  openRoom = true
+): string {
+  const prefix = openRoom ? 'o' : 'c'
+  return `${JITSI_PUBLIC_URL}/${prefix}-${jitsiRoomSlug(username || email || 'room')}`
 }
 
 export function firstHttpUrl(text: string): string | null {
@@ -26,38 +29,18 @@ export function firstHttpUrl(text: string): string | null {
   return parts.find((p) => /^https?:\/\//i.test(p)) || null
 }
 
-export function withJitsiUser(roomUrl: string, user?: JitsiIdentity | null): string {
-  const name = (user?.full_name || user?.email || '').trim()
-  if (!name) return roomUrl
-  const [base] = roomUrl.split('#')
-  const parts = [`userInfo.displayName=${JSON.stringify(name)}`]
-  if (user?.email) parts.push(`userInfo.email=${JSON.stringify(user.email)}`)
-  return `${base}#${parts.join('&')}`
-}
-
-function roomFromUrl(roomUrl: string): string {
+export function roomFromUrl(roomUrl: string): string {
   try {
     const path = new URL(roomUrl, JITSI_PUBLIC_URL).pathname.replace(/^\/+/, '')
-    return path.split('/')[0] || '*'
+    return decodeURIComponent(path.split('/')[0] || '') || 'alexol'
   } catch {
-    return '*'
+    return 'alexol'
   }
 }
 
-export async function openJitsiRoom(roomUrl: string, user?: JitsiIdentity | null): Promise<string> {
-  let url = withJitsiUser(roomUrl, user)
-  try {
-    const { data } = await api.get<{ token?: string | null }>('/jitsi/token', {
-      params: { room: roomFromUrl(roomUrl) },
-    })
-    if (data?.token) {
-      const parsed = new URL(url)
-      parsed.searchParams.set('jwt', data.token)
-      url = parsed.toString()
-    }
-  } catch {
-    /* Jitsi still opens; name comes from the URL hash */
-  }
-  window.open(url, '_blank', 'noopener,noreferrer')
-  return url
+export async function openJitsiRoom(roomUrl: string, _user?: JitsiIdentity | null): Promise<string> {
+  const room = roomFromUrl(roomUrl)
+  const bounce = `${window.location.origin}/jitsi-auth?room=${encodeURIComponent(room)}`
+  window.open(bounce, '_blank', 'noopener,noreferrer')
+  return bounce
 }
