@@ -18,6 +18,7 @@ from app.ldap_ber import decode_ldap_request
 from app.ldap_directory import (
     dn_in_scope,
     eval_ldap_filter,
+    is_list_all_filter,
     ldap_base_dn,
     ldap_people_ou,
     ldap_user_dn,
@@ -78,9 +79,6 @@ def _bind_done(message_id: int, result_code: int = 0, diagnostic: str = "") -> b
 
 
 def _entry_bytes(message_id: int, dn: str, attrs: dict[str, list[str]], requested: list[str], types_only: bool) -> bytes:
-    want = {a.lower() for a in requested if a not in ("*", "1.1", "")}
-    if want:
-        want |= {"cn", "mail", "name", "displayname", "sn", "givenname", "objectclass"}
     no_vals = "1.1" in requested
     entry = SearchResultEntry()
     entry["object"] = LDAPDN(dn)
@@ -88,8 +86,6 @@ def _entry_bytes(message_id: int, dn: str, attrs: dict[str, list[str]], requeste
     idx = 0
     for attr, values in attrs.items():
         if attr.lower() == "entrydn":
-            continue
-        if want and attr.lower() not in want:
             continue
         pa = PartialAttribute()
         pa["type"] = AttributeDescription(attr)
@@ -252,8 +248,11 @@ class LDAPSession:
         people = self._load_people()
         hits: list[tuple[str, dict[str, list[str]]]] = []
         search_base = base or _base_dn()
+        list_all = is_list_all_filter(ldap_filter)
 
         def _matches(attrs: dict[str, list[str]]) -> bool:
+            if list_all:
+                return True
             try:
                 return eval_ldap_filter(ldap_filter, attrs)
             except ValueError:
@@ -274,27 +273,32 @@ class LDAPSession:
                     hits.append((dn, attrs))
                     break
         else:
-            for dn, attrs in people:
-                if dn_in_scope(dn, search_base, scope) and _matches(attrs):
-                    hits.append((dn, attrs))
-            if not hits:
+            if list_all:
+                hits = list(people)
+            else:
                 for dn, attrs in people:
-                    if _matches(attrs):
+                    if dn_in_scope(dn, search_base, scope) and _matches(attrs):
                         hits.append((dn, attrs))
+                if not hits:
+                    hits = [(dn, attrs) for dn, attrs in people if _matches(attrs)]
 
         sent = 0
+        limit = size_limit
+        if list_all and (not limit or limit < len(people)):
+            limit = 0
         for dn, attrs in hits:
-            if size_limit and sent >= size_limit:
+            if limit and sent >= limit:
                 break
             await self._send(_entry_bytes(message_id, dn, attrs, requested, types_only))
             sent += 1
         await self._send(_search_done(message_id))
         logger.info(
-            "LDAP search user=%s base=%r filter=%s hits=%s peer=%s",
+            "LDAP search user=%s base=%r filter=%s hits=%s attrs=%s peer=%s",
             self.bound_user.email if self.bound_user else "-",
             base,
             ldap_filter[:160],
             sent,
+            ",".join(requested[:12]) if requested else "*",
             self._peer(),
         )
 

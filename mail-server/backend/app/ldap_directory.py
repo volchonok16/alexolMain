@@ -1,6 +1,7 @@
 """Company directory for Outlook Check Names (LDAP GAL)."""
 from __future__ import annotations
 
+import re
 from typing import Any, Iterable
 
 ANR_ATTRS = (
@@ -82,9 +83,18 @@ def user_ldap_attrs(user: Any, mail_domain: str) -> dict[str, list[str]]:
     phone = (getattr(user, "phone", None) or "").strip()
     if phone:
         attrs["telephoneNumber"] = [phone]
+        attrs["otherTelephone"] = [phone]
+        attrs["mobile"] = [phone]
+        attrs["homePhone"] = [phone]
     title = (getattr(user, "job_title", None) or "").strip()
     if title:
         attrs["title"] = [title]
+        attrs["description"] = [title]
+    telegram = (getattr(user, "telegram", None) or "").strip().lstrip("@")
+    if telegram:
+        attrs["labeledURI"] = [f"https://t.me/{telegram}"]
+        attrs["wWWHomePage"] = [f"https://t.me/{telegram}"]
+        attrs["info"] = [f"Telegram: @{telegram}"]
     attrs["entryDN"] = [dn]
     if email:
         attrs["rfc822Mailbox"] = [email]
@@ -92,7 +102,28 @@ def user_ldap_attrs(user: Any, mail_domain: str) -> dict[str, list[str]]:
         attrs["proxyAddresses"] = [f"SMTP:{email}", email]
     attrs["o"] = [mail_domain]
     attrs["company"] = [mail_domain]
+    attrs["organizationName"] = [mail_domain]
+    attrs["physicalDeliveryOfficeName"] = [mail_domain]
+    attrs["department"] = [mail_domain]
+    if given and sn:
+        attrs["initials"] = ["".join(p[0] for p in parts if p)[:2].upper()]
     return {k: v for k, v in attrs.items() if v}
+
+
+def is_list_all_filter(filt: str) -> bool:
+    """True when Outlook is browsing / not typing a name prefix."""
+    compact = (filt or "").replace(" ", "")
+    if not compact or compact in (
+        "(objectClass=*)",
+        "(&(objectClass=*))",
+        "(mail=*)",
+        "(&(mail=*))",
+        "(&(objectClass=*)(mail=*))",
+    ):
+        return True
+    if re.search(r"=[^*)]+\*", compact):
+        return False
+    return "=*" in compact
 
 
 def _norm_map(attrs: dict[str, list[str]]) -> dict[str, list[str]]:

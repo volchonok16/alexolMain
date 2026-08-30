@@ -53,8 +53,17 @@ class FilterMatchTests(unittest.TestCase):
         self.assertTrue(eval_ldap_filter("(objectCategory=person)", self.attrs))
         self.assertTrue(eval_ldap_filter("(&(objectClass=*)(cn=Kapustkin*))", self.attrs))
         self.assertEqual(self.attrs["name"], ["Ivan Kapustkin"])
-        ika = user_ldap_attrs(_person(username="ikapustkin", email="ikapustkin@alexol.io"), "alexol.io")
-        self.assertTrue(eval_ldap_filter("(cn=ika*)", ika))
+        self.assertEqual(self.attrs["telephoneNumber"], ["+79990001122"])
+        self.assertEqual(self.attrs["mobile"], ["+79990001122"])
+        self.assertEqual(self.attrs["title"], ["Engineer"])
+        self.assertEqual(self.attrs["company"], ["alexol.io"])
+
+    def test_list_all_filter(self):
+        from app.ldap_directory import is_list_all_filter
+
+        self.assertTrue(is_list_all_filter("(objectClass=*)"))
+        self.assertTrue(is_list_all_filter("(&(mail=*)(|(mail=*)(cn=*)(sn=*)))"))
+        self.assertFalse(is_list_all_filter("(&(mail=*)(|(mail=kapu*)(cn=kapu*)))"))
 
     def test_outlook_or_filter(self):
         filt = "(|(cn=Kapustkin*)(mail=Kapustkin*)(sn=Kapustkin*)(givenName=Kapustkin*))"
