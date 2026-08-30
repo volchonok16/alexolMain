@@ -9,7 +9,7 @@ import os
 from email import policy
 from email.parser import BytesParser
 from email.utils import parseaddr
-from aiosmtpd.smtp import SMTP, AuthResult, LoginPassword, TLSSetupException
+from aiosmtpd.smtp import SMTP, AuthResult, LoginPassword, MISSING, TLSSetupException
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -155,13 +155,33 @@ class CustomSMTPHandler:
         # aiosmtpd 5-arg EHLO hook does not set this; AUTH then returns
         # "503 send EHLO first" and Outlook keeps reopening the password dialog.
         session.host_name = hostname
+        tls_on = bool(
+            getattr(server, "_tls_protocol", None)
+            or getattr(session, "ssl", None)
+        )
+        lines = list(responses or [])
+        if tls_on and not any("AUTH" in (line or "") for line in lines):
+            help_i = next(
+                (i for i, line in enumerate(lines) if "HELP" in (line or "")),
+                len(lines),
+            )
+            lines.insert(help_i, "250-AUTH LOGIN PLAIN")
         logger.info(
-            "SMTP EHLO peer=%s host=%s tls=%s",
+            "SMTP EHLO peer=%s host=%s tls=%s auth=%s",
             getattr(session, "peer", None),
             hostname,
-            bool(getattr(session, "ssl", None) or getattr(session, "_tls_protocol", None)),
+            tls_on,
+            any("AUTH" in (line or "") for line in lines),
         )
-        return responses
+        return lines
+
+    async def handle_AUTH(self, server, session, envelope, args):
+        logger.info(
+            "SMTP cmd AUTH %s peer=%s",
+            (args or ["?"])[0],
+            getattr(session, "peer", None),
+        )
+        return MISSING
 
     async def _deliver_external_later(self, content: bytes, from_addr: str, external_addrs: list[str]) -> None:
         try:
