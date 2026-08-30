@@ -181,6 +181,18 @@ async def startup_event():
                 "INTEGER NOT NULL DEFAULT 1"
             )
         )
+        await conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS trash_uidnext "
+                "INTEGER NOT NULL DEFAULT 1"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_trashed "
+                "BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        )
         # Existing admin-created templates become org-shared so users keep access
         await conn.execute(
             text(
@@ -1140,6 +1152,7 @@ async def get_inbox(
             Email.user_id == current_user.id,
             Email.is_sent == False,
             Email.is_deleted.is_(False),
+            Email.is_trashed.is_not(True),
         )
         .order_by(Email.received_at.desc())
     )
@@ -1158,6 +1171,7 @@ async def get_sent(
             Email.user_id == current_user.id,
             Email.is_sent == True,
             Email.is_deleted.is_(False),
+            Email.is_trashed.is_not(True),
         )
         .order_by(Email.received_at.desc())
     )
@@ -1176,7 +1190,7 @@ async def get_email(
     )
     email = result.scalar_one_or_none()
     
-    if not email or email.is_deleted:
+    if not email or email.is_deleted or email.is_trashed:
         raise HTTPException(status_code=404, detail="Email not found")
     
     # Mark as read
@@ -1200,7 +1214,7 @@ async def mark_email_read(
         select(Email).where(Email.id == email_id, Email.user_id == current_user.id)
     )
     email = result.scalar_one_or_none()
-    if not email or email.is_deleted:
+    if not email or email.is_deleted or email.is_trashed:
         raise HTTPException(status_code=404, detail="Email not found")
     if email.is_sent:
         raise HTTPException(status_code=400, detail="Sent emails cannot be marked unread/read this way")

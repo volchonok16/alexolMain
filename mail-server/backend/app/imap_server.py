@@ -8,7 +8,8 @@ IMAP4rev1 сервер: даёт доступ к почте через стан�
 Поддерживаемые команды:
   CAPABILITY, NOOP, IDLE, LOGOUT, LOGIN, AUTHENTICATE, STARTTLS,
   SELECT, EXAMINE, LIST, LSUB, STATUS, SEARCH, FETCH, UID, STORE,
-  EXPUNGE, CLOSE, NAMESPACE, ID, SUBSCRIBE, UNSUBSCRIBE, APPEND
+  EXPUNGE, CLOSE, NAMESPACE, ID, SUBSCRIBE, UNSUBSCRIBE, APPEND,
+  COPY, MOVE
 """
 import asyncio
 import base64
@@ -40,6 +41,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from app.mail_photos import user_to_vcard
 from app.mail_sync import (
     allocate_imap_uid_sync,
+    allocate_trash_uid_sync,
     apply_store_flags,
     flags_for_email,
     is_outlook_probe,
@@ -170,6 +172,8 @@ def _decode_mutf7(name: str) -> str:
 
 # Canonical LIST/LSUB atom for the sent mailbox (Russian Outlook folder name).
 _SENT_LIST_ATOM = _encode_mutf7("Отправленные")
+# Same idea for Trash: \Trash without advertising SPECIAL-USE.
+_TRASH_LIST_ATOM = _encode_mutf7("Удаленные")
 
 
 def _normalize_mailbox(args: str) -> str:
@@ -184,6 +188,14 @@ def _classify_mailbox(name: str) -> str | None:
     # INBOX.Sent is a sent alias, not a nested clone.
     if upper in ("INBOX.SENT", "INBOX/SENT", "INBOX.SENT ITEMS", "INBOX/SENT ITEMS"):
         return "Sent"
+    if upper in (
+        "INBOX.TRASH", "INBOX/TRASH",
+        "INBOX.DELETED", "INBOX/DELETED",
+        "INBOX.DELETED ITEMS", "INBOX/DELETED ITEMS",
+        "INBOX.УДАЛЕННЫЕ", "INBOX/УДАЛЕННЫЕ",
+        "INBOX.УДАЛЁННЫЕ", "INBOX/УДАЛЁННЫЕ",
+    ):
+        return "Trash"
     # Outlook leftover children (INBOX/INBOX, INBOX.INBOX) are not real mailboxes.
     if "/" in n or "." in n:
         return None
@@ -199,6 +211,13 @@ def _classify_mailbox(name: str) -> str | None:
         return "Drafts"
     if upper in ("CONTACTS", "CONTACT", "КОНТАКТЫ"):
         return "Contacts"
+    if upper in (
+        "TRASH", "DELETED", "DELETED ITEMS", "DELETEDITEMS",
+        "BIN", "GELÖSCHTE ELEMENTE",
+        "УДАЛЕННЫЕ", "УДАЛЁННЫЕ",
+        "УДАЛЕННЫЕ ЭЛЕМЕНТЫ", "УДАЛЁННЫЕ ЭЛЕМЕНТЫ",
+    ):
+        return "Trash"
     return None
 
 
@@ -712,7 +731,7 @@ class IMAPSession:
         return self.writer.get_extra_info("peername")
 
     async def handle(self):
-        logger.info("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
+        logger.debug("IMAP connected peer=%s ssl=%s", self._peer(), self._is_ssl)
         await self._send(f'* OK {settings.smtp_hostname} IMAP4rev1 Service Ready')
         try:
             while self.state != self.LOGOUT:
@@ -756,23 +775,23 @@ class IMAPSession:
     async def _dispatch(self, line: str):
         m = re.match(r'^(\S+)\s+(\S+)(.*)', line)
         if not m:
-            logger.info("IMAP unparsed %r peer=%s", line[:200], self._peer())
+            logger.debug("IMAP unparsed %r peer=%s", line[:200], self._peer())
             await self._send('* BAD malformed command')
             return
         tag, cmd, rest = m.group(1), m.group(2).upper(), m.group(3).strip()
         if cmd == "LOGIN":
             login = _parse_args(rest)[0] if rest else "?"
-            logger.info("IMAP cmd=LOGIN user=%s peer=%s", login, self._peer())
+            logger.debug("IMAP cmd=LOGIN user=%s peer=%s", login, self._peer())
         elif cmd == "AUTHENTICATE":
             mech = rest.split()[0] if rest else "?"
-            logger.info(
+            logger.debug(
                 "IMAP cmd=AUTHENTICATE %s peer=%s user=%s",
                 mech,
                 self._peer(),
                 self.user.email if self.user else "-",
             )
         else:
-            logger.info(
+            logger.debug(
                 "IMAP cmd=%s %s peer=%s user=%s",
                 cmd,
                 rest[:160],
@@ -808,9 +827,9 @@ class IMAPSession:
             'CREATE': self._create,
             'DELETE': self._delete_mailbox,
             'CHECK': self._noop,
-            'COPY': self._ok,
+            'COPY': self._copy,
             'ENABLE': self._ok,
-            'MOVE': self._ok,
+            'MOVE': self._move,
             'UNSELECT': self._close,
         }
         handler = dispatch.get(cmd, self._unknown)
@@ -842,13 +861,15 @@ class IMAPSession:
     def _reload_selected(self) -> list[dict]:
         if self.selected_mailbox == 'Sent':
             return self._fetch_sent()
+        if self.selected_mailbox == 'Trash':
+            return self._fetch_trash()
         if self.selected_mailbox == 'Drafts':
             return []
         if self.selected_mailbox == 'Contacts':
             return self._fetch_contacts()
         return self._fetch_inbox()
 
-    def _uidnext_for(self, is_sent: bool) -> int:
+    def _uidnext_for(self, mailbox: str) -> int:
         if not self.user:
             return 1
         try:
@@ -856,13 +877,16 @@ class IMAPSession:
                 user = db.get(User, self.user.id)
                 if not user:
                     return 1
-                val = user.sent_uidnext if is_sent else user.inbox_uidnext
-                return int(val or 1)
+                if mailbox == "Sent":
+                    return int(user.sent_uidnext or 1)
+                if mailbox == "Trash":
+                    return int(getattr(user, "trash_uidnext", None) or 1)
+                return int(user.inbox_uidnext or 1)
         except Exception:
             return 1
 
     def _mailbox_uidnext(self) -> int:
-        return self._uidnext_for(self.selected_mailbox == 'Sent')
+        return self._uidnext_for(self.selected_mailbox or "INBOX")
 
     async def _push_mailbox_updates(self) -> None:
         """IDLE/NOOP: EXPUNGE deletions, FETCH FLAGS for Seen, EXISTS for new mail."""
@@ -915,7 +939,7 @@ class IMAPSession:
             self.selected_mailbox = 'INBOX'
             self.selected_emails = self._fetch_inbox()
             self.state = self.SELECTED
-        logger.info(
+        logger.debug(
             "IMAP IDLE start mailbox=%s user=%s",
             self.selected_mailbox,
             self.user.email if self.user else "?",
@@ -939,7 +963,7 @@ class IMAPSession:
                 if text.upper() == 'DONE' or text.upper().endswith(' DONE'):
                     break
                 if text:
-                    logger.info("IMAP IDLE interrupted by %r", text[:120])
+                    logger.debug("IMAP IDLE interrupted by %r", text[:120])
                     await self._push_mailbox_updates()
                     await self._send(f'{tag} OK IDLE completed')
                     await self._dispatch(text)
@@ -978,7 +1002,7 @@ class IMAPSession:
             return
 
         kind = _classify_mailbox(mailbox)
-        logger.info(
+        logger.debug(
             "IMAP APPEND mailbox=%r kind=%s size=%s user=%s",
             mailbox,
             kind,
@@ -986,15 +1010,20 @@ class IMAPSession:
             self.user.email if self.user else "-",
         )
         uid = None
-        # Unknown names (localized Sent Items) still get a sent copy. Skip INBOX/Drafts.
-        if kind not in ("INBOX", "Drafts", "Contacts"):
-            uid = self._save_appended_sent(data)
+        # Unknown names (localized Sent Items) still get a sent copy. Skip INBOX/Drafts/Trash.
+        if kind == "Trash":
+            uid = self._save_appended_mailbox(data, dest="Trash")
+        elif kind not in ("INBOX", "Drafts", "Contacts"):
+            uid = self._save_appended_mailbox(data, dest="Sent")
         if uid:
             await self._send(f'{tag} OK [APPENDUID {UIDVALIDITY} {uid}] APPEND completed')
         else:
             await self._send(f'{tag} OK APPEND completed')
 
     def _save_appended_sent(self, data: bytes) -> int | None:
+        return self._save_appended_mailbox(data, dest="Sent")
+
+    def _save_appended_mailbox(self, data: bytes, dest: str) -> int | None:
         if not self.user or not data:
             return None
         try:
@@ -1005,15 +1034,16 @@ class IMAPSession:
             mid = (msg.get('Message-ID') or '').strip()
             header_name, header_addr = parseaddr(msg.get('From') or '')
             from_address = (header_addr or self.user.email).strip().lower()
-            if is_outlook_probe(msg.get("subject") or "", header_name):
+            if dest != "Trash" and is_outlook_probe(msg.get("subject") or "", header_name):
                 return None
             body, html_body = extract_text_and_html(msg)
             with self._db() as db:
-                if mid:
+                if dest == "Sent" and mid:
                     recent = db.execute(
                         select(Email).where(
                             Email.user_id == self.user.id,
                             Email.is_sent.is_(True),
+                            Email.is_trashed.is_not(True),
                         ).order_by(Email.id.desc()).limit(20)
                     ).scalars().all()
                     if any(
@@ -1021,7 +1051,12 @@ class IMAPSession:
                         for row in recent
                     ):
                         return None
-                imap_uid = allocate_imap_uid_sync(db, self.user.id, True)
+                if dest == "Trash":
+                    imap_uid = allocate_trash_uid_sync(db, self.user.id)
+                    is_sent, is_trashed = False, True
+                else:
+                    imap_uid = allocate_imap_uid_sync(db, self.user.id, True)
+                    is_sent, is_trashed = True, False
                 db.add(Email(
                     user_id=self.user.id,
                     from_address=from_address,
@@ -1031,14 +1066,15 @@ class IMAPSession:
                     body=body,
                     html_body=html_body,
                     raw_rfc822=data,
-                    is_sent=True,
+                    is_sent=is_sent,
                     is_read=True,
+                    is_trashed=is_trashed,
                     imap_uid=imap_uid,
                 ))
                 db.commit()
                 return imap_uid
         except Exception as exc:
-            logger.warning('IMAP APPEND Sent save failed: %s', exc)
+            logger.warning('IMAP APPEND %s save failed: %s', dest, exc)
             return None
 
     async def _unknown(self, tag, cmd, args):
@@ -1129,6 +1165,9 @@ class IMAPSession:
         elif kind == 'Sent':
             emails = self._fetch_sent()
             self.selected_mailbox = 'Sent'
+        elif kind == 'Trash':
+            emails = self._fetch_trash()
+            self.selected_mailbox = 'Trash'
         elif kind == 'Drafts':
             # Cached Outlook folder; do not advertise Drafts in LIST.
             emails = []
@@ -1161,7 +1200,7 @@ class IMAPSession:
         await self._send(f'* OK [UIDNEXT {uidnext}]')
         read_write = 'READ-ONLY' if cmd == 'EXAMINE' else 'READ-WRITE'
         await self._send(f'{tag} OK [{read_write}] {cmd} completed')
-        logger.info(
+        logger.debug(
             "IMAP %s mailbox=%s messages=%s uidnext=%s user=%s",
             cmd,
             self.selected_mailbox,
@@ -1181,6 +1220,7 @@ class IMAPSession:
         # \Sent without CAPABILITY SPECIAL-USE / \Inbox: map Sent Items, keep INBOX FETCH.
         await self._send(r'* LIST (\Noinferiors) NIL INBOX')
         await self._send(rf'* LIST (\HasNoChildren \Sent) NIL {_SENT_LIST_ATOM}')
+        await self._send(rf'* LIST (\HasNoChildren \Trash) NIL {_TRASH_LIST_ATOM}')
         await self._send(f'{tag} OK LIST completed')
 
     async def _lsub(self, tag, cmd, args):
@@ -1192,25 +1232,26 @@ class IMAPSession:
             return
         await self._send(r'* LSUB (\Noinferiors) NIL INBOX')
         await self._send(rf'* LSUB (\HasNoChildren \Sent) NIL {_SENT_LIST_ATOM}')
+        await self._send(rf'* LSUB (\HasNoChildren \Trash) NIL {_TRASH_LIST_ATOM}')
         await self._send(f'{tag} OK LSUB completed')
 
     async def _create(self, tag, cmd, args):
         kind = _classify_mailbox(_normalize_mailbox(args))
-        if kind in ("INBOX", "Sent", "Drafts", "Contacts"):
+        if kind in ("INBOX", "Sent", "Drafts", "Contacts", "Trash"):
             await self._send(f'{tag} NO [ALREADYEXISTS] Mailbox exists')
             return
         await self._send(f'{tag} NO CREATE not supported')
 
     async def _delete_mailbox(self, tag, cmd, args):
         kind = _classify_mailbox(_normalize_mailbox(args))
-        if kind in ("INBOX", "Sent", "Drafts", "Contacts"):
+        if kind in ("INBOX", "Sent", "Drafts", "Contacts", "Trash"):
             await self._send(f'{tag} NO [NOPERM] Cannot delete {kind}')
             return
         await self._send(f'{tag} OK DELETE completed')
 
     async def _subscribe(self, tag, cmd, args):
         kind = _classify_mailbox(_normalize_mailbox(args))
-        if kind in ("INBOX", "Sent", "Drafts", "Contacts"):
+        if kind in ("INBOX", "Sent", "Drafts", "Contacts", "Trash"):
             await self._send(f'{tag} OK SUBSCRIBE completed')
             return
         await self._send(f'{tag} NO Mailbox not found')
@@ -1241,12 +1282,18 @@ class IMAPSession:
         elif kind == 'Contacts':
             emails = self._fetch_contacts()
             listed = listed or 'Contacts'
+        elif kind == 'Trash':
+            emails = self._fetch_trash()
+            if listed.upper() not in (
+                "TRASH", "DELETED", "DELETED ITEMS", "DELETEDITEMS",
+            ) and not listed.startswith("&"):
+                listed = _TRASH_LIST_ATOM
         else:
             await self._send(f'{tag} NO Mailbox not found')
             return
         n = len(emails)
         unseen = sum(1 for e in emails if '\\Seen' not in e['flags'])
-        uid_next = self._uidnext_for(kind == 'Sent')
+        uid_next = self._uidnext_for(kind)
         await self._send(
             f'* STATUS "{listed}" '
             f'(MESSAGES {n} RECENT 0 UNSEEN {unseen} UIDNEXT {uid_next} UIDVALIDITY {UIDVALIDITY})'
@@ -1272,9 +1319,126 @@ class IMAPSession:
         elif sub == 'EXPUNGE':
             await self._expunge_uids(tag, sub_args)
         elif sub == 'COPY':
-            await self._send(f'{tag} OK UID COPY completed')
+            await self._do_copy(tag, sub_args, uid_mode=True, move=False)
+        elif sub == 'MOVE':
+            await self._do_copy(tag, sub_args, uid_mode=True, move=True)
         else:
             await self._send(f'{tag} BAD UID {sub} unknown')
+
+    async def _copy(self, tag, cmd, args):
+        await self._do_copy(tag, args, uid_mode=False, move=False)
+
+    async def _move(self, tag, cmd, args):
+        await self._do_copy(tag, args, uid_mode=False, move=True)
+
+    def _clone_email(self, row: Email, *, dest: str, imap_uid: int) -> Email:
+        return Email(
+            user_id=row.user_id,
+            from_address=row.from_address,
+            to_address=row.to_address,
+            from_name=row.from_name,
+            to_name=row.to_name,
+            subject=row.subject,
+            body=row.body,
+            html_body=row.html_body,
+            raw_rfc822=row.raw_rfc822,
+            is_read=True,
+            is_sent=dest == "Sent",
+            is_draft=False,
+            is_deleted=False,
+            is_trashed=dest == "Trash",
+            imap_uid=imap_uid,
+            received_at=row.received_at,
+        )
+
+    def _copy_rows(self, emails: list[dict], dest: str) -> tuple[list[int], list[int]]:
+        src_uids: list[int] = []
+        dest_uids: list[int] = []
+        if not self.user or not emails:
+            return src_uids, dest_uids
+        with self._db() as db:
+            ids = [em["id"] for em in emails]
+            rows = db.execute(
+                select(Email).where(
+                    Email.id.in_(ids),
+                    Email.user_id == self.user.id,
+                )
+            ).scalars().all()
+            by_id = {row.id: row for row in rows}
+            for em in emails:
+                row = by_id.get(em["id"])
+                if not row:
+                    continue
+                if dest == "Trash":
+                    uid = allocate_trash_uid_sync(db, self.user.id)
+                else:
+                    uid = allocate_imap_uid_sync(db, self.user.id, dest == "Sent")
+                db.add(self._clone_email(row, dest=dest, imap_uid=uid))
+                src_uids.append(_imap_uid(em))
+                dest_uids.append(uid)
+            db.commit()
+        return src_uids, dest_uids
+
+    async def _do_copy(self, tag, args, uid_mode=False, move=False):
+        label = ("UID " if uid_mode else "") + ("MOVE" if move else "COPY")
+        if self.state != self.SELECTED or not self.user:
+            await self._send(f'{tag} NO Not in selected state')
+            return
+        parsed = _parse_args(args or "")
+        if len(parsed) < 2:
+            await self._send(f'{tag} BAD Invalid {label}')
+            return
+        seq_set, mailbox = parsed[0], parsed[1]
+        dest = _classify_mailbox(mailbox)
+        if dest not in ("INBOX", "Sent", "Trash"):
+            # Unknown folder: keep the old no-op OK so Outlook does not stall.
+            await self._send(f'{tag} OK {label} completed')
+            return
+        pairs = _parse_seq_set(
+            seq_set, len(self.selected_emails), uid_mode, self.selected_emails
+        )
+        if not pairs:
+            await self._send(f'{tag} OK {label} completed')
+            return
+        try:
+            src_uids, dest_uids = self._copy_rows([em for _, em in pairs], dest)
+        except Exception:
+            logger.exception("IMAP %s failed", label)
+            await self._send(f'{tag} NO {label} failed')
+            return
+        if src_uids and dest_uids:
+            copied = f'[COPYUID {UIDVALIDITY} {",".join(str(u) for u in src_uids)} {",".join(str(u) for u in dest_uids)}] '
+        else:
+            copied = ""
+        if move:
+            if copied:
+                await self._send(f'* OK {copied}Moved')
+            gone_ids = {em["id"] for _, em in pairs}
+            victims = [
+                (seq, em) for seq, em in pairs if em["id"] in gone_ids
+            ]
+            ids = [em["id"] for _, em in victims]
+            try:
+                with self._db() as db:
+                    db.execute(
+                        delete(Email).where(
+                            Email.id.in_(ids),
+                            Email.user_id == self.user.id,
+                        )
+                    )
+                    db.commit()
+            except Exception:
+                logger.exception("IMAP MOVE expunge failed")
+                await self._send(f'{tag} NO {label} failed')
+                return
+            for seq, _em in reversed(victims):
+                await self._send(f'* {seq} EXPUNGE')
+            self.selected_emails = [
+                em for em in self.selected_emails if em["id"] not in gone_ids
+            ]
+            await self._send(f'{tag} OK {label} completed')
+            return
+        await self._send(f'{tag} OK {copied}{label} completed')
 
     async def _store(self, tag, cmd, args):
         await self._do_store(tag, args, uid_mode=False)
@@ -1323,7 +1487,7 @@ class IMAPSession:
                 await self._send(
                     f'* {seq_num} FETCH (FLAGS ({flags_str}) UID {_imap_uid(em)})'
                 )
-        logger.info(
+        logger.debug(
             "IMAP STORE user=%s mode=%s silent=%s flags=%s count=%s",
             self.user.email if self.user else "?",
             mode,
@@ -1361,7 +1525,7 @@ class IMAPSession:
                 await self._send(f'* {seq} EXPUNGE')
         gone = {em['id'] for _, em in victims}
         self.selected_emails = [em for em in self.selected_emails if em['id'] not in gone]
-        logger.info(
+        logger.debug(
             "IMAP EXPUNGE user=%s removed=%s",
             self.user.email if self.user else "?",
             len(ids),
@@ -1425,7 +1589,7 @@ class IMAPSession:
             else:
                 self.selected_emails = self._fetch_inbox()
             pairs = _parse_seq_set(seq_set, len(self.selected_emails), uid_mode, self.selected_emails)
-        logger.info(
+        logger.debug(
             "IMAP FETCH user=%s mailbox=%s uid=%s set=%s items=%s hits=%s",
             self.user.email if self.user else "?",
             self.selected_mailbox,
@@ -1480,7 +1644,7 @@ class IMAPSession:
                 for i, e in enumerate(self.selected_emails)
                 if e["id"] in idset
             )
-        logger.info(
+        logger.debug(
             "IMAP SEARCH user=%s mailbox=%s uid=%s args=%s hits=%s",
             self.user.email if self.user else "?",
             self.selected_mailbox,
@@ -1517,6 +1681,9 @@ class IMAPSession:
 
     def _fetch_sent(self) -> list[dict]:
         return self._fetch_emails(is_sent=True)
+
+    def _fetch_trash(self) -> list[dict]:
+        return self._fetch_emails(is_trashed=True)
 
     def _fetch_contacts(self) -> list[dict]:
         """Virtual mailbox: one vCard message per colleague for Outlook People."""
@@ -1558,18 +1725,26 @@ class IMAPSession:
             logger.error("IMAP contacts fetch error: %s", exc)
             return []
 
-    def _fetch_emails(self, is_sent: bool) -> list[dict]:
+    def _fetch_emails(self, is_sent: bool = False, is_trashed: bool = False) -> list[dict]:
         if not self.user:
             return []
         try:
             with self._db() as db:
-                rows = db.execute(
-                    select(Email)
-                    .where(
+                if is_trashed:
+                    where = (
+                        Email.user_id == self.user.id,
+                        Email.is_trashed.is_(True),
+                    )
+                else:
+                    where = (
                         Email.user_id == self.user.id,
                         Email.is_sent == is_sent,
                         Email.is_draft.is_not(True),
+                        Email.is_trashed.is_not(True),
                     )
+                rows = db.execute(
+                    select(Email)
+                    .where(*where)
                     .order_by(nulls_last(Email.imap_uid), Email.id)
                 ).scalars().all()
                 result = []

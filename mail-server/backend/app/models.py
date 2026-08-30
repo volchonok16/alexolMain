@@ -20,6 +20,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     inbox_uidnext = Column(Integer, nullable=False, default=1)
     sent_uidnext = Column(Integer, nullable=False, default=1)
+    trash_uidnext = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -55,6 +56,7 @@ class Email(Base):
     is_sent = Column(Boolean, default=False)
     is_draft = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False, nullable=False)
+    is_trashed = Column(Boolean, default=False, nullable=False)
     imap_uid = Column(Integer, nullable=True, index=True)
     received_at = Column(DateTime, default=datetime.utcnow)
 

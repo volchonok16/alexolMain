@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from app.imap_server import (
     _OUTLOOK_LIST_FETCH,
     _SENT_LIST_ATOM,
+    _TRASH_LIST_ATOM,
     _build_fetch_response,
     _classify_mailbox,
     _decode_mutf7,
@@ -53,6 +54,16 @@ class MailboxNameTests(unittest.TestCase):
         self.assertEqual(_classify_mailbox(_normalize_mailbox(_SENT_LIST_ATOM)), "Sent")
         self.assertEqual(_classify_mailbox(_normalize_mailbox("INBOX.Sent")), "Sent")
 
+    def test_trash_aliases(self):
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("Trash")), "Trash")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("Deleted Items")), "Trash")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("Удаленные")), "Trash")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("Удалённые")), "Trash")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox(_TRASH_LIST_ATOM)), "Trash")
+        self.assertEqual(_classify_mailbox(_normalize_mailbox("INBOX.Trash")), "Trash")
+        self.assertEqual(_decode_mutf7(_TRASH_LIST_ATOM), "Удаленные")
+        self.assertTrue(_TRASH_LIST_ATOM.isascii())
+
     def test_list_children_of_inbox_are_empty(self):
         from app.imap_server import _list_pattern_is_children
 
@@ -69,11 +80,15 @@ class MailboxNameTests(unittest.TestCase):
         )
         self.assertIn(r'* LIST (\Noinferiors) NIL INBOX', src)
         self.assertIn(r'* LIST (\HasNoChildren \Sent) NIL ', src)
+        self.assertIn(r'* LIST (\HasNoChildren \Trash) NIL ', src)
         self.assertIn("_SENT_LIST_ATOM", src)
+        self.assertIn("_TRASH_LIST_ATOM", src)
         self.assertNotIn("SPECIAL-USE", src.split("caps = ", 1)[-1][:80])
         self.assertIn("async def _subscribe", src)
         self.assertIn('kind not in ("INBOX", "Drafts", "Contacts")', src)
         self.assertIn("[APPENDUID", src)
+        self.assertIn("[COPYUID", src)
+        self.assertNotIn("UIDVALIDITY = 27", src)
 
     def test_sent_list_atom_is_mutf7_otpravlennye(self):
         self.assertEqual(_decode_mutf7(_SENT_LIST_ATOM), "Отправленные")

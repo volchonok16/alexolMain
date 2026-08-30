@@ -106,6 +106,15 @@ def allocate_imap_uid_sync(db: Session, user_id: int, is_sent: bool) -> int:
     return _bump_uid(user, is_sent)
 
 
+def allocate_trash_uid_sync(db: Session, user_id: int) -> int:
+    user = db.execute(
+        select(User).where(User.id == user_id).with_for_update()
+    ).scalar_one()
+    uid = int(getattr(user, "trash_uidnext", None) or 1)
+    user.trash_uidnext = uid + 1
+    return uid
+
+
 async def allocate_imap_uid(db: AsyncSession, user_id: int, is_sent: bool) -> int:
     user = (
         await db.execute(select(User).where(User.id == user_id).with_for_update())
@@ -121,7 +130,11 @@ async def backfill_imap_uids(db: AsyncSession) -> None:
             rows = (
                 await db.execute(
                     select(Email)
-                    .where(Email.user_id == user.id, Email.is_sent == is_sent)
+                    .where(
+                        Email.user_id == user.id,
+                        Email.is_sent == is_sent,
+                        Email.is_trashed.is_not(True),
+                    )
                     .order_by(Email.id)
                 )
             ).scalars().all()
