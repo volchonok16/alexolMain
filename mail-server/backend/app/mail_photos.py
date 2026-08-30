@@ -5,12 +5,69 @@ import base64
 import re
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
+import io
 from typing import Optional
 from urllib.parse import quote
 
 from app.avatar_resolve import load_avatar_bytes
 from app.config import settings
 from app.models import User
+
+def image_bytes_to_jpeg(data: bytes, max_side: int = 240, max_bytes: int = 100_000) -> Optional[bytes]:
+    """Outlook GAL photos are JPEG (`jpegPhoto` / `thumbnailPhoto`)."""
+    if not data:
+        return None
+    try:
+        from PIL import Image
+    except ImportError:
+        return data if data[:3] == b"\xff\xd8\xff" and len(data) <= max_bytes else None
+    try:
+        image = Image.open(io.BytesIO(data))
+        if image.mode not in ("RGB", "L"):
+            image = image.convert("RGB")
+        elif image.mode == "L":
+            image = image.convert("RGB")
+        image.thumbnail((max_side, max_side))
+        quality = 85
+        out = b""
+        while quality >= 40:
+            buf = io.BytesIO()
+            image.save(buf, format="JPEG", quality=quality, optimize=True)
+            out = buf.getvalue()
+            if len(out) <= max_bytes:
+                return out
+            quality -= 15
+        return out if out[:3] == b"\xff\xd8\xff" else None
+    except Exception:
+        return data if data[:3] == b"\xff\xd8\xff" and len(data) <= max_bytes else None
+
+
+_ldap_photo_cache: dict[str, dict[str, list[bytes]]] = {}
+
+
+def user_ldap_photos(user: User) -> dict[str, list[bytes]]:
+    """Per-mailbox JPEG for Outlook — never reuse another person's file."""
+    url = (getattr(user, "avatar_url", None) or "").strip()
+    if not url:
+        return {}
+    cache_key = f"{getattr(user, 'id', '')}:{url}"
+    cached = _ldap_photo_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    loaded = load_avatar_bytes(url)
+    out: dict[str, list[bytes]] = {}
+    if loaded:
+        data, _ctype, _name = loaded
+        full = image_bytes_to_jpeg(data, 240, 100_000)
+        thumb = image_bytes_to_jpeg(data, 96, 40_000)
+        if full:
+            out["jpegPhoto"] = [full]
+        if thumb:
+            out["thumbnailPhoto"] = [thumb]
+    _ldap_photo_cache[cache_key] = out
+    if len(_ldap_photo_cache) > 80:
+        _ldap_photo_cache.pop(next(iter(_ldap_photo_cache)))
+    return out
 
 
 def public_avatar_url(email: str) -> str:

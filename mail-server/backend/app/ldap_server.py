@@ -25,6 +25,7 @@ from app.ldap_directory import (
     parse_bind_identity,
     user_ldap_attrs,
 )
+from app.mail_photos import user_ldap_photos
 from app.models import User
 from ldap3.operation.bind import bind_response_operation
 from ldap3.protocol.rfc4511 import (
@@ -92,7 +93,12 @@ def _entry_bytes(message_id: int, dn: str, attrs: dict[str, list[str]], requeste
         vals = Vals()
         if not types_only and not no_vals:
             for j, value in enumerate(values):
-                raw = value.encode("utf-8") if isinstance(value, str) else value
+                if isinstance(value, str):
+                    raw = value.encode("utf-8")
+                elif isinstance(value, (bytes, bytearray, memoryview)):
+                    raw = bytes(value)
+                else:
+                    raw = str(value).encode("utf-8")
                 vals.setComponentByPosition(j, AttributeValue(raw))
         pa["vals"] = vals
         pal.setComponentByPosition(idx, pa)
@@ -169,6 +175,7 @@ class LDAPSession:
                     dn = ldap_user_dn(user.username, settings.MAIL_DOMAIN, f"{user.full_name or user.username} ({user.username})")
                     attrs["entryDN"] = [dn]
                 used.add(dn.lower())
+                attrs.update(user_ldap_photos(user))
                 out.append((dn, attrs))
             return out
 
@@ -283,6 +290,7 @@ class LDAPSession:
                     hits = [(dn, attrs) for dn, attrs in people if _matches(attrs)]
 
         sent = 0
+        photos = 0
         limit = size_limit
         if list_all and (not limit or limit < len(people)):
             limit = 0
@@ -291,13 +299,16 @@ class LDAPSession:
                 break
             await self._send(_entry_bytes(message_id, dn, attrs, requested, types_only))
             sent += 1
+            if attrs.get("jpegPhoto") or attrs.get("thumbnailPhoto"):
+                photos += 1
         await self._send(_search_done(message_id))
         logger.info(
-            "LDAP search user=%s base=%r filter=%s hits=%s attrs=%s peer=%s",
+            "LDAP search user=%s base=%r filter=%s hits=%s photos=%s attrs=%s peer=%s",
             self.bound_user.email if self.bound_user else "-",
             base,
             ldap_filter[:160],
             sent,
+            photos,
             ",".join(requested[:12]) if requested else "*",
             self._peer(),
         )

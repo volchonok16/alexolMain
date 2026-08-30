@@ -171,3 +171,26 @@ class LdapBerTests(unittest.TestCase):
         self.assertEqual(req["op"], "bindRequest")
         self.assertEqual(req["name"], "altaraskin@alexol.io")
         self.assertEqual(req["password"], "secret")
+
+    def test_jpeg_photo_on_entry(self):
+        from app.ldap_server import _entry_bytes
+        from app.mail_photos import image_bytes_to_jpeg, user_ldap_photos
+
+        self.assertEqual(user_ldap_photos(_person()), {})
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed")
+        buf = __import__("io").BytesIO()
+        Image.new("RGBA", (32, 32), (10, 20, 30, 255)).save(buf, "PNG")
+        jpeg = image_bytes_to_jpeg(buf.getvalue(), 96, 40_000)
+        self.assertIsNotNone(jpeg)
+        self.assertTrue(jpeg.startswith(b"\xff\xd8\xff"))
+        raw = _entry_bytes(
+            3,
+            "cn=Ivan Kapustkin,dc=alexol,dc=io",
+            {"cn": ["Ivan Kapustkin"], "jpegPhoto": [jpeg]},
+            ["*"],
+            False,
+        )
+        self.assertIn(jpeg[:16], raw)

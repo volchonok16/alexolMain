@@ -129,6 +129,8 @@ def is_list_all_filter(filt: str) -> bool:
 def _norm_map(attrs: dict[str, list[str]]) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for key, vals in attrs.items():
+        if vals and isinstance(vals[0], (bytes, bytearray, memoryview)):
+            continue
         out[key.lower()] = [str(v) for v in vals]
     return out
 
