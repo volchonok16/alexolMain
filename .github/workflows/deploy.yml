@@ -855,8 +855,8 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/chat-brand
-                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/chat-brand
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/chat-brand "/tmp/nginx-deploy-${{ github.run_id }}"
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/chat-brand "/tmp/nginx-deploy-${{ github.run_id }}"
 
             - name: Upload Alexol chat brand assets
               uses: appleboy/scp-action@v1
@@ -878,7 +878,7 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   source: "backend/nginx/**"
-                  target: "/tmp/alexol-nginx"
+                  target: "/tmp/nginx-deploy-${{ github.run_id }}"
                   overwrite: true
                   strip_components: 2
 
@@ -892,11 +892,12 @@ jobs:
                   script: |
                       echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
                       shopt -s nullglob
-                      for f in /tmp/alexol-nginx/sites/*.conf; do
+                      SRC=/tmp/nginx-deploy-${{ github.run_id }}
+                      for f in "$SRC"/sites/*.conf; do
                         install -m 644 "$f" "/etc/nginx/sites-available/$(basename "$f" .conf)"
                       done
-                      if [ -f /tmp/alexol-nginx/upstream.conf ]; then
-                        install -m 644 /tmp/alexol-nginx/upstream.conf /etc/nginx/sites-available/upstream
+                      if [ -f "$SRC/upstream.conf" ]; then
+                        install -m 644 "$SRC/upstream.conf" /etc/nginx/sites-available/upstream
                       fi
                       for name in upstream alexol.io admin.alexol.io api.alexol.io be.alexol.io chat.alexol.io lang.alexol.io mail.alexol.io meet.alexol.io minio.alexol.io prana.alexol.io voentorg77.ru; do
                         if [ -f "/etc/nginx/sites-available/$name" ]; then
@@ -914,5 +915,5 @@ jobs:
                         mkdir -p /var/www/chat-brand
                         cp -f /var/www/rocket/login-brand.js /var/www/rocket/login.css /var/www/rocket/login-logo.svg /var/www/chat-brand/ 2>/dev/null || true
                       fi
-                      rm -rf /tmp/alexol-nginx
+                      rm -rf "$SRC"
                       echo "nginx reloaded"'
