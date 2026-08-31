@@ -120,6 +120,17 @@
 
 @media (max-width: 767px) {
   .users-management__stats {
-    gap: 0.75rem;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+    flex-direction: column;
+  }
+
+  .users-management__detail-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .users-management__detail-fields dd {
+    overflow-wrap: anywhere;
   }
 }

@@ -327,7 +327,7 @@ export default function AdminDashboard() {
             disabled={siteAdminLoading}
           >
             <LayoutDashboard size={20} />
-            {siteAdminLoading ? '…' : 'Admin сайта'}
+            <span className="btn-label">{siteAdminLoading ? '…' : 'Сайт'}</span>
           </button>
           <button
             onClick={() =>
@@ -337,7 +337,7 @@ export default function AdminDashboard() {
             disabled={chatLoading}
           >
             <MessageCircle size={20} />
-            {chatLoading ? '…' : 'Чат'}
+            <span className="btn-label">{chatLoading ? '…' : 'Чат'}</span>
           </button>
           <button
             onClick={() => {
@@ -348,15 +348,15 @@ export default function AdminDashboard() {
             className="btn-templates"
           >
             <FileText size={20} />
-            Управлять шаблонами писем
+            <span className="btn-label">Шаблоны</span>
           </button>
           <button onClick={() => navigate('/dashboard')} className="btn-mail">
             <Mail size={20} />
-            Моя почта
+            <span className="btn-label">Почта</span>
           </button>
           <button onClick={handleLogout} className="btn-logout">
             <LogOut size={20} />
-            Выйти
+            <span className="btn-label">Выйти</span>
           </button>
         </div>
       </nav>

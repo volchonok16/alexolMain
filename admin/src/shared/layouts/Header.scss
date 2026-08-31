@@ -157,14 +157,24 @@
 
 @media (max-width: 1023px) {
   .admin-header {
-    padding: 0.75rem 1rem;
+    padding: 0.7rem 0.85rem;
+    padding-top: calc(0.7rem + env(safe-area-inset-top, 0px));
+    min-height: 3.75rem;
+    gap: 0.5rem;
 
     &__menu {
       display: inline-flex;
+      width: 2.65rem;
+      height: 2.65rem;
+      flex-shrink: 0;
     }
 
     &__title {
-      font-size: 1.15rem;
+      font-size: 1.05rem;
+    }
+
+    &__user {
+      gap: 0.4rem;
     }
   }
 }
@@ -179,20 +189,17 @@
       padding: 0.15rem;
     }
 
-    &__mail span {
-      display: none;
-    }
-
-    &__mail {
-      padding: 0.55rem;
-    }
-
+    &__mail span,
     &__logout span {
       display: none;
     }
 
+    &__mail,
     &__logout {
       padding: 0.55rem;
+      min-width: 2.65rem;
+      min-height: 2.65rem;
+      justify-content: center;
     }
   }
 }

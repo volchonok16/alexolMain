@@ -662,11 +662,11 @@ tbody tr:hover {
   }
 
   .nav-user > span {
-    width: 100%;
-    font-size: 0.85rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
+  }
+
+  .nav-user .theme-switch__label {
+    display: none;
   }
 
   .btn-templates,
@@ -677,6 +677,13 @@ tbody tr:hover {
     min-height: 2.75rem;
     font-size: 0.8rem;
     padding: 0.55rem 0.65rem;
+  }
+
+  .modal .form-group input,
+  .modal .form-group select,
+  .modal .form-group textarea {
+    font-size: 16px;
+    min-height: 2.85rem;
   }
 
   .admin-content {
@@ -837,6 +844,13 @@ tbody tr:hover {
 
   .action-buttons .btn-delete {
     grid-column: auto;
+  }
+
+  .btn-templates,
+  .btn-mail,
+  .btn-logout {
+    flex: 1 1 calc(33.33% - 0.5rem);
+    min-width: 4.5rem;
   }
 }
 

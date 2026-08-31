@@ -94,18 +94,18 @@ export const PortfolioManagement = () => {
             <tbody>
               {items.map(item => (
                 <tr key={item.id}>
-                  <td>
+                  <td data-label="Превью">
                     <img src={item.imageUrl} alt={item.titleRu} className="dashboard__thumb" />
                   </td>
-                  <td>
+                  <td data-label="Название">
                     <div>{item.titleRu}</div>
                     <div className="dashboard__description">{item.titleEn}</div>
                   </td>
-                  <td>
+                  <td data-label="Категория">
                     <span className="dashboard__badge">{item.category}</span>
                   </td>
-                  <td>{item.sortOrder}</td>
-                  <td>
+                  <td data-label="Порядок">{item.sortOrder}</td>
+                  <td data-label="Ссылка">
                     {item.link ? (
                       <a href={item.link} target="_blank" rel="noopener noreferrer">
                         Открыть
@@ -114,7 +114,7 @@ export const PortfolioManagement = () => {
                       '-'
                     )}
                   </td>
-                  <td>
+                  <td data-label="Действия">
                     <div className="dashboard__row-actions">
                       <button onClick={() => handleEdit(item)} className="dashboard__edit">
                         <Edit2 />

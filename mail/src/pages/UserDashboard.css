@@ -1538,6 +1538,28 @@ textarea {
     line-height: 1.4;
   }
 
+  .mail-reader-toolbar {
+    padding: 0.45rem 0.65rem;
+    gap: 0.25rem;
+  }
+
+  .mail-toolbar-btn {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.55rem;
+  }
+
+  .modal .form-group input,
+  .modal .form-group textarea,
+  .compose-to__input {
+    font-size: 16px;
+  }
+
+  .compose-actions-right button,
+  .modal-actions .btn-primary,
+  .modal-actions .btn-secondary {
+    min-height: 2.75rem;
+  }
+
   .compose-modal,
   .email-modal,
   .templates-modal,
@@ -1660,6 +1682,16 @@ textarea {
 
   .email-preview {
     -webkit-line-clamp: 1;
+  }
+
+  .mail-toolbar-btn span {
+    display: none;
+  }
+
+  .mail-toolbar-btn {
+    min-width: 2.5rem;
+    justify-content: center;
+    padding: 0.4rem;
   }
 }
 

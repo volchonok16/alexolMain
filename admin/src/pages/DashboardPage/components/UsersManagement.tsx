@@ -126,7 +126,7 @@ export const UsersManagement = () => {
                   className="users-management__row"
                   onClick={() => setViewingUser(user)}
                 >
-                  <td>
+                  <td data-label="Фото">
                     <Avatar
                       src={user.photo}
                       alt={user.name}
@@ -135,14 +135,14 @@ export const UsersManagement = () => {
                       fallback={user.name.slice(0, 1).toUpperCase()}
                     />
                   </td>
-                  <td>
+                  <td data-label="ФИО">
                     <div className="users-management__name">{user.name}</div>
                     {user.jobTitle ? (
                       <div className="users-management__sub">{user.jobTitle}</div>
                     ) : null}
                   </td>
-                  <td>{user.login}</td>
-                  <td>
+                  <td data-label="Логин">{user.login}</td>
+                  <td data-label="Роль">
                     <span className={`users-management__role users-management__role--${user.role}`}>
                       {roleLabel(user.role)}
                     </span>

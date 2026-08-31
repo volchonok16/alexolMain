@@ -32,6 +32,10 @@
   --color-border: rgba(100, 116, 139, 0.25);
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -48,6 +52,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   width: 100%;
+  overflow-x: hidden;
 }
 
 [data-theme="light"] body {
@@ -174,4 +179,11 @@ textarea:focus {
   transform: translateX(1.1rem);
 }
 
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
 

@@ -73,3 +73,33 @@
   white-space: pre-wrap;
   line-height: 1.5;
 }
+
+@media (max-width: 767px) {
+  .lead-modal__overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .lead-modal {
+    width: 100%;
+    max-height: min(94dvh, 100%);
+    border-radius: 1rem 1rem 0 0;
+  }
+
+  .lead-modal__header {
+    padding: 1rem 1rem 0.85rem;
+  }
+
+  .lead-modal__close {
+    min-width: 2.65rem;
+    min-height: 2.65rem;
+  }
+
+  .lead-modal__body {
+    padding: 1rem 1rem calc(1.15rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lead-modal__fields dd {
+    word-break: break-word;
+  }
+}

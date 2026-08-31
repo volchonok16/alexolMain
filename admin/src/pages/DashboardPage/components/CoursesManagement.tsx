@@ -91,15 +91,15 @@ export const CoursesManagement = () => {
             <tbody>
               {courses.map(course => (
                 <tr key={course.id}>
-                  <td>{course.title}</td>
-                  <td>{course.topic || '-'}</td>
-                  <td className="dashboard__description">{course.description}</td>
-                  <td>
+                  <td data-label="Заголовок">{course.title}</td>
+                  <td data-label="Тематика">{course.topic || '-'}</td>
+                  <td className="dashboard__description" data-label="Описание">{course.description}</td>
+                  <td data-label="Дата">
                     {course.createdAt
                       ? new Date(course.createdAt).toLocaleDateString('ru-RU')
                       : '-'}
                   </td>
-                  <td>
+                  <td data-label="Действия">
                     <div className="dashboard__row-actions">
                       <button onClick={() => handleEdit(course)} className="dashboard__edit">
                         <Edit2 />

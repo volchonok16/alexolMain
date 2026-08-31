@@ -194,8 +194,12 @@
 @media (max-width: 768px) {
   .profile-header {
     padding: 0.85rem 1rem;
+    padding-top: calc(0.85rem + env(safe-area-inset-top, 0px));
     flex-wrap: wrap;
     gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 20;
   }
 
   .profile-header h1 {
@@ -208,8 +212,14 @@
     margin-left: 0;
   }
 
+  .btn-back {
+    flex: 1;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
   .profile-content {
-    padding: 1.25rem 0.85rem;
+    padding: 1.25rem 0.85rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
   }
 
   .profile-card {
@@ -234,6 +244,18 @@
   .btn-upload {
     flex: 1;
     justify-content: center;
+    min-height: 2.6rem;
+  }
+
+  .profile-form input,
+  .profile-form textarea {
+    font-size: 16px;
+    min-height: 2.85rem;
+  }
+
+  .btn-save {
+    min-height: 2.85rem;
+    width: 100%;
   }
 }
 

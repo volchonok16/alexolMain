@@ -87,3 +87,20 @@
 .jitsi-choice-card--closed svg {
   color: #f59e0b;
 }
+
+@media (max-width: 600px) {
+  .jitsi-choice-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .jitsi-choice-modal {
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .jitsi-choice-card {
+    min-height: 4.25rem;
+  }
+}

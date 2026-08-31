@@ -58,9 +58,9 @@ export const NewsManagement = () => {
           <tbody>
             {articles?.map(article => (
               <tr key={article.id}>
-                <td>{article.title}</td>
-                <td>{article.createdAt ? new Date(article.createdAt).toLocaleDateString('ru-RU') : '-'}</td>
-                <td>
+                <td data-label="Заголовок">{article.title}</td>
+                <td data-label="Дата">{article.createdAt ? new Date(article.createdAt).toLocaleDateString('ru-RU') : '-'}</td>
+                <td data-label="Действия">
                   <div className="dashboard__row-actions">
                     <button onClick={() => handleEdit(article)} className="dashboard__edit">
                       <Edit2 />

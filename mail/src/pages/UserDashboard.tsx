@@ -794,6 +794,7 @@ export default function UserDashboard() {
                     type="button"
                     className="mail-toolbar-btn"
                     onClick={() => openReply(selectedEmail)}
+                    aria-label="Ответить"
                   >
                     <Reply size={18} />
                     <span>Ответить</span>
@@ -802,6 +803,7 @@ export default function UserDashboard() {
                     type="button"
                     className="mail-toolbar-btn"
                     onClick={() => openForward(selectedEmail)}
+                    aria-label="Переслать"
                   >
                     <Forward size={18} />
                     <span>Переслать</span>
@@ -810,6 +812,7 @@ export default function UserDashboard() {
                   <button
                     type="button"
                     className="mail-toolbar-btn danger"
+                    aria-label="Удалить"
                     onClick={() => {
                       if (confirm('Удалить письмо?')) {
                         deleteMutation.mutate(selectedEmail.id)

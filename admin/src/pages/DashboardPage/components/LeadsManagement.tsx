@@ -59,11 +59,11 @@ export const LeadsManagement = () => {
             ) : (
               leads.map(lead => (
                 <tr key={lead.id}>
-                  <td>{lead.name}</td>
-                  <td>{lead.email}</td>
-                  <td>{lead.phone || '-'}</td>
-                  <td>{formatSource(lead.source)}</td>
-                  <td>
+                  <td data-label="Имя">{lead.name}</td>
+                  <td data-label="Email">{lead.email}</td>
+                  <td data-label="Телефон">{lead.phone || '-'}</td>
+                  <td data-label="Источник">{formatSource(lead.source)}</td>
+                  <td data-label="Статус">
                     <select
                       className="leads-table__status"
                       value={lead.status}
@@ -76,8 +76,8 @@ export const LeadsManagement = () => {
                       ))}
                     </select>
                   </td>
-                  <td>{new Date(lead.createdAt).toLocaleString('ru-RU')}</td>
-                  <td>
+                  <td data-label="Дата">{new Date(lead.createdAt).toLocaleString('ru-RU')}</td>
+                  <td data-label="Действия">
                     <div className="dashboard__row-actions">
                       <button
                         type="button"

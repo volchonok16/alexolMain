@@ -123,3 +123,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+@media (max-width: 768px) {
+  .compose-to__input {
+    font-size: 16px;
+    min-width: 6rem;
+    flex-basis: 8rem;
+  }
+
+  .compose-to__list {
+    max-height: 12rem;
+  }
+}

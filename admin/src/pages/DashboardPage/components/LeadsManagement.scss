@@ -11,4 +11,11 @@
   background: rgba(15, 23, 42, 0.4);
   color: inherit;
   font-size: 0.875rem;
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  .leads-table__status {
+    font-size: 16px;
+  }
 }
