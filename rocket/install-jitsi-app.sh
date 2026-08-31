@@ -73,8 +73,15 @@ auth() {
     -H "X-2FA-Method: password"
 }
 
-APPS_JSON="$(auth -s "$RC_URL/api/apps" || echo '{}')"
-APP_INSTALLED="$(echo "$APPS_JSON" | jq -r --arg id "$APP_ID" '.apps[]? | select(.id == $id) | .id' | head -1)"
+# RC 8: GET /api/apps is gone. Cluster nodes may wrap as [status, body].
+APPS_JSON="$(auth -s "$RC_URL/api/apps/installed" || auth -s "$RC_URL/api/apps" || echo '{}')"
+APP_INSTALLED="$(echo "$APPS_JSON" | jq -r --arg id "$APP_ID" '
+  (if type == "array" then .[-1] else . end)
+  | (.apps // .)
+  | (if type == "array" then .[] else empty end)
+  | .id // .app.id // empty
+  | select(. == $id)
+' 2>/dev/null | head -1)"
 SKIP_UPLOAD=0
 if [ -n "$APP_INSTALLED" ] && [ "${FORCE_REBUILD:-0}" != "1" ]; then
   echo "install-jitsi: app already installed ($APP_ID), skipping package/upload"
@@ -97,7 +104,9 @@ if [ "$SKIP_UPLOAD" = "0" ]; then
     # devDependencies (typescript, apps-engine) are required to build the .zip
     npm install
     rc-apps package
-    cp -a ./*.zip /out/jitsi.rc-app.zip
+    zipfile="\$(find . -name '*.zip' -type f | head -1)"
+    test -n "\$zipfile"
+    cp -a "\$zipfile" /out/jitsi.rc-app.zip
   "
 
   ZIP="$WORKDIR/jitsi.rc-app.zip"
