@@ -307,11 +307,13 @@ export default function AdminDashboard() {
     <div className="admin-container">
       <nav className="admin-nav">
         <div className="nav-brand">
-          <h1>Админ-панель</h1>
-          <span className="domain">alexol.io</span>
+          <div>
+            <h1>Админ-панель</h1>
+            <span className="domain">alexol.io</span>
+          </div>
+          <ThemeSwitch />
         </div>
         <div className="nav-user">
-          <ThemeSwitch />
           <span>{currentUser?.email}</span>
           <button
             onClick={async () => {

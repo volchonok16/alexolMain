@@ -195,17 +195,23 @@
   .profile-header {
     padding: 0.85rem 1rem;
     padding-top: calc(0.85rem + env(safe-area-inset-top, 0px));
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.65rem;
     position: sticky;
     top: 0;
     z-index: 20;
   }
 
   .profile-header h1 {
-    font-size: 1.25rem;
-    order: -1;
-    width: 100%;
+    font-size: 1.15rem;
+    margin: 0;
+    text-align: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .profile-header-right {
@@ -213,9 +219,10 @@
   }
 
   .btn-back {
-    flex: 1;
     justify-content: center;
-    min-height: 2.75rem;
+    min-height: 2.6rem;
+    min-width: 2.6rem;
+    padding: 0.45rem 0.7rem;
   }
 
   .profile-content {

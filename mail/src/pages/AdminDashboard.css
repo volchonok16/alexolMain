@@ -13,6 +13,14 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.nav-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+}
+
 .nav-brand h1 {
   color: var(--color-text);
   font-size: 1.5rem;
@@ -654,18 +662,19 @@ tbody tr:hover {
     font-size: 1.2rem;
   }
 
+  .nav-brand .domain {
+    display: none;
+  }
+
   .nav-user {
     width: 100%;
     flex-wrap: wrap;
-    justify-content: stretch;
+    justify-content: flex-end;
+    align-items: center;
     gap: 0.5rem;
   }
 
   .nav-user > span {
-    display: none;
-  }
-
-  .nav-user .theme-switch__label {
     display: none;
   }
 

@@ -547,7 +547,7 @@ export default function UserDashboard() {
           >
             {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
-          <Mail size={28} />
+          <Mail size={28} className="nav-brand-icon" />
           <div>
             <h1>Почта</h1>
             <span className="domain">alexol.io</span>
@@ -555,65 +555,67 @@ export default function UserDashboard() {
         </div>
         <div className="nav-actions">
           <ThemeSwitch />
-          {user?.is_admin && (
-            <>
-              <button
-                onClick={async () => {
-                  setSiteAdminLoading(true)
-                  try {
-                    await openSiteAdmin(api)
-                  } catch {
-                    toast.error('Не удалось открыть admin.alexol.io')
-                    window.open('https://admin.alexol.io', '_blank', 'noopener,noreferrer')
-                  } finally {
-                    setSiteAdminLoading(false)
-                  }
-                }}
-                className="btn-admin-panel"
-                disabled={siteAdminLoading}
-                title="admin.alexol.io без повторного входа"
-              >
-                <LayoutDashboard size={20} />
-                <span className="btn-label">{siteAdminLoading ? '…' : 'Сайт'}</span>
-              </button>
-              <button onClick={() => navigate('/admin')} className="btn-admin-panel">
-                <Users size={20} />
-                <span className="btn-label">Ящики</span>
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => {
-              setShowManageTemplates(true)
-              setTemplatesTab('body')
-              openCreateTemplate('body')
-            }}
-            className="btn-profile"
-            title="Мои шаблоны писем"
-          >
-            <FileText size={20} />
-            <span className="btn-label">Шаблоны</span>
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              openChatUi(() => toast.error('Не удалось открыть чат'))
-            }
-            className="btn-profile"
-            disabled={chatLoading}
-            title="chat.alexol.io — тот же вход, что у почты"
-          >
-            <MessageCircle size={20} />
-            <span className="btn-label">{chatLoading ? '…' : 'Чат'}</span>
-          </button>
-          <button onClick={() => navigate('/profile')} className="btn-profile">
-            <User size={20} />
-            <span className="btn-label">Профиль</span>
-          </button>
-          <button onClick={handleLogout} className="btn-logout">
-            <LogOut size={20} />
-            <span className="btn-label">Выйти</span>
-          </button>
+          <div className="nav-actions__links">
+            {user?.is_admin && (
+              <>
+                <button
+                  onClick={async () => {
+                    setSiteAdminLoading(true)
+                    try {
+                      await openSiteAdmin(api)
+                    } catch {
+                      toast.error('Не удалось открыть admin.alexol.io')
+                      window.open('https://admin.alexol.io', '_blank', 'noopener,noreferrer')
+                    } finally {
+                      setSiteAdminLoading(false)
+                    }
+                  }}
+                  className="btn-admin-panel"
+                  disabled={siteAdminLoading}
+                  title="admin.alexol.io без повторного входа"
+                >
+                  <LayoutDashboard size={20} />
+                  <span className="btn-label">{siteAdminLoading ? '…' : 'Сайт'}</span>
+                </button>
+                <button onClick={() => navigate('/admin')} className="btn-admin-panel">
+                  <Users size={20} />
+                  <span className="btn-label">Ящики</span>
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => {
+                setShowManageTemplates(true)
+                setTemplatesTab('body')
+                openCreateTemplate('body')
+              }}
+              className="btn-profile"
+              title="Мои шаблоны писем"
+            >
+              <FileText size={20} />
+              <span className="btn-label">Шаблоны</span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                openChatUi(() => toast.error('Не удалось открыть чат'))
+              }
+              className="btn-profile"
+              disabled={chatLoading}
+              title="chat.alexol.io — тот же вход, что у почты"
+            >
+              <MessageCircle size={20} />
+              <span className="btn-label">{chatLoading ? '…' : 'Чат'}</span>
+            </button>
+            <button onClick={() => navigate('/profile')} className="btn-profile">
+              <User size={20} />
+              <span className="btn-label">Профиль</span>
+            </button>
+            <button onClick={handleLogout} className="btn-logout">
+              <LogOut size={20} />
+              <span className="btn-label">Выйти</span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -692,6 +694,91 @@ export default function UserDashboard() {
             >
               <Calendar size={20} />
               Календарь
+            </button>
+          </div>
+
+          <div className="sidebar-account-actions">
+            {user?.is_admin && (
+              <>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setMobileNavOpen(false)
+                    setSiteAdminLoading(true)
+                    try {
+                      await openSiteAdmin(api)
+                    } catch {
+                      toast.error('Не удалось открыть admin.alexol.io')
+                      window.open('https://admin.alexol.io', '_blank', 'noopener,noreferrer')
+                    } finally {
+                      setSiteAdminLoading(false)
+                    }
+                  }}
+                  className="btn-admin-panel"
+                  disabled={siteAdminLoading}
+                >
+                  <LayoutDashboard size={20} />
+                  <span className="btn-label">{siteAdminLoading ? '…' : 'Сайт'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileNavOpen(false)
+                    navigate('/admin')
+                  }}
+                  className="btn-admin-panel"
+                >
+                  <Users size={20} />
+                  <span className="btn-label">Ящики</span>
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileNavOpen(false)
+                setShowManageTemplates(true)
+                setTemplatesTab('body')
+                openCreateTemplate('body')
+              }}
+              className="btn-profile"
+            >
+              <FileText size={20} />
+              <span className="btn-label">Шаблоны</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileNavOpen(false)
+                openChatUi(() => toast.error('Не удалось открыть чат'))
+              }}
+              className="btn-profile"
+              disabled={chatLoading}
+            >
+              <MessageCircle size={20} />
+              <span className="btn-label">{chatLoading ? '…' : 'Чат'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileNavOpen(false)
+                navigate('/profile')
+              }}
+              className="btn-profile"
+            >
+              <User size={20} />
+              <span className="btn-label">Профиль</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileNavOpen(false)
+                handleLogout()
+              }}
+              className="btn-logout"
+            >
+              <LogOut size={20} />
+              <span className="btn-label">Выйти</span>
             </button>
           </div>
 
