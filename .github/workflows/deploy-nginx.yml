@@ -31,7 +31,7 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
-                  source: "rocket/login-brand.js,rocket/login.css,rocket/login-logo.svg,rocket/alexol-logo.png,rocket/alexol-favicon.svg,rocket/alexol-favicon.png"
+                  source: "rocket/login-brand.js,rocket/login.css,rocket/login-logo.svg,rocket/alexol-logo.png,rocket/alexol-mark.png,rocket/alexol-favicon.svg,rocket/alexol-favicon.png"
                   target: "/var/www/chat-brand"
                   overwrite: true
                   strip_components: 1

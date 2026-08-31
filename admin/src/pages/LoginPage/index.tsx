@@ -32,7 +32,9 @@ export const LoginPage = () => {
     <div className="login-page">
       <div className="login-page__container">
         <div className="login-page__card">
+          <img className="login-page__logo" src="/alexol-logo.png" width="220" height="161" alt="Alexol" />
           <h1 className="login-page__title">Админ-панель</h1>
+          <p className="login-page__hint">Логин <code>admin</code> или почта <code>admin@alexol.io</code></p>
           
           {error && <div className="login-page__error">{error}</div>}
           

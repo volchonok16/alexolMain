@@ -4,7 +4,7 @@
   window.__alexolLoginBrand = true;
 
   var MARK =
-    '<img class="alexol-login-mark" src="/alexol-logo.png" width="88" height="100" alt="">';
+    '<img class="alexol-login-mark" src="/alexol-logo.png" width="280" height="205" alt="Alexol">';
 
   var APPLE =
     '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.62c.02 2.4 2.1 3.2 2.12 3.21-.02.06-.33 1.13-1.09 2.24-.66.96-1.34 1.91-2.41 1.93-1.05.02-1.39-.62-2.59-.62-1.21 0-1.58.6-2.58.64-1.04.04-1.83-1.04-2.5-2-1.36-1.95-2.4-5.51-1-8.16.69-1.32 1.93-2.16 3.27-2.18 1.02-.02 1.99.69 2.59.69.6 0 1.73-.85 2.92-.73.5.02 1.9.2 2.8 1.51-.07.04-1.67 1-1.53 2.96zM14.7 6.3c.55-.67.92-1.6.82-2.53-.8.03-1.76.53-2.33 1.2-.51.59-.96 1.54-.84 2.45.89.07 1.8-.45 2.35-1.12z"/></svg>';
@@ -54,9 +54,9 @@
       wrap = document.createElement("div");
       wrap.id = "alexol-login-overlay";
       wrap.innerHTML =
-        '<div class="alexol-login-brand" aria-hidden="true">' +
+        '<div class="alexol-login-brand">' +
         MARK +
-        "<span>Alexol</span></div>" +
+        "</div>" +
         '<div class="alexol-login-apps">' +
         '<a href="/desktop/mac" title="Скачать для macOS" aria-label="Скачать для macOS">' +
         APPLE +
@@ -158,6 +158,15 @@
 
   function hideChrome() {
     hideRocketMarks(document.body);
+    document.querySelectorAll("a, p, span, button").forEach(function (el) {
+      if (el.closest && el.closest("#alexol-login-overlay")) return;
+      var t = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (/войти через alexol/i.test(t)) el.classList.add("alexol-sso-btn");
+      if (el.querySelector && el.querySelector("input, button")) return;
+      if (/^(forgot your password\??|create an account|new here\??)$/i.test(t)) {
+        el.style.setProperty("display", "none", "important");
+      }
+    });
     document.querySelectorAll('a[href*="terms-of-service"], a[href*="privacy-policy"], a[href*="legal-notice"]').forEach(function (a) {
       var p = a.parentElement;
       var j = 0;

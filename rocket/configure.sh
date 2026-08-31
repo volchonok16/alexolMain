@@ -170,18 +170,28 @@ fi
 set_bool "Layout_Login_Hide_Logo" "true"
 set_bool "Layout_Login_Hide_Title" "true"
 set_bool "Layout_Login_Hide_Powered_By" "true"
-set_string "Layout_Login_Terms" "<span></span>"
+set_string "Layout_Login_Terms" "<p style=\"margin:16px 0 0;text-align:center;color:#64748b;font-size:13px;line-height:1.4\">Тот же логин и пароль, что у почты. Проще нажать «Войти через Alexol».</p>"
 set_string "Layout_Terms_of_Service" " "
 set_string "Layout_Privacy_Policy" " "
 set_string "Layout_Legal_Notice" " "
-FOOTER_DARK='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-logo.png" width="36" height="41" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#F8FAFC">Alexol</span></a>'
-FOOTER_LIGHT='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-logo.png" width="36" height="41" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#0C0F16">Alexol</span></a>'
+FOOTER_DARK='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-mark.png" width="36" height="40" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#F8FAFC">Alexol</span></a>'
+FOOTER_LIGHT='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-mark.png" width="36" height="40" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#0C0F16">Alexol</span></a>'
 set_string "Layout_Sidenav_Footer_Dark" "$FOOTER_DARK"
 set_string "Layout_Sidenav_Footer" "$FOOTER_LIGHT"
 echo "configure: sidebar footer set to Alexol"
 
 HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
-if [ -f /alexol-logo.png ]; then
+if [ -f /alexol-mark.png ]; then
+  curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
+    -H "X-Auth-Token: $TOKEN" \
+    -H "X-User-Id: $USER_ID" \
+    -H "X-2FA-Code: $HASH" \
+    -H "X-2FA-Method: password" \
+    -F "asset=@/alexol-mark.png;type=image/png" \
+    -F "assetName=logo" \
+    -F "refreshAllClients=true" >/dev/null || true
+  echo "configure: uploaded Alexol logo"
+elif [ -f /alexol-logo.png ]; then
   curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
     -H "X-Auth-Token: $TOKEN" \
     -H "X-User-Id: $USER_ID" \
