@@ -117,11 +117,12 @@ if [ "$need_marketplace" = "1" ] || [ "${FORCE_REBUILD:-0}" = "1" ]; then
     if echo "$MP_OUT" | grep -qi 'already'; then
       echo "install-jitsi: marketplace says already installed"
     else
-      echo "install-jitsi: Marketplace install failed."
-      echo "install-jitsi: Community blocks private zip apps (Apps_Error_license-prevented)."
-      echo "install-jitsi: Register the workspace (Administration → Workspace → Connectivity Services),"
-      echo "install-jitsi: then Marketplace → Jitsi → Install. Starter/register allows enabling the app."
-      exit 1
+      echo "install-jitsi: Marketplace install failed (workspace not registered with Cloud,"
+      echo "install-jitsi: or the app zip URL is not available). Chat is already running."
+      echo "install-jitsi: Register at https://cloud.rocket.chat as admin@alexol.io,"
+      echo "install-jitsi: then Administration → Workspace → Connectivity Services → Register,"
+      echo "install-jitsi: Sync, Marketplace → Jitsi → Install → Enable."
+      exit 0
     fi
   fi
 fi

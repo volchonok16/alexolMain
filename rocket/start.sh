@@ -111,7 +111,7 @@ $dc run --rm --no-deps configure || $dc up -d --force-recreate configure
 
 if [ -f install-jitsi-app.sh ] && grep -qE "^JITSI_JWT_APP_SECRET=.+" .env 2>/dev/null; then
   echo "install-jitsi-app: installing/updating Jitsi Marketplace app"
-  sh install-jitsi-app.sh
+  sh install-jitsi-app.sh || echo "install-jitsi-app: non-fatal — chat is up; Jitsi needs Cloud register"
 else
   echo "install-jitsi-app: skipped (no JITSI_JWT_APP_SECRET in .env)"
 fi

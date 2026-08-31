@@ -585,7 +585,17 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Detect rocket changes
+              uses: dorny/paths-filter@v3
+              id: rocket_paths
+              with:
+                  filters: |
+                      rocket:
+                        - "rocket/**"
+                        - ".github/workflows/deploy.yml"
+
             - name: Create rocket .env from secret
+              if: github.event_name == 'workflow_dispatch' || steps.rocket_paths.outputs.rocket == 'true'
               env:
                   MAIL_ENV: ${{ secrets.MAIL_ENV }}
                   ROCKET_ENV: ${{ secrets.ROCKET_ENV }}
@@ -605,6 +615,7 @@ jobs:
                   bash scripts/stitch-deploy-env.sh
 
             - name: Prepare Rocket.Chat directory
+              if: github.event_name == 'workflow_dispatch' || steps.rocket_paths.outputs.rocket == 'true'
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -617,6 +628,7 @@ jobs:
                       echo "${{ secrets.PWD }}" | sudo -S chmod -R 755 /var/www/rocket
 
             - name: Deploy Rocket.Chat compose
+              if: github.event_name == 'workflow_dispatch' || steps.rocket_paths.outputs.rocket == 'true'
               uses: appleboy/scp-action@v1
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -629,7 +641,7 @@ jobs:
                   strip_components: 1
 
             - name: Deploy Rocket.Chat .env
-              if: hashFiles('rocket/.env') != ''
+              if: (github.event_name == 'workflow_dispatch' || steps.rocket_paths.outputs.rocket == 'true') && hashFiles('rocket/.env') != ''
               uses: appleboy/scp-action@v1
               with:
                   host: ${{ secrets.SERVER_IP }}
@@ -642,6 +654,7 @@ jobs:
                   strip_components: 1
 
             - name: Start Rocket.Chat
+              if: github.event_name == 'workflow_dispatch' || steps.rocket_paths.outputs.rocket == 'true'
               uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.SERVER_IP }}
