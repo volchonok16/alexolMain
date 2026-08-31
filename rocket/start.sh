@@ -122,10 +122,48 @@ unlock_password_trap() {
   ' || true
 }
 
+write_rc_string_setting() {
+  sid="$1"
+  src="$2"
+  [ -f "$src" ] || return 0
+  python3 - "$sid" "$src" <<'PY'
+import json, sys
+sid, path = sys.argv[1], sys.argv[2]
+open("/tmp/alexol-rc-setting.js", "w").write(
+    "db.rocketchat_settings.updateOne({_id: %s}, {$set: {value: %s, _updatedAt: new Date()}});\n"
+    % (json.dumps(sid), json.dumps(open(path, encoding="utf-8").read()))
+)
+PY
+  docker cp /tmp/alexol-rc-setting.js rocket_mongo:/tmp/alexol-rc-setting.js >/dev/null
+  docker exec rocket_mongo mongosh --quiet rocketchat /tmp/alexol-rc-setting.js || true
+}
+
+push_custom_scripts() {
+  mail_url="$(grep -E '^MAIL_PUBLIC_URL=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r"')"
+  jitsi_url="$(grep -E '^JITSI_PUBLIC_URL=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r"')"
+  mail_url="${mail_url:-https://mail.alexol.io}"
+  jitsi_url="${jitsi_url:-https://meet.alexol.io}"
+  mail_url="${mail_url%/}"
+  jitsi_url="${jitsi_url%/}"
+  if [ -f jitsi-choice.js ]; then
+    sed -e "s|__MAIL_PUBLIC_URL__|${mail_url}|g" -e "s|__JITSI_PUBLIC_URL__|${jitsi_url}|g" jitsi-choice.js > /tmp/jitsi-choice.ready.js
+    write_rc_string_setting Custom_Script_Logged_In /tmp/jitsi-choice.ready.js
+    echo "configure: mongo Custom_Script_Logged_In (Jitsi open/closed)"
+  fi
+  if [ -f login-brand.js ]; then
+    write_rc_string_setting Custom_Script_Logged_Out login-brand.js
+  fi
+  if [ -f login.css ]; then
+    write_rc_string_setting theme-custom-css login.css
+    write_rc_string_setting css login.css
+  fi
+}
+
 $dc up -d
 unlock_password_trap
 echo "configure: re-apply OAuth, LDAP, Jitsi settings"
 $dc run --rm --no-deps configure || $dc up -d --force-recreate configure
+push_custom_scripts
 
 if [ -f install-jitsi-app.sh ] && grep -qE "^JITSI_JWT_APP_SECRET=.+" .env 2>/dev/null; then
   echo "install-jitsi-app: installing/updating Jitsi Marketplace app"
@@ -134,8 +172,7 @@ else
   echo "install-jitsi-app: skipped (no JITSI_JWT_APP_SECRET in .env)"
 fi
 unlock_password_trap
-
-# mail_backend cannot use host.docker.internal:18300 (bound to 127.0.0.1)
+push_custom_scripts
 RC_API="http://rocket_chat:3000"
 echo "sync chat profiles from mail"
 if [ -f /var/www/mail/.env ]; then

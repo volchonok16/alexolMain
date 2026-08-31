@@ -159,7 +159,8 @@ if [ -f /login-brand.js ]; then
 fi
 if [ -n "$logged_in_js" ]; then
   payload="$(jq -n --arg s "$logged_in_js" '{value:$s}')"
-  auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_In" -d "$payload" >/dev/null || true
+  resp="$(auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_In" -d "$payload" || true)"
+  echo "configure: Custom_Script_Logged_In $(echo "$resp" | jq -c '{success,error}' 2>/dev/null || echo raw)"
 fi
 if [ -f /login.css ]; then
   payload="$(jq -n --arg s "$(cat /login.css)" '{value:$s}')"

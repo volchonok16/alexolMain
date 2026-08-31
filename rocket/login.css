@@ -10,31 +10,25 @@ a[href*="legal-notice"] {
 }
 
 #welcomeTitle {
-  visibility: hidden !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
 }
 
-#alexol-login-overlay {
-  position: fixed;
-  left: 48px;
-  top: 40%;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  pointer-events: none;
+#welcomeTitle::before {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 0 0 12px;
+  background: url("/alexol-logo.svg") no-repeat center / contain;
 }
 
-#alexol-login-overlay span {
+#welcomeTitle::after {
+  content: "Alexol";
+  display: block;
+  font-size: 2rem;
   font-weight: 700;
-  font-size: 28px;
+  line-height: 1.2;
   color: #1f2329;
   letter-spacing: 0.02em;
-}
-
-@media (max-width: 1439px) {
-  #alexol-login-overlay {
-    left: 50%;
-    top: 24px;
-    transform: translateX(-50%);
-  }
 }

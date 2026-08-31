@@ -1,4 +1,4 @@
-/* Injected as Custom_Script_Logged_In. Intercepts the video button. */
+/* Injected as Custom_Script_Logged_In. Intercepts video/call and adds Созвон. */
 (function () {
   if (window.__alexolJitsiChoice) return;
   window.__alexolJitsiChoice = true;
@@ -9,6 +9,10 @@
   function isAdminPath() {
     var p = location.pathname || "";
     return p.indexOf("/admin") === 0 || p.indexOf("/administration") === 0;
+  }
+
+  function inRoom() {
+    return /\/(?:channel|group|direct|live|d|c|g)\//i.test(location.pathname || "");
   }
 
   function slug(value) {
@@ -67,36 +71,52 @@
     };
   }
 
+  function haystack(n) {
+    if (!n || !n.getAttribute) return "";
+    return [
+      n.getAttribute("data-qa-id"),
+      n.getAttribute("data-qa"),
+      n.getAttribute("aria-label"),
+      n.getAttribute("title"),
+      n.getAttribute("data-tooltip"),
+      n.getAttribute("name"),
+      n.id,
+      n.textContent,
+    ]
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+  }
+
   function isVideoTrigger(node) {
     if (!node || !node.closest) return false;
-    if (node.closest("#alexol-jitsi-overlay")) return false;
-    var n = node.closest("button, a, [role='button']");
+    if (node.closest("#alexol-jitsi-overlay,#alexol-jitsi-launch")) return false;
+    var n = node.closest("button, a, [role='button'], [role='menuitem']");
     if (!n) return false;
-    var qa =
-      (n.getAttribute("data-qa-id") || "") +
-      " " +
-      (n.getAttribute("data-qa") || "") +
-      " " +
-      (n.id || "");
-    if (/video-conference|videoconf|video-conf|start-call/i.test(qa)) return true;
-    var label = (
-      (n.getAttribute("aria-label") || "") +
-      " " +
-      (n.getAttribute("title") || "") +
-      " " +
-      (n.getAttribute("data-tooltip") || "")
-    ).toLowerCase();
-    return (
-      /видеозвонок|видеоконферен|начать звонок|start a call|video call|start call|conference call|start jitsi|video conference/.test(
-        label
+    var h = haystack(n);
+    if (!h || /alexol-jitsi/.test(h)) return false;
+    if (
+      /call again|позвонить снова|повторить звонок|call back/.test(h)
+    ) {
+      return true;
+    }
+    if (
+      /video call|видеозвонок|видео звонок|видеоконферен|start a call|start call|start jitsi|video conference|conference call/.test(
+        h
       )
-    );
+    ) {
+      return true;
+    }
+    if (n.getAttribute("data-toolbox") && /video|jitsi|camera/.test(h)) return true;
+    if (/tool-?boxaction-.*video|videoconf|video-conference|start-call/.test(h)) return true;
+    return false;
   }
 
   function ensureModal() {
     var existing = document.getElementById("alexol-jitsi-overlay");
     if (existing) return existing;
     var style = document.createElement("style");
+    style.id = "alexol-jitsi-style";
     style.textContent =
       "#alexol-jitsi-overlay{position:fixed;inset:0;z-index:100000;background:rgba(8,11,18,.62);display:flex;align-items:center;justify-content:center;padding:16px}" +
       "#alexol-jitsi-modal{width:min(440px,100%);background:var(--rcx-color-surface-light,#1f2329);color:var(--rcx-color-font-default,#e8eef7);border:1px solid rgba(148,163,184,.28);border-radius:16px;padding:26px 22px 20px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.35);font-family:Inter,system-ui,sans-serif}" +
@@ -106,7 +126,9 @@
       ".alexol-jitsi-card{display:block;width:100%;text-align:left;margin:0 0 10px;padding:14px 16px;border-radius:12px;border:1px solid rgba(148,163,184,.28);background:transparent;color:inherit;cursor:pointer}" +
       ".alexol-jitsi-card strong{display:block;font-size:15px}" +
       ".alexol-jitsi-card span{display:block;margin-top:4px;font-size:13px;opacity:.72}" +
-      ".alexol-jitsi-card:hover{border-color:#06b6d4}";
+      ".alexol-jitsi-card:hover{border-color:#06b6d4}" +
+      "#alexol-jitsi-launch{position:fixed;right:24px;bottom:96px;z-index:9000;background:#06b6d4;color:#041018;border:0;border-radius:999px;padding:12px 18px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.28);font-family:Inter,system-ui,sans-serif}" +
+      "#alexol-jitsi-launch[hidden]{display:none!important}";
     document.head.appendChild(style);
 
     var overlay = document.createElement("div");
@@ -121,7 +143,7 @@
       '<button type="button" class="alexol-jitsi-card" data-kind="anyone"><strong>Открытая, без организатора</strong><span>Первый вошедший ведёт встречу</span></button>' +
       '<button type="button" class="alexol-jitsi-card" data-kind="closed"><strong>Закрытая</strong><span>Только почта @alexol.io</span></button>' +
       "</div>";
-    document.body.appendChild(overlay);
+    document.documentElement.appendChild(overlay);
     overlay.addEventListener("click", function (ev) {
       if (ev.target === overlay) hideModal();
     });
@@ -135,6 +157,23 @@
       if (ev.key === "Escape") hideModal();
     });
     return overlay;
+  }
+
+  function ensureLauncher() {
+    var btn = document.getElementById("alexol-jitsi-launch");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "alexol-jitsi-launch";
+      btn.type = "button";
+      btn.textContent = "Созвон";
+      btn.onclick = function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        showModal();
+      };
+      document.documentElement.appendChild(btn);
+    }
+    btn.hidden = !(!isAdminPath() && inRoom());
   }
 
   function showModal() {
@@ -206,17 +245,20 @@
     });
   }
 
-  document.addEventListener(
-    "click",
-    function (ev) {
-      if (isAdminPath()) return;
-      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
-      if (!isVideoTrigger(ev.target)) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      ev.stopImmediatePropagation();
-      showModal();
-    },
-    true
-  );
+  function onPointer(ev) {
+    if (isAdminPath()) return;
+    if (ev.button != null && ev.button !== 0) return;
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    if (!isVideoTrigger(ev.target)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    showModal();
+  }
+
+  document.addEventListener("click", onPointer, true);
+  document.addEventListener("pointerdown", onPointer, true);
+  ensureModal();
+  ensureLauncher();
+  setInterval(ensureLauncher, 1000);
 })();

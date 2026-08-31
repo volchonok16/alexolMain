@@ -1,4 +1,4 @@
-/* Login page only. Do not insert nodes into the logged-in React tree. */
+/* Login page only. Overlay on <html>, no inserts into Rocket.Chat React trees. */
 (function () {
   if (window.__alexolLoginBrand) return;
   window.__alexolLoginBrand = true;
@@ -13,8 +13,7 @@
   var CSS =
     "a[href='https://rocket.chat/'],a[href='https://rocket.chat']{display:none!important}" +
     "a[href*='terms-of-service'],a[href*='privacy-policy'],a[href*='legal-notice']{display:none!important}" +
-    "#welcomeTitle,.alexol-hide-welcome{visibility:hidden!important;height:0!important;overflow:hidden!important}" +
-    "#alexol-login-overlay{position:fixed;left:48px;top:40%;z-index:30;display:flex;align-items:center;gap:14px;pointer-events:none}" +
+    "#alexol-login-overlay{position:fixed;left:48px;top:38%;z-index:30;display:flex;align-items:center;gap:14px;pointer-events:none}" +
     "#alexol-login-overlay span{font-weight:700;font-size:28px;color:#1f2329;letter-spacing:.02em}" +
     "@media (max-width:1439px){#alexol-login-overlay{left:50%;top:24px;transform:translateX(-50%)}}";
 
@@ -44,6 +43,37 @@
     if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
+  function hideChrome() {
+    var el = document.getElementById("welcomeTitle");
+    if (!el) return;
+    var n = el;
+    var i;
+    for (i = 0; i < 5 && n; i++) {
+      var t = (n.textContent || "").replace(/\s+/g, " ").trim();
+      if (/Welcome to .+ workspace/i.test(t) && t.length < 90 && !n.querySelector("form,input,button")) {
+        n.style.setProperty("visibility", "hidden", "important");
+        break;
+      }
+      n = n.parentElement;
+    }
+    document.querySelectorAll('a[href="https://rocket.chat/"], a[href="https://rocket.chat"]').forEach(function (a) {
+      var p = a.parentElement;
+      if (p) p.style.setProperty("display", "none", "important");
+    });
+    document.querySelectorAll('a[href*="terms-of-service"], a[href*="privacy-policy"], a[href*="legal-notice"]').forEach(function (a) {
+      var p = a.parentElement;
+      var j = 0;
+      while (p && j < 5) {
+        if (/proceeding|Terms of Service|Privacy Policy/i.test(p.textContent || "") && !p.querySelector("input,button")) {
+          p.style.setProperty("display", "none", "important");
+          break;
+        }
+        p = p.parentElement;
+        j += 1;
+      }
+    });
+  }
+
   var ticking = false;
   function apply() {
     if (!isLogin()) {
@@ -51,6 +81,7 @@
       return;
     }
     injectCss();
+    hideChrome();
     overlay();
   }
   function schedule() {
