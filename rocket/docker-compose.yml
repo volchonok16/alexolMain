@@ -94,6 +94,10 @@ services:
       OVERWRITE_SETTING_Iframe_Restrict_Access: "false"
       OVERWRITE_SETTING_DeepLink_Url: ${ROOT_URL:-https://chat.alexol.io}
       OVERWRITE_SETTING_Site_Name: Alexol
+      OVERWRITE_SETTING_Message_Read_Receipt_Enabled: "true"
+      OVERWRITE_SETTING_Message_Read_Receipt_StoreUsers: "false"
+      OVERWRITE_SETTING_Push_enable: "true"
+      OVERWRITE_SETTING_Push_enable_gateway: "true"
       # Empty: do not re-inject the custom Jitsi room-type modal.
       OVERWRITE_SETTING_Custom_Script_Logged_In: ""
       OVERWRITE_SETTING_Custom_Script_Logged_Out: ""
@@ -147,6 +151,52 @@ services:
     entrypoint: ["/bin/sh", "/configure.sh"]
     networks:
       - rocket
+
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: "27017"
+      MONGO_DB: rocketchat
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - uploads:/uploads:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - rocket
+    restart: "no"
+    entrypoint: ["/scripts/backup.sh"]
+
+  restore:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: "27017"
+      MONGO_DB: rocketchat
+      RESTORE_DATE: ${RESTORE_DATE:-}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - uploads:/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - rocket
+    restart: "no"
+    entrypoint: ["/scripts/restore.sh"]
 
 volumes:
   mongodb_data:

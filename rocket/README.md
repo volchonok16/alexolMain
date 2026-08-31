@@ -108,6 +108,8 @@ Community **не включает private zip** (`Apps_Error_license-prevented`)
 
 Из ROCKET_ENV убери `OVERWRITE_SETTING_Register_Server=false` — иначе Cloud/Marketplace снова отвалятся после рестарта.
 
+Галочки прочтения: деплой включает **Show Read Receipts** (`Message_Read_Receipt_Enabled`). Серая галочка — доставлено, две синие — прочитали все. Подробный список «кто и когда» выключен. Пуш на телефон идёт через Cloud (`Push_enable` + gateway), письма чата — SMTP `chat@alexol.io`.
+
 `install-jitsi-app.sh` при деплое ставит Jitsi с Marketplace и прописывает domain/JWT. Если Cloud ещё не зарегистрирован, деплой чата не падает — в логе будет инструкция Register → Marketplace → Jitsi.
 
 ## Локально / на сервере
@@ -122,3 +124,16 @@ docker compose logs -f configure
 Контейнер `rocket_configure` один раз логинится в API, создаёт Custom OAuth **Alexol**
 и прописывает URL почты / поля профиля. Если Rocket.Chat ещё стартует — контейнер
 перезапустится (`restart: on-failure`).
+
+## Бэкап
+
+Ежедневно 23:59 (см. `scripts/crontab.example`): Mongo `rocketchat` + том `uploads`, 7 дней в `/var/www/rocket/backups`.
+
+```bash
+cd /var/www/rocket
+docker compose --profile backup run --rm backup
+# восстановление (чат остановить, mongo оставить):
+docker compose stop rocketchat
+RESTORE_DATE=YYYY-MM-DD docker compose --profile backup run --rm restore
+docker compose up -d
+```

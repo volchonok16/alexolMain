@@ -1,3 +1,5 @@
 .env
 mongodb_data/
 uploads/
+backups/*
+!backups/.gitkeep

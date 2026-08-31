@@ -5,12 +5,16 @@
 #
 # Ручной запуск:
 #   cd /var/www/alexol.io/back && docker compose --profile backup run --rm backup
-#   cd /var/www/alexol.io/mail-server && docker compose --profile backup run --rm backup
+#   cd /var/www/mail && docker compose --profile backup run --rm backup
+#   cd /var/www/rocket && docker compose --profile backup run --rm backup
 #
-# Восстановление на новом сервере (сначала postgres, minio остановлен):
+# Восстановление на новом сервере (сначала postgres/mongo, сервисы остановлены):
 #   docker compose stop minio backend
+#   docker compose --profile backup run --rm restore
+#   docker compose stop rocketchat
 #   docker compose --profile backup run --rm restore
 #   docker compose up -d
 
 59 23 * * * cd /var/www/alexol.io/back && docker compose --profile backup run --rm backup >> /var/log/alexol-backup.log 2>&1
-59 23 * * * cd /var/www/alexol.io/mail-server && docker compose --profile backup run --rm backup >> /var/log/mail-backup.log 2>&1
+59 23 * * * cd /var/www/mail && docker compose --profile backup run --rm backup >> /var/log/mail-backup.log 2>&1
+59 23 * * * cd /var/www/rocket && docker compose --profile backup run --rm backup >> /var/log/rocket-backup.log 2>&1

@@ -1,10 +1,11 @@
 #!/bin/bash
-# Бэкап обоих стеков (backend + mail-server). Запуск вручную или из cron.
+# Бэкап backend + mail-server + rocket. Запуск вручную или из cron.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND_DIR="${BACKEND_DIR:-$ROOT/backend}"
 MAIL_DIR="${MAIL_DIR:-$ROOT/mail-server}"
+ROCKET_DIR="${ROCKET_DIR:-$ROOT/rocket}"
 
 run_backup() {
   local dir="$1"
@@ -21,5 +22,6 @@ run_backup() {
 
 run_backup "$BACKEND_DIR" "alexol backend"
 run_backup "$MAIL_DIR" "mail-server"
+run_backup "$ROCKET_DIR" "rocket chat"
 
 echo "All backups done."
