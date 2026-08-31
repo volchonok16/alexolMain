@@ -93,6 +93,8 @@ services:
       - uploads:/app/uploads
     networks:
       - rocket
+      # mail_backend talks here (host 127.0.0.1:18300 is not reachable from containers)
+      - alexol_mail_sync
 
   configure:
     image: alpine:3.20
@@ -132,3 +134,6 @@ volumes:
 networks:
   rocket:
     driver: bridge
+  alexol_mail_sync:
+    name: alexol_mail_sync
+    external: true

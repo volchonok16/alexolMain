@@ -142,24 +142,31 @@ set_app() {
 }
 
 echo "install-jitsi: writing meet.alexol.io + JWT"
-# Setting IDs from Apps.Jitsi (domain, ssl, jwt, etc.) — best-effort; UI can still save them.
-auth -X POST "$RC_URL/api/v1/apps/$APP_ID/settings" \
+# RC 8: /api/v1/apps/:id/settings is 404; private apps use /api/apps/:id/settings
+SETTINGS_JSON="$(jq -n \
+  --arg domain "$JITSI_DOMAIN" \
+  --arg iss "$JITSI_APP_ID" \
+  --arg secret "$JITSI_APP_SECRET" \
+  '{settings:[
+    {id:"jitsi_domain", value:$domain},
+    {id:"jitsi_ssl", value:true},
+    {id:"jitsi_auth_token", value:true},
+    {id:"jitsi_application_id", value:$iss},
+    {id:"jitsi_application_secret", value:$secret},
+    {id:"jitsi_limit_token_to_room", value:true},
+    {id:"jitsi_jitsi_room_hash", value:false},
+    {id:"jitsi_chrome_extension_id", value:""}
+  ]}')"
+SETTINGS_OUT="$(auth -X POST "$RC_URL/api/apps/$APP_ID/settings" \
   -H "Content-Type: application/json" \
-  -d "$(jq -n \
-    --arg domain "$JITSI_DOMAIN" \
-    --arg iss "$JITSI_APP_ID" \
-    --arg secret "$JITSI_APP_SECRET" \
-    '{settings:[
-      {id:"jitsi_domain", value:$domain},
-      {id:"jitsi_ssl", value:true},
-      {id:"jitsi_auth_token", value:true},
-      {id:"jitsi_application_id", value:$iss},
-      {id:"jitsi_application_secret", value:$secret},
-      {id:"jitsi_limit_token_to_room", value:true},
-      {id:"jitsi_jitsi_room_hash", value:false},
-      {id:"jitsi_chrome_extension_id", value:""},
-      {id:"jitsi_application_id", value:$iss}
-    ]}')" || true
+  -d "$SETTINGS_JSON" || true)"
+if echo "$SETTINGS_OUT" | grep -q '404'; then
+  SETTINGS_OUT="$(auth -X POST "$RC_URL/api/v1/apps/$APP_ID/settings" \
+    -H "Content-Type: application/json" \
+    -d "$SETTINGS_JSON" || true)"
+fi
+echo "$SETTINGS_OUT" | jq -c '{status:.status,success:.success,error:.error}' 2>/dev/null || echo "$SETTINGS_OUT" | head -c 200
+echo
 
 auth -X POST "$RC_URL/api/v1/settings/VideoConf_Default_Provider" \
   -H "Content-Type: application/json" \

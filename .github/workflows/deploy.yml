@@ -667,6 +667,7 @@ jobs:
                         echo "rocket/.env missing — add GitHub secret ROCKET_ENV"
                         exit 1
                       fi
+                      docker network inspect alexol_mail_sync >/dev/null 2>&1 || docker network create alexol_mail_sync
                       $dc pull
                       $dc up -d
                       echo "configure: re-apply OAuth, LDAP, Jitsi settings"
@@ -678,9 +679,17 @@ jobs:
                         echo "install-jitsi-app: skipped (no JITSI_JWT_APP_SECRET in .env)"
                       fi
                       echo "sync chat profiles from mail"
+                      if [ -f /var/www/mail/.env ]; then
+                        if grep -q '^ROCKETCHAT_API_URL=' /var/www/mail/.env; then
+                          sed -i 's|^ROCKETCHAT_API_URL=.*|ROCKETCHAT_API_URL=http://rocket_chat:3000|' /var/www/mail/.env
+                        else
+                          printf '\nROCKETCHAT_API_URL=http://rocket_chat:3000\n' >> /var/www/mail/.env
+                        fi
+                        (cd /var/www/mail && $dc up -d backend) || true
+                      fi
                       sleep 10
                       if docker ps --format '{{.Names}}' | grep -qx mail_backend; then
-                        docker exec mail_backend python /app/scripts/sync_chat_profiles.py || true
+                        docker exec -e ROCKETCHAT_API_URL=http://rocket_chat:3000 mail_backend python /app/scripts/sync_chat_profiles.py || true
                       fi
                       $dc ps
                       '

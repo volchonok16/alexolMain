@@ -100,7 +100,7 @@ ensure_env "$ROCKET_ENV_FILE" MAIL_LDAP_BASE_DN "dc=alexol,dc=io"
 
 ensure_env "$MAIL_ENV_FILE" ROCKETCHAT_ADMIN_PASSWORD "$rocket_admin"
 ensure_env "$MAIL_ENV_FILE" ROCKETCHAT_ADMIN_USERNAME "admin"
-ensure_env "$MAIL_ENV_FILE" ROCKETCHAT_API_URL "http://host.docker.internal:18300"
+sync_env "$MAIL_ENV_FILE" ROCKETCHAT_API_URL "http://rocket_chat:3000"
 ensure_env "$MAIL_ENV_FILE" CHAT_PUBLIC_URL "https://chat.alexol.io"
 ensure_env "$MAIL_ENV_FILE" OAUTH_ROCKETCHAT_CLIENT_ID "alexol-chat"
 ensure_env "$MAIL_ENV_FILE" OAUTH_ROCKETCHAT_REDIRECT_URI "https://chat.alexol.io/_oauth/alexol"

@@ -87,7 +87,8 @@ services:
       OAUTH_ROCKETCHAT_CLIENT_ID: ${OAUTH_ROCKETCHAT_CLIENT_ID:-alexol-chat}
       OAUTH_ROCKETCHAT_CLIENT_SECRET: ${OAUTH_ROCKETCHAT_CLIENT_SECRET:-}
       OAUTH_ROCKETCHAT_REDIRECT_URI: ${OAUTH_ROCKETCHAT_REDIRECT_URI:-https://chat.alexol.io/_oauth/alexol}
-      ROCKETCHAT_API_URL: ${ROCKETCHAT_API_URL:-http://host.docker.internal:18300}
+      # rocket_chat on alexol_mail_sync — not host.docker.internal (RC is 127.0.0.1:18300)
+      ROCKETCHAT_API_URL: ${ROCKETCHAT_API_URL:-http://rocket_chat:3000}
       ROCKETCHAT_ADMIN_USERNAME: ${ROCKETCHAT_ADMIN_USERNAME:-admin}
       ROCKETCHAT_ADMIN_PASSWORD: ${ROCKETCHAT_ADMIN_PASSWORD:-}
       # Reverse sync mail → admin (same Docker network alexol_mail_sync)
