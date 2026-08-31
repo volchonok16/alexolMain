@@ -122,6 +122,9 @@ set_bool "UI_Use_Real_Name" "true"
 set_bool "Accounts_AllowUserAvatarChange" "true"
 set_bool "Accounts_RequireEmailVerification" "false"
 set_bool "Accounts_EmailVerification" "false"
+# Mail already authenticated the user. Do not email a second 2FA code after SSO.
+set_bool "Accounts_twoFactorAuthentication_email_available_for_OAuth_users" "false"
+set_bool "Accounts_TwoFactorAuthentication_By_Email_Auto_Opt_In" "false"
 set_bool "Iframe_Restrict_Access" "false"
 set_bool "Accounts_CustomFieldsEnable" "true"
 set_string "Accounts_CustomFields" '{"phone":{"type":"text","required":false,"maxLength":40},"telegram":{"type":"text","required":false,"maxLength":64},"jobTitle":{"type":"text","required":false,"maxLength":80}}'

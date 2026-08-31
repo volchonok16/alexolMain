@@ -83,6 +83,8 @@ services:
       OVERWRITE_SETTING_Accounts_AllowUserAvatarChange: "true"
       OVERWRITE_SETTING_Accounts_RequireEmailVerification: "false"
       OVERWRITE_SETTING_Accounts_EmailVerification: "false"
+      OVERWRITE_SETTING_Accounts_twoFactorAuthentication_email_available_for_OAuth_users: "false"
+      OVERWRITE_SETTING_Accounts_TwoFactorAuthentication_By_Email_Auto_Opt_In: "false"
       OVERWRITE_SETTING_Iframe_Restrict_Access: "false"
       OVERWRITE_SETTING_DeepLink_Url: ${ROOT_URL:-https://chat.alexol.io}
       OVERWRITE_SETTING_Site_Name: Alexol
