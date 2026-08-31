@@ -10,13 +10,13 @@ from hmac import compare_digest
 from typing import Any, Optional
 from urllib.parse import urlencode, urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from jose import JWTError, jwt
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user, verify_password
+from app.auth import get_current_user, verify_password, _user_from_access_token
 from app.config import settings
 from app.database import get_db
 from app.mail_photos import public_avatar_url
@@ -450,12 +450,33 @@ async def oauth_userinfo_endpoint(
 @router.post("/oauth/chat-handoff")
 async def chat_handoff(request: Request, current_user: User = Depends(get_current_user)):
     """Mail SPA: set SSO cookie, then start Rocket.Chat OAuth (no login form)."""
+    schedule_rocketchat_profile_sync(current_user)
     session = encode_oauth_jwt(
         {"typ": OAUTH_SESSION_TYP, "sub": (current_user.email or "").lower()},
         OAUTH_SESSION_TTL_SEC,
     )
-    schedule_rocketchat_profile_sync(current_user)
     response = JSONResponse({"url": chat_oauth_start_url(), "ok": True})
+    response.set_cookie(**_session_cookie(request, session))
+    return response
+
+
+@router.post("/oauth/chat-handoff-redirect")
+async def chat_handoff_redirect(
+    request: Request,
+    access_token: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    """Browser form POST: set SSO cookie, then 303 to Rocket.Chat OAuth (redirect mode)."""
+    token = (access_token or "").strip()
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
+    user = await _user_from_access_token(token, db)
+    schedule_rocketchat_profile_sync(user)
+    session = encode_oauth_jwt(
+        {"typ": OAUTH_SESSION_TYP, "sub": (user.email or "").lower()},
+        OAUTH_SESSION_TTL_SEC,
+    )
+    response = RedirectResponse(chat_oauth_start_url(), status_code=303)
     response.set_cookie(**_session_cookie(request, session))
     return response
 

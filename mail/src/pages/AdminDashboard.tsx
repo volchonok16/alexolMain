@@ -333,7 +333,7 @@ export default function AdminDashboard() {
             onClick={async () => {
               setChatLoading(true)
               try {
-                await openChat(api)
+                void openChat()
               } catch {
                 setChatLoading(false)
                 window.open('https://chat.alexol.io', '_blank', 'noopener,noreferrer')

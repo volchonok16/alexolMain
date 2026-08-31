@@ -599,7 +599,7 @@ export default function UserDashboard() {
             onClick={async () => {
               setChatLoading(true)
               try {
-                await openChat(api)
+                void openChat()
               } catch {
                 toast.error('Не удалось открыть чат')
                 window.open('https://chat.alexol.io', '_blank', 'noopener,noreferrer')

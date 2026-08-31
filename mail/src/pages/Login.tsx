@@ -187,7 +187,7 @@ export default function Login() {
                 onClick={async () => {
                   setChatLoading(true)
                   try {
-                    await openChat(api)
+                    void openChat()
                   } catch {
                     setChatLoading(false)
                     setError('Не удалось открыть chat.alexol.io')
