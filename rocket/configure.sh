@@ -152,10 +152,7 @@ if [ -f /jitsi-choice.js ]; then
   logged_in_js="$(sed -e "s|__MAIL_PUBLIC_URL__|${MAIL_BASE}|g" -e "s|__JITSI_PUBLIC_URL__|${JITSI_BASE}|g" /jitsi-choice.js)"
   echo "configure: Jitsi open/closed choice on the video button"
 fi
-# Reset-password is a logged-in route — branding must run there too.
 if [ -f /login-brand.js ]; then
-  logged_in_js="${logged_in_js}
-$(cat /login-brand.js)"
   payload="$(jq -n --arg s "$(cat /login-brand.js)" '{value:$s}')"
   auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_Out" -d "$payload" >/dev/null || true
   echo "configure: Alexol branding on the login page"

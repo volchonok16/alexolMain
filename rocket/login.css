@@ -1,37 +1,3 @@
-#alexol-login-brand,
-#alexol-sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-#alexol-login-brand {
-  margin: 0 0 16px;
-}
-
-#alexol-login-brand span,
-#alexol-sidebar-brand span {
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-#alexol-login-brand span {
-  font-size: 28px;
-  color: #1f2329;
-}
-
-#alexol-sidebar-brand {
-  padding: 8px 16px;
-  height: 70px;
-  box-sizing: border-box;
-  text-decoration: none;
-  color: #f8fafc;
-}
-
-#alexol-sidebar-brand span {
-  font-size: 18px;
-}
-
 a[href="https://rocket.chat/"],
 a[href="https://rocket.chat"] {
   display: none !important;
@@ -41,4 +7,34 @@ a[href*="terms-of-service"],
 a[href*="privacy-policy"],
 a[href*="legal-notice"] {
   display: none !important;
+}
+
+#welcomeTitle {
+  visibility: hidden !important;
+}
+
+#alexol-login-overlay {
+  position: fixed;
+  left: 48px;
+  top: 40%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  pointer-events: none;
+}
+
+#alexol-login-overlay span {
+  font-weight: 700;
+  font-size: 28px;
+  color: #1f2329;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 1439px) {
+  #alexol-login-overlay {
+    left: 50%;
+    top: 24px;
+    transform: translateX(-50%);
+  }
 }
