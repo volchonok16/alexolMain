@@ -676,6 +676,11 @@ jobs:
                       else
                         echo "install-jitsi-app: skipped (no JITSI_JWT_APP_SECRET in .env)"
                       fi
+                      echo "sync chat profiles from mail"
+                      sleep 10
+                      if docker ps --format '{{.Names}}' | grep -qx mail_backend; then
+                        docker exec mail_backend python /app/scripts/sync_chat_profiles.py || true
+                      fi
                       $dc ps
                       '
 

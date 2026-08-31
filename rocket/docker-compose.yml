@@ -80,6 +80,8 @@ services:
       OVERWRITE_SETTING_API_Enable_CORS: "true"
       OVERWRITE_SETTING_API_CORS_Origin: ${API_CORS_ORIGIN:-https://mail.alexol.io,https://chat.alexol.io,https://meet.alexol.io}
       OVERWRITE_SETTING_Accounts_OAuth_Custom-Alexol-login_style: redirect
+      OVERWRITE_SETTING_UI_Use_Real_Name: "true"
+      OVERWRITE_SETTING_Accounts_AllowUserAvatarChange: "true"
     ports:
       - "127.0.0.1:${HOST_PORT:-18300}:3000"
     volumes:

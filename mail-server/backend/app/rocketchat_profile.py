@@ -8,8 +8,9 @@ from typing import Any, Optional
 
 import httpx
 
+from app.avatar_resolve import load_avatar_bytes
 from app.config import settings
-from app.mail_photos import public_avatar_url
+from app.mail_photos import image_bytes_to_jpeg, public_avatar_url
 from app.models import User
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class ChatProfile:
     telegram: str
     job_title: str
     picture: str
+    avatar_url: str = ""
 
 
 def snapshot_mailbox(user: User) -> ChatProfile:
@@ -41,6 +43,7 @@ def snapshot_mailbox(user: User) -> ChatProfile:
         telegram=telegram,
         job_title=job_title,
         picture=public_avatar_url(email) if email else "",
+        avatar_url=(getattr(user, "avatar_url", None) or "").strip(),
     )
 
 
@@ -72,6 +75,16 @@ def _bio(profile: ChatProfile) -> str:
     return " · ".join(part for part in parts if part)
 
 
+def _avatar_jpeg(profile: ChatProfile) -> Optional[bytes]:
+    if not profile.avatar_url:
+        return None
+    loaded = load_avatar_bytes(profile.avatar_url)
+    if not loaded:
+        return None
+    data, _ctype, _name = loaded
+    return image_bytes_to_jpeg(data)
+
+
 def schedule_rocketchat_profile_sync(user: User) -> None:
     profile = snapshot_mailbox(user)
     try:
@@ -81,11 +94,34 @@ def schedule_rocketchat_profile_sync(user: User) -> None:
     loop.create_task(_sync_with_retries(profile))
 
 
+def sync_mailbox_profile_blocking(user: User, *, attempts: int = 12) -> bool:
+    """Synchronous profile push (deploy script / admin tooling)."""
+    profile = snapshot_mailbox(user)
+    if not profile.email or not _admin_password():
+        return False
+    for attempt in range(attempts):
+        try:
+            if _sync_once(profile):
+                return True
+        except Exception:
+            logger.warning(
+                "rocketchat profile sync failed for %s (try %s)",
+                profile.email,
+                attempt + 1,
+                exc_info=True,
+            )
+        if attempt + 1 < attempts:
+            import time
+
+            time.sleep(3)
+    return False
+
+
 async def _sync_with_retries(profile: ChatProfile) -> None:
     if not profile.email or not _admin_password():
         return
-    await asyncio.sleep(2)
-    for attempt in range(8):
+    await asyncio.sleep(4)
+    for attempt in range(12):
         try:
             if await asyncio.to_thread(_sync_once, profile):
                 return
@@ -96,30 +132,77 @@ async def _sync_with_retries(profile: ChatProfile) -> None:
                 attempt + 1,
                 exc_info=True,
             )
-        await asyncio.sleep(2)
+        await asyncio.sleep(3)
+
+
+def _login_admin(client: httpx.Client, base: str) -> Optional[dict[str, str]]:
+    username = (settings.ROCKETCHAT_ADMIN_USERNAME or "admin").strip()
+    password = _admin_password()
+    login = client.post(
+        f"{base}/api/v1/login",
+        json={"user": username, "password": password},
+    )
+    body = login.json() if login.headers.get("content-type", "").startswith("application/json") else {}
+    auth = (body.get("data") or {}) if login.status_code == 200 else {}
+    token = auth.get("authToken")
+    user_id = auth.get("userId")
+    if not token or not user_id:
+        logger.warning("rocketchat profile sync: admin login failed status=%s", login.status_code)
+        return None
+    return {"X-Auth-Token": token, "X-User-Id": user_id}
+
+
+def _set_avatar(
+    client: httpx.Client,
+    base: str,
+    headers: dict[str, str],
+    target_id: str,
+    profile: ChatProfile,
+) -> None:
+    jpeg = _avatar_jpeg(profile)
+    if jpeg:
+        upload = client.post(
+            f"{base}/api/v1/users.setAvatar",
+            headers=headers,
+            data={"userId": target_id},
+            files={"image": ("avatar.jpg", jpeg, "image/jpeg")},
+        )
+        if upload.status_code < 400:
+            logger.info("rocketchat avatar uploaded for %s", profile.email)
+            return
+        logger.warning(
+            "rocketchat avatar upload failed for %s status=%s body=%s",
+            profile.email,
+            upload.status_code,
+            (upload.text or "")[:200],
+        )
+    if not profile.picture:
+        return
+    avatar = client.post(
+        f"{base}/api/v1/users.setAvatar",
+        headers={**headers, "Content-Type": "application/json"},
+        json={"userId": target_id, "avatarUrl": profile.picture},
+    )
+    if avatar.status_code >= 400:
+        logger.warning(
+            "rocketchat setAvatar url failed for %s status=%s body=%s",
+            profile.email,
+            avatar.status_code,
+            (avatar.text or "")[:200],
+        )
 
 
 def _sync_once(profile: ChatProfile) -> bool:
     base = _api_base()
-    username = (settings.ROCKETCHAT_ADMIN_USERNAME or "admin").strip()
-    password = _admin_password()
-    if not base or not password:
+    if not base or not _admin_password():
         return True
-    with httpx.Client(timeout=20.0, follow_redirects=True) as client:
-        login = client.post(
-            f"{base}/api/v1/login",
-            json={"user": username, "password": password},
-        )
-        body = login.json() if login.headers.get("content-type", "").startswith("application/json") else {}
-        auth = (body.get("data") or {}) if login.status_code == 200 else {}
-        token = auth.get("authToken")
-        user_id = auth.get("userId")
-        if not token or not user_id:
-            logger.warning("rocketchat profile sync: admin login failed status=%s", login.status_code)
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        headers = _login_admin(client, base)
+        if not headers:
             return False
-        headers = {"X-Auth-Token": token, "X-User-Id": user_id}
         found = _find_user(client, base, headers, profile)
         if not found:
+            logger.warning("rocketchat profile sync: user not found %s", profile.email)
             return False
         target_id = found.get("_id") or found.get("id")
         if not target_id:
@@ -129,7 +212,7 @@ def _sync_once(profile: ChatProfile) -> bool:
             "data": {
                 "name": profile.name,
                 "bio": _bio(profile),
-                "nickname": profile.telegram or profile.username,
+                "nickname": profile.telegram,
                 "statusText": profile.job_title,
                 "verified": True,
                 "customFields": {
@@ -139,23 +222,20 @@ def _sync_once(profile: ChatProfile) -> bool:
                 },
             },
         }
-        updated = client.post(f"{base}/api/v1/users.update", headers=headers, json=payload)
+        updated = client.post(
+            f"{base}/api/v1/users.update",
+            headers={**headers, "Content-Type": "application/json"},
+            json=payload,
+        )
         if updated.status_code >= 400:
             payload["data"].pop("customFields", None)
-            client.post(f"{base}/api/v1/users.update", headers=headers, json=payload)
-        if profile.picture:
-            avatar = client.post(
-                f"{base}/api/v1/users.setAvatar",
-                headers=headers,
-                json={"userId": target_id, "avatarUrl": profile.picture},
+            client.post(
+                f"{base}/api/v1/users.update",
+                headers={**headers, "Content-Type": "application/json"},
+                json=payload,
             )
-            if avatar.status_code >= 400:
-                logger.warning(
-                    "rocketchat setAvatar failed for %s status=%s",
-                    profile.email,
-                    avatar.status_code,
-                )
-        logger.info("rocketchat profile synced %s", profile.email)
+        _set_avatar(client, base, headers, target_id, profile)
+        logger.info("rocketchat profile synced %s name=%r", profile.email, profile.name)
         return True
 
 

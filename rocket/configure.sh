@@ -117,6 +117,7 @@ set_bool "Accounts_RegistrationAuthenticationServicesEnabled" "true"
 set_string "Accounts_RegistrationForm" "Disabled"
 set_string "Site_Url" "$ROOT_URL"
 set_bool "UI_Use_Real_Name" "true"
+set_bool "Accounts_AllowUserAvatarChange" "true"
 set_bool "Accounts_CustomFieldsEnable" "true"
 set_string "Accounts_CustomFields" '{"phone":{"type":"text","required":false,"maxLength":40},"telegram":{"type":"text","required":false,"maxLength":64},"jobTitle":{"type":"text","required":false,"maxLength":80}}'
 set_string "VideoConf_Default_Provider" "jitsi"

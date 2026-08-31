@@ -130,7 +130,7 @@ def oauth_userinfo(user: User) -> dict[str, Any]:
         "job_title": job_title,
         "title": job_title,
         "bio": " · ".join(bio_parts),
-        "nickname": telegram or username,
+        "nickname": telegram or "",
     }
     if user.is_admin:
         info["roles"] = ["admin"]
