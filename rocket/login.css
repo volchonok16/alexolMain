@@ -1,5 +1,12 @@
 a[href="https://rocket.chat/"],
-a[href="https://rocket.chat"] {
+a[href="https://rocket.chat"],
+a[href^="https://rocket.chat?"],
+a[href^="https://www.rocket.chat"] {
+  display: none !important;
+}
+
+aside a[href*="rocket.chat"],
+nav a[href*="rocket.chat"] {
   display: none !important;
 }
 
@@ -9,26 +16,107 @@ a[href*="legal-notice"] {
   display: none !important;
 }
 
+html.alexol-login .alexol-login-aside {
+  display: none !important;
+}
+
+html.alexol-login .alexol-login-shell {
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 0 !important;
+  padding-left: 4vw !important;
+  padding-right: 4vw !important;
+}
+
+html.alexol-login .alexol-login-card,
+html.alexol-login form {
+  min-width: min(520px, 92vw) !important;
+}
+
+html.alexol-login .alexol-login-card {
+  width: min(520px, 92vw) !important;
+  max-width: 92vw !important;
+  padding: 36px 40px !important;
+  box-sizing: border-box !important;
+}
+
+html.alexol-login form input,
+html.alexol-login form [class*="rcx-input"] {
+  min-height: 46px !important;
+}
+
+html.alexol-login form h1,
+html.alexol-login form h2 {
+  font-size: 32px !important;
+}
+
 #welcomeTitle {
   font-size: 0 !important;
   line-height: 0 !important;
 }
 
-#welcomeTitle::before {
-  content: "";
-  display: block;
-  width: 56px;
-  height: 56px;
-  margin: 0 0 12px;
-  background: url("/alexol-logo.svg") no-repeat center / contain;
+#alexol-login-overlay {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  pointer-events: none;
 }
 
-#welcomeTitle::after {
-  content: "Alexol";
-  display: block;
-  font-size: 2rem;
+#alexol-login-overlay .alexol-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#alexol-login-overlay .alexol-login-brand span {
   font-weight: 700;
-  line-height: 1.2;
-  color: #1f2329;
+  font-size: 42px;
   letter-spacing: 0.02em;
+  color: #1f2329;
+}
+
+#alexol-login-overlay .alexol-login-apps {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  margin-left: 4px;
+}
+
+#alexol-login-overlay .alexol-login-apps a {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  text-decoration: none;
+}
+
+#alexol-login-overlay .alexol-login-apps a:hover {
+  border-color: #06b6d4;
+}
+
+#alexol-login-overlay .alexol-login-apps svg {
+  display: block;
+}
+
+@media (max-width: 1199px) {
+  #alexol-login-overlay {
+    left: 50% !important;
+    top: 16px !important;
+    transform: translateX(-50%) !important;
+    align-items: center;
+  }
+
+  html.alexol-login .alexol-login-shell {
+    padding-top: 112px !important;
+  }
 }

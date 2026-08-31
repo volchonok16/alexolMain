@@ -6,6 +6,10 @@ cd /var/www/rocket
 sed -i "s/\r$//" configure.sh install-jitsi-app.sh start.sh .env env.example 2>/dev/null || true
 chmod +x configure.sh install-jitsi-app.sh start.sh
 
+mkdir -p /var/www/chat-brand
+cp -f login-brand.js login.css login-logo.svg /var/www/chat-brand/ 2>/dev/null || true
+cp -f alexol-favicon.svg alexol-favicon.png /var/www/chat-brand/ 2>/dev/null || true
+
 if docker compose version >/dev/null 2>&1; then
   dc="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then

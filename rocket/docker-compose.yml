@@ -145,6 +145,8 @@ services:
       - ./login-brand.js:/login-brand.js:ro
       - ./login.css:/login.css:ro
       - ./login-logo.svg:/login-logo.svg:ro
+      - ./alexol-favicon.svg:/alexol-favicon.svg:ro
+      - ./alexol-favicon.png:/alexol-favicon.png:ro
     entrypoint: ["/bin/sh", "/configure.sh"]
     networks:
       - rocket

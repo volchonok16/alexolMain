@@ -167,6 +167,8 @@ if [ -f /login.css ]; then
   auth -X POST "$RC_URL/api/v1/settings/theme-custom-css" -d "$payload" >/dev/null || true
   auth -X POST "$RC_URL/api/v1/settings/css" -d "$payload" >/dev/null || true
 fi
+set_bool "Layout_Login_Hide_Logo" "true"
+set_bool "Layout_Login_Hide_Title" "true"
 set_bool "Layout_Login_Hide_Powered_By" "true"
 set_string "Layout_Login_Terms" "<span></span>"
 set_string "Layout_Terms_of_Service" " "
@@ -178,9 +180,9 @@ set_string "Layout_Sidenav_Footer_Dark" "$FOOTER_DARK"
 set_string "Layout_Sidenav_Footer" "$FOOTER_LIGHT"
 echo "configure: sidebar footer set to Alexol"
 
+HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
 if [ -f /login-logo.svg ]; then
-  HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
-  for asset in logo favicon; do
+  for asset in logo; do
     curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
       -H "X-Auth-Token: $TOKEN" \
       -H "X-User-Id: $USER_ID" \
@@ -191,6 +193,27 @@ if [ -f /login-logo.svg ]; then
       -F "refreshAllClients=true" >/dev/null || true
   done
   echo "configure: uploaded Alexol logo"
+fi
+if [ -f /alexol-favicon.svg ]; then
+  curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
+    -H "X-Auth-Token: $TOKEN" \
+    -H "X-User-Id: $USER_ID" \
+    -H "X-2FA-Code: $HASH" \
+    -H "X-2FA-Method: password" \
+    -F "asset=@/alexol-favicon.svg;type=image/svg+xml" \
+    -F "assetName=favicon" \
+    -F "refreshAllClients=true" >/dev/null || true
+  echo "configure: uploaded Alexol favicon"
+elif [ -f /alexol-favicon.png ]; then
+  curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
+    -H "X-Auth-Token: $TOKEN" \
+    -H "X-User-Id: $USER_ID" \
+    -H "X-2FA-Code: $HASH" \
+    -H "X-2FA-Method: password" \
+    -F "asset=@/alexol-favicon.png;type=image/png" \
+    -F "assetName=favicon" \
+    -F "refreshAllClients=true" >/dev/null || true
+  echo "configure: uploaded Alexol favicon"
 fi
 
 offset=0

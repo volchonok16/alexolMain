@@ -865,7 +865,7 @@ jobs:
                   username: ${{ secrets.SERVER_USER }}
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
-                  source: "rocket/login-brand.js,rocket/login.css,rocket/login-logo.svg"
+                  source: "rocket/login-brand.js,rocket/login.css,rocket/login-logo.svg,rocket/alexol-favicon.svg,rocket/alexol-favicon.png"
                   target: "/var/www/chat-brand"
                   overwrite: true
                   strip_components: 1
@@ -913,7 +913,7 @@ jobs:
                       systemctl reload nginx
                       if [ -f /var/www/rocket/login-brand.js ]; then
                         mkdir -p /var/www/chat-brand
-                        cp -f /var/www/rocket/login-brand.js /var/www/rocket/login.css /var/www/rocket/login-logo.svg /var/www/chat-brand/ 2>/dev/null || true
+                        cp -f /var/www/rocket/login-brand.js /var/www/rocket/login.css /var/www/rocket/login-logo.svg /var/www/rocket/alexol-favicon.svg /var/www/rocket/alexol-favicon.png /var/www/chat-brand/ 2>/dev/null || true
                       fi
                       rm -rf "$SRC"
                       echo "nginx reloaded"'
