@@ -847,6 +847,29 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Prepare chat brand directory
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/chat-brand
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/chat-brand
+
+            - name: Upload Alexol chat brand assets
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "rocket/login-brand.js,rocket/login.css,rocket/login-logo.svg"
+                  target: "/var/www/chat-brand"
+                  overwrite: true
+                  strip_components: 1
+
             - name: Upload nginx configs
               uses: appleboy/scp-action@v1
               with:
@@ -881,7 +904,15 @@ jobs:
                         fi
                       done
                       rm -f /etc/nginx/sites-enabled/default
+                      if [ -d /var/www/chat-brand/rocket ]; then
+                        mv /var/www/chat-brand/rocket/* /var/www/chat-brand/
+                        rmdir /var/www/chat-brand/rocket || true
+                      fi
                       nginx -t
                       systemctl reload nginx
+                      if [ -f /var/www/rocket/login-brand.js ]; then
+                        mkdir -p /var/www/chat-brand
+                        cp -f /var/www/rocket/login-brand.js /var/www/rocket/login.css /var/www/rocket/login-logo.svg /var/www/chat-brand/ 2>/dev/null || true
+                      fi
                       rm -rf /tmp/alexol-nginx
                       echo "nginx reloaded"'

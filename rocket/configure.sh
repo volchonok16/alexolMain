@@ -174,6 +174,11 @@ set_string "Layout_Login_Terms" "<span></span>"
 set_string "Layout_Terms_of_Service" " "
 set_string "Layout_Privacy_Policy" " "
 set_string "Layout_Legal_Notice" " "
+FOOTER_DARK='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-logo.svg" width="32" height="32" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#F8FAFC">Alexol</span></a>'
+FOOTER_LIGHT='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-logo.svg" width="32" height="32" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#0C0F16">Alexol</span></a>'
+set_string "Layout_Sidenav_Footer_Dark" "$FOOTER_DARK"
+set_string "Layout_Sidenav_Footer" "$FOOTER_LIGHT"
+echo "configure: sidebar footer set to Alexol"
 
 if [ -f /login-logo.svg ]; then
   HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
