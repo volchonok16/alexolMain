@@ -1,10 +1,15 @@
-# Nginx деплоится только вручную (Actions → Deploy Nginx → Run workflow).
-# Обычный push в master nginx НЕ трогает.
+# Nginx деплоится автоматически при push в master (job deploy-nginx в deploy.yml).
+# Также запускается при изменении backend/nginx/** или вручную здесь.
 
 name: Deploy Nginx (manual)
 
 on:
     workflow_dispatch:
+    push:
+        branches: [master]
+        paths:
+            - "backend/nginx/**"
+            - ".github/workflows/deploy-nginx.yml"
 
 jobs:
     deploy-nginx:

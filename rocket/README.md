@@ -24,6 +24,16 @@ OAUTH_ROCKETCHAT_REDIRECT_URI=https://chat.alexol.io/_oauth/alexol
 `ADMIN_PASS` — пароль первого админа самого Rocket.Chat (не обязан совпадать с почтой).
 Если у почтового админа email `admin@alexol.io`, при SSO аккаунты смержатся (`merge_users`).
 
+## Мобильное и десктопное приложение
+
+1. Установите **Rocket.Chat** из App Store / Google Play / с [rocket.chat/download](https://www.rocket.chat/download).
+2. При первом запуске укажите сервер: **`https://chat.alexol.io`**
+3. Войдите:
+   - **«Войти через Alexol»** (OAuth почты), или
+   - логин + пароль ящика (`user@alexol.io` / пароль почты).
+
+`Site_Url`, `DeepLink_Url` и OAuth настраиваются в `configure.sh` при деплое.
+
 ## DNS / nginx
 
 1. Cloudflare: A `chat` → IP сервера (как `mail.alexol.io`).

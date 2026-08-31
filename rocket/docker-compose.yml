@@ -82,6 +82,11 @@ services:
       OVERWRITE_SETTING_Accounts_OAuth_Custom-Alexol-login_style: redirect
       OVERWRITE_SETTING_UI_Use_Real_Name: "true"
       OVERWRITE_SETTING_Accounts_AllowUserAvatarChange: "true"
+      OVERWRITE_SETTING_Accounts_RequireEmailVerification: "false"
+      OVERWRITE_SETTING_Accounts_EmailVerification: "false"
+      OVERWRITE_SETTING_Iframe_Restrict_Access: "false"
+      OVERWRITE_SETTING_DeepLink_Url: ${ROOT_URL:-https://chat.alexol.io}
+      OVERWRITE_SETTING_Site_Name: Alexol
     ports:
       - "127.0.0.1:${HOST_PORT:-18300}:3000"
     volumes:
