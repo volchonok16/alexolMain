@@ -97,3 +97,17 @@ class OauthHelpersTests(unittest.TestCase):
         self.assertEqual(payload["client_id"], "alexol-chat")
         raw = jwt.get_unverified_claims(token)
         self.assertEqual(raw["typ"], OAUTH_CODE_TYP)
+
+    def test_mail_origin_push_blocks_immediate_pull(self):
+        from app.rocketchat_profile import (
+            known_avatar_etag,
+            mark_mail_origin_push,
+            recently_pushed_from_mail,
+            remember_avatar_etag,
+        )
+
+        mark_mail_origin_push("altaraskin@alexol.io")
+        self.assertTrue(recently_pushed_from_mail("altaraskin@alexol.io"))
+        self.assertFalse(recently_pushed_from_mail("other@alexol.io"))
+        remember_avatar_etag("altaraskin@alexol.io", "etag-1")
+        self.assertEqual(known_avatar_etag("altaraskin@alexol.io"), "etag-1")

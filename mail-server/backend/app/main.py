@@ -57,6 +57,7 @@ from app import carddav
 from app.org import router as org_router
 from app.oauth import router as oauth_router
 from app.rocketchat_profile import schedule_rocketchat_profile_sync
+from app.chat_profile_loop import start_chat_profile_loop, stop_chat_profile_loop
 from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy import text
 from urllib.parse import unquote
@@ -230,6 +231,7 @@ async def startup_event():
     smtp_server.start()
     imap_server.start()
     ldap_server.start()
+    await start_chat_profile_loop()
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -238,6 +240,7 @@ async def shutdown_event():
     await smtp_server.cleanup()
     imap_server.stop()
     ldap_server.stop()
+    await stop_chat_profile_loop()
 
 # Auth endpoints
 @app.post("/api/auth/login", response_model=Token)
@@ -574,6 +577,8 @@ async def create_user(
             detail="Не удалось создать пользователя в admin.alexol.io. Ящик откатан. Проверьте ALEXOL_API_URL / MAIL_SYNC_SECRET.",
         )
 
+    schedule_rocketchat_profile_sync(user)
+
     return user
 
 @app.get("/api/admin/users", response_model=List[UserResponse])
@@ -666,6 +671,8 @@ async def update_user_by_admin(
         telegram=user.telegram,
         avatar_url=user.avatar_url,
     )
+
+    schedule_rocketchat_profile_sync(user)
 
     return user
 
@@ -1318,6 +1325,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         _apply_avatar_from_sync(existing, user_data)
         await db.commit()
         await db.refresh(existing)
+        schedule_rocketchat_profile_sync(existing)
         return existing
 
     if not user_data.password:
@@ -1341,6 +1349,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
     db.add(user)
     await db.commit()
     await db.refresh(user)
+    schedule_rocketchat_profile_sync(user)
     return user
 
 
@@ -1410,6 +1419,7 @@ async def sync_update_user(
 
     await db.commit()
     await db.refresh(user)
+    schedule_rocketchat_profile_sync(user)
     return user
 
 

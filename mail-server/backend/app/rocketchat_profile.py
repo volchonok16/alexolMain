@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import secrets
+import time
 from dataclasses import dataclass
 from typing import Any, Optional
 from urllib.parse import urlencode
@@ -20,6 +21,10 @@ from app.models import User
 
 logger = logging.getLogger(__name__)
 
+_MAIL_PUSH_TTL_SEC = 90.0
+_mail_push_until: dict[str, float] = {}
+_avatar_etag: dict[str, str] = {}
+
 
 @dataclass(frozen=True)
 class ChatProfile:
@@ -31,6 +36,28 @@ class ChatProfile:
     job_title: str
     picture: str
     avatar_url: str = ""
+
+
+def mark_mail_origin_push(email: str) -> None:
+    key = (email or "").strip().lower()
+    if key:
+        _mail_push_until[key] = time.monotonic() + _MAIL_PUSH_TTL_SEC
+
+
+def recently_pushed_from_mail(email: str) -> bool:
+    key = (email or "").strip().lower()
+    return time.monotonic() < _mail_push_until.get(key, 0)
+
+
+def remember_avatar_etag(email: str, etag: str) -> None:
+    key = (email or "").strip().lower()
+    token = (etag or "").strip()
+    if key and token:
+        _avatar_etag[key] = token
+
+
+def known_avatar_etag(email: str) -> str:
+    return _avatar_etag.get((email or "").strip().lower(), "")
 
 
 def snapshot_mailbox(user: User) -> ChatProfile:
@@ -128,6 +155,7 @@ def _avatar_jpeg(profile: ChatProfile) -> Optional[bytes]:
 
 def schedule_rocketchat_profile_sync(user: User) -> None:
     profile = snapshot_mailbox(user)
+    mark_mail_origin_push(profile.email)
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -282,6 +310,9 @@ def _sync_once(profile: ChatProfile) -> bool:
                 json=payload,
             )
         _set_avatar(client, base, headers, target_id, profile)
+        refreshed = _find_user(client, base, headers, profile) or found
+        remember_avatar_etag(profile.email, str(refreshed.get("avatarETag") or ""))
+        mark_mail_origin_push(profile.email)
         logger.info("rocketchat profile synced %s name=%r", profile.email, profile.name)
         return True
 
@@ -386,3 +417,48 @@ def _resume_token_login_url(profile: ChatProfile) -> Optional[str]:
             )
             return None
         return f"{chat}/home?resumeToken={auth}"
+
+
+@dataclass(frozen=True)
+class RemoteChatProfile:
+    name: str
+    avatar_etag: str
+    avatar_jpeg: Optional[bytes]
+
+
+def fetch_remote_chat_profile(username: str, email: str) -> Optional[RemoteChatProfile]:
+    """Read name + custom avatar from Rocket.Chat (None if the user is missing)."""
+    login = (username or "").strip().lower()
+    addr = (email or "").strip().lower()
+    if not login or not _admin_password():
+        return None
+    base = _api_base()
+    if not base:
+        return None
+    stub = ChatProfile(
+        email=addr or f"{login}@alexol.io",
+        username=login,
+        name=login,
+        phone="",
+        telegram="",
+        job_title="",
+        picture="",
+    )
+    with httpx.Client(timeout=20.0, follow_redirects=True) as client:
+        headers = _login_admin(client, base)
+        if not headers:
+            return None
+        found = _find_user(client, base, headers, stub)
+        if not found:
+            return None
+        name = (found.get("name") or "").strip()
+        etag = str(found.get("avatarETag") or "").strip()
+        jpeg = None
+        if etag and etag != known_avatar_etag(addr):
+            avatar = client.get(f"{base}/avatar/{login}", headers=headers)
+            ctype = (avatar.headers.get("content-type") or "").lower()
+            data = avatar.content or b""
+            looks_image = "image" in ctype or data[:3] == b"\xff\xd8\xff" or data[:8] == b"\x89PNG\r\n\x1a\n"
+            if avatar.status_code < 400 and looks_image:
+                jpeg = image_bytes_to_jpeg(data)
+        return RemoteChatProfile(name=name, avatar_etag=etag, avatar_jpeg=jpeg)
