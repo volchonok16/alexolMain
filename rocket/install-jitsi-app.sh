@@ -94,20 +94,22 @@ if [ "$SKIP_UPLOAD" = "0" ]; then
   trap cleanup EXIT
 
   echo "install-jitsi: packaging Apps.Jitsi $APP_VERSION"
-  docker run --rm -v "$WORKDIR:/out" -w /tmp node:22-bookworm bash -lc "
-    set -euo pipefail
-    apt-get update -qq >/dev/null
-    apt-get install -y -qq git >/dev/null
-    npm install -g @rocket.chat/apps-cli >/dev/null
-    git clone --depth 1 --branch $APP_VERSION https://github.com/RocketChat/Apps.Jitsi.git app
-    cd app
-    # devDependencies (typescript, apps-engine) are required to build the .zip
-    npm install
-    rc-apps package
-    zipfile="\$(find . -name '*.zip' -type f | head -1)"
-    test -n "\$zipfile"
-    cp -a "\$zipfile" /out/jitsi.rc-app.zip
-  "
+  # Heredoc (not nested double-quotes): this file is run with dash (`sh`).
+  docker run --rm -v "$WORKDIR:/out" -e APP_VERSION="$APP_VERSION" -w /tmp \
+    node:22-bookworm bash -s <<'INNER'
+set -euo pipefail
+apt-get update -qq >/dev/null
+apt-get install -y -qq git >/dev/null
+npm install -g @rocket.chat/apps-cli >/dev/null
+git clone --depth 1 --branch "$APP_VERSION" https://github.com/RocketChat/Apps.Jitsi.git app
+cd app
+# devDependencies (typescript, apps-engine) are required to build the .zip
+npm install
+rc-apps package
+zipfile="$(find . -name '*.zip' -type f | head -1)"
+test -n "$zipfile"
+cp -a "$zipfile" /out/jitsi.rc-app.zip
+INNER
 
   ZIP="$WORKDIR/jitsi.rc-app.zip"
   if [ ! -s "$ZIP" ]; then
