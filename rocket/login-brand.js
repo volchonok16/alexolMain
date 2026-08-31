@@ -46,6 +46,16 @@
   function hideChrome() {
     var el = document.getElementById("welcomeTitle");
     if (!el) return;
+    var aside = el;
+    while (aside.parentElement && !aside.parentElement.querySelector("form, input[type=password]")) {
+      aside = aside.parentElement;
+    }
+    if (aside && aside !== el) {
+      aside.querySelectorAll("svg, img").forEach(function (g) {
+        if (g.closest("#alexol-login-overlay")) return;
+        g.style.setProperty("display", "none", "important");
+      });
+    }
     var n = el;
     var i;
     for (i = 0; i < 5 && n; i++) {
