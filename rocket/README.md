@@ -69,6 +69,8 @@ OAUTH_ROCKETCHAT_REDIRECT_URI=https://chat.alexol.io/_oauth/alexol
 
 `configure.sh` включает LDAP на `MAIL_LDAP_HOST` (с сервера чата это `host.docker.internal`). Bind — `MAIL_LDAP_BIND_DN` / `MAIL_LDAP_BIND_PASSWORD` (почтовый админ). При деплое `scripts/stitch-deploy-env.sh` подставляет bind-пароль из `DEFAULT_ADMIN_PASSWORD` (MAIL_ENV), если в ROCKET_ENV пусто.
 
+Коды 2FA и прочие письма чата уходят с **chat@alexol.io** через SMTP `mail.alexol.io:587`. Пароль ящика — `SMTP_PASSWORD` в ROCKET_ENV.
+
 ## Jitsi из чата
 
 Звонки идут через JWT на `meet.alexol.io`. В чате это приложение **Jitsi** из Marketplace.

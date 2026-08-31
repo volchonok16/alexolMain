@@ -184,6 +184,27 @@ else
   echo "configure: LDAP skipped (set MAIL_LDAP_BIND_PASSWORD — deploy stitches it from MAIL_ENV DEFAULT_ADMIN_PASSWORD)"
 fi
 
+SMTP_HOST="${SMTP_HOST:-mail.alexol.io}"
+SMTP_PORT="${SMTP_PORT:-587}"
+SMTP_USERNAME="${SMTP_USERNAME:-chat@alexol.io}"
+SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+FROM_EMAIL="${FROM_EMAIL:-Support Chat <chat@alexol.io>}"
+SMTP_PROTOCOL="${SMTP_PROTOCOL:-smtp}"
+
+if [ -n "$SMTP_PASSWORD" ]; then
+  echo "configure: SMTP From=$FROM_EMAIL via $SMTP_HOST:$SMTP_PORT"
+  set_string "SMTP_Protocol" "$SMTP_PROTOCOL"
+  set_string "SMTP_Host" "$SMTP_HOST"
+  set_int "SMTP_Port" "$SMTP_PORT"
+  set_bool "SMTP_IgnoreTLS" "false"
+  set_bool "SMTP_Pool" "true"
+  set_string "SMTP_Username" "$SMTP_USERNAME"
+  set_string "SMTP_Password" "$SMTP_PASSWORD"
+  set_string "From_Email" "$FROM_EMAIL"
+else
+  echo "configure: SMTP skipped (set SMTP_PASSWORD in ROCKET_ENV — mailbox chat@alexol.io)"
+fi
+
 echo "configure: Custom OAuth Alexol is ready"
 echo "configure: Jitsi app still needs Marketplace install — Domain=$JITSI_DOMAIN AppID=$JITSI_APP_ID"
 exit 0
