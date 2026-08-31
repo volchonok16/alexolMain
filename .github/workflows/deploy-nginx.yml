@@ -21,20 +21,8 @@ jobs:
                   key: ${{ secrets.SERVER_SSH_KEY }}
                   port: ${{ secrets.SERVER_SSH_PORT || '22' }}
                   script: |
-                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p /var/www/chat-brand "/tmp/nginx-deploy-${{ github.run_id }}"
-                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER /var/www/chat-brand "/tmp/nginx-deploy-${{ github.run_id }}"
-
-            - name: Upload Alexol chat brand assets
-              uses: appleboy/scp-action@v1
-              with:
-                  host: ${{ secrets.SERVER_IP }}
-                  username: ${{ secrets.SERVER_USER }}
-                  key: ${{ secrets.SERVER_SSH_KEY }}
-                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
-                  source: "rocket/login-brand.js,rocket/login.css,rocket/login-logo.svg,rocket/alexol-logo.png,rocket/alexol-mark.png,rocket/alexol-sidebar.png,rocket/alexol-sidebar-light.png,rocket/alexol-favicon.svg,rocket/alexol-favicon.png"
-                  target: "/var/www/chat-brand"
-                  overwrite: true
-                  strip_components: 1
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p "/tmp/nginx-deploy-${{ github.run_id }}"
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER "/tmp/nginx-deploy-${{ github.run_id }}"
 
             - name: Upload nginx configs
               uses: appleboy/scp-action@v1
@@ -71,10 +59,6 @@ jobs:
                         fi
                       done
                       rm -f /etc/nginx/sites-enabled/default
-                      if [ -d /var/www/chat-brand/rocket ]; then
-                        mv /var/www/chat-brand/rocket/* /var/www/chat-brand/
-                        rmdir /var/www/chat-brand/rocket || true
-                      fi
                       nginx -t
                       systemctl reload nginx
                       rm -rf "$SRC"

@@ -152,89 +152,33 @@ if [ -f /jitsi-choice.js ]; then
   logged_in_js="$(sed -e "s|__MAIL_PUBLIC_URL__|${MAIL_BASE}|g" -e "s|__JITSI_PUBLIC_URL__|${JITSI_BASE}|g" /jitsi-choice.js)"
   echo "configure: Jitsi open/closed choice on the video button"
 fi
-if [ -f /login-brand.js ]; then
-  payload="$(jq -n --arg s "$(cat /login-brand.js)" '{value:$s}')"
-  auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_Out" -d "$payload" >/dev/null || true
-  echo "configure: Alexol branding on the login page"
-fi
 if [ -n "$logged_in_js" ]; then
   payload="$(jq -n --arg s "$logged_in_js" '{value:$s}')"
   resp="$(auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_In" -d "$payload" || true)"
   echo "configure: Custom_Script_Logged_In $(echo "$resp" | jq -c '{success,error}' 2>/dev/null || echo raw)"
 fi
-if [ -f /login.css ]; then
-  payload="$(jq -n --arg s "$(cat /login.css)" '{value:$s}')"
-  auth -X POST "$RC_URL/api/v1/settings/theme-custom-css" -d "$payload" >/dev/null || true
-  auth -X POST "$RC_URL/api/v1/settings/css" -d "$payload" >/dev/null || true
-fi
-set_bool "Layout_Login_Hide_Logo" "true"
-set_bool "Layout_Login_Hide_Title" "true"
-set_bool "Layout_Login_Hide_Powered_By" "true"
-set_string "Layout_Login_Terms" "<p style=\"margin:16px 0 0;text-align:center;color:#64748b;font-size:13px;line-height:1.4\">Тот же логин и пароль, что у почты. Проще нажать «Войти через Alexol».</p>"
-set_string "Layout_Terms_of_Service" " "
-set_string "Layout_Privacy_Policy" " "
-set_string "Layout_Legal_Notice" " "
-FOOTER_DARK='<a href="/home" style="display:flex;align-items:center;height:72px;padding:0 16px;box-sizing:border-box;text-decoration:none"><img src="/alexol-sidebar.png" alt="Alexol" style="height:40px;width:auto;max-width:100%;display:block"/></a>'
-FOOTER_LIGHT='<a href="/home" style="display:flex;align-items:center;height:72px;padding:0 16px;box-sizing:border-box;text-decoration:none"><img src="/alexol-sidebar-light.png" alt="Alexol" style="height:40px;width:auto;max-width:100%;display:block"/></a>'
-set_string "Layout_Sidenav_Footer_Dark" "$FOOTER_DARK"
-set_string "Layout_Sidenav_Footer" "$FOOTER_LIGHT"
-echo "configure: sidebar footer set to Alexol"
-
+# Drop login overlay / custom CSS left from earlier branding experiments.
+payload="$(jq -n --arg s '' '{value:$s}')"
+auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_Out" -d "$payload" >/dev/null || true
+auth -X POST "$RC_URL/api/v1/settings/theme-custom-css" -d "$payload" >/dev/null || true
+auth -X POST "$RC_URL/api/v1/settings/css" -d "$payload" >/dev/null || true
+set_bool "Layout_Login_Hide_Logo" "false"
+set_bool "Layout_Login_Hide_Title" "false"
+set_bool "Layout_Login_Hide_Powered_By" "false"
+set_string "Layout_Login_Terms" ""
+set_string "Layout_Sidenav_Footer" ""
+set_string "Layout_Sidenav_Footer_Dark" ""
 HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
-if [ -f /alexol-mark.png ]; then
-  curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
+for asset in logo favicon logo_dark; do
+  curl -sS -X POST "$RC_URL/api/v1/assets.unsetAsset" \
     -H "X-Auth-Token: $TOKEN" \
     -H "X-User-Id: $USER_ID" \
     -H "X-2FA-Code: $HASH" \
     -H "X-2FA-Method: password" \
-    -F "asset=@/alexol-mark.png;type=image/png" \
-    -F "assetName=logo" \
-    -F "refreshAllClients=true" >/dev/null || true
-  echo "configure: uploaded Alexol logo"
-elif [ -f /alexol-logo.png ]; then
-  curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
-    -H "X-Auth-Token: $TOKEN" \
-    -H "X-User-Id: $USER_ID" \
-    -H "X-2FA-Code: $HASH" \
-    -H "X-2FA-Method: password" \
-    -F "asset=@/alexol-logo.png;type=image/png" \
-    -F "assetName=logo" \
-    -F "refreshAllClients=true" >/dev/null || true
-  echo "configure: uploaded Alexol logo"
-elif [ -f /login-logo.svg ]; then
-  for asset in logo; do
-    curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
-      -H "X-Auth-Token: $TOKEN" \
-      -H "X-User-Id: $USER_ID" \
-      -H "X-2FA-Code: $HASH" \
-      -H "X-2FA-Method: password" \
-      -F "asset=@/login-logo.svg;type=image/svg+xml" \
-      -F "assetName=$asset" \
-      -F "refreshAllClients=true" >/dev/null || true
-  done
-  echo "configure: uploaded Alexol logo"
-fi
-if [ -f /alexol-favicon.svg ]; then
-  curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
-    -H "X-Auth-Token: $TOKEN" \
-    -H "X-User-Id: $USER_ID" \
-    -H "X-2FA-Code: $HASH" \
-    -H "X-2FA-Method: password" \
-    -F "asset=@/alexol-favicon.svg;type=image/svg+xml" \
-    -F "assetName=favicon" \
-    -F "refreshAllClients=true" >/dev/null || true
-  echo "configure: uploaded Alexol favicon"
-elif [ -f /alexol-favicon.png ]; then
-  curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
-    -H "X-Auth-Token: $TOKEN" \
-    -H "X-User-Id: $USER_ID" \
-    -H "X-2FA-Code: $HASH" \
-    -H "X-2FA-Method: password" \
-    -F "asset=@/alexol-favicon.png;type=image/png" \
-    -F "assetName=favicon" \
-    -F "refreshAllClients=true" >/dev/null || true
-  echo "configure: uploaded Alexol favicon"
-fi
+    -H "Content-Type: application/json" \
+    -d "{\"assetName\":\"$asset\"}" >/dev/null || true
+done
+echo "configure: login branding scripts cleared"
 
 offset=0
 while [ "$offset" -lt 500 ]; do

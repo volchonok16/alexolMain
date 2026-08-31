@@ -6,10 +6,6 @@ cd /var/www/rocket
 sed -i "s/\r$//" configure.sh install-jitsi-app.sh start.sh .env env.example 2>/dev/null || true
 chmod +x configure.sh install-jitsi-app.sh start.sh
 
-mkdir -p /var/www/chat-brand
-cp -f login-brand.js login.css login-logo.svg alexol-logo.png alexol-mark.png alexol-sidebar.png alexol-sidebar-light.png /var/www/chat-brand/ 2>/dev/null || true
-cp -f alexol-favicon.svg alexol-favicon.png /var/www/chat-brand/ 2>/dev/null || true
-
 if docker compose version >/dev/null 2>&1; then
   dc="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
@@ -147,6 +143,20 @@ PY
   docker exec rocket_mongo mongosh --quiet rocketchat /tmp/alexol-rc-setting.js || true
 }
 
+write_rc_empty_setting() {
+  sid="$1"
+  python3 - "$sid" <<'PY'
+import json, sys
+sid = sys.argv[1]
+open("/tmp/alexol-rc-setting.js", "w").write(
+    "db.rocketchat_settings.updateOne({_id: %s}, {$set: {value: '', _updatedAt: new Date()}});\n"
+    % json.dumps(sid)
+)
+PY
+  docker cp /tmp/alexol-rc-setting.js rocket_mongo:/tmp/alexol-rc-setting.js >/dev/null
+  docker exec rocket_mongo mongosh --quiet rocketchat /tmp/alexol-rc-setting.js || true
+}
+
 push_custom_scripts() {
   mail_url="$(grep -E '^MAIL_PUBLIC_URL=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r"')"
   jitsi_url="$(grep -E '^JITSI_PUBLIC_URL=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r"')"
@@ -159,13 +169,9 @@ push_custom_scripts() {
     write_rc_string_setting Custom_Script_Logged_In /tmp/jitsi-choice.ready.js
     echo "configure: mongo Custom_Script_Logged_In (Jitsi open/closed)"
   fi
-  if [ -f login-brand.js ]; then
-    write_rc_string_setting Custom_Script_Logged_Out login-brand.js
-  fi
-  if [ -f login.css ]; then
-    write_rc_string_setting theme-custom-css login.css
-    write_rc_string_setting css login.css
-  fi
+  write_rc_empty_setting Custom_Script_Logged_Out
+  write_rc_empty_setting theme-custom-css
+  write_rc_empty_setting css
 }
 
 $dc up -d

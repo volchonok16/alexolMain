@@ -142,13 +142,6 @@ services:
     volumes:
       - ./configure.sh:/configure.sh:ro
       - ./jitsi-choice.js:/jitsi-choice.js:ro
-      - ./login-brand.js:/login-brand.js:ro
-      - ./login.css:/login.css:ro
-      - ./login-logo.svg:/login-logo.svg:ro
-      - ./alexol-logo.png:/alexol-logo.png:ro
-      - ./alexol-mark.png:/alexol-mark.png:ro
-      - ./alexol-favicon.svg:/alexol-favicon.svg:ro
-      - ./alexol-favicon.png:/alexol-favicon.png:ro
     entrypoint: ["/bin/sh", "/configure.sh"]
     networks:
       - rocket

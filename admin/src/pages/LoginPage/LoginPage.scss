@@ -15,38 +15,17 @@
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(10, 227, 255, 0.1);
-    border-radius: 1.25rem;
-    padding: 2.25rem 2.5rem 2.5rem;
-  }
-
-  &__logo {
-    display: block;
-    width: 220px;
-    height: auto;
-    margin: 0 auto 1.25rem;
+    border-radius: 1rem;
+    padding: 2.5rem;
   }
 
   &__title {
     text-align: center;
-    margin: 0 0 0.5rem;
-    font-size: 1.5rem;
+    margin-bottom: 2rem;
     background: linear-gradient(to right, #0AE3FF, #7BF7FF);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-  }
-
-  &__hint {
-    text-align: center;
-    color: #A8B0C0;
-    font-size: 0.8125rem;
-    margin: 0 0 1.75rem;
-    line-height: 1.45;
-
-    code {
-      color: #E8EEF8;
-      font-size: 0.75rem;
-    }
   }
 
   &__error {
