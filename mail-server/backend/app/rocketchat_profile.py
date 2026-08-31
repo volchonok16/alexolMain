@@ -204,21 +204,47 @@ async def _sync_with_retries(profile: ChatProfile) -> None:
         await asyncio.sleep(3)
 
 
+_admin_login_give_up = False
+
+
 def _login_admin(client: httpx.Client, base: str) -> Optional[dict[str, str]]:
+    global _admin_login_give_up
+    if _admin_login_give_up:
+        return None
     username = (settings.ROCKETCHAT_ADMIN_USERNAME or "admin").strip()
     password = _admin_password()
     login = client.post(
         f"{base}/api/v1/login",
         json={"user": username, "password": password},
     )
+    if login.status_code == 429:
+        logger.warning("rocketchat profile sync: admin login rate-limited (429)")
+        _admin_login_give_up = True
+        return None
     body = login.json() if login.headers.get("content-type", "").startswith("application/json") else {}
     auth = (body.get("data") or {}) if login.status_code == 200 else {}
     token = auth.get("authToken")
     user_id = auth.get("userId")
+    digest = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    if not token or not user_id:
+        login = client.post(
+            f"{base}/api/v1/login",
+            json={"user": username, "password": password},
+            headers={"X-2FA-Code": digest, "X-2FA-Method": "password"},
+        )
+        if login.status_code == 429:
+            logger.warning("rocketchat profile sync: admin login rate-limited (429)")
+            _admin_login_give_up = True
+            return None
+        body = login.json() if login.headers.get("content-type", "").startswith("application/json") else {}
+        auth = (body.get("data") or {}) if login.status_code == 200 else {}
+        token = auth.get("authToken")
+        user_id = auth.get("userId")
     if not token or not user_id:
         logger.warning("rocketchat profile sync: admin login failed status=%s", login.status_code)
+        if login.status_code in (401, 403):
+            _admin_login_give_up = True
         return None
-    digest = hashlib.sha256(password.encode("utf-8")).hexdigest()
     return {
         "X-Auth-Token": token,
         "X-User-Id": user_id,

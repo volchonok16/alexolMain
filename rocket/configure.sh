@@ -40,20 +40,45 @@ fi
 # Extra settle — first boot still compiles Meteor.
 sleep 8
 
-login() {
-  curl -sf -X POST "$RC_URL/api/v1/login" \
-    -H "Content-Type: application/json" \
-    -d "{\"user\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASS\"}" || true
+PASS_HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
+
+rc_login() {
+  if [ "${1:-}" = "2fa" ]; then
+    curl -sS -X POST "$RC_URL/api/v1/login" \
+      -H "Content-Type: application/json" \
+      -H "X-2FA-Code: $PASS_HASH" \
+      -H "X-2FA-Method: password" \
+      -d "{\"user\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASS\"}" || true
+  else
+    curl -sS -X POST "$RC_URL/api/v1/login" \
+      -H "Content-Type: application/json" \
+      -d "{\"user\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASS\"}" || true
+  fi
 }
 
-LOGIN_JSON="$(login)"
+LOGIN_JSON="$(rc_login)"
 if ! echo "$LOGIN_JSON" | jq -e '.data.authToken' >/dev/null 2>&1; then
+  echo "configure: login needs 2FA header (password method)"
+  LOGIN_JSON="$(rc_login 2fa)"
+fi
+if ! echo "$LOGIN_JSON" | jq -e '.data.authToken' >/dev/null 2>&1; then
+  err="$(echo "$LOGIN_JSON" | jq -r '.error // .message // empty' 2>/dev/null || true)"
+  case "$err" in
+    totp-required|error-unauthorized|error-invalid-email|error-invalid-password|error-login-blocked-for-user)
+      echo "configure: login failed ($err) — not registering another admin"
+      echo "$LOGIN_JSON"
+      exit 1
+      ;;
+  esac
   echo "configure: registering first admin $ADMIN_EMAIL"
   curl -sS -X POST "$RC_URL/api/v1/users.register" \
     -H "Content-Type: application/json" \
     -d "{\"username\":\"$ADMIN_USERNAME\",\"email\":\"$ADMIN_EMAIL\",\"pass\":\"$ADMIN_PASS\",\"name\":\"$ADMIN_NAME\"}" \
     >/dev/null || true
-  LOGIN_JSON="$(login)"
+  LOGIN_JSON="$(rc_login)"
+  if ! echo "$LOGIN_JSON" | jq -e '.data.authToken' >/dev/null 2>&1; then
+    LOGIN_JSON="$(rc_login 2fa)"
+  fi
 fi
 
 TOKEN="$(echo "$LOGIN_JSON" | jq -r '.data.authToken // empty')"
@@ -144,19 +169,9 @@ set_bool "Accounts_CustomFieldsEnable" "true"
 set_string "Accounts_CustomFields" '{"phone":{"type":"text","required":false,"maxLength":40},"telegram":{"type":"text","required":false,"maxLength":64},"jobTitle":{"type":"text","required":false,"maxLength":80}}'
 set_string "VideoConf_Default_Provider" "jitsi"
 
-logged_in_js=""
-if [ -f /jitsi-choice.js ]; then
-  MAIL_BASE="${MAIL%/}"
-  JITSI_BASE="${JITSI_PUBLIC_URL:-https://meet.alexol.io}"
-  JITSI_BASE="${JITSI_BASE%/}"
-  logged_in_js="$(sed -e "s|__MAIL_PUBLIC_URL__|${MAIL_BASE}|g" -e "s|__JITSI_PUBLIC_URL__|${JITSI_BASE}|g" /jitsi-choice.js)"
-  echo "configure: Jitsi open/closed choice on the video button"
-fi
-if [ -n "$logged_in_js" ]; then
-  payload="$(jq -n --arg s "$logged_in_js" '{value:$s}')"
-  resp="$(auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_In" -d "$payload" || true)"
-  echo "configure: Custom_Script_Logged_In $(echo "$resp" | jq -c '{success,error}' 2>/dev/null || echo raw)"
-fi
+# Custom Jitsi open/closed picker removed — native Video Call only.
+payload="$(jq -n --arg s '' '{value:$s}')"
+auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_In" -d "$payload" >/dev/null || true
 # Drop login overlay / custom CSS left from earlier branding experiments.
 payload="$(jq -n --arg s '' '{value:$s}')"
 auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_Out" -d "$payload" >/dev/null || true

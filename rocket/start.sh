@@ -158,27 +158,32 @@ PY
 }
 
 push_custom_scripts() {
-  mail_url="$(grep -E '^MAIL_PUBLIC_URL=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r"')"
-  jitsi_url="$(grep -E '^JITSI_PUBLIC_URL=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r"')"
-  mail_url="${mail_url:-https://mail.alexol.io}"
-  jitsi_url="${jitsi_url:-https://meet.alexol.io}"
-  mail_url="${mail_url%/}"
-  jitsi_url="${jitsi_url%/}"
-  if [ -f jitsi-choice.js ]; then
-    sed -e "s|__MAIL_PUBLIC_URL__|${mail_url}|g" -e "s|__JITSI_PUBLIC_URL__|${jitsi_url}|g" jitsi-choice.js > /tmp/jitsi-choice.ready.js
-    write_rc_string_setting Custom_Script_Logged_In /tmp/jitsi-choice.ready.js
-    echo "configure: mongo Custom_Script_Logged_In (Jitsi open/closed)"
-  fi
+  write_rc_empty_setting Custom_Script_Logged_In
   write_rc_empty_setting Custom_Script_Logged_Out
   write_rc_empty_setting theme-custom-css
   write_rc_empty_setting css
   write_rc_empty_setting Layout_Sidenav_Footer
   write_rc_empty_setting Layout_Sidenav_Footer_Dark
-  echo "configure: cleared login and sidebar branding settings"
+  echo "configure: cleared custom login/sidebar/Jitsi-picker scripts"
 }
 
 $dc up -d
 unlock_password_trap
+# Deploy uses ADMIN_PASS via API. Authenticator/email 2FA on the service admin
+# makes configure and profile-sync 401, then 429 from retries.
+docker exec rocket_mongo mongosh --quiet rocketchat --eval '
+  try {
+    const u = db.users.findOne({ username: "admin" });
+    if (!u) { print("no admin user yet"); }
+    else {
+      const r = db.users.updateOne(
+        { _id: u._id },
+        { $unset: { "services.totp": 1, "services.email2fa": 1 } }
+      );
+      print("admin authenticator/email 2FA cleared for API deploys", r.modifiedCount);
+    }
+  } catch (e) { print(e); }
+' || true
 echo "configure: re-apply OAuth, LDAP, Jitsi settings"
 $dc run --rm --no-deps configure || $dc up -d --force-recreate configure
 push_custom_scripts

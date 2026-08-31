@@ -52,11 +52,21 @@ if [ "$i" -ge 60 ]; then
   exit 1
 fi
 
-LOGIN="$(jq -n --arg u "$ADMIN_USERNAME" --arg p "$ADMIN_PASS" '{user:$u,password:$p}' \
-  | curl -sf -X POST "$RC_URL/api/v1/login" \
-      -H "Content-Type: application/json" -d @-)"
+PASS_HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
+login_body="$(jq -n --arg u "$ADMIN_USERNAME" --arg p "$ADMIN_PASS" '{user:$u,password:$p}')"
+LOGIN="$(curl -sS -X POST "$RC_URL/api/v1/login" \
+  -H "Content-Type: application/json" -d "$login_body" || true)"
 TOKEN="$(echo "$LOGIN" | jq -r '.data.authToken // empty')"
 USER_ID="$(echo "$LOGIN" | jq -r '.data.userId // empty')"
+if [ -z "$TOKEN" ] || [ -z "$USER_ID" ]; then
+  LOGIN="$(curl -sS -X POST "$RC_URL/api/v1/login" \
+    -H "Content-Type: application/json" \
+    -H "X-2FA-Code: $PASS_HASH" \
+    -H "X-2FA-Method: password" \
+    -d "$login_body" || true)"
+  TOKEN="$(echo "$LOGIN" | jq -r '.data.authToken // empty')"
+  USER_ID="$(echo "$LOGIN" | jq -r '.data.userId // empty')"
+fi
 if [ -z "$TOKEN" ] || [ -z "$USER_ID" ]; then
   echo "install-jitsi: admin login failed"
   echo "$LOGIN"

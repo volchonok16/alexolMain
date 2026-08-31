@@ -141,7 +141,6 @@ services:
       SMTP_PROTOCOL: ${SMTP_PROTOCOL:-smtp}
     volumes:
       - ./configure.sh:/configure.sh:ro
-      - ./jitsi-choice.js:/jitsi-choice.js:ro
     entrypoint: ["/bin/sh", "/configure.sh"]
     networks:
       - rocket
