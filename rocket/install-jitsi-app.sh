@@ -1,6 +1,8 @@
 #!/bin/sh
 # Build official Apps.Jitsi and upload it as a private app (no Rocket.Chat Cloud).
 # Run on the VM from /var/www/rocket:  sh install-jitsi-app.sh
+# Autodeploy: .github/workflows/deploy.yml (job deploy-rocket).
+# FORCE_REBUILD=1 — пересобрать .zip и загрузить даже если приложение уже стоит.
 set -eu
 
 RC_URL="${RC_URL:-http://127.0.0.1:18300}"
@@ -10,6 +12,7 @@ JITSI_DOMAIN="${JITSI_DOMAIN:-meet.alexol.io}"
 JITSI_APP_ID="${JITSI_JWT_APP_ID:-alexol}"
 JITSI_APP_SECRET="${JITSI_JWT_APP_SECRET:-}"
 APP_ID="3b387ba9-f57c-44c6-9810-8c0256abd64c"
+APP_VERSION="2.1.1"
 
 if [ -z "$ADMIN_PASS" ] && [ -f ./.env ]; then
   ADMIN_USERNAME="$(grep -E '^ADMIN_USERNAME=' .env | cut -d= -f2- | tr -d '\r')"
@@ -17,10 +20,17 @@ if [ -z "$ADMIN_PASS" ] && [ -f ./.env ]; then
   JITSI_APP_SECRET="$(grep -E '^JITSI_JWT_APP_SECRET=' .env | cut -d= -f2- | tr -d '\r')"
   JITSI_APP_ID="$(grep -E '^JITSI_JWT_APP_ID=' .env | cut -d= -f2- | tr -d '\r')"
   JITSI_APP_ID="${JITSI_APP_ID:-alexol}"
+  JITSI_DOMAIN="$(grep -E '^JITSI_PUBLIC_URL=' .env | cut -d= -f2- | tr -d '\r' | sed -e 's|^https://||' -e 's|^http://||' -e 's|/.*||')"
+  JITSI_DOMAIN="${JITSI_DOMAIN:-meet.alexol.io}"
 fi
 
 if [ -z "$ADMIN_PASS" ]; then
-  echo "Set ADMIN_PASS (same as rocket .env)"
+  echo "install-jitsi: set ADMIN_PASS (same as rocket .env)"
+  exit 1
+fi
+
+if [ -z "$JITSI_APP_SECRET" ]; then
+  echo "install-jitsi: JITSI_JWT_APP_SECRET is empty — add to ROCKET_ENV"
   exit 1
 fi
 
@@ -28,25 +38,18 @@ command -v curl >/dev/null
 command -v jq >/dev/null
 command -v docker >/dev/null
 
-WORKDIR="$(mktemp -d)"
-cleanup() { rm -rf "$WORKDIR"; }
-trap cleanup EXIT
-
-echo "install-jitsi: packaging Apps.Jitsi 2.1.1"
-docker run --rm -v "$WORKDIR:/out" -w /tmp node:22-bookworm bash -lc '
-  set -euo pipefail
-  npm install -g @rocket.chat/apps-cli >/dev/null
-  git clone --depth 1 --branch 2.1.1 https://github.com/RocketChat/Apps.Jitsi.git app
-  cd app
-  npm install --omit=dev
-  rc-apps package
-  cp -a ./*.zip /out/jitsi.rc-app.zip
-'
-
-ZIP="$WORKDIR/jitsi.rc-app.zip"
-if [ ! -s "$ZIP" ]; then
-  echo "install-jitsi: package failed"
-  ls -la "$WORKDIR"
+echo "install-jitsi: waiting for Rocket.Chat at $RC_URL"
+i=0
+while [ "$i" -lt 60 ]; do
+  if curl -sf "$RC_URL/api/info" >/dev/null 2>&1; then
+    echo "install-jitsi: API is up"
+    break
+  fi
+  i=$((i + 1))
+  sleep 5
+done
+if [ "$i" -ge 60 ]; then
+  echo "install-jitsi: Rocket.Chat did not become ready"
   exit 1
 fi
 
@@ -70,10 +73,53 @@ auth() {
     -H "X-2FA-Method: password"
 }
 
-echo "install-jitsi: uploading app to /api/apps"
-UPLOAD="$(auth -X POST "$RC_URL/api/apps" \
-  -F "app=@$ZIP;type=application/zip")"
-echo "$UPLOAD" | jq -c '{status: .status, success: .success, app: .app.name, error: .error}' || echo "$UPLOAD"
+APPS_JSON="$(auth -s "$RC_URL/api/apps" || echo '{}')"
+APP_INSTALLED="$(echo "$APPS_JSON" | jq -r --arg id "$APP_ID" '.apps[]? | select(.id == $id) | .id' | head -1)"
+SKIP_UPLOAD=0
+if [ -n "$APP_INSTALLED" ] && [ "${FORCE_REBUILD:-0}" != "1" ]; then
+  echo "install-jitsi: app already installed ($APP_ID), skipping package/upload"
+  SKIP_UPLOAD=1
+fi
+
+if [ "$SKIP_UPLOAD" = "0" ]; then
+  WORKDIR="$(mktemp -d)"
+  cleanup() { rm -rf "$WORKDIR"; }
+  trap cleanup EXIT
+
+  echo "install-jitsi: packaging Apps.Jitsi $APP_VERSION"
+  docker run --rm -v "$WORKDIR:/out" -w /tmp node:22-bookworm bash -lc "
+    set -euo pipefail
+    apt-get update -qq >/dev/null
+    apt-get install -y -qq git >/dev/null
+    npm install -g @rocket.chat/apps-cli >/dev/null
+    git clone --depth 1 --branch $APP_VERSION https://github.com/RocketChat/Apps.Jitsi.git app
+    cd app
+    # devDependencies (typescript, apps-engine) are required to build the .zip
+    npm install
+    rc-apps package
+    cp -a ./*.zip /out/jitsi.rc-app.zip
+  "
+
+  ZIP="$WORKDIR/jitsi.rc-app.zip"
+  if [ ! -s "$ZIP" ]; then
+    echo "install-jitsi: package failed"
+    ls -la "$WORKDIR"
+    exit 1
+  fi
+
+  echo "install-jitsi: uploading app to /api/apps"
+  UPLOAD="$(auth -X POST "$RC_URL/api/apps" \
+    -F "app=@$ZIP;type=application/zip")"
+  echo "$UPLOAD" | jq -c '{status: .status, success: .success, app: .app.name, error: .error}' || echo "$UPLOAD"
+  if ! echo "$UPLOAD" | jq -e '.success == true' >/dev/null 2>&1; then
+    if echo "$UPLOAD" | grep -qi 'already'; then
+      echo "install-jitsi: app already present, continuing with settings"
+    else
+      echo "install-jitsi: upload failed"
+      exit 1
+    fi
+  fi
+fi
 
 set_app() {
   id="$1"

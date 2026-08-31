@@ -653,8 +653,8 @@ jobs:
                       echo "${{ secrets.PWD }}" | sudo -S -p '' bash -lc '
                       set -e
                       cd /var/www/rocket
-                      sed -i "s/\r$//" configure.sh .env env.example 2>/dev/null || true
-                      chmod +x configure.sh
+                      sed -i "s/\r$//" configure.sh install-jitsi-app.sh .env env.example 2>/dev/null || true
+                      chmod +x configure.sh install-jitsi-app.sh
                       if docker compose version >/dev/null 2>&1; then
                         dc="docker compose"
                       elif command -v docker-compose >/dev/null 2>&1; then
@@ -672,8 +672,8 @@ jobs:
                       echo "configure: re-apply OAuth, LDAP, Jitsi settings"
                       $dc run --rm --no-deps configure || $dc up -d --force-recreate configure
                       if [ -f install-jitsi-app.sh ] && grep -qE '^JITSI_JWT_APP_SECRET=.+' .env 2>/dev/null; then
-                        chmod +x install-jitsi-app.sh
-                        sh install-jitsi-app.sh || echo "install-jitsi-app: skipped or already installed"
+                        echo "install-jitsi-app: installing/updating Jitsi Marketplace app"
+                        sh install-jitsi-app.sh
                       else
                         echo "install-jitsi-app: skipped (no JITSI_JWT_APP_SECRET in .env)"
                       fi

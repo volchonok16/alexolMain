@@ -98,6 +98,10 @@ Rocket.Chat умеет то же самое приложением **Jitsi** и�
 
 После установки Jitsi в чате: Video Conference → Default Provider = Jitsi.
 
+Скрипт `install-jitsi-app.sh` запускается **автоматически** при каждом деплое Rocket.Chat
+(если в `.env` задан `JITSI_JWT_APP_SECRET`). Повторный деплой только обновляет настройки
+meet/JWT, без пересборки zip. Принудительная пересборка: `FORCE_REBUILD=1 sh install-jitsi-app.sh`.
+
 ## Локально / на сервере
 
 ```bash
