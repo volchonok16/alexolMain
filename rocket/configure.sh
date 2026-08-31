@@ -178,7 +178,7 @@ for asset in logo favicon logo_dark; do
     -H "Content-Type: application/json" \
     -d "{\"assetName\":\"$asset\"}" >/dev/null || true
 done
-echo "configure: login branding scripts cleared"
+echo "configure: login and sidebar branding cleared"
 
 offset=0
 while [ "$offset" -lt 500 ]; do

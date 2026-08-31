@@ -172,6 +172,9 @@ push_custom_scripts() {
   write_rc_empty_setting Custom_Script_Logged_Out
   write_rc_empty_setting theme-custom-css
   write_rc_empty_setting css
+  write_rc_empty_setting Layout_Sidenav_Footer
+  write_rc_empty_setting Layout_Sidenav_Footer_Dark
+  echo "configure: cleared login and sidebar branding settings"
 }
 
 $dc up -d
