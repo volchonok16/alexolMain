@@ -44,14 +44,25 @@ class OauthHelpersTests(unittest.TestCase):
         self.assertEqual(info["roles"], ["admin"])
 
     def test_chat_handoff_starts_oauth(self):
+        from urllib.parse import parse_qs, urlparse
+
         from app.rocketchat_profile import chat_oauth_start_url
 
         with patch("app.rocketchat_profile.settings") as settings:
             settings.CHAT_PUBLIC_URL = "https://chat.alexol.io"
+            settings.MAIL_PUBLIC_URL = "https://mail.alexol.io"
+            settings.OAUTH_ROCKETCHAT_CLIENT_ID = "alexol-chat"
+            parsed = urlparse(chat_oauth_start_url())
+            self.assertEqual(parsed.scheme, "https")
+            self.assertEqual(parsed.netloc, "mail.alexol.io")
+            self.assertEqual(parsed.path, "/api/oauth/authorize")
+            query = parse_qs(parsed.query)
+            self.assertEqual(query.get("response_type"), ["code"])
             self.assertEqual(
-                chat_oauth_start_url(),
-                "https://chat.alexol.io/_oauth/alexol",
+                query.get("redirect_uri"),
+                ["https://chat.alexol.io/_oauth/alexol"],
             )
+            self.assertTrue(query.get("state"))
 
     def test_redirect_uri_allows_configured_callback(self):
         from app.oauth import redirect_uri_allowed

@@ -2,9 +2,14 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
+import json
 import logging
+import secrets
 from dataclasses import dataclass
 from typing import Any, Optional
+from urllib.parse import urlencode
 
 import httpx
 
@@ -48,8 +53,44 @@ def snapshot_mailbox(user: User) -> ChatProfile:
 
 
 def chat_oauth_start_url() -> str:
+    """Authorization URL for Custom OAuth (never the bare /_oauth/alexol callback)."""
+    return chat_oauth_authorize_url()
+
+
+def chat_oauth_authorize_url() -> str:
     chat = (settings.CHAT_PUBLIC_URL or "https://chat.alexol.io").rstrip("/")
-    return f"{chat}/_oauth/alexol"
+    mail = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
+    client_id = (settings.OAUTH_ROCKETCHAT_CLIENT_ID or "alexol-chat").strip()
+    redirect_uri = f"{chat}/_oauth/alexol"
+    state = {
+        "loginStyle": "redirect",
+        "credentialToken": secrets.token_urlsafe(16),
+        "isCordova": False,
+        "redirectUrl": f"{chat}/home",
+    }
+    query = urlencode(
+        {
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": "openid profile email",
+            "state": base64.b64encode(
+                json.dumps(state, separators=(",", ":")).encode()
+            ).decode(),
+        }
+    )
+    return f"{mail}/api/oauth/authorize?{query}"
+
+
+def chat_browser_login_url(user: User) -> str:
+    """Log this mailbox into chat in the current tab (resumeToken, else OAuth)."""
+    try:
+        url = _resume_token_login_url(snapshot_mailbox(user))
+        if url:
+            return url
+    except Exception:
+        logger.warning("rocketchat resume token failed, falling back to OAuth", exc_info=True)
+    return chat_oauth_authorize_url()
 
 
 def _api_base() -> str:
@@ -149,7 +190,13 @@ def _login_admin(client: httpx.Client, base: str) -> Optional[dict[str, str]]:
     if not token or not user_id:
         logger.warning("rocketchat profile sync: admin login failed status=%s", login.status_code)
         return None
-    return {"X-Auth-Token": token, "X-User-Id": user_id}
+    digest = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return {
+        "X-Auth-Token": token,
+        "X-User-Id": user_id,
+        "X-2FA-Code": digest,
+        "X-2FA-Method": "password",
+    }
 
 
 def _set_avatar(
@@ -264,3 +311,78 @@ def _find_user(
         if users:
             return users[0]
     return None
+
+
+def _json_body(resp: httpx.Response) -> dict[str, Any]:
+    try:
+        data = resp.json()
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _ensure_chat_user(
+    client: httpx.Client,
+    base: str,
+    headers: dict[str, str],
+    profile: ChatProfile,
+) -> Optional[dict[str, Any]]:
+    found = _find_user(client, base, headers, profile)
+    if found:
+        return found
+    created = client.post(
+        f"{base}/api/v1/users.create",
+        headers={**headers, "Content-Type": "application/json"},
+        json={
+            "email": profile.email,
+            "name": profile.name,
+            "username": profile.username,
+            "password": secrets.token_urlsafe(24),
+            "verified": True,
+            "joinDefaultChannels": True,
+        },
+    )
+    user = (_json_body(created).get("user") or {}) if created.status_code < 400 else {}
+    if user.get("_id"):
+        return user
+    logger.warning(
+        "rocketchat users.create failed for %s status=%s body=%s",
+        profile.email,
+        created.status_code,
+        (created.text or "")[:200],
+    )
+    return _find_user(client, base, headers, profile)
+
+
+def _resume_token_login_url(profile: ChatProfile) -> Optional[str]:
+    if not profile.email or not _admin_password():
+        return None
+    base = _api_base()
+    chat = (settings.CHAT_PUBLIC_URL or "https://chat.alexol.io").rstrip("/")
+    with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+        headers = _login_admin(client, base)
+        if not headers:
+            return None
+        found = _ensure_chat_user(client, base, headers, profile)
+        if not found:
+            return None
+        target_id = found.get("_id") or found.get("id")
+        payload: dict[str, Any] = (
+            {"userId": target_id} if target_id else {"username": profile.username}
+        )
+        token_resp = client.post(
+            f"{base}/api/v1/users.createToken",
+            headers={**headers, "Content-Type": "application/json"},
+            json=payload,
+        )
+        data = _json_body(token_resp).get("data") or {}
+        auth = data.get("authToken") or data.get("token")
+        if token_resp.status_code >= 400 or not auth:
+            logger.warning(
+                "rocketchat users.createToken failed for %s status=%s body=%s",
+                profile.email,
+                token_resp.status_code,
+                (token_resp.text or "")[:200],
+            )
+            return None
+        return f"{chat}/home?resumeToken={auth}"

@@ -15,7 +15,7 @@ export async function openSiteAdmin(api: {
   window.location.assign(`${ADMIN_APP_URL}/sso?ticket=${encodeURIComponent(data.ticket)}`);
 }
 
-/** Full-page OAuth: form POST sets mail SSO cookie, then 303 → chat/_oauth/alexol → /home */
+/** Full-page: form POST sets mail SSO cookie, then 303 → chat/home?resumeToken=… */
 export async function openChat(): Promise<void> {
   const token = useAuthStore.getState().token
   if (!token) {

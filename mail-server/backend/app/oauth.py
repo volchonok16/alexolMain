@@ -5,6 +5,7 @@ A first SSO login auto-creates the Rocket.Chat account via Custom OAuth.
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from hmac import compare_digest
 from typing import Any, Optional
@@ -21,7 +22,7 @@ from app.config import settings
 from app.database import get_db
 from app.mail_photos import public_avatar_url
 from app.models import User
-from app.rocketchat_profile import chat_oauth_start_url, schedule_rocketchat_profile_sync
+from app.rocketchat_profile import chat_browser_login_url, schedule_rocketchat_profile_sync
 
 router = APIRouter()
 
@@ -455,7 +456,8 @@ async def chat_handoff(request: Request, current_user: User = Depends(get_curren
         {"typ": OAUTH_SESSION_TYP, "sub": (current_user.email or "").lower()},
         OAUTH_SESSION_TTL_SEC,
     )
-    response = JSONResponse({"url": chat_oauth_start_url(), "ok": True})
+    target = await asyncio.to_thread(chat_browser_login_url, current_user)
+    response = JSONResponse({"url": target, "ok": True})
     response.set_cookie(**_session_cookie(request, session))
     return response
 
@@ -476,7 +478,8 @@ async def chat_handoff_redirect(
         {"typ": OAUTH_SESSION_TYP, "sub": (user.email or "").lower()},
         OAUTH_SESSION_TTL_SEC,
     )
-    response = RedirectResponse(chat_oauth_start_url(), status_code=303)
+    target = await asyncio.to_thread(chat_browser_login_url, user)
+    response = RedirectResponse(target, status_code=303)
     response.set_cookie(**_session_cookie(request, session))
     return response
 
