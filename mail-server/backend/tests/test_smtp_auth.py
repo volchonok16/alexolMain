@@ -19,6 +19,11 @@ class MailSmtpAuthLoginSourceTests(unittest.TestCase):
         self.assertIn("is_sent=True", _SMTP_SRC)
         self.assertIn("if authenticated and sender:", _SMTP_SRC)
 
+    def test_inbound_resolves_local_mailbox_not_email_only(self):
+        self.assertIn("find_local_mailbox", _SMTP_SRC)
+        self.assertIn("550 5.1.1 User unknown", _SMTP_SRC)
+        self.assertIn("normalize_mailbox_address", _SMTP_SRC)
+
     def test_source_uses_rfc_login_challenges(self):
         self.assertIn("class MailSMTP(SMTP):", _SMTP_SRC)
         self.assertIn('AuthLoginUsernameChallenge = "Username:"', _SMTP_SRC)

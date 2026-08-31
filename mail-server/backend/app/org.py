@@ -34,6 +34,7 @@ from app.jitsi_jwt import is_auto_start_room, is_closed_room, issue_guest_jwt, i
 from app.mail_photos import user_to_vcard, vcard_filename
 from app.mail_body import format_meeting_when, meeting_invite_html, meeting_invite_plain
 from app.mail_sync import allocate_imap_uid
+from app.mailbox import find_local_mailbox
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
@@ -408,12 +409,7 @@ async def _notify_meeting(
 
 
 async def _user_by_email(db: AsyncSession, email: str) -> Optional[User]:
-    addr = (email or "").strip().lower()
-    if not addr:
-        return None
-    return (
-        await db.execute(select(User).where(func.lower(User.email) == addr))
-    ).scalar_one_or_none()
+    return await find_local_mailbox(db, email)
 
 
 async def ingest_calendar_message(

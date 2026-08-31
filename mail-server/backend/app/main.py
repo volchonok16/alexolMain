@@ -41,6 +41,7 @@ from app.auth import (
 from app.mail_body import coerce_stored_bodies
 from app.mail_sync import allocate_imap_uid, backfill_imap_uids
 from app.config import settings
+from app.mailbox import find_local_mailbox
 from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.ldap_server import ldap_server
@@ -330,27 +331,7 @@ def _generate_mailbox_password(length: int = 12) -> str:
 
 
 async def _find_mailbox_user(identity: str, db: AsyncSession) -> Optional[User]:
-    identity = (identity or "").strip().lower()
-    if not identity:
-        return None
-
-    domain = settings.MAIL_DOMAIN.lower()
-    if "@" in identity:
-        local, id_domain = identity.split("@", 1)
-        username = local
-        if id_domain != domain:
-            return None
-        email_identity = f"{username}@{domain}"
-    else:
-        username = identity
-        email_identity = f"{identity}@{domain}"
-
-    result = await db.execute(select(User).where(func.lower(User.email) == email_identity))
-    user = result.scalar_one_or_none()
-    if not user:
-        result = await db.execute(select(User).where(func.lower(User.username) == username))
-        user = result.scalar_one_or_none()
-    return user
+    return await find_local_mailbox(db, identity)
 
 
 @app.post("/api/auth/forgot-password")

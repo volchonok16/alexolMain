@@ -22,6 +22,11 @@ from app.mail_sync import allocate_imap_uid, is_outlook_probe, raw_has_message_i
 from app.from_display import inject_from_display_name
 from app.outbound import deliver_raw_outbound
 from app.org import ingest_calendar_message
+from app.mailbox import (
+    find_local_mailbox,
+    find_local_mailbox_sync,
+    normalize_mailbox_address,
+)
 from app.recipients import partition_local_external
 from app.logging_setup import configure_quiet_logging
 import logging
@@ -121,12 +126,15 @@ class CustomSMTPHandler:
             return AuthResult(success=False)
         try:
             with self._SyncSession() as db:
-                local = login.split("@", 1)[0]
-                row = db.execute(
-                    select(User).where(
-                        (func.lower(User.email) == login) | (func.lower(User.username) == local)
-                    )
-                ).scalar_one_or_none()
+                row = find_local_mailbox_sync(db, login)
+                if not row:
+                    local = login.split("@", 1)[0]
+                    row = db.execute(
+                        select(User).where(
+                            (func.lower(User.email) == login)
+                            | (func.lower(User.username) == local)
+                        )
+                    ).scalar_one_or_none()
                 if not row:
                     logger.warning("SMTP auth: user not found: %r", login)
                     return AuthResult(success=False)
@@ -143,13 +151,19 @@ class CustomSMTPHandler:
             return AuthResult(success=False)
 
     async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
-        addr = (address or "").strip().strip("<>").strip()
+        addr = normalize_mailbox_address(address)
         if not addr:
             return "501 5.1.3 Bad recipient"
-        _local, external = partition_local_external([addr.lower()], settings.MAIL_DOMAIN)
+        local, external = partition_local_external([addr], settings.MAIL_DOMAIN)
         if external and not getattr(session, "authenticated", False):
             logger.warning("SMTP relay denied for unauthenticated RCPT %s", addr)
             return "550 5.7.1 Relay denied"
+        if local:
+            async with self._async_session_factory() as db:
+                user = await find_local_mailbox(db, addr, active_only=True)
+            if not user:
+                logger.warning("SMTP RCPT unknown local mailbox %s", addr)
+                return "550 5.1.1 User unknown"
         envelope.rcpt_tos.append(addr)
         return "250 OK"
 
@@ -207,15 +221,17 @@ class CustomSMTPHandler:
                         if isinstance(auth_data, LoginPassword)
                         else (envelope.mail_from or "").strip().lower()
                     )
-                    local_part = login.split("@", 1)[0]
-                    sender = (
-                        await db.execute(
-                            select(User).where(
-                                (func.lower(User.email) == login)
-                                | (func.lower(User.username) == local_part)
+                    sender = await find_local_mailbox(db, login)
+                    if not sender:
+                        local_part = login.split("@", 1)[0]
+                        sender = (
+                            await db.execute(
+                                select(User).where(
+                                    (func.lower(User.email) == login)
+                                    | (func.lower(User.username) == local_part)
+                                )
                             )
-                        )
-                    ).scalar_one_or_none()
+                        ).scalar_one_or_none()
                     if sender:
                         content, _ = inject_from_display_name(
                             content, sender.full_name or "", sender.email
@@ -230,9 +246,13 @@ class CustomSMTPHandler:
                 ).strip().lower()
                 from_name = (header_name or "").strip() or None
                 body, html_body = extract_text_and_html(msg)
-                rcpt_norm = [(a or "").strip() for a in envelope.rcpt_tos if (a or "").strip()]
+                rcpt_norm = [
+                    normalize_mailbox_address(a)
+                    for a in envelope.rcpt_tos
+                    if normalize_mailbox_address(a)
+                ]
                 _local_addrs, external_addrs = partition_local_external(
-                    [a.lower() for a in rcpt_norm], settings.MAIL_DOMAIN
+                    rcpt_norm, settings.MAIL_DOMAIN
                 )
                 subject = sanitize_pg_text(str(subject or ""))
                 from_name = sanitize_pg_text(from_name) or None
@@ -247,34 +267,46 @@ class CustomSMTPHandler:
                     return "550 5.7.1 Relay denied"
 
                 local_users: list[User] = []
-                for to_address in rcpt_norm:
-                    to_norm = to_address.lower()
-                    result = await db.execute(select(User).where(func.lower(User.email) == to_norm))
-                    user = result.scalar_one_or_none()
-                    if user:
-                        local_users.append(user)
-                        imap_uid = await allocate_imap_uid(db, user.id, False)
-                        email_obj = Email(
-                            user_id=user.id,
-                            from_address=from_address or (envelope.mail_from or ""),
-                            to_address=header_to or user.email,
-                            from_name=from_name,
-                            to_name=user.full_name,
-                            subject=subject,
-                            body=body,
-                            html_body=html_body,
-                            raw_rfc822=content,
-                            is_sent=False,
-                            imap_uid=imap_uid,
-                        )
-                        db.add(email_obj)
-                        await db.commit()
-                        logger.info(
-                            "Email saved for user %s from %s (%s)",
-                            user.email,
-                            from_address,
-                            from_name,
-                        )
+                for to_norm in rcpt_norm:
+                    user = await find_local_mailbox(db, to_norm, active_only=True)
+                    if not user:
+                        if to_norm in _local_addrs:
+                            logger.warning(
+                                "SMTP DATA unknown local mailbox %s from %s",
+                                to_norm,
+                                from_address,
+                            )
+                        continue
+                    local_users.append(user)
+                    imap_uid = await allocate_imap_uid(db, user.id, False)
+                    email_obj = Email(
+                        user_id=user.id,
+                        from_address=from_address or (envelope.mail_from or ""),
+                        to_address=header_to or user.email,
+                        from_name=from_name,
+                        to_name=user.full_name,
+                        subject=subject,
+                        body=body,
+                        html_body=html_body,
+                        raw_rfc822=content,
+                        is_sent=False,
+                        imap_uid=imap_uid,
+                    )
+                    db.add(email_obj)
+                    await db.commit()
+                    logger.info(
+                        "Email saved for user %s from %s (%s)",
+                        user.email,
+                        from_address,
+                        from_name,
+                    )
+
+                if _local_addrs and not local_users and not external_addrs:
+                    logger.warning(
+                        "SMTP DATA rejected: no mailbox for %s",
+                        _local_addrs,
+                    )
+                    return "550 5.1.1 User unknown"
 
                 # Outlook IMAP submits via SMTP and often skips APPEND to Sent.
                 # Webmail already stores is_sent=True; authenticated SMTP did not.

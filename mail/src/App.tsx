@@ -23,7 +23,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 }
 
 function App() {
-  const { token, user } = useAuthStore()
+  const { token } = useAuthStore()
   
   return (
     <Router>
@@ -64,7 +64,7 @@ function App() {
           path="/"
           element={
             <Navigate
-              to={token ? (user?.is_admin ? '/admin' : '/dashboard') : '/login'}
+              to={token ? '/dashboard' : '/login'}
               replace
             />
           }

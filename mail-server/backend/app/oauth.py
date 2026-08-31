@@ -14,13 +14,13 @@ from urllib.parse import urlencode, urlparse
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from jose import JWTError, jwt
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user, verify_password, _user_from_access_token
 from app.config import settings
 from app.database import get_db
 from app.mail_photos import public_avatar_url
+from app.mailbox import find_local_mailbox
 from app.models import User
 from app.rocketchat_profile import chat_browser_login_url, schedule_rocketchat_profile_sync
 
@@ -139,28 +139,7 @@ def oauth_userinfo(user: User) -> dict[str, Any]:
 
 
 async def find_mailbox(db: AsyncSession, identity: str) -> Optional[User]:
-    raw = (identity or "").strip().lower()
-    if not raw:
-        return None
-    domain = settings.MAIL_DOMAIN.lower()
-    if "@" in raw:
-        local, id_domain = raw.split("@", 1)
-        if id_domain != domain:
-            return None
-        email_identity = f"{local}@{domain}"
-        username = local
-    else:
-        username = raw
-        email_identity = f"{raw}@{domain}"
-
-    result = await db.execute(select(User).where(func.lower(User.email) == email_identity))
-    user = result.scalar_one_or_none()
-    if not user:
-        result = await db.execute(select(User).where(func.lower(User.username) == username))
-        user = result.scalar_one_or_none()
-    if not user or not user.is_active:
-        return None
-    return user
+    return await find_local_mailbox(db, identity, active_only=True)
 
 
 def _cookie_secure(request: Request) -> bool:

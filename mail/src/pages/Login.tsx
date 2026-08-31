@@ -21,7 +21,6 @@ export default function Login() {
   const nextPath = searchParams.get('next') || ''
   const safeNext = nextPath.startsWith('/') && !nextPath.startsWith('//') ? nextPath : ''
   const token = useAuthStore((s) => s.token)
-  const authedUser = useAuthStore((s) => s.user)
   const setAuth = useAuthStore((state) => state.setAuth)
 
   useEffect(() => {
@@ -31,9 +30,9 @@ export default function Login() {
       return
     }
     if (!showAdminChoice) {
-      navigate(authedUser?.is_admin ? '/admin' : '/dashboard', { replace: true })
+      navigate('/dashboard', { replace: true })
     }
-  }, [token, safeNext, authedUser?.is_admin, navigate, showAdminChoice])
+  }, [token, safeNext, navigate, showAdminChoice])
 
   const afterLogin = (isAdmin: boolean) => {
     if (safeNext) {
@@ -160,6 +159,17 @@ export default function Login() {
 
             <div className="choice-buttons">
               <button
+                className="choice-btn mail-btn"
+                onClick={() => handleChoice('/dashboard')}
+              >
+                <div className="choice-icon">
+                  <Mail size={40} />
+                </div>
+                <h3>Моя почта</h3>
+                <p>Отправка и получение писем</p>
+              </button>
+
+              <button
                 className="choice-btn admin-btn"
                 onClick={handleSiteAdmin}
                 disabled={ssoLoading}
@@ -200,17 +210,6 @@ export default function Login() {
                 </div>
                 <h3>Чат</h3>
                 <p>{chatLoading ? 'Вход…' : 'chat.alexol.io — ФИО и фото с почты'}</p>
-              </button>
-
-              <button
-                className="choice-btn mail-btn"
-                onClick={() => handleChoice('/dashboard')}
-              >
-                <div className="choice-icon">
-                  <Mail size={40} />
-                </div>
-                <h3>Моя почта</h3>
-                <p>Отправка и получение писем</p>
               </button>
             </div>
           </div>
