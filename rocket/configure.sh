@@ -71,6 +71,16 @@ auth() {
     -H "Content-Type: application/json"
 }
 
+# users.update / assets require password-2FA on Rocket.Chat 8.
+auth2() {
+  HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
+  curl -sS "$@" \
+    -H "X-Auth-Token: $TOKEN" \
+    -H "X-User-Id: $USER_ID" \
+    -H "X-2FA-Code: $HASH" \
+    -H "X-2FA-Method: password"
+}
+
 echo "configure: adding Custom OAuth service Alexol"
 MSG='{"msg":"method","id":"1","method":"addOAuthService","params":["alexol"]}'
 auth -X POST "$RC_URL/api/v1/method.call/addOAuthService" \
@@ -124,6 +134,8 @@ set_bool "UI_Use_Real_Name" "true"
 set_bool "Accounts_AllowUserAvatarChange" "true"
 set_bool "Accounts_RequireEmailVerification" "false"
 set_bool "Accounts_EmailVerification" "false"
+set_bool "Accounts_Verify_Email_For_External_Accounts" "false"
+set_bool "Accounts_AllowPasswordChangeForOAuthUsers" "false"
 # Mail already authenticated the user. Do not email a second 2FA code after SSO.
 set_bool "Accounts_twoFactorAuthentication_email_available_for_OAuth_users" "false"
 set_bool "Accounts_TwoFactorAuthentication_By_Email_Auto_Opt_In" "false"
@@ -132,15 +144,69 @@ set_bool "Accounts_CustomFieldsEnable" "true"
 set_string "Accounts_CustomFields" '{"phone":{"type":"text","required":false,"maxLength":40},"telegram":{"type":"text","required":false,"maxLength":64},"jobTitle":{"type":"text","required":false,"maxLength":80}}'
 set_string "VideoConf_Default_Provider" "jitsi"
 
+logged_in_js=""
 if [ -f /jitsi-choice.js ]; then
   MAIL_BASE="${MAIL%/}"
   JITSI_BASE="${JITSI_PUBLIC_URL:-https://meet.alexol.io}"
   JITSI_BASE="${JITSI_BASE%/}"
-  js="$(sed -e "s|__MAIL_PUBLIC_URL__|${MAIL_BASE}|g" -e "s|__JITSI_PUBLIC_URL__|${JITSI_BASE}|g" /jitsi-choice.js)"
-  payload="$(jq -n --arg s "$js" '{value:$s}')"
-  auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_In" -d "$payload" >/dev/null || true
+  logged_in_js="$(sed -e "s|__MAIL_PUBLIC_URL__|${MAIL_BASE}|g" -e "s|__JITSI_PUBLIC_URL__|${JITSI_BASE}|g" /jitsi-choice.js)"
   echo "configure: Jitsi open/closed choice on the video button"
 fi
+# Reset-password is a logged-in route — branding must run there too.
+if [ -f /login-brand.js ]; then
+  logged_in_js="${logged_in_js}
+$(cat /login-brand.js)"
+  payload="$(jq -n --arg s "$(cat /login-brand.js)" '{value:$s}')"
+  auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_Out" -d "$payload" >/dev/null || true
+  echo "configure: Alexol branding on the login page"
+fi
+if [ -n "$logged_in_js" ]; then
+  payload="$(jq -n --arg s "$logged_in_js" '{value:$s}')"
+  auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_In" -d "$payload" >/dev/null || true
+fi
+if [ -f /login.css ]; then
+  payload="$(jq -n --arg s "$(cat /login.css)" '{value:$s}')"
+  auth -X POST "$RC_URL/api/v1/settings/theme-custom-css" -d "$payload" >/dev/null || true
+  auth -X POST "$RC_URL/api/v1/settings/css" -d "$payload" >/dev/null || true
+fi
+set_bool "Layout_Login_Hide_Powered_By" "true"
+set_string "Layout_Login_Terms" "<span></span>"
+set_string "Layout_Terms_of_Service" " "
+set_string "Layout_Privacy_Policy" " "
+set_string "Layout_Legal_Notice" " "
+
+if [ -f /login-logo.svg ]; then
+  HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
+  for asset in logo favicon; do
+    curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
+      -H "X-Auth-Token: $TOKEN" \
+      -H "X-User-Id: $USER_ID" \
+      -H "X-2FA-Code: $HASH" \
+      -H "X-2FA-Method: password" \
+      -F "asset=@/login-logo.svg;type=image/svg+xml" \
+      -F "assetName=$asset" \
+      -F "refreshAllClients=true" >/dev/null || true
+  done
+  echo "configure: uploaded Alexol logo"
+fi
+
+offset=0
+while [ "$offset" -lt 500 ]; do
+  page="$(auth "$RC_URL/api/v1/users.list?count=100&offset=$offset" || echo '{}')"
+  ids="$(echo "$page" | jq -r '.users[]?._id // empty')"
+  [ -z "$ids" ] && break
+  echo "$ids" | while read -r uid; do
+    [ -z "$uid" ] && continue
+    payload="$(jq -n --arg id "$uid" '{userId:$id,data:{verified:true,requirePasswordChange:false}}')"
+    auth2 -X POST "$RC_URL/api/v1/users.update" \
+      -H "Content-Type: application/json" \
+      -d "$payload" >/dev/null || true
+  done
+  count="$(echo "$page" | jq -r '.count // 0')"
+  [ "$count" -lt 100 ] && break
+  offset=$((offset + 100))
+done
+echo "configure: mailbox/OAuth users marked verified (no reset-password trap)"
 
 # Built-in Jitsi keys (ignored if the workspace uses the Marketplace app instead).
 set_bool "Jitsi_Enabled" "true"

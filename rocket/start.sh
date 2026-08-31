@@ -105,7 +105,25 @@ $dc pull
 $dc up -d mongodb
 $dc up -d --force-recreate mongodb-init || true
 docker exec rocket_mongo mongosh --quiet --eval 'try { db.adminCommand({ setFeatureCompatibilityVersion: "8.0", confirm: true }) } catch (e) { print(e) }' || true
+unlock_password_trap() {
+  echo "configure: clear unverified-email password trap"
+  docker exec rocket_mongo mongosh --quiet rocketchat --eval '
+    try {
+      const a = db.users.updateMany(
+        {},
+        { $set: { requirePasswordChange: false }, $unset: { requirePasswordChangeReason: 1 } }
+      );
+      const b = db.users.updateMany(
+        { "emails.0": { $exists: true } },
+        { $set: { "emails.$[].verified": true } }
+      );
+      print("requirePasswordChange cleared", a.modifiedCount, "emails verified", b.modifiedCount);
+    } catch (e) { print(e); }
+  ' || true
+}
+
 $dc up -d
+unlock_password_trap
 echo "configure: re-apply OAuth, LDAP, Jitsi settings"
 $dc run --rm --no-deps configure || $dc up -d --force-recreate configure
 
@@ -115,6 +133,7 @@ if [ -f install-jitsi-app.sh ] && grep -qE "^JITSI_JWT_APP_SECRET=.+" .env 2>/de
 else
   echo "install-jitsi-app: skipped (no JITSI_JWT_APP_SECRET in .env)"
 fi
+unlock_password_trap
 
 # mail_backend cannot use host.docker.internal:18300 (bound to 127.0.0.1)
 RC_API="http://rocket_chat:3000"

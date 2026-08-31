@@ -79,6 +79,7 @@ services:
       OVERWRITE_SETTING_Accounts_AllowAnonymousWrite: "false"
       OVERWRITE_SETTING_Accounts_ShowFormLogin: "true"
       OVERWRITE_SETTING_Accounts_Verify_Email_For_External_Accounts: "false"
+      OVERWRITE_SETTING_Accounts_AllowPasswordChangeForOAuthUsers: "false"
       OVERWRITE_SETTING_UTF8_Names_Validation: "[0-9a-zA-Z-_.]+"
       OVERWRITE_SETTING_FileUpload_ProtectFiles: "true"
       OVERWRITE_SETTING_API_Enable_CORS: "true"
@@ -141,6 +142,9 @@ services:
     volumes:
       - ./configure.sh:/configure.sh:ro
       - ./jitsi-choice.js:/jitsi-choice.js:ro
+      - ./login-brand.js:/login-brand.js:ro
+      - ./login.css:/login.css:ro
+      - ./login-logo.svg:/login-logo.svg:ro
     entrypoint: ["/bin/sh", "/configure.sh"]
     networks:
       - rocket

@@ -104,6 +104,8 @@ Community **не включает private zip** (`Apps_Error_license-prevented`)
 
 При клике на видео в комнате чат предлагает ту же развилку, что почта: открытая / без организатора / закрытая. Скрипт ставит `configure.sh` в **Custom Script for Logged In Users**.
 
+Экран входа: логотип Alexol вместо Rocket.Chat, заголовок **Alexol**, без «Powered by» и юридической строки. Если после LDAP+OAuth вылезло «Восстановить пароль» — деплой снимает `requirePasswordChange` в Mongo и помечает email verified. Hard refresh, затем «Войти через Alexol».
+
 Из ROCKET_ENV убери `OVERWRITE_SETTING_Register_Server=false` — иначе Cloud/Marketplace снова отвалятся после рестарта.
 
 `install-jitsi-app.sh` при деплое ставит Jitsi с Marketplace и прописывает domain/JWT. Если Cloud ещё не зарегистрирован, деплой чата не падает — в логе будет инструкция Register → Marketplace → Jitsi.
