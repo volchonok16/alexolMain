@@ -48,7 +48,7 @@ services:
       - rocket
 
   rocketchat:
-    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-8.5.3}
+    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-latest}
     container_name: rocket_chat
     restart: unless-stopped
     depends_on:
