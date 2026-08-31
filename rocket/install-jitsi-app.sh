@@ -95,7 +95,7 @@ if [ "$SKIP_UPLOAD" = "0" ]; then
 
   echo "install-jitsi: packaging Apps.Jitsi $APP_VERSION"
   # Heredoc (not nested double-quotes): this file is run with dash (`sh`).
-  docker run --rm -v "$WORKDIR:/out" -e APP_VERSION="$APP_VERSION" -w /tmp \
+  docker run --rm -i -v "$WORKDIR:/out" -e APP_VERSION="$APP_VERSION" -w /tmp \
     node:22-bookworm bash -s <<'INNER'
 set -euo pipefail
 apt-get update -qq >/dev/null
