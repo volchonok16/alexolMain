@@ -132,6 +132,16 @@ set_bool "Accounts_CustomFieldsEnable" "true"
 set_string "Accounts_CustomFields" '{"phone":{"type":"text","required":false,"maxLength":40},"telegram":{"type":"text","required":false,"maxLength":64},"jobTitle":{"type":"text","required":false,"maxLength":80}}'
 set_string "VideoConf_Default_Provider" "jitsi"
 
+if [ -f /jitsi-choice.js ]; then
+  MAIL_BASE="${MAIL%/}"
+  JITSI_BASE="${JITSI_PUBLIC_URL:-https://meet.alexol.io}"
+  JITSI_BASE="${JITSI_BASE%/}"
+  js="$(sed -e "s|__MAIL_PUBLIC_URL__|${MAIL_BASE}|g" -e "s|__JITSI_PUBLIC_URL__|${JITSI_BASE}|g" /jitsi-choice.js)"
+  payload="$(jq -n --arg s "$js" '{value:$s}')"
+  auth -X POST "$RC_URL/api/v1/settings/Custom_Script_Logged_In" -d "$payload" >/dev/null || true
+  echo "configure: Jitsi open/closed choice on the video button"
+fi
+
 # Built-in Jitsi keys (ignored if the workspace uses the Marketplace app instead).
 set_bool "Jitsi_Enabled" "true"
 set_string "Jitsi_Domain" "$JITSI_DOMAIN"

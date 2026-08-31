@@ -102,9 +102,11 @@ Community **не включает private zip** (`Apps_Error_license-prevented`)
 
 Потом Video Conference → Default Provider = Jitsi.
 
+При клике на видео в комнате чат предлагает ту же развилку, что почта: открытая / без организатора / закрытая. Скрипт ставит `configure.sh` в **Custom Script for Logged In Users**.
+
 Из ROCKET_ENV убери `OVERWRITE_SETTING_Register_Server=false` — иначе Cloud/Marketplace снова отвалятся после рестарта.
 
-`install-jitsi-app.sh` при деплое ставит Jitsi с Marketplace и прописывает domain/JWT. Если Cloud недоступен, скрипт выйдет с ошибкой и инструкцией, а не зальёт private zip.
+`install-jitsi-app.sh` при деплое ставит Jitsi с Marketplace и прописывает domain/JWT. Если Cloud ещё не зарегистрирован, деплой чата не падает — в логе будет инструкция Register → Marketplace → Jitsi.
 
 ## Локально / на сервере
 
