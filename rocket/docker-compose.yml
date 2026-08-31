@@ -94,6 +94,9 @@ services:
       OVERWRITE_SETTING_Iframe_Restrict_Access: "false"
       OVERWRITE_SETTING_DeepLink_Url: ${ROOT_URL:-https://chat.alexol.io}
       OVERWRITE_SETTING_Site_Name: Alexol
+      # Empty: do not re-inject the custom Jitsi room-type modal.
+      OVERWRITE_SETTING_Custom_Script_Logged_In: ""
+      OVERWRITE_SETTING_Custom_Script_Logged_Out: ""
       OVERWRITE_SETTING_SMTP_Protocol: ${SMTP_PROTOCOL:-smtp}
       OVERWRITE_SETTING_SMTP_Host: ${SMTP_HOST:-mail.alexol.io}
       OVERWRITE_SETTING_SMTP_Port: ${SMTP_PORT:-587}

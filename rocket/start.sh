@@ -149,8 +149,9 @@ write_rc_empty_setting() {
 import json, sys
 sid = sys.argv[1]
 open("/tmp/alexol-rc-setting.js", "w").write(
-    "db.rocketchat_settings.updateOne({_id: %s}, {$set: {value: '', _updatedAt: new Date()}});\n"
-    % json.dumps(sid)
+    "const r = db.rocketchat_settings.updateOne({_id: %s}, {$set: {value: '', _updatedAt: new Date()}});\n"
+    "print(%s, 'matched', r.matchedCount, 'modified', r.modifiedCount);\n"
+    % (json.dumps(sid), json.dumps(sid))
 )
 PY
   docker cp /tmp/alexol-rc-setting.js rocket_mongo:/tmp/alexol-rc-setting.js >/dev/null
@@ -196,6 +197,20 @@ else
 fi
 unlock_password_trap
 push_custom_scripts
+# Direct Mongo wipes do not unload Custom_Script_* already in the Node process.
+echo "configure: recreate rocketchat so the Jitsi picker script is not served"
+$dc up -d --force-recreate --no-deps rocketchat
+HOST_PORT="$(grep -E '^HOST_PORT=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r\"' )"
+HOST_PORT="${HOST_PORT:-18300}"
+i=0
+while [ "$i" -lt 60 ]; do
+  if curl -sf "http://127.0.0.1:${HOST_PORT}/api/info" >/dev/null 2>&1; then
+    echo "configure: chat API is up after recreate"
+    break
+  fi
+  i=$((i + 1))
+  sleep 3
+done
 RC_API="http://rocket_chat:3000"
 echo "sync chat profiles from mail"
 if [ -f /var/www/mail/.env ]; then
