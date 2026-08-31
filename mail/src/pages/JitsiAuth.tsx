@@ -20,6 +20,7 @@ function meetUrl(room: string, jwt?: string | null, name?: string, email?: strin
     'config.prejoinPageEnabled=false',
     'config.prejoinConfig.enabled=false',
     'config.requireDisplayName=false',
+    'config.endConference.enabled=false',
   ]
   if (name) hash.push(`userInfo.displayName=${JSON.stringify(name)}`)
   if (email) hash.push(`userInfo.email=${JSON.stringify(email)}`)
