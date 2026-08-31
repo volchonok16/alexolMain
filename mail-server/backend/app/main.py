@@ -56,6 +56,7 @@ from app import admin_sync
 from app import carddav
 from app.org import router as org_router
 from app.oauth import router as oauth_router
+from app.rocketchat_profile import schedule_rocketchat_profile_sync
 from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy import text
 from urllib.parse import unquote
@@ -775,6 +776,8 @@ async def update_profile(
         avatar_url=current_user.avatar_url,
     )
 
+    schedule_rocketchat_profile_sync(current_user)
+
     return UserResponse.model_validate(current_user).model_copy(
         update={
             "avatar_url": to_browser_avatar_url(current_user.avatar_url)
@@ -826,6 +829,8 @@ async def upload_avatar(
         telegram=current_user.telegram,
         avatar_url=avatar_url,
     )
+
+    schedule_rocketchat_profile_sync(current_user)
 
     browser_url = to_browser_avatar_url(avatar_url) or avatar_url
     return {"avatar_url": browser_url}

@@ -57,7 +57,7 @@ OAUTH_ROCKETCHAT_REDIRECT_URI=https://chat.alexol.io/_oauth/alexol
 | «Войти через Alexol» | ящик, через OAuth почты |
 | логин + пароль на форме | **тот же** пароль ящика, через LDAP почты (`:389`) |
 
-`configure.sh` включает LDAP на `MAIL_LDAP_HOST` (с сервера чата это `host.docker.internal`). Bind — `MAIL_LDAP_BIND_DN` / `MAIL_LDAP_BIND_PASSWORD` (почтовый админ). Если bind-пароль пустой, берётся `ADMIN_PASS`.
+`configure.sh` включает LDAP на `MAIL_LDAP_HOST` (с сервера чата это `host.docker.internal`). Bind — `MAIL_LDAP_BIND_DN` / `MAIL_LDAP_BIND_PASSWORD` (почтовый админ). При деплое `scripts/stitch-deploy-env.sh` подставляет bind-пароль из `DEFAULT_ADMIN_PASSWORD` (MAIL_ENV), если в ROCKET_ENV пусто.
 
 ## Jitsi из чата
 

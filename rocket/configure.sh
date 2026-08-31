@@ -116,6 +116,7 @@ set_bool "Accounts_OAuth_Custom-Alexol-show_button" "true"
 set_bool "Accounts_RegistrationAuthenticationServicesEnabled" "true"
 set_string "Accounts_RegistrationForm" "Disabled"
 set_string "Site_Url" "$ROOT_URL"
+set_bool "UI_Use_Real_Name" "true"
 set_bool "Accounts_CustomFieldsEnable" "true"
 set_string "Accounts_CustomFields" '{"phone":{"type":"text","required":false,"maxLength":40},"telegram":{"type":"text","required":false,"maxLength":64},"jobTitle":{"type":"text","required":false,"maxLength":80}}'
 set_string "VideoConf_Default_Provider" "jitsi"
@@ -135,7 +136,7 @@ set_bool "Jitsi_Limit_Token_To_Room" "true"
 LDAP_HOST="${MAIL_LDAP_HOST:-host.docker.internal}"
 LDAP_PORT="${MAIL_LDAP_PORT:-389}"
 LDAP_BIND_DN="${MAIL_LDAP_BIND_DN:-admin@alexol.io}"
-LDAP_BIND_PASSWORD="${MAIL_LDAP_BIND_PASSWORD:-$ADMIN_PASS}"
+LDAP_BIND_PASSWORD="${MAIL_LDAP_BIND_PASSWORD:-}"
 LDAP_BASE_DN="${MAIL_LDAP_BASE_DN:-dc=alexol,dc=io}"
 
 set_int() {
@@ -174,7 +175,7 @@ if [ -n "$LDAP_BIND_PASSWORD" ]; then
   set_bool "LDAP_Enable" "true"
   echo "configure: LDAP is ready — form login uses mailbox passwords"
 else
-  echo "configure: LDAP skipped (set MAIL_LDAP_BIND_PASSWORD or ADMIN_PASS)"
+  echo "configure: LDAP skipped (set MAIL_LDAP_BIND_PASSWORD — deploy stitches it from MAIL_ENV DEFAULT_ADMIN_PASSWORD)"
 fi
 
 echo "configure: Custom OAuth Alexol is ready"

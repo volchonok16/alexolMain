@@ -260,8 +260,17 @@ jobs:
               uses: actions/checkout@v4
 
             - name: Create mail-server .env from secret
+              env:
+                  MAIL_ENV: ${{ secrets.MAIL_ENV }}
+                  ROCKET_ENV: ${{ secrets.ROCKET_ENV }}
+                  JITSI_ENV: ${{ secrets.jitsi_env }}
               run: |
-                  echo "${{ secrets.MAIL_ENV }}" > mail-server/.env
+                  printf '%s\n' "$MAIL_ENV" > mail-server/.env
+                  mkdir -p rocket jitsi
+                  if [ -n "$ROCKET_ENV" ]; then printf '%s\n' "$ROCKET_ENV" > rocket/.env; else touch rocket/.env; fi
+                  if [ -n "$JITSI_ENV" ]; then printf '%s\n' "$JITSI_ENV" > jitsi/.env; else touch jitsi/.env; fi
+                  chmod +x scripts/stitch-deploy-env.sh
+                  bash scripts/stitch-deploy-env.sh
 
             - name: Write DKIM private key from secret
               env:
@@ -363,14 +372,22 @@ jobs:
 
             - name: Create jitsi .env from secret
               env:
+                  MAIL_ENV: ${{ secrets.MAIL_ENV }}
+                  ROCKET_ENV: ${{ secrets.ROCKET_ENV }}
                   JITSI_ENV: ${{ secrets.jitsi_env }}
               run: |
+                  mkdir -p mail-server rocket jitsi
+                  if [ -n "$MAIL_ENV" ]; then printf '%s\n' "$MAIL_ENV" > mail-server/.env; else touch mail-server/.env; fi
+                  if [ -n "$ROCKET_ENV" ]; then printf '%s\n' "$ROCKET_ENV" > rocket/.env; else touch rocket/.env; fi
                   if [ -n "$JITSI_ENV" ]; then
                     printf '%s\n' "$JITSI_ENV" > jitsi/.env
                     echo "jitsi_env written ($(wc -l < jitsi/.env) lines)"
                   else
+                    touch jitsi/.env
                     echo "jitsi_env not set — server keeps existing .env or env.public"
                   fi
+                  chmod +x scripts/stitch-deploy-env.sh
+                  bash scripts/stitch-deploy-env.sh
 
             - name: Prepare Jitsi directory
               uses: appleboy/ssh-action@v1.0.3
@@ -569,14 +586,22 @@ jobs:
 
             - name: Create rocket .env from secret
               env:
+                  MAIL_ENV: ${{ secrets.MAIL_ENV }}
                   ROCKET_ENV: ${{ secrets.ROCKET_ENV }}
+                  JITSI_ENV: ${{ secrets.jitsi_env }}
               run: |
+                  mkdir -p mail-server rocket jitsi
+                  if [ -n "$MAIL_ENV" ]; then printf '%s\n' "$MAIL_ENV" > mail-server/.env; else touch mail-server/.env; fi
                   if [ -n "$ROCKET_ENV" ]; then
                     printf '%s\n' "$ROCKET_ENV" > rocket/.env
                     echo "ROCKET_ENV written ($(wc -l < rocket/.env) lines)"
                   else
+                    touch rocket/.env
                     echo "ROCKET_ENV not set — server keeps existing .env"
                   fi
+                  if [ -n "$JITSI_ENV" ]; then printf '%s\n' "$JITSI_ENV" > jitsi/.env; else touch jitsi/.env; fi
+                  chmod +x scripts/stitch-deploy-env.sh
+                  bash scripts/stitch-deploy-env.sh
 
             - name: Prepare Rocket.Chat directory
               uses: appleboy/ssh-action@v1.0.3
@@ -643,6 +668,14 @@ jobs:
                       fi
                       $dc pull
                       $dc up -d
+                      echo "configure: re-apply OAuth, LDAP, Jitsi settings"
+                      $dc run --rm --no-deps configure || $dc up -d --force-recreate configure
+                      if [ -f install-jitsi-app.sh ] && grep -qE '^JITSI_JWT_APP_SECRET=.+' .env 2>/dev/null; then
+                        chmod +x install-jitsi-app.sh
+                        sh install-jitsi-app.sh || echo "install-jitsi-app: skipped or already installed"
+                      else
+                        echo "install-jitsi-app: skipped (no JITSI_JWT_APP_SECRET in .env)"
+                      fi
                       $dc ps
                       '
 
