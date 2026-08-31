@@ -24,7 +24,11 @@ def is_closed_room(room: str) -> bool:
 
 
 def is_auto_start_room(room: str) -> bool:
-    """Open room where the first joiner (including a guest) is moderator."""
+    """Open room that starts without waiting for an @alexol.io host.
+
+    Guests still join as members (not owners). Ending the conference for
+    everyone stays with mailbox users only.
+    """
     slug = (room or "").strip().lower()
     return slug.startswith("a-") or slug.startswith("anyone-")
 
@@ -85,5 +89,5 @@ def issue_guest_jwt(room: str = "*", name: str = "") -> Optional[str]:
         room=room,
         name=label,
         user_id=f"guest-{secrets.token_hex(6)}",
-        moderator=is_auto_start_room(room),
+        moderator=False,
     )

@@ -475,7 +475,8 @@ jobs:
                         grep -qE "^ENABLE_GUESTS=" .env || echo "ENABLE_GUESTS=0" >> .env
                         sed -i "s/^JWT_ALLOW_EMPTY=.*/JWT_ALLOW_EMPTY=0/" .env
                         grep -qE "^JWT_ALLOW_EMPTY=" .env || echo "JWT_ALLOW_EMPTY=0" >> .env
-                        grep -qE "^ENABLE_AUTO_OWNER=" .env || echo "ENABLE_AUTO_OWNER=1" >> .env
+                        sed -i "s/^ENABLE_AUTO_OWNER=.*/ENABLE_AUTO_OWNER=0/" .env
+                        grep -qE "^ENABLE_AUTO_OWNER=" .env || echo "ENABLE_AUTO_OWNER=0" >> .env
                         sed -i "s/^ENABLE_PREJOIN_PAGE=.*/ENABLE_PREJOIN_PAGE=0/" .env
                         grep -qE "^ENABLE_PREJOIN_PAGE=" .env || echo "ENABLE_PREJOIN_PAGE=0" >> .env
                         sed -i "s/^ENABLE_REQUIRE_DISPLAY_NAME=.*/ENABLE_REQUIRE_DISPLAY_NAME=0/" .env
