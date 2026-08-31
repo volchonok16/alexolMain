@@ -71,13 +71,16 @@ OAUTH_ROCKETCHAT_REDIRECT_URI=https://chat.alexol.io/_oauth/alexol
 
 ## Jitsi из чата
 
-Звонки у нас уже идут через JWT на `meet.alexol.io` (почта выдаёт токен с именем и аватаркой).
-Rocket.Chat умеет то же самое приложением **Jitsi** из Marketplace.
+Звонки идут через JWT на `meet.alexol.io`. В чате это приложение **Jitsi** из Marketplace.
 
-После первого входа админом чата:
+Community **не включает private zip** (`Apps_Error_license-prevented`). Не заливай Jitsi файлом — только Marketplace.
 
-1. Administration → Marketplace → **Jitsi** → Install.
-2. Settings приложения:
+Один раз в UI (админ чата):
+
+1. Administration → Workspace → **Connectivity Services** → Register (если Marketplace пустой).
+2. Uninstall старого Jitsi, если статус `license-prevented`.
+3. Marketplace → **Jitsi** → Install.
+4. Settings приложения:
 
 | Поле | Значение |
 |------|----------|
@@ -89,18 +92,11 @@ Rocket.Chat умеет то же самое приложением **Jitsi** и�
 | Token Auditor | `alexol` |
 | Limit token to Jitsi Room | on |
 
-Без этих трёх вещей звонок из чата **не** пустит на наш Jitsi (у конференций включён JWT):
+Потом Video Conference → Default Provider = Jitsi.
 
-1. Секрет в ROCKET_ENV (`JITSI_JWT_APP_SECRET`) — уже в `env.example`.
-2. В **jitsi_env** должны быть `ENABLE_IFRAME_API=1` и аудитории `alexol,RocketChat`
-   (чтобы iframe из `chat.alexol.io` и токен приложения не отвалились). Это уже прописано в `jitsi/env.public`.
-3. nginx `meet.alexol.io` отдаёт `frame-ancestors` для `chat.alexol.io`.
+Из ROCKET_ENV убери `OVERWRITE_SETTING_Register_Server=false` — иначе Cloud/Marketplace снова отвалятся после рестарта.
 
-После установки Jitsi в чате: Video Conference → Default Provider = Jitsi.
-
-Скрипт `install-jitsi-app.sh` запускается **автоматически** при каждом деплое Rocket.Chat
-(если в `.env` задан `JITSI_JWT_APP_SECRET`). Повторный деплой только обновляет настройки
-meet/JWT, без пересборки zip. Принудительная пересборка: `FORCE_REBUILD=1 sh install-jitsi-app.sh`.
+`install-jitsi-app.sh` при деплое ставит Jitsi с Marketplace и прописывает domain/JWT. Если Cloud недоступен, скрипт выйдет с ошибкой и инструкцией, а не зальёт private zip.
 
 ## Локально / на сервере
 

@@ -1,8 +1,8 @@
 #!/bin/sh
-# Build official Apps.Jitsi and upload it as a private app (no Rocket.Chat Cloud).
+# Install official Jitsi as a Marketplace (public) app and set meet.alexol.io + JWT.
+# Community forbids enabling private zip uploads (Apps_Error_license-prevented).
+# Workspace must be able to reach Rocket.Chat Cloud (register once in the admin UI).
 # Run on the VM from /var/www/rocket:  sh install-jitsi-app.sh
-# Autodeploy: .github/workflows/deploy.yml (job deploy-rocket).
-# FORCE_REBUILD=1 — пересобрать .zip и загрузить даже если приложение уже стоит.
 set -eu
 
 RC_URL="${RC_URL:-http://127.0.0.1:18300}"
@@ -36,7 +36,6 @@ fi
 
 command -v curl >/dev/null
 command -v jq >/dev/null
-command -v docker >/dev/null
 
 echo "install-jitsi: waiting for Rocket.Chat at $RC_URL"
 i=0
@@ -75,62 +74,62 @@ auth() {
 
 # RC 8: GET /api/apps is gone. Cluster nodes may wrap as [status, body].
 APPS_JSON="$(auth -s "$RC_URL/api/apps/installed" || auth -s "$RC_URL/api/apps" || echo '{}')"
-APP_INSTALLED="$(echo "$APPS_JSON" | jq -r --arg id "$APP_ID" '
+APP_INFO="$(echo "$APPS_JSON" | jq -c --arg id "$APP_ID" '
   (if type == "array" then .[-1] else . end)
   | (.apps // .)
   | (if type == "array" then .[] else empty end)
-  | .id // .app.id // empty
-  | select(. == $id)
+  | select((.id // .app.id // empty) == $id)
 ' 2>/dev/null | head -1)"
-SKIP_UPLOAD=0
-if [ -n "$APP_INSTALLED" ] && [ "${FORCE_REBUILD:-0}" != "1" ]; then
-  echo "install-jitsi: app already installed ($APP_ID), skipping package/upload"
-  SKIP_UPLOAD=1
+APP_STATUS="$(echo "${APP_INFO:-}" | jq -r '.status // .app.status // empty' 2>/dev/null || true)"
+APP_SOURCE="$(echo "${APP_INFO:-}" | jq -r '.installationSource // .app.installationSource // empty' 2>/dev/null || true)"
+
+need_marketplace=1
+if [ -n "$APP_INFO" ]; then
+  echo "install-jitsi: found app status=$APP_STATUS source=$APP_SOURCE"
+  case "$APP_STATUS" in
+    *license*|*prevented*)
+      echo "install-jitsi: private/blocked install — removing so Marketplace can replace it"
+      auth -X DELETE "$RC_URL/api/apps/$APP_ID" >/dev/null || true
+      APP_INFO=""
+      ;;
+    *)
+      if [ "$APP_SOURCE" = "private" ]; then
+        echo "install-jitsi: private zip cannot be enabled on Community — removing"
+        auth -X DELETE "$RC_URL/api/apps/$APP_ID" >/dev/null || true
+        APP_INFO=""
+      else
+        need_marketplace=0
+      fi
+      ;;
+  esac
 fi
 
-if [ "$SKIP_UPLOAD" = "0" ]; then
-  WORKDIR="$(mktemp -d)"
-  cleanup() { rm -rf "$WORKDIR"; }
-  trap cleanup EXIT
-
-  echo "install-jitsi: packaging Apps.Jitsi $APP_VERSION"
-  # Heredoc (not nested double-quotes): this file is run with dash (`sh`).
-  docker run --rm -i -v "$WORKDIR:/out" -e APP_VERSION="$APP_VERSION" -w /tmp \
-    node:22-bookworm bash -s <<'INNER'
-set -euo pipefail
-apt-get update -qq >/dev/null
-apt-get install -y -qq git >/dev/null
-npm install -g @rocket.chat/apps-cli >/dev/null
-git clone --depth 1 --branch "$APP_VERSION" https://github.com/RocketChat/Apps.Jitsi.git app
-cd app
-# devDependencies (typescript, apps-engine) are required to build the .zip
-npm install
-rc-apps package
-zipfile="$(find . -name '*.zip' -type f | head -1)"
-test -n "$zipfile"
-cp -a "$zipfile" /out/jitsi.rc-app.zip
-INNER
-
-  ZIP="$WORKDIR/jitsi.rc-app.zip"
-  if [ ! -s "$ZIP" ]; then
-    echo "install-jitsi: package failed"
-    ls -la "$WORKDIR"
-    exit 1
-  fi
-
-  echo "install-jitsi: uploading app to /api/apps"
-  UPLOAD="$(auth -X POST "$RC_URL/api/apps" \
-    -F "app=@$ZIP;type=application/zip")"
-  echo "$UPLOAD" | jq -c '{status: .status, success: .success, app: .app.name, error: .error}' || echo "$UPLOAD"
-  if ! echo "$UPLOAD" | jq -e '.success == true' >/dev/null 2>&1; then
-    if echo "$UPLOAD" | grep -qi 'already'; then
-      echo "install-jitsi: app already present, continuing with settings"
+if [ "$need_marketplace" = "1" ] || [ "${FORCE_REBUILD:-0}" = "1" ]; then
+  echo "install-jitsi: installing Jitsi $APP_VERSION from Marketplace"
+  MP_BODY="$(jq -n --arg id "$APP_ID" --arg ver "$APP_VERSION" \
+    '{appId:$id, marketplace:true, version:$ver}')"
+  MP_OUT="$(auth -X POST "$RC_URL/api/apps" \
+    -H "Content-Type: application/json" -d "$MP_BODY" || true)"
+  echo "$MP_OUT" | jq -c '{status:.status,success:.success,app:.app.name,error:.error,errorType:.errorType}' 2>/dev/null \
+    || echo "$MP_OUT" | head -c 400
+  echo
+  if ! echo "$MP_OUT" | jq -e '(.success == true) or (.app.id != null) or (.app.name != null)' >/dev/null 2>&1; then
+    if echo "$MP_OUT" | grep -qi 'already'; then
+      echo "install-jitsi: marketplace says already installed"
     else
-      echo "install-jitsi: upload failed"
+      echo "install-jitsi: Marketplace install failed."
+      echo "install-jitsi: Community blocks private zip apps (Apps_Error_license-prevented)."
+      echo "install-jitsi: Register the workspace (Administration → Workspace → Connectivity Services),"
+      echo "install-jitsi: then Marketplace → Jitsi → Install. Starter/register allows enabling the app."
       exit 1
     fi
   fi
 fi
+
+echo "install-jitsi: enabling app"
+auth -X POST "$RC_URL/api/apps/$APP_ID/status" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"manually_enabled"}' >/dev/null || true
 
 set_app() {
   id="$1"

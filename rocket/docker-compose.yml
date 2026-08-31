@@ -69,7 +69,6 @@ services:
       TRANSPORTER: monolith+nats://nats:4222
       OVERWRITE_SETTING_Site_Url: ${ROOT_URL:-https://chat.alexol.io}
       OVERWRITE_SETTING_Show_Setup_Wizard: completed
-      OVERWRITE_SETTING_Register_Server: "false"
       OVERWRITE_SETTING_Accounts_RegistrationAuthenticationServicesEnabled: "true"
       OVERWRITE_SETTING_Accounts_AllowAnonymousRead: "false"
       OVERWRITE_SETTING_Accounts_AllowAnonymousWrite: "false"
