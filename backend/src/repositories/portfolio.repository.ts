@@ -1,3 +1,4 @@
+import { rewritePublicStorageUrl } from '../config/minio.js';
 import { prisma } from '../config/database.js';
 
 const publicSelect = {
@@ -15,6 +16,10 @@ const publicSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+function withPublicImageUrl<T extends { imageUrl: string }>(item: T): T {
+  return { ...item, imageUrl: rewritePublicStorageUrl(item.imageUrl) };
+}
 
 export type PortfolioCreateData = {
   category: string;
@@ -37,7 +42,7 @@ export type PortfolioUpdateData = Partial<Omit<PortfolioCreateData, 'imageUrl' |
 
 export class PortfolioRepository {
   async create(data: PortfolioCreateData) {
-    return prisma.portfolioItem.create({ data, select: publicSelect });
+    return withPublicImageUrl(await prisma.portfolioItem.create({ data, select: publicSelect }));
   }
 
   async findAll(page: number, limit: number) {
@@ -50,25 +55,28 @@ export class PortfolioRepository {
       }),
       prisma.portfolioItem.count(),
     ]);
-    return { data, total };
+    return { data: data.map(withPublicImageUrl), total };
   }
 
   async findById(id: string) {
-    return prisma.portfolioItem.findUnique({
+    const item = await prisma.portfolioItem.findUnique({
       where: { id },
       select: {
         ...publicSelect,
         imageKey: true,
       },
     });
+    return item ? withPublicImageUrl(item) : item;
   }
 
   async update(id: string, data: PortfolioUpdateData) {
-    return prisma.portfolioItem.update({
-      where: { id },
-      data,
-      select: publicSelect,
-    });
+    return withPublicImageUrl(
+      await prisma.portfolioItem.update({
+        where: { id },
+        data,
+        select: publicSelect,
+      })
+    );
   }
 
   async delete(id: string) {

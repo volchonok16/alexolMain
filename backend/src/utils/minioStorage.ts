@@ -71,6 +71,16 @@ export async function uploadVideoToMinio(
   };
 }
 
+export async function minioObjectExists(objectKey: string): Promise<boolean> {
+  if (!objectKey) return false;
+  try {
+    await minioClient.statObject(minioBucket, objectKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function deleteObjectFromMinio(objectKey: string): Promise<void> {
   if (!objectKey) return;
   try {

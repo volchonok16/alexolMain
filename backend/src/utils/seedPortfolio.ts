@@ -2,8 +2,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { prisma } from '../config/database.js';
-import { isMinioReady } from '../config/minio.js';
-import { deleteObjectFromMinio, uploadLocalPathToMinio } from './minioStorage.js';
+import { isMinioReady, rewritePublicStorageUrl } from '../config/minio.js';
+import {
+  deleteObjectFromMinio,
+  minioObjectExists,
+  uploadLocalPathToMinio,
+} from './minioStorage.js';
 
 const ASSETS_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -142,15 +146,62 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
+async function uploadSeedImage(item: (typeof SEED_ITEMS)[number]) {
+  const imagePath = path.join(ASSETS_DIR, item.imageFile);
+  if (!(await fileExists(imagePath))) {
+    throw new Error(`Image not found for "${item.titleEn}": ${imagePath}`);
+  }
+  return uploadLocalPathToMinio(imagePath, 'portfolio');
+}
+
+async function repairMissingSeedImages(): Promise<void> {
+  const existing = await prisma.portfolioItem.findMany({
+    select: { id: true, titleEn: true, imageKey: true, imageUrl: true },
+  });
+  const byTitle = new Map(existing.map(item => [item.titleEn, item]));
+  let repaired = 0;
+
+  for (const seed of SEED_ITEMS) {
+    const row = byTitle.get(seed.titleEn);
+    if (!row) continue;
+
+    const objectOk = await minioObjectExists(row.imageKey);
+    const httpsUrl = rewritePublicStorageUrl(row.imageUrl);
+
+    if (objectOk) {
+      if (httpsUrl !== row.imageUrl) {
+        await prisma.portfolioItem.update({
+          where: { id: row.id },
+          data: { imageUrl: httpsUrl },
+        });
+      }
+      continue;
+    }
+
+    const file = await uploadSeedImage(seed);
+    await prisma.portfolioItem.update({
+      where: { id: row.id },
+      data: { imageUrl: file.url, imageKey: file.key },
+    });
+    await deleteObjectFromMinio(row.imageKey);
+    repaired += 1;
+    console.log(`[Portfolio] Restored missing image for "${seed.titleEn}"`);
+  }
+
+  if (repaired > 0) {
+    console.log(`[Portfolio] Restored ${repaired} missing preview(s) from seed assets`);
+  }
+}
+
 export async function seedPortfolio(): Promise<void> {
-  const existing = await prisma.portfolioItem.count();
-  if (existing > 0) {
-    console.log('ℹ️  Portfolio items already exist, skipping seed');
+  if (!isMinioReady()) {
+    console.warn('[Portfolio] Skipping seed: MinIO is not available');
     return;
   }
 
-  if (!isMinioReady()) {
-    console.warn('[Portfolio] Skipping seed: MinIO is not available');
+  const existing = await prisma.portfolioItem.count();
+  if (existing > 0) {
+    await repairMissingSeedImages();
     return;
   }
 
@@ -160,12 +211,7 @@ export async function seedPortfolio(): Promise<void> {
 
   try {
     for (const item of SEED_ITEMS) {
-      const imagePath = path.join(ASSETS_DIR, item.imageFile);
-      if (!(await fileExists(imagePath))) {
-        throw new Error(`Image not found for "${item.titleEn}": ${imagePath}`);
-      }
-
-      const file = await uploadLocalPathToMinio(imagePath, 'portfolio');
+      const file = await uploadSeedImage(item);
       uploaded.push({ ...item, imageUrl: file.url, imageKey: file.key });
     }
 

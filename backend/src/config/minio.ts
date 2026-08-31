@@ -73,9 +73,13 @@ export async function initMinio(): Promise<void> {
   console.log(`[MinIO] Ready, bucket "${minioBucket}" at ${target}`);
 }
 
+export function rewritePublicStorageUrl(url: string): string {
+  return url.replace(/^http:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://minio.alexol.io');
+}
+
 export function getMinioPublicUrl(objectKey: string): string {
   if (config.minio.publicUrl) {
-    return `${config.minio.publicUrl}/${minioBucket}/${objectKey}`;
+    return rewritePublicStorageUrl(`${config.minio.publicUrl}/${minioBucket}/${objectKey}`);
   }
 
   const protocol = config.minio.useSSL ? 'https' : 'http';
@@ -83,5 +87,5 @@ export function getMinioPublicUrl(objectKey: string): string {
   const port = config.minio.port;
   const needsPort = !(port === 80 && protocol === 'http') && !(port === 443 && protocol === 'https');
   const origin = needsPort ? `${protocol}://${host}:${port}` : `${protocol}://${host}`;
-  return `${origin}/${minioBucket}/${objectKey}`;
+  return rewritePublicStorageUrl(`${origin}/${minioBucket}/${objectKey}`);
 }
