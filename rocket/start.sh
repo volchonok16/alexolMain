@@ -20,8 +20,19 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+# Official apps block EOL servers (8.0.x / 8.1.x). Keep a supported LTS even if
+# ROCKET_ENV still pins an old RELEASE.
+if grep -qE '^RELEASE=(7\.|8\.0|8\.1)' .env 2>/dev/null; then
+  echo "start: RELEASE in .env is past EOL, pinning 8.5.3 for mobile/desktop apps"
+  sed -i 's/^RELEASE=.*/RELEASE=8.5.3/' .env
+fi
+
 docker network inspect alexol_mail_sync >/dev/null 2>&1 || docker network create alexol_mail_sync
+$dc stop rocketchat >/dev/null 2>&1 || true
 $dc pull
+$dc up -d mongodb
+$dc up -d --force-recreate mongodb-init || true
+docker exec rocket_mongo mongosh --quiet --eval 'try { db.adminCommand({ setFeatureCompatibilityVersion: "8.0", confirm: true }) } catch (e) { print(e) }' || true
 $dc up -d
 echo "configure: re-apply OAuth, LDAP, Jitsi settings"
 $dc run --rm --no-deps configure || $dc up -d --force-recreate configure

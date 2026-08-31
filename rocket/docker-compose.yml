@@ -2,7 +2,7 @@ name: rocket
 
 services:
   mongodb:
-    image: mongo:7.0
+    image: mongo:8.0
     container_name: rocket_mongo
     restart: unless-stopped
     command: ["--replSet", "rs0", "--bind_ip_all"]
@@ -15,10 +15,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 20s
+      start_period: 60s
 
   mongodb-init:
-    image: mongo:7.0
+    image: mongo:8.0
     container_name: rocket_mongo_init
     restart: "no"
     depends_on:
@@ -35,6 +35,9 @@ services:
         try { rs.status() } catch (e) {
           rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongodb:27017" }] })
         }
+        try {
+          db.adminCommand({ setFeatureCompatibilityVersion: "8.0", confirm: true })
+        } catch (e) {}
 
   nats:
     image: nats:2.10-alpine
@@ -45,7 +48,7 @@ services:
       - rocket
 
   rocketchat:
-    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-8.0.1}
+    image: registry.rocket.chat/rocketchat/rocket.chat:${RELEASE:-8.5.3}
     container_name: rocket_chat
     restart: unless-stopped
     depends_on:

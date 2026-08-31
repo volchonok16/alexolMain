@@ -26,6 +26,8 @@ OAUTH_ROCKETCHAT_REDIRECT_URI=https://chat.alexol.io/_oauth/alexol
 
 ## Мобильное и десктопное приложение
 
+Официальные приложения подключаются только к поддерживаемой версии сервера. Сейчас это **8.5.3 LTS** (`RELEASE` в ROCKET_ENV). 8.0.x приложения отключают.
+
 1. Установите **Rocket.Chat** из App Store / Google Play / с [rocket.chat/download](https://www.rocket.chat/download).
 2. При первом запуске укажите сервер: **`https://chat.alexol.io`**
 3. Войдите:
