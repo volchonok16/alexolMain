@@ -4,11 +4,7 @@
   window.__alexolLoginBrand = true;
 
   var MARK =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="72" height="72" aria-hidden="true">' +
-    '<circle cx="40" cy="40" r="40" fill="#0C0F16"/>' +
-    '<path fill="#0AE3FF" d="M40 12 L66.5 27.25 V52.75 L40 68 L13.5 52.75 V27.25 Z M40 24 L24.5 32.9 V47.1 L40 56 L55.5 47.1 V32.9 Z"/>' +
-    '<circle cx="40" cy="40" r="6" fill="#fff"/>' +
-    "</svg>";
+    '<img class="alexol-login-mark" src="/alexol-logo.png" width="88" height="100" alt="">';
 
   var APPLE =
     '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.62c.02 2.4 2.1 3.2 2.12 3.21-.02.06-.33 1.13-1.09 2.24-.66.96-1.34 1.91-2.41 1.93-1.05.02-1.39-.62-2.59-.62-1.21 0-1.58.6-2.58.64-1.04.04-1.83-1.04-2.5-2-1.36-1.95-2.4-5.51-1-8.16.69-1.32 1.93-2.16 3.27-2.18 1.02-.02 1.99.69 2.59.69.6 0 1.73-.85 2.92-.73.5.02 1.9.2 2.8 1.51-.07.04-1.67 1-1.53 2.96zM14.7 6.3c.55-.67.92-1.6.82-2.53-.8.03-1.76.53-2.33 1.2-.51.59-.96 1.54-.84 2.45.89.07 1.8-.45 2.35-1.12z"/></svg>';

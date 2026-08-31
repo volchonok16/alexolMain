@@ -174,14 +174,24 @@ set_string "Layout_Login_Terms" "<span></span>"
 set_string "Layout_Terms_of_Service" " "
 set_string "Layout_Privacy_Policy" " "
 set_string "Layout_Legal_Notice" " "
-FOOTER_DARK='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-logo.svg" width="32" height="32" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#F8FAFC">Alexol</span></a>'
-FOOTER_LIGHT='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-logo.svg" width="32" height="32" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#0C0F16">Alexol</span></a>'
+FOOTER_DARK='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-logo.png" width="36" height="41" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#F8FAFC">Alexol</span></a>'
+FOOTER_LIGHT='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-logo.png" width="36" height="41" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#0C0F16">Alexol</span></a>'
 set_string "Layout_Sidenav_Footer_Dark" "$FOOTER_DARK"
 set_string "Layout_Sidenav_Footer" "$FOOTER_LIGHT"
 echo "configure: sidebar footer set to Alexol"
 
 HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
-if [ -f /login-logo.svg ]; then
+if [ -f /alexol-logo.png ]; then
+  curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
+    -H "X-Auth-Token: $TOKEN" \
+    -H "X-User-Id: $USER_ID" \
+    -H "X-2FA-Code: $HASH" \
+    -H "X-2FA-Method: password" \
+    -F "asset=@/alexol-logo.png;type=image/png" \
+    -F "assetName=logo" \
+    -F "refreshAllClients=true" >/dev/null || true
+  echo "configure: uploaded Alexol logo"
+elif [ -f /login-logo.svg ]; then
   for asset in logo; do
     curl -sS -X POST "$RC_URL/api/v1/assets.setAsset" \
       -H "X-Auth-Token: $TOKEN" \

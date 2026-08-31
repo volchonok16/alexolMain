@@ -71,6 +71,12 @@ html.alexol-login form h2 {
   gap: 16px;
 }
 
+#alexol-login-overlay .alexol-login-mark {
+  width: 88px;
+  height: auto;
+  display: block;
+}
+
 #alexol-login-overlay .alexol-login-brand span {
   font-weight: 700;
   font-size: 42px;
