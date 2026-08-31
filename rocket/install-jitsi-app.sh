@@ -126,10 +126,40 @@ if [ "$need_marketplace" = "1" ] || [ "${FORCE_REBUILD:-0}" = "1" ]; then
   fi
 fi
 
+echo "install-jitsi: syncing Cloud license (needed for Marketplace app slots)"
+auth -X POST "$RC_URL/api/v1/cloud.syncWorkspace" \
+  -H "Content-Type: application/json" -d '{}' || true
+
+# Stale Deno runtime symlink after 8.5 upgrades blocks enable (license-prevented / compiler).
+if command -v docker >/dev/null 2>&1; then
+  docker exec rocket_chat rm -rf /tmp/apps-engine-temp 2>/dev/null || true
+fi
+
 echo "install-jitsi: enabling app"
-auth -X POST "$RC_URL/api/apps/$APP_ID/status" \
+ENABLE_OUT="$(auth -X POST "$RC_URL/api/apps/$APP_ID/status" \
   -H "Content-Type: application/json" \
-  -d '{"status":"manually_enabled"}' >/dev/null || true
+  -d '{"status":"manually_enabled"}' || true)"
+echo "$ENABLE_OUT" | jq -c '{status:.status,success:.success,error:.error,errorType:.errorType}' 2>/dev/null \
+  || echo "$ENABLE_OUT" | head -c 300
+echo
+
+if echo "$ENABLE_OUT" | grep -qi 'license-prevented\|prevented'; then
+  echo "install-jitsi: enable blocked by license — sync Cloud and retry"
+  auth -X POST "$RC_URL/api/v1/cloud.syncWorkspace" \
+    -H "Content-Type: application/json" -d '{}' || true
+  sleep 3
+  ENABLE_OUT="$(auth -X POST "$RC_URL/api/apps/$APP_ID/status" \
+    -H "Content-Type: application/json" \
+    -d '{"status":"manually_enabled"}' || true)"
+  echo "$ENABLE_OUT" | jq -c '{status:.status,success:.success,error:.error,errorType:.errorType}' 2>/dev/null \
+    || echo "$ENABLE_OUT" | head -c 300
+  echo
+  if echo "$ENABLE_OUT" | grep -qi 'license-prevented\|prevented'; then
+    echo "install-jitsi: still license-prevented (Marketplace 0/0)."
+    echo "install-jitsi: In chat admin open Marketplace → Enable unlimited apps"
+    echo "install-jitsi: (Connectivity Services → Register), then Installed → Jitsi → Enable."
+  fi
+fi
 
 set_app() {
   id="$1"

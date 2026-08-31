@@ -81,6 +81,8 @@ OAUTH_ROCKETCHAT_REDIRECT_URI=https://chat.alexol.io/_oauth/alexol
 
 Community **не включает private zip** (`Apps_Error_license-prevented`). Не заливай Jitsi файлом — только Marketplace.
 
+Если в Marketplace счётчик **0/0** и Jitsi «Отключено» — workspace не связан с Cloud (часто после `Register_Server=false`). Деплой ставит `Register_Server=true`. Один раз в админке чата: **Marketplace → Enable unlimited apps** (или Administration → Workspace → Connectivity Services → Register). После этого Jitsi включается, звонки идут на `meet.alexol.io`.
+
 Один раз в UI (админ чата):
 
 1. Administration → Workspace → **Connectivity Services** → Register (если Marketplace пустой).
