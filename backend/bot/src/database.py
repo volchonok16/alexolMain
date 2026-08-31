@@ -223,6 +223,34 @@ def mark_post_published(post_id: int):
     conn.close()
 
 
+def get_last_news_published_at() -> Optional[datetime]:
+    """Время последней опубликованной новости (не промо-поста без исходника)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT published_at FROM generated_posts
+        WHERE published = 1 AND parsed_post_id IS NOT NULL AND published_at IS NOT NULL
+        ORDER BY datetime(published_at) DESC
+        LIMIT 1
+        """
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    raw = row["published_at"]
+    if isinstance(raw, datetime):
+        return raw
+    text = str(raw).strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+
 def get_stats() -> dict:
     conn = get_connection()
     cursor = conn.cursor()

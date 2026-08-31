@@ -16,23 +16,94 @@ from src.project_requests_bot import run_requests_bot, setup_requests_bot
 from src.simple_forward_bot import run_forward_bot, setup_forward_bot
 from src.speak_tutor_bot import run_speak_bot
 
+from src import database as db
 import config
 import pytz
 
 
 scheduler = None
 generator = None
+_publish_lock = asyncio.Lock()
+# Окна ~4 часа; после рестарта догоняем слот, пока не началось следующее.
+NEWS_MISFIRE_GRACE_SECONDS = 4 * 60 * 60
 
 
-async def publish_news_post():
-    """Одна публикация новостного поста (вызывается по расписанию)."""
+def _bot_timezone():
+    return pytz.timezone(str(config.TIMEZONE))
+
+
+def _now():
+    return datetime.now(_bot_timezone())
+
+
+def _as_local(value: datetime) -> datetime:
+    tz = _bot_timezone()
+    if value.tzinfo is None:
+        return tz.localize(value)
+    return value.astimezone(tz)
+
+
+def _news_windows() -> list[tuple[int, int]]:
+    return list(getattr(config, "NEWS_WINDOWS", [(10, 11), (14, 15), (18, 19), (22, 23)]))
+
+
+def due_news_window_start(*, only_ended: bool = False) -> datetime | None:
+    """Начало самого свежего окна, за которое уже пора публиковать."""
+    now = _now()
+    starts: list[datetime] = []
+    for start_hour, end_hour in _news_windows():
+        start_today = now.replace(hour=start_hour, minute=0, second=0, microsecond=0)
+        end_today = now.replace(hour=end_hour, minute=0, second=0, microsecond=0)
+        if end_today <= start_today:
+            end_today += timedelta(days=1)
+        for day_offset in (0, -1):
+            start = start_today + timedelta(days=day_offset)
+            end = end_today + timedelta(days=day_offset)
+            if now >= (end if only_ended else start):
+                starts.append(start)
+    return max(starts) if starts else None
+
+
+def news_already_published_since(window_start: datetime) -> bool:
+    last = db.get_last_news_published_at()
+    if last is None:
+        return False
+    return _as_local(last) >= window_start
+
+
+async def publish_news_post(reason: str = "schedule", only_ended_window: bool = False):
+    """Публикация новости, если за текущее/пропущенное окно ещё нет поста."""
     global generator
-    try:
-        await generator.run_once()
-    except BaseException as e:
-        if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
-            raise
-        print(f"❌ Ошибка публикации новостного поста: {e}")
+    async with _publish_lock:
+        if not generator:
+            print(f"⏭ Пропуск публикации ({reason}): генератор ещё не готов")
+            return
+        window_start = due_news_window_start(only_ended=only_ended_window)
+        if window_start is None:
+            print(f"⏭ Пропуск публикации ({reason}): окно ещё не началось")
+            return
+        if news_already_published_since(window_start):
+            print(
+                f"⏭ Пропуск публикации ({reason}): за окно с {window_start.strftime('%d.%m %H:%M')} уже есть пост"
+            )
+            return
+        last = db.get_last_news_published_at()
+        last_label = _as_local(last).strftime("%d.%m %H:%M") if last else "нет"
+        print(
+            f"🚀 Публикация новости ({reason}): окно с {window_start.strftime('%d.%m %H:%M')}, "
+            f"последний пост {last_label}"
+        )
+        try:
+            await generator.run_once()
+        except BaseException as e:
+            if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                raise
+            print(f"❌ Ошибка публикации новостного поста: {e}")
+
+
+async def catch_up_missed_news():
+    """Догон пропущенного окна, если слот уже закончился, а поста нет."""
+    await publish_news_post(reason="catch-up", only_ended_window=True)
 
 
 def schedule_news_posts():
@@ -44,7 +115,7 @@ def schedule_news_posts():
     global scheduler
     tz = config.TIMEZONE
 
-    windows = getattr(config, "NEWS_WINDOWS", [(10, 11), (14, 15), (18, 19), (22, 23)])
+    windows = _news_windows()
 
     for i, (start_hour, end_hour) in enumerate(windows, 1):
         # Случайная минута внутри окна, фиксируется при старте бота на весь день.
@@ -61,11 +132,24 @@ def schedule_news_posts():
             id=f"post_generator_{i}",
             name=f"Новости {i}/4 ({start_hour:02d}–{end_hour:02d}ч)",
             replace_existing=True,
-            # Не 0: планировщик всегда чуть позже слота, иначе пост никогда не уходит.
-            # 10 мин — задержка цикла, а не догон часов простоя после рестарта.
-            misfire_grace_time=600,
+            misfire_grace_time=NEWS_MISFIRE_GRACE_SECONDS,
+            coalesce=True,
+            max_instances=1,
+            kwargs={"reason": "schedule"},
         )
         print(f"📅 Новости {i}/4: ежедневно в {hour:02d}:{minute:02d} ({tz})")
+
+    scheduler.add_job(
+        catch_up_missed_news,
+        IntervalTrigger(minutes=15, timezone=tz),
+        id="news_catch_up",
+        name="Догон пропущенных новостей",
+        replace_existing=True,
+        misfire_grace_time=600,
+        coalesce=True,
+        max_instances=1,
+    )
+    print("📅 Догон пропущенных новостей: каждые 15 минут после конца окна")
 
 
 async def publish_lead_post():
@@ -126,11 +210,15 @@ async def run_bot():
             await application.updater.start_polling(drop_pending_updates=True)
             print("📬 /start: бот принимает личные сообщения для сброса пароля почты")
 
-        print("\n⏭ Новость при старте не публикуем — только по расписанию (или python main.py --mode once).")
-
         scheduler.start()
         schedule_news_posts()
         schedule_lead_posts()
+
+        last = db.get_last_news_published_at()
+        last_label = _as_local(last).strftime("%d.%m %H:%M") if last else "нет"
+        print(f"\n📰 Последняя новость в SQLite: {last_label}")
+        print("🚀 Если утреннее/дневное окно уже прошло без поста — публикуем догон.")
+        await publish_news_post(reason="startup")
 
         try:
             while True:
