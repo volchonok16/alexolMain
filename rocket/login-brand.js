@@ -13,7 +13,7 @@
     '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 11 4.3v7.2H3V5.5zm8.5-.3 9.5-1.4v8.9h-9.5V5.2zM3 13.5h8v7.3L3 19.6v-6.1zm8.5 0h9.5V22l-9.5-1.4v-7.1z"/></svg>';
 
   function isLogin() {
-    return !!document.getElementById("welcomeTitle");
+    return !!(document.getElementById("welcomeTitle") && document.querySelector("input[type=password]"));
   }
 
   function setFavicon() {
@@ -74,6 +74,13 @@
     if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
+  function clearLoginClasses() {
+    document.documentElement.classList.remove("alexol-login");
+    document.querySelectorAll(".alexol-login-aside,.alexol-login-card,.alexol-login-shell").forEach(function (el) {
+      el.classList.remove("alexol-login-aside", "alexol-login-card", "alexol-login-shell");
+    });
+  }
+
   function findCard(form) {
     var card = form;
     var hops = 0;
@@ -97,7 +104,9 @@
     while (aside.parentElement && aside.parentElement.querySelector && !aside.parentElement.querySelector("form, input[type=password]")) {
       aside = aside.parentElement;
     }
-    if (aside && aside !== welcome) aside.classList.add("alexol-login-aside");
+    if (aside && aside !== welcome && aside.offsetWidth < 640) {
+      aside.classList.add("alexol-login-aside");
+    }
 
     var card = findCard(form);
     card.classList.add("alexol-login-card");
@@ -129,35 +138,24 @@
     wrap.style.alignItems = "flex-start";
   }
 
-  function hideRocketMarks(root) {
-    if (!root || !root.querySelectorAll) return;
-    var nodes = root.querySelectorAll("a, span, p, small, div, svg, img");
-    var i;
-    for (i = 0; i < nodes.length; i++) {
-      var el = nodes[i];
-      if (el.closest && el.closest("#alexol-login-overlay,#alexol-jitsi-overlay,#alexol-jitsi-launch,form")) continue;
-      if (el.children && el.children.length > 6) continue;
-      var href = (el.getAttribute && (el.getAttribute("href") || el.getAttribute("src") || "")) || "";
-      var t = (el.textContent || "").replace(/\s+/g, " ").trim();
-      var isLink = /https?:\/\/(www\.)?rocket\.chat/i.test(href);
-      var isLabel =
-        /^(powered by\s*)?rocket\.chat$/i.test(t) ||
-        /^powered by rocket\.chat$/i.test(t) ||
-        (t.length < 48 && /powered by rocket\.chat/i.test(t));
-      var parentText = (el.parentElement && (el.parentElement.textContent || "").replace(/\s+/g, " ").trim()) || "";
-      var isPlan =
-        /^(starter|community)$/i.test(t) &&
-        parentText.length < 80 &&
-        /rocket\.chat/i.test(parentText);
-      if (!isLink && !isLabel && !isPlan) continue;
-      var block = el;
-      if (el.parentElement && parentText.length < 80) block = el.parentElement;
-      block.style.setProperty("display", "none", "important");
-    }
+  function hideWatermarkLink(a) {
+    if (!a || a.closest && a.closest("#alexol-login-overlay,#alexol-jitsi-overlay,#alexol-jitsi-launch")) return;
+    a.style.setProperty("display", "none", "important");
+    var p = a.parentElement;
+    if (!p) return;
+    var h = p.offsetHeight || 0;
+    var t = (p.textContent || "").replace(/\s+/g, " ").trim();
+    if (h > 56 || t.length > 64) return;
+    if (p.querySelector("input,form,[data-qa-type],[role=listitem],a[href^='/channel'],a[href^='/direct']")) return;
+    p.style.setProperty("display", "none", "important");
+  }
+
+  function hideRocketWatermark() {
+    document.querySelectorAll('a[href^="https://rocket.chat"], a[href^="http://rocket.chat"], a[href^="https://www.rocket.chat"]').forEach(hideWatermarkLink);
   }
 
   function hideChrome() {
-    hideRocketMarks(document.body);
+    hideRocketWatermark();
     document.querySelectorAll("a, p, span, button").forEach(function (el) {
       if (el.closest && el.closest("#alexol-login-overlay")) return;
       var t = (el.textContent || "").replace(/\s+/g, " ").trim();
@@ -181,13 +179,6 @@
     });
   }
 
-  function hideSidebarRocket() {
-    var roots = document.querySelectorAll("aside, nav");
-    if (!roots.length) hideRocketMarks(document.body);
-    var i;
-    for (i = 0; i < roots.length; i++) hideRocketMarks(roots[i]);
-  }
-
   var ticking = false;
   function apply() {
     setFavicon();
@@ -197,9 +188,9 @@
       positionOverlay(centerLayout());
       return;
     }
-    document.documentElement.classList.remove("alexol-login");
+    clearLoginClasses();
     removeOverlay();
-    hideSidebarRocket();
+    hideRocketWatermark();
   }
   function schedule() {
     if (ticking) return;

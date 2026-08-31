@@ -174,8 +174,8 @@ set_string "Layout_Login_Terms" "<p style=\"margin:16px 0 0;text-align:center;co
 set_string "Layout_Terms_of_Service" " "
 set_string "Layout_Privacy_Policy" " "
 set_string "Layout_Legal_Notice" " "
-FOOTER_DARK='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-mark.png" width="36" height="40" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#F8FAFC">Alexol</span></a>'
-FOOTER_LIGHT='<a href="/home" style="display:flex;align-items:center;gap:10px;text-decoration:none;height:70px;padding:0 16px;box-sizing:border-box"><img src="/alexol-mark.png" width="36" height="40" alt="Alexol"/><span style="font-weight:700;font-size:18px;color:#0C0F16">Alexol</span></a>'
+FOOTER_DARK='<a href="/home" style="display:flex;align-items:center;height:72px;padding:0 16px;box-sizing:border-box;text-decoration:none"><img src="/alexol-sidebar.png" alt="Alexol" style="height:40px;width:auto;max-width:100%;display:block"/></a>'
+FOOTER_LIGHT='<a href="/home" style="display:flex;align-items:center;height:72px;padding:0 16px;box-sizing:border-box;text-decoration:none"><img src="/alexol-sidebar-light.png" alt="Alexol" style="height:40px;width:auto;max-width:100%;display:block"/></a>'
 set_string "Layout_Sidenav_Footer_Dark" "$FOOTER_DARK"
 set_string "Layout_Sidenav_Footer" "$FOOTER_LIGHT"
 echo "configure: sidebar footer set to Alexol"

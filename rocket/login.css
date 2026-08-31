@@ -5,11 +5,6 @@ a[href^="https://www.rocket.chat"] {
   display: none !important;
 }
 
-aside a[href*="rocket.chat"],
-nav a[href*="rocket.chat"] {
-  display: none !important;
-}
-
 a[href*="terms-of-service"],
 a[href*="privacy-policy"],
 a[href*="legal-notice"],
@@ -84,9 +79,16 @@ html.alexol-login .alexol-sso-btn {
   font-weight: 600 !important;
 }
 
-#welcomeTitle {
+html.alexol-login #welcomeTitle {
   font-size: 0 !important;
   line-height: 0 !important;
+}
+
+aside a[href="/home"] img[src*="alexol-sidebar"] {
+  height: 40px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  max-height: 40px !important;
 }
 
 #alexol-login-overlay {
