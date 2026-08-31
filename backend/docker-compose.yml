@@ -43,7 +43,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-courses}
-      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://minio.alexol.io}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://api.alexol.io}
       MINIO_MAX_VIDEO_SIZE_MB: ${MINIO_MAX_VIDEO_SIZE_MB:-10240}
       # Reach mail-server over shared Docker network (not host.docker.internal -
       # mail API is bound to 127.0.0.1:17000 on the host and is unreachable that way).

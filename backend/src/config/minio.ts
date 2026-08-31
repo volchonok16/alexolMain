@@ -74,7 +74,7 @@ export async function initMinio(): Promise<void> {
 }
 
 export function rewritePublicStorageUrl(url: string): string {
-  return url.replace(/^http:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://minio.alexol.io');
+  return url.replace(/^https?:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://api.alexol.io');
 }
 
 export function getMinioPublicUrl(objectKey: string): string {

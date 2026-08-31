@@ -17,9 +17,9 @@ export interface PortfolioItem {
 }
 
 const resolveImageUrl = (url: string): string => {
-  // Seeded items still store http://minio.alexol.io; HTTPS is required on the live site.
-  if (url.startsWith('http://minio.alexol.io')) {
-    return `https://${url.slice('http://'.length)}`;
+  // Old rows pointed at minio.alexol.io, which has no HTTPS vhost (SNI fell through to admin 404s).
+  if (/^https?:\/\/minio\.alexol\.io\b/i.test(url)) {
+    return `https://api.alexol.io${url.replace(/^https?:\/\/minio\.alexol\.io/i, '')}`;
   }
   if (url.startsWith('http')) return url;
   const isDev = window.location.hostname === 'localhost';

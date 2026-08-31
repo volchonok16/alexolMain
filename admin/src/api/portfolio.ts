@@ -2,6 +2,17 @@ import { apiClient } from './client';
 
 export const PORTFOLIO_CATEGORIES = ['Crypto', 'eCommerce', 'Enterprise', 'Automation'] as const;
 
+function resolveImageUrl(url: string): string {
+  if (/^https?:\/\/minio\.alexol\.io\b/i.test(url)) {
+    return `https://api.alexol.io${url.replace(/^https?:\/\/minio\.alexol\.io/i, '')}`;
+  }
+  return url;
+}
+
+function mapItem(item: PortfolioItem): PortfolioItem {
+  return { ...item, imageUrl: resolveImageUrl(item.imageUrl) };
+}
+
 export interface PortfolioItem {
   id: string;
   category: string;
@@ -36,12 +47,12 @@ export const portfolioApi = {
     const response = await apiClient.get<{ data: PortfolioItem[] }>('/portfolio', {
       params: { limit: 100 },
     });
-    return response.data.data;
+    return response.data.data.map(mapItem);
   },
 
   getById: async (id: string): Promise<PortfolioItem> => {
     const response = await apiClient.get<{ data: PortfolioItem }>(`/portfolio/${id}`);
-    return response.data.data;
+    return mapItem(response.data.data);
   },
 
   create: async (data: PortfolioPayload): Promise<PortfolioItem> => {
@@ -49,7 +60,7 @@ export const portfolioApi = {
     const response = await apiClient.post<{ data: PortfolioItem }>('/portfolio', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response.data.data;
+    return mapItem(response.data.data);
   },
 
   update: async (id: string, data: PortfolioPayload): Promise<PortfolioItem> => {
@@ -57,7 +68,7 @@ export const portfolioApi = {
     const response = await apiClient.put<{ data: PortfolioItem }>(`/portfolio/${id}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response.data.data;
+    return mapItem(response.data.data);
   },
 
   delete: async (id: string): Promise<void> => {
