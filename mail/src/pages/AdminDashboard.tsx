@@ -7,7 +7,7 @@ import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileTex
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PasswordInput } from '../components/PasswordInput'
 import { useToast } from '../components/Toast'
-import { openChat, openSiteAdmin } from '../sso'
+import { openSiteAdmin, useChatHandoff } from '../sso'
 import {
   starterHtml,
   templateTypeLabel,
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
   const currentUser = useAuthStore((state) => state.user)
   const queryClient = useQueryClient()
   const [siteAdminLoading, setSiteAdminLoading] = useState(false)
-  const [chatLoading, setChatLoading] = useState(false)
+  const { chatLoading, openChatUi } = useChatHandoff()
   
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -330,15 +330,9 @@ export default function AdminDashboard() {
             {siteAdminLoading ? '…' : 'Admin сайта'}
           </button>
           <button
-            onClick={async () => {
-              setChatLoading(true)
-              try {
-                void openChat()
-              } catch {
-                setChatLoading(false)
-                window.open('https://chat.alexol.io', '_blank', 'noopener,noreferrer')
-              }
-            }}
+            onClick={() =>
+              openChatUi(() => toast.error('Не удалось открыть чат'))
+            }
             className="btn-templates"
             disabled={chatLoading}
           >

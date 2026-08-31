@@ -7,7 +7,7 @@ import { Mail, Send, Inbox, LogOut, User, RefreshCw, Users, FileText, Menu, X, L
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PeerAvatar } from '../components/PeerAvatar'
 import { useToast } from '../components/Toast'
-import { openChat, openSiteAdmin } from '../sso'
+import { openSiteAdmin, useChatHandoff } from '../sso'
 import {
   starterHtml,
   templateTypeLabel,
@@ -90,7 +90,7 @@ export default function UserDashboard() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [siteAdminLoading, setSiteAdminLoading] = useState(false)
-  const [chatLoading, setChatLoading] = useState(false)
+  const { chatLoading, openChatUi } = useChatHandoff()
   const [composeData, setComposeData] = useState({
     to_address: '',
     subject: '',
@@ -596,16 +596,9 @@ export default function UserDashboard() {
           </button>
           <button
             type="button"
-            onClick={async () => {
-              setChatLoading(true)
-              try {
-                void openChat()
-              } catch {
-                toast.error('Не удалось открыть чат')
-                window.open('https://chat.alexol.io', '_blank', 'noopener,noreferrer')
-                setChatLoading(false)
-              }
-            }}
+            onClick={() =>
+              openChatUi(() => toast.error('Не удалось открыть чат'))
+            }
             className="btn-profile"
             disabled={chatLoading}
             title="chat.alexol.io — тот же вход, что у почты"

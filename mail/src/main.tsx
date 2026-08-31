@@ -6,6 +6,15 @@ import { ThemeProvider } from './components/ThemeProvider'
 import { ToastProvider } from './components/Toast'
 import './index.css'
 
+if (
+  window.location.protocol === 'http:' &&
+  window.location.hostname === 'mail.alexol.io'
+) {
+  window.location.replace(
+    `https://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`,
+  )
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
