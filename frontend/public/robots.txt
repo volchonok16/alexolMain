@@ -10,5 +10,5 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Host: alexol.io
+Host: https://alexol.io
 Sitemap: https://alexol.io/sitemap.xml
