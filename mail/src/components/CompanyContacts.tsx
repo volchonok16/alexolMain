@@ -241,7 +241,7 @@ export default function CompanyContacts() {
               className="org-contact-card"
               onClick={() => setSelected(person)}
             >
-              <PeerAvatar src={person.avatar_url} email={person.email} name={person.full_name} size={48} />
+              <PeerAvatar src={person.avatar_url} email={person.email} name={person.full_name} size={40} />
               <div className="org-contact-body">
                 <div className="org-contact-name">
                   {person.full_name}
