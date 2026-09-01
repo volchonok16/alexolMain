@@ -146,8 +146,8 @@ export const QaSettingsPanel = () => {
       <form className="qa-card modal__form" onSubmit={handleSave}>
         <h2 className="qa-card__title">Промпт и лимит ответа</h2>
         <p className="qa-card__hint">
-          Внутренний бриф всегда есть в базе: услуги, тон, как передавать в продажи. Клиент его не видит.
-          Оператор отвечает по-человечески; если ответа нет — менеджеры погрузятся глубже после заявки.
+          Внутренний бриф всегда есть в базе. Ответ без «Понял…», без подписи и без оторванного хвоста
+          «оставьте заявку» — сначала «Ознакомился с вопросом про …», затем суть.
         </p>
         {saveError && <div className="dashboard__error">{saveError}</div>}
         {saveOk && <div className="qa-ok">Настройки сохранены</div>}

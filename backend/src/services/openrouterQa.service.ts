@@ -1,6 +1,6 @@
 import { fetch, ProxyAgent, type Dispatcher } from 'undici';
 import { config } from '../config/env.js';
-import { charCount, extractOpenRouterText, fitToMaxChars } from '../utils/qaText.js';
+import { charCount, extractOpenRouterText, fitToMaxChars, sanitizeQaReply } from '../utils/qaText.js';
 
 type ChatTurn = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -53,9 +53,10 @@ export class OpenRouterQaService {
 
       try {
         const text = await this.tryModel(model, messages, maxChars, timeoutMs);
-        if (text) {
+        const cleaned = text ? fitToMaxChars(sanitizeQaReply(text), maxChars) : '';
+        if (charCount(cleaned) >= 8) {
           console.log(`[qa] OpenRouter ok: ${model}`);
-          return fitToMaxChars(text, maxChars);
+          return cleaned;
         }
         lastError = `Пустой ответ модели ${model}`;
       } catch (error) {
@@ -104,6 +105,7 @@ export class OpenRouterQaService {
           messages,
           temperature: 0.7,
           max_tokens: maxTokens,
+          reasoning: { exclude: true },
         }),
       });
 

@@ -7,6 +7,7 @@ import {
   buildSystemPrompt,
   fitToMaxChars,
   historySince,
+  isStockOperatorPrompt,
   previewText,
 } from '../utils/qaText.js';
 
@@ -42,7 +43,7 @@ export class QaService {
   async getSettings() {
     const settings = await this.repository.getSettings();
     const stored =
-      !settings || !settings.prompt.trim()
+      !settings || isStockOperatorPrompt(settings.prompt)
         ? await this.repository.upsertSettings(DEFAULT_OPERATOR_PROMPT, settings?.maxChars ?? QA_DEFAULT_CHARS)
         : settings;
     return { ...stored, defaultPrompt: DEFAULT_OPERATOR_PROMPT };
