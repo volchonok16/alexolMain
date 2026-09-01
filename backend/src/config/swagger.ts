@@ -12,7 +12,7 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'Backend API',
       version: '1.0.0',
-      description: 'API для управления пользователями, новостями, курсами и портфолио',
+      description: 'API для управления пользователями, новостями, курсами, портфолио и Q&A ботом',
     },
     servers: [
       {

@@ -50,6 +50,15 @@ services:
       MAIL_API_URL: ${MAIL_API_URL:-http://mail_backend:8000}
       MAIL_SYNC_SECRET: ${MAIL_SYNC_SECRET:-}
       MAIL_DOMAIN: ${MAIL_DOMAIN:-alexol.io}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-https://api.alexol.io}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free}
+      OPENROUTER_FALLBACK_MODELS: ${OPENROUTER_FALLBACK_MODELS:-}
+      OPENROUTER_HTTP_PROXY: ${OPENROUTER_HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      OPENROUTER_TIMEOUT_MS: ${OPENROUTER_TIMEOUT_MS:-180000}
+      OPENROUTER_PER_MODEL_TIMEOUT_MS: ${OPENROUTER_PER_MODEL_TIMEOUT_MS:-90000}
     depends_on:
       postgres:
         condition: service_healthy

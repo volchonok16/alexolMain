@@ -34,6 +34,15 @@ const parseCorsOrigin = (origin: string | undefined): string[] => {
   return customOrigins.length > 0 ? customOrigins : productionOrigins;
 };
 
+const parseCsv = (value: string | undefined, fallback: string[]): string[] => {
+  if (!value?.trim()) return fallback;
+  const items = value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : fallback;
+};
+
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (value === undefined) return fallback;
   return ['1', 'true', 'yes'].includes(value.toLowerCase());
@@ -97,5 +106,36 @@ export const config = {
     apiUrl: parseMailApiUrl(process.env.MAIL_API_URL),
     syncSecret: process.env.MAIL_SYNC_SECRET || '',
     domain: process.env.MAIL_DOMAIN || 'alexol.io',
+  },
+  openrouter: {
+    apiKey: process.env.OPENROUTER_API_KEY || '',
+    baseUrl: (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, ''),
+    model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    fallbackModels: parseCsv(
+      process.env.OPENROUTER_FALLBACK_MODELS,
+      [
+        'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+        'poolside/laguna-xs.2:free',
+        'openrouter/free',
+        'qwen/qwen3.6-plus:free',
+        'nvidia/nemotron-3-nano-30b-a3b:free',
+        'google/gemma-3-27b-it:free',
+        'meta-llama/llama-3.3-70b-instruct:free',
+      ]
+    ),
+    httpProxy: (
+      process.env.OPENROUTER_HTTP_PROXY ||
+      process.env.HTTPS_PROXY ||
+      process.env.HTTP_PROXY ||
+      process.env.https_proxy ||
+      process.env.http_proxy ||
+      ''
+    ).trim(),
+    timeoutMs: Number.isFinite(parseInt(process.env.OPENROUTER_TIMEOUT_MS || '', 10))
+      ? parseInt(process.env.OPENROUTER_TIMEOUT_MS || '180000', 10)
+      : 180000,
+    perModelTimeoutMs: Number.isFinite(parseInt(process.env.OPENROUTER_PER_MODEL_TIMEOUT_MS || '', 10))
+      ? parseInt(process.env.OPENROUTER_PER_MODEL_TIMEOUT_MS || '90000', 10)
+      : 90000,
   },
 };

@@ -10,6 +10,7 @@ const titles: Record<string, string> = {
   '/courses': 'Курсы',
   '/portfolio': 'Портфолио',
   '/leads': 'Заявки',
+  '/qa': 'БОТ Q&A',
   '/users': 'Пользователи',
   '/settings': 'Мои настройки',
 };

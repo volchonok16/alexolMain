@@ -14,12 +14,15 @@ import { contactRouter } from './routes/contact.routes.js';
 import { leadRouter } from './routes/lead.routes.js';
 import { portfolioRouter } from './routes/portfolio.routes.js';
 import { mailSyncRouter } from './routes/mailSync.routes.js';
+import { qaRouter } from './routes/qa.routes.js';
 import { initAdmin } from './utils/initAdmin.js';
 import { seedPortfolio } from './utils/seedPortfolio.js';
 import { initMinio } from './config/minio.js';
+import { applyServerTimeouts } from './utils/longTimeout.js';
+import { qaService } from './services/qa.service.js';
 
 const app = express();
-
+app.set('trust proxy', 1);
 app.use(helmet());
 
 // CORS configuration - must be before other middleware
@@ -66,16 +69,14 @@ app.use('/api/courses', courseRouter);
 app.use('/api/portfolio', portfolioRouter);
 app.use('/api/contact', contactRouter);
 app.use('/api/leads', leadRouter);
+app.use('/api/qa', qaRouter);
 
 app.use(errorHandler);
 
-// Запуск сервера с автоматической инициализацией админа
-app.listen(config.port, async () => {
+const server = app.listen(config.port, async () => {
   console.log(`🚀 Server running on port ${config.port}`);
-  
-  // Инициализация админа при первом запуске
-  await initAdmin();
 
+  await initAdmin();
   await initMinio();
 
   try {
@@ -83,4 +84,11 @@ app.listen(config.port, async () => {
   } catch (error) {
     console.error('[Portfolio] Seed failed:', error);
   }
+
+  await qaService.cleanupExpired();
+  setInterval(() => {
+    void qaService.cleanupExpired();
+  }, 15 * 60 * 1000);
 });
+
+applyServerTimeouts(server);

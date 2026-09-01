@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Newspaper, GraduationCap, Users, Briefcase, Inbox } from 'lucide-react';
+import { Newspaper, GraduationCap, Users, Briefcase, Inbox, Bot } from 'lucide-react';
 import './Sidebar.scss';
 
 interface SidebarProps {
@@ -31,6 +31,10 @@ export const Sidebar = ({ open, onClose }: SidebarProps) => {
         <NavLink to="/leads" className="sidebar__link" onClick={onClose}>
           <Inbox />
           <span>Заявки</span>
+        </NavLink>
+        <NavLink to="/qa" className="sidebar__link" onClick={onClose}>
+          <Bot />
+          <span>БОТ Q&A</span>
         </NavLink>
         <NavLink to="/users" className="sidebar__link" onClick={onClose}>
           <Users />

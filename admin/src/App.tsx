@@ -9,6 +9,7 @@ import { CoursesManagement } from '@/pages/DashboardPage/components/CoursesManag
 import { PortfolioManagement } from '@/pages/DashboardPage/components/PortfolioManagement';
 import { UsersManagement } from '@/pages/DashboardPage/components/UsersManagement';
 import { LeadsManagement } from '@/pages/DashboardPage/components/LeadsManagement';
+import { QaBotPage } from '@/pages/DashboardPage/components/QaBotPage';
 import { SettingsPage } from '@/pages/DashboardPage/components/SettingsPage';
 import '@/styles/globals.scss';
 
@@ -39,6 +40,7 @@ const App = () => {
                 <Route path="/portfolio" element={<PortfolioManagement />} />
                 <Route path="/users" element={<UsersManagement />} />
                 <Route path="/leads" element={<LeadsManagement />} />
+                <Route path="/qa" element={<QaBotPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
