@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { resolveApiAssetUrl } from '@/api/client';
 
 type AvatarProps = {
@@ -13,6 +13,10 @@ type AvatarProps = {
 export const Avatar = ({ src, alt, className, emptyClassName, fallback }: AvatarProps) => {
   const [broken, setBroken] = useState(false);
   const url = src ? resolveApiAssetUrl(src) : '';
+
+  useEffect(() => {
+    setBroken(false);
+  }, [src]);
 
   if (!url || broken) {
     return <span className={emptyClassName || className}>{fallback}</span>;

@@ -78,9 +78,7 @@ export const usersApi = {
     appendOrgFields(formData, data);
     if (data.photo) formData.append('photo', data.photo);
 
-    const response = await apiClient.post<{ data: User }>('/users', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.post<{ data: User }>('/users', formData);
     return response.data.data;
   },
 
@@ -98,9 +96,7 @@ export const usersApi = {
     if (data.password) formData.append('password', data.password);
     if (data.photo) formData.append('photo', data.photo);
 
-    const response = await apiClient.put<{ data: User }>(`/users/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.put<{ data: User }>(`/users/${id}`, formData);
     return response.data.data;
   },
 

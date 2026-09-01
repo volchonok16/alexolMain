@@ -7,16 +7,45 @@ import { useUsers } from '../hooks/useUsers';
 import { Pagination } from './Pagination';
 import { UserModal } from './UserModal';
 import { UserDetailModal } from './UserDetailModal';
-import { orgRoleLabels } from '@/utils/orgRoles';
+import { normalizeOrgRoles, orgRoleLabels } from '@/utils/orgRoles';
 import './UsersManagement.scss';
 
 const rightsLabel = (role: string) => (role === 'admin' ? 'Админ' : 'Пользователь');
+
+const toPayload = (user: User, extra?: Partial<UserPayload>): UserPayload => ({
+  login: user.login,
+  name: user.name,
+  role: user.role,
+  email: user.email || undefined,
+  phone: user.phone || undefined,
+  jobTitle: user.jobTitle || undefined,
+  telegram: user.telegram || undefined,
+  birthDate: user.birthDate || undefined,
+  orgRoles: normalizeOrgRoles(user.orgRoles),
+  direction: user.direction || undefined,
+  isTechnical: Boolean(user.isTechnical),
+  ...extra,
+});
+
+const apiErrorMessage = (err: unknown, fallback: string) => {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'response' in err &&
+    typeof (err as { response?: { data?: { error?: string } } }).response?.data?.error === 'string'
+  ) {
+    return (err as { response: { data: { error: string } } }).response.data.error;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+};
 
 export const UsersManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [viewingUser, setViewingUser] = useState<User | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const {
     users,
     pagination,
@@ -42,6 +71,7 @@ export const UsersManagement = () => {
     setViewingUser(null);
     setEditingUser(user);
     setSaveError(null);
+    setPhotoError(null);
     setIsModalOpen(true);
   };
 
@@ -52,14 +82,7 @@ export const UsersManagement = () => {
       await deleteUser(id);
       setViewingUser(null);
     } catch (err) {
-      const apiError =
-        typeof err === 'object' &&
-        err !== null &&
-        'response' in err &&
-        typeof (err as { response?: { data?: { error?: string } } }).response?.data?.error === 'string'
-          ? (err as { response: { data: { error: string } } }).response.data.error
-          : 'Не удалось удалить пользователя';
-      setSaveError(apiError);
+      setSaveError(apiErrorMessage(err, 'Не удалось удалить пользователя'));
     }
   };
 
@@ -76,15 +99,31 @@ export const UsersManagement = () => {
       }
       setIsModalOpen(false);
     } catch (err) {
-      const apiError =
-        typeof err === 'object' &&
-        err !== null &&
-        'response' in err &&
-        typeof (err as { response?: { data?: { error?: string } } }).response?.data?.error === 'string'
-          ? (err as { response: { data: { error: string } } }).response.data.error
-          : 'Не удалось сохранить пользователя';
-      setSaveError(apiError);
+      setSaveError(apiErrorMessage(err, 'Не удалось сохранить пользователя'));
     }
+  };
+
+  const handlePhoto = async (file: File) => {
+    if (!viewingUser) return;
+    setPhotoError(null);
+    setSaveError(null);
+    try {
+      const updated = await updateUser({ id: viewingUser.id, data: toPayload(viewingUser, { photo: file }) });
+      setViewingUser(updated);
+      if (updated.id === currentUser?.id) {
+        await refreshUser();
+      }
+    } catch (err) {
+      setPhotoError(apiErrorMessage(err, 'Не удалось сохранить фото. Нужен JPG, PNG или WebP.'));
+    }
+  };
+
+  const handleTableWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    const node = event.currentTarget;
+    if (node.scrollWidth <= node.clientWidth) return;
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    node.scrollLeft += event.deltaY;
+    event.preventDefault();
   };
 
   if (isLoading) return <div className="dashboard__container">Загрузка...</div>;
@@ -110,13 +149,19 @@ export const UsersManagement = () => {
       {users.length === 0 ? (
         <div className="dashboard__empty">Пользователей пока нет</div>
       ) : (
-        <div className="dashboard__table dashboard__table--compact">
+        <div
+          className="dashboard__table dashboard__table--compact"
+          onWheel={handleTableWheel}
+        >
           <table>
             <thead>
               <tr>
                 <th>Фото</th>
                 <th>ФИО</th>
                 <th>Логин</th>
+                <th>Почта</th>
+                <th>Телефон</th>
+                <th>Телеграм</th>
                 <th>Роли</th>
                 <th>Направление</th>
                 <th>Права</th>
@@ -147,6 +192,9 @@ export const UsersManagement = () => {
                     ) : null}
                   </td>
                   <td data-label="Логин">{user.login}</td>
+                  <td data-label="Почта">{user.email || '—'}</td>
+                  <td data-label="Телефон">{user.phone || '—'}</td>
+                  <td data-label="Телеграм">{user.telegram || '—'}</td>
                   <td data-label="Роли">
                     <div className="users-management__pills">
                       {roleLabels.map(label => (
@@ -184,9 +232,15 @@ export const UsersManagement = () => {
         <UserDetailModal
           user={viewingUser}
           canDelete={viewingUser.id !== currentUser?.id}
-          onClose={() => setViewingUser(null)}
+          photoBusy={isSaving}
+          photoError={photoError}
+          onClose={() => {
+            setViewingUser(null);
+            setPhotoError(null);
+          }}
           onEdit={() => handleEdit(viewingUser)}
           onDelete={() => handleDelete(viewingUser.id)}
+          onPhoto={handlePhoto}
         />
       )}
 

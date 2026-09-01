@@ -33,9 +33,7 @@ export const newsApi = {
     formData.append('title', data.title);
     formData.append('text', data.text);
     formData.append('photo', data.photo);
-    const response = await apiClient.post<{ data: News }>('/news', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.post<{ data: News }>('/news', formData);
     return response.data.data;
   },
 
@@ -44,9 +42,7 @@ export const newsApi = {
     formData.append('title', data.title);
     formData.append('text', data.text);
     formData.append('photo', data.photo);
-    const response = await apiClient.put<{ data: News }>(`/news/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.put<{ data: News }>(`/news/${id}`, formData);
     return response.data.data;
   },
 

@@ -34,14 +34,31 @@
     border-radius: 0.75rem;
     max-width: 100%;
     min-width: 0;
-    overflow-x: auto;
+    overflow-x: scroll;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(10, 227, 255, 0.65) rgba(255, 255, 255, 0.08);
+
+    &::-webkit-scrollbar {
+      height: 12px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(10, 227, 255, 0.55);
+      border-radius: 999px;
+    }
 
     table {
       width: max-content;
-      min-width: 56rem;
+      min-width: 72rem;
       border-collapse: collapse;
     }
 
@@ -51,7 +68,7 @@
       overscroll-behavior-x: contain;
 
       table {
-        min-width: 64rem;
+        min-width: 88rem;
       }
     }
 
@@ -288,6 +305,28 @@
   &__file {
     padding: 0.5rem !important;
     cursor: pointer;
+  }
+
+  &__file-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    min-height: 2.75rem;
+    padding: 0.55rem 1rem;
+    border: 1px solid rgba(10, 227, 255, 0.35);
+    border-radius: 0.5rem;
+    color: #0AE3FF;
+    cursor: pointer;
+    font-weight: 600;
+
+    input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
   }
 
   &__preview {

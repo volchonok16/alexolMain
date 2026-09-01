@@ -12,19 +12,31 @@ const formatBirthDate = (value?: string | null) => {
 type UserDetailModalProps = {
   user: User;
   canDelete: boolean;
+  photoBusy?: boolean;
+  photoError?: string | null;
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onPhoto: (file: File) => void;
 };
 
 export const UserDetailModal = ({
   user,
   canDelete,
+  photoBusy = false,
+  photoError,
   onClose,
   onEdit,
   onDelete,
+  onPhoto,
 }: UserDetailModalProps) => {
   const roles = orgRoleLabels(user.orgRoles);
+
+  const handlePhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) onPhoto(file);
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -32,13 +44,22 @@ export const UserDetailModal = ({
         <h2 className="modal__title">Карточка пользователя</h2>
 
         <div className="users-management__detail-head">
-          <Avatar
-            src={user.photo}
-            alt={user.name}
-            className="users-management__detail-photo"
-            emptyClassName="users-management__detail-photo users-management__photo--empty"
-            fallback={user.name.slice(0, 1).toUpperCase()}
-          />
+          <label className="users-management__photo-picker">
+            <Avatar
+              src={user.photo}
+              alt={user.name}
+              className="users-management__detail-photo"
+              emptyClassName="users-management__detail-photo users-management__photo--empty"
+              fallback={user.name.slice(0, 1).toUpperCase()}
+            />
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handlePhoto}
+              disabled={photoBusy}
+            />
+            <span>{photoBusy ? 'Сохранение…' : 'Поставить фото'}</span>
+          </label>
           <div>
             <p className="users-management__detail-name">{user.name}</p>
             <div className="users-management__pills">
@@ -47,6 +68,7 @@ export const UserDetailModal = ({
               </span>
               {user.isTechnical ? <span className="users-management__tech">Техн.</span> : null}
             </div>
+            {photoError ? <p className="users-management__photo-error">{photoError}</p> : null}
           </div>
         </div>
 

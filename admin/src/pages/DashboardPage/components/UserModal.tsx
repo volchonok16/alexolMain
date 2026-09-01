@@ -195,9 +195,17 @@ export const UserModal = ({
 
         <div className="modal__field">
           <label>Фотография</label>
-          <input type="file" accept="image/*" onChange={handlePhotoChange} className="modal__file" disabled={isSaving} />
+          <label className="modal__file-button">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handlePhotoChange}
+              disabled={isSaving}
+            />
+            {photo ? photo.name : preview ? 'Заменить фото' : 'Выбрать фото'}
+          </label>
           {preview && <img src={preview} alt="Preview" className="modal__preview modal__preview--avatar" />}
-          <p className="modal__hint">Фото синхронизируется с mail.alexol.io</p>
+          <p className="modal__hint">JPG, PNG или WebP. Фото уходит в почту, чат и Meet.</p>
         </div>
 
         <div className="modal__actions">

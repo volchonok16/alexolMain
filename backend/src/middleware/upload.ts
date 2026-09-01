@@ -33,7 +33,7 @@ export const upload = multer({
     if (extname && mimetype) {
       cb(null, true);
     } else {
-      cb(new Error('Only images are allowed'));
+      cb(new Error('Нужен файл JPG, PNG или WebP'));
     }
   }
 });

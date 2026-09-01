@@ -45,7 +45,6 @@ export const coursesApi = {
     }
 
     const response = await apiClient.post<{ data: Course }>('/courses', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: COURSE_UPLOAD_TIMEOUT_MS,
       onUploadProgress: event => {
         if (!event.total) return;
@@ -69,7 +68,6 @@ export const coursesApi = {
     }
 
     const response = await apiClient.put<{ data: Course }>(`/courses/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: COURSE_UPLOAD_TIMEOUT_MS,
       onUploadProgress: event => {
         if (!event.total) return;

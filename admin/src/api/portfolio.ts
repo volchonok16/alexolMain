@@ -59,17 +59,13 @@ export const portfolioApi = {
 
   create: async (data: PortfolioPayload): Promise<PortfolioItem> => {
     const formData = toFormData(data);
-    const response = await apiClient.post<{ data: PortfolioItem }>('/portfolio', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.post<{ data: PortfolioItem }>('/portfolio', formData);
     return mapItem(response.data.data);
   },
 
   update: async (id: string, data: PortfolioPayload): Promise<PortfolioItem> => {
     const formData = toFormData(data);
-    const response = await apiClient.put<{ data: PortfolioItem }>(`/portfolio/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.put<{ data: PortfolioItem }>(`/portfolio/${id}`, formData);
     return mapItem(response.data.data);
   },
 

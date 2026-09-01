@@ -197,27 +197,7 @@ export class UserService {
     const nextIsTechnical =
       data.isTechnical !== undefined ? Boolean(data.isTechnical) : Boolean(user.isTechnical);
 
-    const mailOk = await this.mailSync.updateMailbox(previousLogin, {
-      full_name: nextName,
-      password: data.password,
-      is_admin: nextIsAdmin,
-      is_active: true,
-      phone: nextPhone,
-      job_title: nextJobTitle,
-      telegram: nextTelegram,
-      org_roles: nextOrgRoles,
-      direction: nextDirection,
-      is_technical: nextIsTechnical,
-      avatar_url: toAbsolutePhotoUrl(photoUrl),
-      new_username: data.login && data.login !== previousLogin ? data.login : undefined,
-    });
-    if (!mailOk) {
-      throw new Error(
-        'Ящик на mail не найден или sync не удался. Задайте пароль ещё раз и сохраните - так ящик создастся/обновится. Проверьте также MAIL_SYNC_SECRET.'
-      );
-    }
-
-    return this.userRepo.update(id, {
+    const updated = await this.userRepo.update(id, {
       login: data.login,
       name: data.name,
       role: data.role,
@@ -232,6 +212,30 @@ export class UserService {
       photo: photoUrl,
       ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),
     });
+
+    const mailOk = await this.mailSync.updateMailbox(previousLogin, {
+      full_name: nextName,
+      password: data.password,
+      is_admin: nextIsAdmin,
+      is_active: true,
+      phone: nextPhone,
+      job_title: nextJobTitle,
+      telegram: nextTelegram,
+      org_roles: nextOrgRoles,
+      direction: nextDirection,
+      is_technical: nextIsTechnical,
+      avatar_url: toAbsolutePhotoUrl(photoUrl),
+      new_username: data.login && data.login !== previousLogin ? data.login : undefined,
+    });
+    if (!mailOk && !data.photo) {
+      throw new Error(
+        'Ящик на mail не найден или sync не удался. Задайте пароль ещё раз и сохраните - так ящик создастся/обновится. Проверьте также MAIL_SYNC_SECRET.'
+      );
+    }
+    if (!mailOk) {
+      console.warn('[users] photo saved in admin, mail sync failed for', nextLogin);
+    }
+    return updated;
   }
 
   async delete(id: string, currentUserId: string) {
