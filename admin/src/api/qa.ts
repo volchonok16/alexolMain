@@ -9,6 +9,7 @@ export interface QaSettings {
   prompt: string;
   maxChars: number;
   updatedAt: string;
+  defaultPrompt?: string;
 }
 
 export interface QaMessage {

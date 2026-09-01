@@ -204,6 +204,10 @@
     margin: 0.25rem 0 0;
     white-space: pre-wrap;
     word-break: break-word;
+
+    &:first-child {
+      margin-top: 0;
+    }
   }
 
   &__meta {

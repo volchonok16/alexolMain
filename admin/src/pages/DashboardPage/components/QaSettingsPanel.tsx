@@ -40,17 +40,21 @@ export const QaSettingsPanel = () => {
   const [testError, setTestError] = useState<string | null>(null);
   const [testConversation, setTestConversation] = useState<QaConversation | null>(null);
   const [pendingUser, setPendingUser] = useState<string | null>(null);
+  const hydrated = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
   const { data: settings, isLoading, error } = useQuery({
     queryKey: ['qa', 'settings'],
     queryFn: qaApi.getSettings,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (!settings) return;
+    if (!settings || hydrated.current) return;
     setPrompt(settings.prompt);
     setMaxChars(settings.maxChars);
+    hydrated.current = true;
   }, [settings]);
 
   const { data: liveSession } = useQuery({
@@ -71,6 +75,9 @@ export const QaSettingsPanel = () => {
   const saveMutation = useMutation({
     mutationFn: () => qaApi.saveSettings({ prompt, maxChars }),
     onSuccess: data => {
+      hydrated.current = true;
+      setPrompt(data.prompt);
+      setMaxChars(data.maxChars);
       queryClient.setQueryData(['qa', 'settings'], data);
       setSaveError(null);
       setSaveOk(true);
@@ -139,8 +146,8 @@ export const QaSettingsPanel = () => {
       <form className="qa-card modal__form" onSubmit={handleSave}>
         <h2 className="qa-card__title">Промпт и лимит ответа</h2>
         <p className="qa-card__hint">
-          Опишите компанию, услуги, сайт, тон общения. Этот текст вместе с вопросом клиента уходит в
-          рабочую модель OpenRouter.
+          Внутренний бриф всегда есть в базе: услуги, тон, как передавать в продажи. Клиент его не видит.
+          Оператор отвечает по-человечески; если ответа нет — менеджеры погрузятся глубже после заявки.
         </p>
         {saveError && <div className="dashboard__error">{saveError}</div>}
         {saveOk && <div className="qa-ok">Настройки сохранены</div>}
@@ -148,12 +155,10 @@ export const QaSettingsPanel = () => {
           <label htmlFor="qa-prompt">Промпт / описание компании</label>
           <textarea
             id="qa-prompt"
-            rows={14}
+            rows={18}
             value={prompt}
             onChange={event => setPrompt(event.target.value)}
-            placeholder={
-              'Мы консалтинговая компания Alexol. Сайт: https://alexol.io\nУслуги:\n— разработка ПО на заказ\n— аутсорсинг команд\n— UI/UX\n— внедрение AI/ML\nОтвечай кратко, по делу, без выдуманных цен.'
-            }
+            placeholder="Промпт загрузится автоматически и сохранится в базе"
           />
         </div>
         <div className="modal__field">
@@ -168,12 +173,22 @@ export const QaSettingsPanel = () => {
           />
         </div>
         <p className="modal__hint">
-          Модель должна закончить мысль в этом лимите, а не обрезать текст на полуслове. Диапазон: 100–4000.
+          Промпт хранится в базе и не должен пропадать после обновления страницы. Пустое сохранение
+          снова запишет базовый бриф. Модель заканчивает мысль в лимите символов (100–4000).
         </p>
         <div className="modal__actions">
           <button type="submit" className="dashboard__add qa-card__save" disabled={saveMutation.isPending}>
             {saveMutation.isPending ? 'Сохранение…' : 'Сохранить'}
           </button>
+          {settings?.defaultPrompt && (
+            <button
+              type="button"
+              className="qa-test__reset"
+              onClick={() => setPrompt(settings.defaultPrompt || '')}
+            >
+              Вернуть базовый промпт
+            </button>
+          )}
         </div>
       </form>
 
@@ -197,19 +212,15 @@ export const QaSettingsPanel = () => {
               key={message.id}
               className={`qa-bubble qa-bubble--${message.author === 'user' ? 'user' : message.author === 'admin' ? 'admin' : 'ai'}`}
             >
-              <span className="qa-bubble__meta">
-                {message.author === 'user' ? 'Вы' : message.author === 'admin' ? 'Оператор' : 'AI'}
-              </span>
               <p>{message.content}</p>
             </div>
           ))}
           {showPendingUser && (
             <div className="qa-bubble qa-bubble--user">
-              <span className="qa-bubble__meta">Вы</span>
               <p>{pendingUser}</p>
             </div>
           )}
-          {chatMutation.isPending && <div className="qa-bubble qa-bubble--ai qa-bubble--pending">Модель думает…</div>}
+          {chatMutation.isPending && <div className="qa-bubble qa-bubble--ai qa-bubble--pending">Печатает…</div>}
           {testConversation?.waitingOperator && !chatMutation.isPending && (
             <p className="qa-thread__wait">Ожидается ответ оператора. Можно ответить вручную во вкладке «Запросы».</p>
           )}

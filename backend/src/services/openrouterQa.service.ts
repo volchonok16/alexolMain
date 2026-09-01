@@ -102,7 +102,7 @@ export class OpenRouterQaService {
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0.35,
+          temperature: 0.7,
           max_tokens: maxTokens,
         }),
       });

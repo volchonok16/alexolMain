@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { QA_MAX_CHARS, QA_MIN_CHARS } from '../utils/qaText.js';
 
 export const qaSettingsSchema = z.object({
-  prompt: z.string().max(20_000, 'Промпт слишком длинный'),
+  prompt: z.string().max(50_000, 'Промпт слишком длинный'),
   maxChars: z.coerce.number().int().min(QA_MIN_CHARS).max(QA_MAX_CHARS),
 });
 

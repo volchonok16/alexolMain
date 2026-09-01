@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { QaRepository } from '../repositories/qa.repository.js';
 import { OpenRouterQaService, OpenRouterUnavailableError } from './openrouterQa.service.js';
 import {
+  DEFAULT_OPERATOR_PROMPT,
   QA_DEFAULT_CHARS,
   buildSystemPrompt,
   fitToMaxChars,
@@ -40,18 +41,18 @@ export class QaService {
 
   async getSettings() {
     const settings = await this.repository.getSettings();
-    return (
-      settings || {
-        id: 'default',
-        prompt: '',
-        maxChars: QA_DEFAULT_CHARS,
-        updatedAt: new Date(0),
-      }
-    );
+    const stored =
+      !settings || !settings.prompt.trim()
+        ? await this.repository.upsertSettings(DEFAULT_OPERATOR_PROMPT, settings?.maxChars ?? QA_DEFAULT_CHARS)
+        : settings;
+    return { ...stored, defaultPrompt: DEFAULT_OPERATOR_PROMPT };
   }
 
   saveSettings(prompt: string, maxChars: number) {
-    return this.repository.upsertSettings(prompt, maxChars);
+    return this.repository.upsertSettings(prompt.trim() || DEFAULT_OPERATOR_PROMPT, maxChars).then(stored => ({
+      ...stored,
+      defaultPrompt: DEFAULT_OPERATOR_PROMPT,
+    }));
   }
 
   async listConversations(page: number, limit: number) {

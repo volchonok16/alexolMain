@@ -180,8 +180,6 @@ export const QaRequestsPanel = () => {
                   className={`qa-bubble qa-bubble--${message.author === 'user' ? 'user' : message.author === 'admin' ? 'admin' : 'ai'}`}
                 >
                   <span className="qa-bubble__meta">
-                    {message.author === 'user' ? 'Клиент' : message.author === 'admin' ? 'Оператор' : 'AI'}
-                    {' · '}
                     {new Date(message.createdAt).toLocaleString('ru-RU')}
                   </span>
                   <p>{message.content}</p>
