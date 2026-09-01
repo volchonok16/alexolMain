@@ -1,8 +1,7 @@
 import { useUsers } from '../hooks/useUsers';
 import { Pagination } from './Pagination';
 import { resolveApiAssetUrl } from '@/api/client';
-import '../components/UsersManagement.scss';
-import './StudentsManagement.scss';
+import './UsersManagement.scss';
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleString('ru-RU', {
@@ -14,7 +13,8 @@ const formatDate = (value: string) =>
   });
 
 export const StudentsManagement = () => {
-  const { users, pagination, isLoading, error, page, setPage } = useUsers('user');
+  const { users, pagination, isLoading, error, page, setPage } = useUsers();
+  const students = users.filter(user => user.role === 'user');
 
   if (isLoading) return <div className="dashboard__container">Загрузка...</div>;
   if (error) return <div className="dashboard__container">Ошибка загрузки учеников</div>;
@@ -22,11 +22,11 @@ export const StudentsManagement = () => {
   return (
     <div className="dashboard__container">
       <div className="users-management__stats">
-        <p>Всего учеников: {pagination?.total || 0}</p>
-        <p>На странице: {users.length}</p>
+        <p>Всего учеников: {students.length}</p>
+        <p>На странице: {students.length}</p>
       </div>
 
-      {users.length === 0 ? (
+      {students.length === 0 ? (
         <div className="dashboard__empty">Учеников пока нет</div>
       ) : (
         <div className="dashboard__table">
@@ -36,12 +36,12 @@ export const StudentsManagement = () => {
                 <th>Фото</th>
                 <th>Имя</th>
                 <th>Почта</th>
-                <th>Статус</th>
+                <th>Должность</th>
                 <th>Регистрация</th>
               </tr>
             </thead>
             <tbody>
-              {users.map(student => (
+              {students.map(student => (
                 <tr key={student.id}>
                   <td>
                     {student.photo ? (
@@ -58,15 +58,7 @@ export const StudentsManagement = () => {
                   </td>
                   <td>{student.name}</td>
                   <td>{student.email || student.login}</td>
-                  <td>
-                    <span
-                      className={`students-management__status students-management__status--${
-                        student.emailVerified ? 'verified' : 'pending'
-                      }`}
-                    >
-                      {student.emailVerified ? 'Подтверждён' : 'Ожидает подтверждения'}
-                    </span>
-                  </td>
+                  <td>{student.jobTitle || '—'}</td>
                   <td>{formatDate(student.createdAt)}</td>
                 </tr>
               ))}
