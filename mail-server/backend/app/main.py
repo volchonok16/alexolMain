@@ -109,6 +109,29 @@ def verify_mail_sync_key(x_mail_sync_key: Optional[str] = Header(None, alias="X-
         )
     return True
 
+
+async def _push_mailbox_downstream(user: User, *, password: Optional[str] = None) -> None:
+    """Rocket.Chat first (async), then admin. Fail the request if admin did not get the profile."""
+    schedule_rocketchat_profile_sync(user)
+    ok = await admin_sync.push_user_ensure(
+        username=user.username,
+        full_name=user.full_name,
+        password=password,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        phone=user.phone,
+        job_title=user.job_title,
+        telegram=user.telegram,
+        avatar_url=user.avatar_url,
+        **admin_sync.org_sync_fields(user),
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Профиль сохранён в почте, но не ушёл в админку. Нажмите «Сохранить» ещё раз.",
+        )
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and create default admin"""
@@ -634,7 +657,7 @@ async def update_user_by_admin(
     
     # Update fields if provided
     if user_data.full_name is not None:
-        user.full_name = user_data.full_name
+        user.full_name = user_data.full_name.strip() or user.full_name
     if user_data.phone is not None:
         user.phone = user_data.phone
     if user_data.job_title is not None:
@@ -658,20 +681,7 @@ async def update_user_by_admin(
     await db.commit()
     await db.refresh(user)
 
-    await admin_sync.push_user_ensure(
-        username=user.username,
-        full_name=user.full_name,
-        password=user_data.password,
-        is_admin=user.is_admin,
-        is_active=user.is_active,
-        phone=user.phone,
-        job_title=user.job_title,
-        telegram=user.telegram,
-        avatar_url=user.avatar_url,
-        **admin_sync.org_sync_fields(user),
-    )
-
-    schedule_rocketchat_profile_sync(user)
+    await _push_mailbox_downstream(user, password=user_data.password)
 
     return user
 
@@ -758,8 +768,8 @@ async def update_profile(
     db: AsyncSession = Depends(get_db)
 ):
     """Update user profile"""
-    if user_data.full_name:
-        current_user.full_name = user_data.full_name
+    if user_data.full_name is not None:
+        current_user.full_name = user_data.full_name.strip() or current_user.full_name
     if user_data.phone is not None:
         current_user.phone = (user_data.phone or "").strip() or None
     if user_data.job_title is not None:
@@ -773,20 +783,7 @@ async def update_profile(
     await db.commit()
     await db.refresh(current_user)
 
-    await admin_sync.push_user_ensure(
-        username=current_user.username,
-        full_name=current_user.full_name,
-        password=user_data.password,
-        is_admin=current_user.is_admin,
-        is_active=current_user.is_active,
-        phone=current_user.phone,
-        job_title=current_user.job_title,
-        telegram=current_user.telegram,
-        avatar_url=current_user.avatar_url,
-        **admin_sync.org_sync_fields(current_user),
-    )
-
-    schedule_rocketchat_profile_sync(current_user)
+    await _push_mailbox_downstream(current_user, password=user_data.password)
 
     return UserResponse.model_validate(current_user).model_copy(
         update={
@@ -829,19 +826,7 @@ async def upload_avatar(
     current_user.avatar_url = avatar_url
     await db.commit()
 
-    await admin_sync.push_user_ensure(
-        username=current_user.username,
-        full_name=current_user.full_name,
-        is_admin=current_user.is_admin,
-        is_active=current_user.is_active,
-        phone=current_user.phone,
-        job_title=current_user.job_title,
-        telegram=current_user.telegram,
-        avatar_url=avatar_url,
-        **admin_sync.org_sync_fields(current_user),
-    )
-
-    schedule_rocketchat_profile_sync(current_user)
+    await _push_mailbox_downstream(current_user)
 
     browser_url = to_browser_avatar_url(avatar_url) or avatar_url
     return {"avatar_url": browser_url}

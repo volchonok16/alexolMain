@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 import time
@@ -104,24 +105,27 @@ async def push_user_ensure(
     if is_technical is not None:
         payload["is_technical"] = bool(is_technical)
     payload.update(await _avatar_fields(avatar_url))
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            res = await client.post(
-                f"{_base()}/api/internal/mail-sync/users/ensure",
-                headers=_headers(),
-                json=payload,
-            )
-            if res.status_code >= 400:
+    for attempt in range(1, 4):
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                res = await client.post(
+                    f"{_base()}/api/internal/mail-sync/users/ensure",
+                    headers=_headers(),
+                    json=payload,
+                )
+                if res.status_code < 400:
+                    return True
                 logger.warning(
-                    "[admin-sync] ensure failed %s: %s",
+                    "[admin-sync] ensure failed %s (attempt %s): %s",
                     res.status_code,
+                    attempt,
                     res.text[:300],
                 )
-                return False
-            return True
-    except Exception as exc:
-        logger.warning("[admin-sync] ensure error: %s", exc)
-        return False
+        except Exception as exc:
+            logger.warning("[admin-sync] ensure error (attempt %s): %s", attempt, exc)
+        if attempt < 3:
+            await asyncio.sleep(0.4 * attempt)
+    return False
 
 
 async def push_user_delete(username: str) -> bool:

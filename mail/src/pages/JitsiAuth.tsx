@@ -64,8 +64,10 @@ export default function JitsiAuth() {
       setEntering(false)
       return
     }
-    const me = useAuthStore.getState().user
-    await enterWithJwt(data.token, me?.full_name, me?.email)
+    const session = useAuthStore.getState().token
+    const me = await api.get('/auth/me')
+    if (me.data && session) setAuth(me.data, session)
+    await enterWithJwt(data.token, me.data?.full_name, me.data?.email)
   }
 
   useEffect(() => {

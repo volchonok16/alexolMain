@@ -3,6 +3,7 @@
     max-width: 80rem;
     margin: 0 auto;
     padding: 2rem 1.5rem;
+    min-width: 0;
   }
 
   &__actions {
@@ -31,13 +32,17 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(10, 227, 255, 0.1);
     border-radius: 0.75rem;
+    max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
 
     table {
-      width: 100%;
-      border-collapse: collapse;
+      width: max-content;
       min-width: 56rem;
+      border-collapse: collapse;
     }
 
     &--compact {
@@ -55,6 +60,7 @@
       text-align: left;
       border-bottom: 1px solid rgba(10, 227, 255, 0.1);
       vertical-align: middle;
+      white-space: nowrap;
     }
 
     th {
@@ -429,6 +435,7 @@
       td {
         padding: 0.4rem 0;
         border: none;
+        white-space: normal;
       }
 
       td {

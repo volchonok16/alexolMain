@@ -21,7 +21,7 @@ from app.models import User
 
 logger = logging.getLogger(__name__)
 
-_MAIL_PUSH_TTL_SEC = 90.0
+_MAIL_PUSH_TTL_SEC = 15 * 60.0
 _mail_push_until: dict[str, float] = {}
 _avatar_etag: dict[str, str] = {}
 
@@ -330,11 +330,19 @@ def _sync_once(profile: ChatProfile) -> bool:
         )
         if updated.status_code >= 400:
             payload["data"].pop("customFields", None)
-            client.post(
+            updated = client.post(
                 f"{base}/api/v1/users.update",
                 headers={**headers, "Content-Type": "application/json"},
                 json=payload,
             )
+        if updated.status_code >= 400:
+            logger.warning(
+                "rocketchat users.update failed for %s status=%s body=%s",
+                profile.email,
+                updated.status_code,
+                (updated.text or "")[:200],
+            )
+            return False
         _set_avatar(client, base, headers, target_id, profile)
         refreshed = _find_user(client, base, headers, profile) or found
         remember_avatar_etag(profile.email, str(refreshed.get("avatarETag") or ""))

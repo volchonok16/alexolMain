@@ -1,5 +1,7 @@
 .admin-container {
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
   background: var(--color-bg);
 }
 
@@ -117,7 +119,10 @@
 .admin-content {
   padding: 2rem;
   max-width: 1400px;
+  width: 100%;
+  min-width: 0;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .content-header {
@@ -263,7 +268,12 @@
   background: var(--color-surface);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   border: 1px solid var(--color-border);
 }
 
@@ -273,8 +283,9 @@
   color: var(--color-text-muted);
 }
 
-table {
-  width: 100%;
+.users-table table {
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
 }
 
@@ -288,12 +299,14 @@ th {
   font-weight: 600;
   color: var(--color-text-muted);
   border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
 }
 
 td {
   padding: 1rem;
   border-bottom: 1px solid #dee2e6;
   color: var(--color-text);
+  white-space: nowrap;
 }
 
 tbody tr:hover {
@@ -740,7 +753,7 @@ tbody tr:hover {
     box-shadow: none;
   }
 
-  table {
+  .users-table table {
     min-width: 0;
     width: 100%;
   }
@@ -768,6 +781,7 @@ tbody tr:hover {
     border: none;
     text-align: right;
     word-break: break-word;
+    white-space: normal;
   }
 
   tbody td::before {

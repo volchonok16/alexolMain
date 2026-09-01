@@ -1,4 +1,4 @@
-"""Pull Rocket.Chat name/avatar into mail (then admin) when they change in chat."""
+"""Pull Rocket.Chat avatar into mail (then admin). Names stay owned by mail."""
 from __future__ import annotations
 
 import asyncio
@@ -66,10 +66,7 @@ async def sync_chat_profiles_from_rocketchat() -> None:
             if not remote:
                 continue
             changed = False
-            remote_name = (remote.name or "").strip()
-            if remote_name and remote_name != (user.full_name or "").strip():
-                user.full_name = remote_name
-                changed = True
+            # Mail is canonical for ФИО. A stale Rocket.Chat name must not overwrite it.
             if remote.avatar_jpeg:
                 imported = import_avatar_to_minio(
                     user.username,
