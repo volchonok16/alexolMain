@@ -17,14 +17,17 @@ export interface PortfolioItem {
 }
 
 const resolveImageUrl = (url: string): string => {
-  // Old rows pointed at minio.alexol.io, which has no HTTPS vhost (SNI fell through to admin 404s).
-  if (/^https?:\/\/minio\.alexol\.io\b/i.test(url)) {
-    return `https://api.alexol.io${url.replace(/^https?:\/\/minio\.alexol\.io/i, '')}`;
-  }
-  if (url.startsWith('http')) return url;
+  // Portfolio files live on alexol_minio (:9000), published at https://api.alexol.io/courses/...
+  // minio.alexol.io and docker-internal hosts must not be used in the browser.
+  const rewritten = url
+    .replace(/^https?:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/127\.0\.0\.1:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/localhost:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/minio:9000(?=\/|$)/i, 'https://api.alexol.io');
+  if (rewritten.startsWith('http')) return rewritten;
   const isDev = window.location.hostname === 'localhost';
   const apiOrigin = isDev ? 'http://localhost:3000' : 'https://api.alexol.io';
-  return `${apiOrigin}${url.startsWith('/') ? url : `/${url}`}`;
+  return `${apiOrigin}${rewritten.startsWith('/') ? rewritten : `/${rewritten}`}`;
 };
 
 const mapPortfolioItem = (item: PortfolioItem): PortfolioItem => ({

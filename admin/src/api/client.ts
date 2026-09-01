@@ -10,9 +10,14 @@ export const apiOrigin = apiBaseURL.replace(/\/api\/?$/, '');
 
 export function resolveApiAssetUrl(pathOrUrl: string): string {
   if (!pathOrUrl) return pathOrUrl;
-  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-  if (pathOrUrl.startsWith('/')) return `${apiOrigin}${pathOrUrl}`;
-  return `${apiOrigin}/${pathOrUrl}`;
+  const rewritten = pathOrUrl
+    .replace(/^https?:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/127\.0\.0\.1:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/localhost:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/minio:9000(?=\/|$)/i, 'https://api.alexol.io');
+  if (/^https?:\/\//i.test(rewritten)) return rewritten;
+  if (rewritten.startsWith('/')) return `${apiOrigin}${rewritten}`;
+  return `${apiOrigin}/${rewritten}`;
 }
 
 export const apiClient = axios.create({

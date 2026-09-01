@@ -168,25 +168,127 @@ push_custom_scripts() {
   echo "configure: cleared custom login/sidebar/Jitsi-picker scripts"
 }
 
+env_get() {
+  python3 - "$1" "$2" <<'PY'
+import pathlib, sys
+path, key = pathlib.Path(sys.argv[1]), sys.argv[2]
+if not path.exists():
+    raise SystemExit(0)
+for line in path.read_text(encoding="utf-8").splitlines():
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        continue
+    name, _, value = line.partition("=")
+    if name.strip() != key:
+        continue
+    value = value.strip().strip("\r")
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1]
+    sys.stdout.write(value)
+    raise SystemExit(0)
+PY
+}
+
+HOST_PORT="$(env_get .env HOST_PORT)"
+HOST_PORT="${HOST_PORT:-18300}"
+ADMIN_USERNAME="$(env_get .env ADMIN_USERNAME)"
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+ADMIN_EMAIL="$(env_get .env ADMIN_EMAIL)"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@alexol.io}"
+ADMIN_PASS="$(env_get .env ADMIN_PASS)"
+
+wait_for_chat() {
+  reason="${1:-API}"
+  i=0
+  while [ "$i" -lt 60 ]; do
+    if curl -sf "http://127.0.0.1:${HOST_PORT}/api/info" >/dev/null 2>&1; then
+      echo "configure: chat $reason is up"
+      return 0
+    fi
+    i=$((i + 1))
+    sleep 3
+  done
+  echo "configure: chat $reason did not become ready"
+  return 1
+}
+
+# Mongo 2FA/LDAP patches are ignored until Node reloads the user. Recreate after this.
+prepare_admin_for_api() {
+  echo "configure: sync local admin password and drop in-memory 2FA/LDAP traps"
+  python3 - "$ADMIN_USERNAME" "$ADMIN_EMAIL" "$ADMIN_PASS" <<'PY'
+import json, pathlib, subprocess, sys
+
+username, email, password = sys.argv[1], sys.argv[2], sys.argv[3]
+script_path = pathlib.Path("/tmp/alexol-admin-pass.js")
+
+hash_value = ""
+if password:
+    pass_path = pathlib.Path("/tmp/alexol-admin.pass")
+    pass_path.write_bytes(password.encode())
+    proc = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            "/tmp/alexol-admin.pass:/p:ro",
+            "alpine:3.20",
+            "sh",
+            "-c",
+            "apk add --no-cache python3 py3-bcrypt >/dev/null && python3 -c 'import bcrypt; print(bcrypt.hashpw(open(\"/p\",\"rb\").read(), bcrypt.gensalt(rounds=10)).decode())'",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    pass_path.unlink(missing_ok=True)
+    hash_value = proc.stdout.decode().strip()
+    if proc.returncode != 0 or not hash_value.startswith("$2"):
+        sys.stderr.write(proc.stderr.decode()[:400] + "\n")
+        hash_value = ""
+
+lines = [
+    "db.rocketchat_settings.updateOne({_id:'LDAP_Enable'}, {$set:{value:false, _updatedAt:new Date()}});",
+    "db.rocketchat_settings.updateOne({_id:'Accounts_TwoFactorAuthentication_Enabled'}, {$set:{value:false, _updatedAt:new Date()}});",
+    "const u = db.users.findOne({username: %s}) || db.users.findOne({'emails.address': %s});"
+    % (json.dumps(username), json.dumps(email)),
+    "if (!u) { print('no admin user yet'); }",
+    "else {",
+]
+if hash_value:
+    lines.append(
+        "  const r = db.users.updateOne({_id:u._id}, {$set:{'services.password.bcrypt':%s, requirePasswordChange:false}, $unset:{'services.totp':1,'services.email2fa':1,'services.ldap':1,requirePasswordChangeReason:1,failedLoginAttempts:1,lastFailedLogin:1}});"
+        % json.dumps(hash_value)
+    )
+    lines.append("  print('admin password synced for API deploys', r.modifiedCount);")
+else:
+    lines.append(
+        "  const r = db.users.updateOne({_id:u._id}, {$set:{requirePasswordChange:false}, $unset:{'services.totp':1,'services.email2fa':1,'services.ldap':1,requirePasswordChangeReason:1,failedLoginAttempts:1,lastFailedLogin:1}});"
+    )
+    lines.append("  print('admin 2FA/LDAP cleared, password hash skipped', r.modifiedCount);")
+lines.append("}")
+script_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+print("wrote", script_path)
+PY
+  docker cp /tmp/alexol-admin-pass.js rocket_mongo:/tmp/alexol-admin-pass.js >/dev/null
+  docker exec rocket_mongo mongosh --quiet rocketchat /tmp/alexol-admin-pass.js || true
+}
+
 $dc up -d
 unlock_password_trap
-# Deploy uses ADMIN_PASS via API. Authenticator/email 2FA on the service admin
-# makes configure and profile-sync 401, then 429 from retries.
-docker exec rocket_mongo mongosh --quiet rocketchat --eval '
-  try {
-    const u = db.users.findOne({ username: "admin" });
-    if (!u) { print("no admin user yet"); }
-    else {
-      const r = db.users.updateOne(
-        { _id: u._id },
-        { $unset: { "services.totp": 1, "services.email2fa": 1 } }
-      );
-      print("admin authenticator/email 2FA cleared for API deploys", r.modifiedCount);
-    }
-  } catch (e) { print(e); }
-' || true
+prepare_admin_for_api
+echo "configure: recreate rocketchat so Mongo admin/2FA/LDAP changes are live"
+$dc up -d --force-recreate --no-deps rocketchat
+wait_for_chat "after admin sync" || true
+ADMIN_EXISTS="$(docker exec rocket_mongo mongosh --quiet rocketchat --eval 'print(db.users.findOne({username:"admin"}) ? 1 : 0)' 2>/dev/null | tr -d '\r' | tail -1)"
 echo "configure: re-apply OAuth, LDAP, Jitsi settings"
-$dc run --rm --no-deps configure || $dc up -d --force-recreate configure
+if [ "$ADMIN_EXISTS" = "1" ]; then
+  configure_run() { $dc run --rm --no-deps -e RC_ADMIN_EXISTS=1 configure; }
+else
+  configure_run() { $dc run --rm --no-deps configure; }
+fi
+if ! configure_run; then
+  echo "configure: API login failed — chat stays up; check ADMIN_PASS vs local admin user"
+fi
 push_custom_scripts
 
 if [ -f install-jitsi-app.sh ] && grep -qE "^JITSI_JWT_APP_SECRET=.+" .env 2>/dev/null; then
@@ -200,17 +302,7 @@ push_custom_scripts
 # Direct Mongo wipes do not unload Custom_Script_* already in the Node process.
 echo "configure: recreate rocketchat so the Jitsi picker script is not served"
 $dc up -d --force-recreate --no-deps rocketchat
-HOST_PORT="$(grep -E '^HOST_PORT=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r\"' )"
-HOST_PORT="${HOST_PORT:-18300}"
-i=0
-while [ "$i" -lt 60 ]; do
-  if curl -sf "http://127.0.0.1:${HOST_PORT}/api/info" >/dev/null 2>&1; then
-    echo "configure: chat API is up after recreate"
-    break
-  fi
-  i=$((i + 1))
-  sleep 3
-done
+wait_for_chat "after recreate" || true
 RC_API="http://rocket_chat:3000"
 echo "sync chat profiles from mail"
 if [ -f /var/www/mail/.env ]; then
@@ -219,10 +311,14 @@ if [ -f /var/www/mail/.env ]; then
   else
     printf "\nROCKETCHAT_API_URL=%s\n" "$RC_API" >> /var/www/mail/.env
   fi
-  (cd /var/www/mail && $dc up -d backend) || true
 fi
-sleep 10
+# Do not `compose up backend` with deps — that waits on mail_minio and can stall
+# while alexol_minio (:9000) serves https://api.alexol.io/courses/ portfolio images.
 if docker ps --format "{{.Names}}" | grep -qx mail_backend; then
+  docker exec -e "ROCKETCHAT_API_URL=${RC_API}" mail_backend python /app/scripts/sync_chat_profiles.py || true
+elif [ -d /var/www/mail ]; then
+  (cd /var/www/mail && $dc up -d --no-deps backend) || true
+  sleep 8
   docker exec -e "ROCKETCHAT_API_URL=${RC_API}" mail_backend python /app/scripts/sync_chat_profiles.py || true
 fi
 $dc ps

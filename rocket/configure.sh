@@ -43,41 +43,71 @@ sleep 8
 PASS_HASH="$(printf '%s' "$ADMIN_PASS" | sha256sum | awk '{print $1}')"
 
 rc_login() {
-  if [ "${1:-}" = "2fa" ]; then
+  ident="$1"
+  mode="${2:-}"
+  body="$(jq -n --arg u "$ident" --arg p "$ADMIN_PASS" '{user:$u,password:$p}')"
+  if [ "$mode" = "2fa" ]; then
     curl -sS -X POST "$RC_URL/api/v1/login" \
       -H "Content-Type: application/json" \
       -H "X-2FA-Code: $PASS_HASH" \
       -H "X-2FA-Method: password" \
-      -d "{\"user\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASS\"}" || true
+      -d "$body" || true
   else
     curl -sS -X POST "$RC_URL/api/v1/login" \
       -H "Content-Type: application/json" \
-      -d "{\"user\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASS\"}" || true
+      -d "$body" || true
   fi
 }
 
-LOGIN_JSON="$(rc_login)"
+try_login() {
+  ident="$1"
+  json="$(rc_login "$ident")"
+  if echo "$json" | jq -e '.data.authToken' >/dev/null 2>&1; then
+    echo "$json"
+    return 0
+  fi
+  err="$(echo "$json" | jq -r '.error // .message // empty' 2>/dev/null || true)"
+  echo "configure: login as $ident without 2FA: ${err:-no token}" >&2
+  json="$(rc_login "$ident" 2fa)"
+  if echo "$json" | jq -e '.data.authToken' >/dev/null 2>&1; then
+    echo "$json"
+    return 0
+  fi
+  err="$(echo "$json" | jq -r '.error // .message // empty' 2>/dev/null || true)"
+  echo "configure: login as $ident with password 2FA: ${err:-no token}" >&2
+  echo "$json"
+  return 1
+}
+
+LOGIN_JSON="$(try_login "$ADMIN_USERNAME" || true)"
 if ! echo "$LOGIN_JSON" | jq -e '.data.authToken' >/dev/null 2>&1; then
-  echo "configure: login needs 2FA header (password method)"
-  LOGIN_JSON="$(rc_login 2fa)"
+  if [ "$ADMIN_EMAIL" != "$ADMIN_USERNAME" ]; then
+    LOGIN_JSON="$(try_login "$ADMIN_EMAIL" || true)"
+  fi
 fi
 if ! echo "$LOGIN_JSON" | jq -e '.data.authToken' >/dev/null 2>&1; then
   err="$(echo "$LOGIN_JSON" | jq -r '.error // .message // empty' 2>/dev/null || true)"
+  if [ "${RC_ADMIN_EXISTS:-0}" = "1" ]; then
+    echo "configure: login failed ($err) — admin already exists, not registering another"
+    echo "$LOGIN_JSON"
+    exit 1
+  fi
   case "$err" in
-    totp-required|error-unauthorized|error-invalid-email|error-invalid-password|error-login-blocked-for-user)
+    error-unauthorized|error-invalid-email|error-invalid-password|error-login-blocked-for-user|totp-required)
       echo "configure: login failed ($err) — not registering another admin"
       echo "$LOGIN_JSON"
       exit 1
       ;;
   esac
   echo "configure: registering first admin $ADMIN_EMAIL"
-  curl -sS -X POST "$RC_URL/api/v1/users.register" \
-    -H "Content-Type: application/json" \
-    -d "{\"username\":\"$ADMIN_USERNAME\",\"email\":\"$ADMIN_EMAIL\",\"pass\":\"$ADMIN_PASS\",\"name\":\"$ADMIN_NAME\"}" \
-    >/dev/null || true
-  LOGIN_JSON="$(rc_login)"
-  if ! echo "$LOGIN_JSON" | jq -e '.data.authToken' >/dev/null 2>&1; then
-    LOGIN_JSON="$(rc_login 2fa)"
+  jq -n --arg u "$ADMIN_USERNAME" --arg e "$ADMIN_EMAIL" --arg p "$ADMIN_PASS" --arg n "$ADMIN_NAME" \
+    '{username:$u,email:$e,pass:$p,name:$n}' \
+    | curl -sS -X POST "$RC_URL/api/v1/users.register" \
+      -H "Content-Type: application/json" \
+      -d @- >/dev/null || true
+  LOGIN_JSON="$(try_login "$ADMIN_USERNAME" || true)"
+  if ! echo "$LOGIN_JSON" | jq -e '.data.authToken' >/dev/null 2>&1 && [ "$ADMIN_EMAIL" != "$ADMIN_USERNAME" ]; then
+    LOGIN_JSON="$(try_login "$ADMIN_EMAIL" || true)"
   fi
 fi
 

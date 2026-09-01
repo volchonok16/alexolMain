@@ -3,10 +3,12 @@ import { apiClient } from './client';
 export const PORTFOLIO_CATEGORIES = ['Crypto', 'eCommerce', 'Enterprise', 'Automation'] as const;
 
 function resolveImageUrl(url: string): string {
-  if (/^https?:\/\/minio\.alexol\.io\b/i.test(url)) {
-    return `https://api.alexol.io${url.replace(/^https?:\/\/minio\.alexol\.io/i, '')}`;
-  }
-  return url;
+  if (!url) return url;
+  return url
+    .replace(/^https?:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/127\.0\.0\.1:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/localhost:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/minio:9000(?=\/|$)/i, 'https://api.alexol.io');
 }
 
 function mapItem(item: PortfolioItem): PortfolioItem {

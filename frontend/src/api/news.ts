@@ -31,13 +31,15 @@ const cleanText = (text: string): string => {
 const mapNewsArticle = (item: NewsApiResponse): NewsArticle => {
   const textWithoutTags = cleanText(item.text);
   
-  // Resolve image URL
-  let imageUrl = item.photo;
+  let imageUrl = item.photo
+    .replace(/^https?:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/127\.0\.0\.1:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/localhost:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/minio:9000(?=\/|$)/i, 'https://api.alexol.io');
   if (!imageUrl.startsWith('http')) {
-    // Development or production - use api.alexol.io for uploads
     const isDev = window.location.hostname === 'localhost';
     const apiOrigin = isDev ? 'http://localhost:3000' : 'https://api.alexol.io';
-    imageUrl = `${apiOrigin}${item.photo}`;
+    imageUrl = `${apiOrigin}${item.photo.startsWith('/') ? item.photo : `/${item.photo}`}`;
   }
   
   return {

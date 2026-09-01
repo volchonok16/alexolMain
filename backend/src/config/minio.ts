@@ -74,7 +74,12 @@ export async function initMinio(): Promise<void> {
 }
 
 export function rewritePublicStorageUrl(url: string): string {
-  return url.replace(/^https?:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://api.alexol.io');
+  if (!url) return url;
+  return url
+    .replace(/^https?:\/\/minio\.alexol\.io(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/127\.0\.0\.1:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/localhost:9000(?=\/|$)/i, 'https://api.alexol.io')
+    .replace(/^https?:\/\/minio:9000(?=\/|$)/i, 'https://api.alexol.io');
 }
 
 export function getMinioPublicUrl(objectKey: string): string {
