@@ -15,6 +15,7 @@ from app.config import settings
 from app.database import get_db
 from app.mail_photos import user_to_vcard, vcard_filename
 from app.models import User
+from app.org_profile import is_technical_user
 
 router = APIRouter()
 
@@ -108,7 +109,7 @@ async def addressbook_collection(
     await _basic_user(request, db)
     users = (
         await db.execute(
-            select(User).where(User.is_active.is_(True)).order_by(User.full_name.asc())
+            select(User).where(User.is_active.is_(True), User.is_technical.is_(False)).order_by(User.full_name.asc())
         )
     ).scalars().all()
     domain = xml_escape(settings.MAIL_DOMAIN)
@@ -153,7 +154,7 @@ async def addressbook_card(
     row = (
         await db.execute(select(User).where(func.lower(User.email) == addr))
     ).scalar_one_or_none()
-    if not row:
+    if not row or is_technical_user(row):
         raise HTTPException(status_code=404, detail="Unknown contact")
     return PlainTextResponse(
         user_to_vcard(row),

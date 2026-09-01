@@ -1,6 +1,8 @@
-from pydantic import BaseModel, EmailStr, validator, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
+
+from app.org_profile import normalize_org_roles
 
 
 class UserBase(BaseModel):
@@ -9,6 +11,14 @@ class UserBase(BaseModel):
     phone: Optional[str] = None
     job_title: Optional[str] = None
     telegram: Optional[str] = None
+    org_roles: List[str] = Field(default_factory=list)
+    direction: Optional[str] = None
+    is_technical: bool = False
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        return normalize_org_roles(value)
 
 
 class UserCreate(BaseModel):
@@ -17,8 +27,16 @@ class UserCreate(BaseModel):
     phone: Optional[str] = None
     job_title: Optional[str] = None
     telegram: Optional[str] = None
+    org_roles: List[str] = Field(default_factory=list)
+    direction: Optional[str] = None
     password: str
     is_admin: bool = False
+    is_technical: bool = False
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        return normalize_org_roles(value)
 
 
 class UserUpdate(BaseModel):
@@ -26,7 +44,17 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     job_title: Optional[str] = None
     telegram: Optional[str] = None
+    org_roles: Optional[List[str]] = None
+    direction: Optional[str] = None
+    is_technical: Optional[bool] = None
     password: Optional[str] = None
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        if value is None:
+            return None
+        return normalize_org_roles(value)
 
 
 class UserAdminUpdate(BaseModel):
@@ -34,9 +62,19 @@ class UserAdminUpdate(BaseModel):
     phone: Optional[str] = None
     job_title: Optional[str] = None
     telegram: Optional[str] = None
+    org_roles: Optional[List[str]] = None
+    direction: Optional[str] = None
     password: Optional[str] = None
     is_admin: Optional[bool] = None
+    is_technical: Optional[bool] = None
     is_active: Optional[bool] = None
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        if value is None:
+            return None
+        return normalize_org_roles(value)
 
 
 class SyncUserCreate(BaseModel):
@@ -49,7 +87,17 @@ class SyncUserCreate(BaseModel):
     phone: Optional[str] = None
     job_title: Optional[str] = None
     telegram: Optional[str] = None
+    org_roles: Optional[List[str]] = None
+    direction: Optional[str] = None
+    is_technical: Optional[bool] = None
     avatar_url: Optional[str] = None
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        if value is None:
+            return None
+        return normalize_org_roles(value)
 
 
 class SyncUserEnsure(BaseModel):
@@ -62,9 +110,19 @@ class SyncUserEnsure(BaseModel):
     phone: Optional[str] = None
     job_title: Optional[str] = None
     telegram: Optional[str] = None
+    org_roles: Optional[List[str]] = None
+    direction: Optional[str] = None
+    is_technical: Optional[bool] = None
     avatar_url: Optional[str] = None
     avatar_base64: Optional[str] = None
     avatar_content_type: Optional[str] = None
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        if value is None:
+            return None
+        return normalize_org_roles(value)
 
 
 class SyncUserUpdate(BaseModel):
@@ -76,8 +134,18 @@ class SyncUserUpdate(BaseModel):
     phone: Optional[str] = None
     job_title: Optional[str] = None
     telegram: Optional[str] = None
+    org_roles: Optional[List[str]] = None
+    direction: Optional[str] = None
+    is_technical: Optional[bool] = None
     avatar_url: Optional[str] = None
     new_username: Optional[str] = None
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        if value is None:
+            return None
+        return normalize_org_roles(value)
 
 
 class UserResponse(BaseModel):
@@ -88,10 +156,18 @@ class UserResponse(BaseModel):
     phone: Optional[str]
     job_title: Optional[str] = None
     telegram: Optional[str] = None
+    org_roles: List[str] = Field(default_factory=list)
+    direction: Optional[str] = None
     avatar_url: Optional[str]
     is_admin: bool
+    is_technical: bool = False
     is_active: bool
     created_at: datetime
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        return normalize_org_roles(value)
 
     class Config:
         from_attributes = True
@@ -129,6 +205,8 @@ class DirectoryPerson(BaseModel):
     email: str
     full_name: str
     job_title: Optional[str] = None
+    org_roles: List[str] = Field(default_factory=list)
+    direction: Optional[str] = None
     avatar_url: Optional[str] = None
     phone: Optional[str] = None
     telegram: Optional[str] = None
@@ -136,6 +214,11 @@ class DirectoryPerson(BaseModel):
     is_busy: bool = False
     busy_until: Optional[datetime] = None
     busy_title: Optional[str] = None
+
+    @field_validator("org_roles", mode="before")
+    @classmethod
+    def _org_roles(cls, value):
+        return normalize_org_roles(value)
 
 
 class CalendarAttendeeIn(BaseModel):

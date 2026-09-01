@@ -12,6 +12,8 @@ import httpx
 
 from app.config import settings
 
+from app.org_profile import normalize_org_roles
+
 logger = logging.getLogger(__name__)
 
 # Don't hammer admin DNS on every inbox/avatar request (blocks the API worker).
@@ -57,6 +59,14 @@ async def _avatar_fields(avatar_url: Optional[str]) -> dict[str, Any]:
         return {"avatar_url": avatar_url}
 
 
+def org_sync_fields(user: Any) -> dict[str, Any]:
+    return {
+        "org_roles": normalize_org_roles(getattr(user, "org_roles", None)),
+        "direction": (getattr(user, "direction", None) or "").strip(),
+        "is_technical": bool(getattr(user, "is_technical", False)),
+    }
+
+
 async def push_user_ensure(
     *,
     username: str,
@@ -67,6 +77,9 @@ async def push_user_ensure(
     phone: Optional[str] = None,
     job_title: Optional[str] = None,
     telegram: Optional[str] = None,
+    org_roles: Optional[list[str]] = None,
+    direction: Optional[str] = None,
+    is_technical: Optional[bool] = None,
     avatar_url: Optional[str] = None,
 ) -> bool:
     if not _enabled():
@@ -84,6 +97,12 @@ async def push_user_ensure(
     payload["phone"] = (phone or "").strip()
     payload["job_title"] = (job_title or "").strip()
     payload["telegram"] = (telegram or "").strip()
+    if org_roles is not None:
+        payload["org_roles"] = normalize_org_roles(org_roles)
+    if direction is not None:
+        payload["direction"] = (direction or "").strip()
+    if is_technical is not None:
+        payload["is_technical"] = bool(is_technical)
     payload.update(await _avatar_fields(avatar_url))
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:

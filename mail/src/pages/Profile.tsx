@@ -5,9 +5,11 @@ import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { ArrowLeft, Upload, Save } from 'lucide-react'
 import { ThemeSwitch } from '../components/ThemeSwitch'
+import { OrgProfileFields } from '../components/OrgProfileFields'
 import { PasswordInput } from '../components/PasswordInput'
 import { useToast } from '../components/Toast'
 import { resolveAvatarUrl } from '../utils/avatarUrl'
+import { normalizeOrgRoles, type OrgRoleId } from '../utils/orgRoles'
 import './Profile.css'
 
 export default function Profile() {
@@ -20,6 +22,9 @@ export default function Profile() {
     job_title: user?.job_title || '',
     phone: user?.phone || '',
     telegram: user?.telegram || '',
+    org_roles: normalizeOrgRoles(user?.org_roles),
+    direction: user?.direction || '',
+    is_technical: Boolean(user?.is_technical),
     password: '',
     confirmPassword: '',
   })
@@ -37,6 +42,9 @@ export default function Profile() {
           job_title: data.job_title || '',
           phone: data.phone || '',
           telegram: data.telegram || '',
+          org_roles: normalizeOrgRoles(data.org_roles),
+          direction: data.direction || '',
+          is_technical: Boolean(data.is_technical),
         }))
       })
       .catch(() => undefined)
@@ -53,7 +61,7 @@ export default function Profile() {
   const avatarSrc = avatarPreview || remoteAvatar
 
   const updateMutation = useMutation({
-    mutationFn: async (data: Record<string, string>) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const { data: updatedUser } = await api.put('/profile', data)
       return updatedUser
     },
@@ -66,6 +74,9 @@ export default function Profile() {
         job_title: updatedUser.job_title || '',
         phone: updatedUser.phone || '',
         telegram: updatedUser.telegram || '',
+        org_roles: normalizeOrgRoles(updatedUser.org_roles),
+        direction: updatedUser.direction || '',
+        is_technical: Boolean(updatedUser.is_technical),
         password: '',
         confirmPassword: '',
       }))
@@ -121,11 +132,14 @@ export default function Profile() {
       return
     }
 
-    const updateData: Record<string, string> = {
+    const updateData: Record<string, unknown> = {
       full_name: formData.full_name,
       job_title: formData.job_title,
       phone: formData.phone,
       telegram: formData.telegram,
+      org_roles: formData.org_roles,
+      direction: formData.direction,
+      is_technical: formData.is_technical,
     }
 
     if (formData.password) {
@@ -274,6 +288,15 @@ export default function Profile() {
               />
               <small>Нужен для сброса пароля: напишите /start боту новостей</small>
             </div>
+
+            <OrgProfileFields
+              orgRoles={formData.org_roles}
+              onOrgRolesChange={(org_roles: OrgRoleId[]) => setFormData({ ...formData, org_roles })}
+              direction={formData.direction}
+              onDirectionChange={(direction) => setFormData({ ...formData, direction })}
+              isTechnical={formData.is_technical}
+              onTechnicalChange={(is_technical) => setFormData({ ...formData, is_technical })}
+            />
 
             <div className="form-divider">
               <span>Изменить пароль (оставьте пустым, если не хотите менять)</span>

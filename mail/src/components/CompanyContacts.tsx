@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download, Mail, Phone, Search, Users, Video } from 'lucide-react'
+import { Download, Mail, Phone, Search, Users, Video, X } from 'lucide-react'
 import api from '../api/axios'
 import { PeerAvatar } from './PeerAvatar'
 import { useAuthStore } from '../store/authStore'
 import { useToast } from './Toast'
 import { openJitsiRoom, personalJitsiUrl } from '../utils/jitsi'
+import { orgRoleLabels } from '../utils/orgRoles'
 import { JitsiRoomChoice } from './JitsiRoomChoice'
 import './CompanyOrg.css'
 
@@ -13,6 +14,8 @@ export type DirectoryPerson = {
   email: string
   full_name: string
   job_title?: string | null
+  org_roles?: string[] | null
+  direction?: string | null
   avatar_url?: string | null
   phone?: string | null
   telegram?: string | null
@@ -37,12 +40,87 @@ function TelegramIcon({ size = 14 }: { size?: number }) {
   )
 }
 
+function personSubtitle(person: DirectoryPerson): string {
+  const roles = orgRoleLabels(person.org_roles)
+  return [person.job_title, roles.join(', '), person.direction].filter(Boolean).join(' · ') || 'Сотрудник'
+}
+
+function ContactDetail({ person }: { person: DirectoryPerson }) {
+  const roles = orgRoleLabels(person.org_roles)
+  return (
+    <div className="org-contact-detail">
+      <div className="org-contact-detail-head">
+        <PeerAvatar src={person.avatar_url} email={person.email} name={person.full_name} size={72} />
+        <div>
+          <div className="org-contact-name">
+            {person.full_name}
+            {person.is_busy ? <span className="org-busy-badge">Занят</span> : null}
+          </div>
+          {person.username ? <div className="org-contact-meta">@{person.username}</div> : null}
+        </div>
+      </div>
+      {person.job_title ? (
+        <div className="org-detail-row">
+          <span>Должность</span>
+          <strong>{person.job_title}</strong>
+        </div>
+      ) : null}
+      {roles.length > 0 ? (
+        <div className="org-detail-row">
+          <span>Роли</span>
+          <strong>{roles.join(', ')}</strong>
+        </div>
+      ) : null}
+      {person.direction ? (
+        <div className="org-detail-row">
+          <span>Направление</span>
+          <strong>{person.direction}</strong>
+        </div>
+      ) : null}
+      {person.is_busy && person.busy_until ? (
+        <div className="org-detail-row">
+          <span>Занят</span>
+          <strong>
+            {person.busy_title || 'Встреча'} до{' '}
+            {new Date(person.busy_until).toLocaleTimeString('ru-RU', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </strong>
+        </div>
+      ) : null}
+      <a className="org-contact-line" href={`mailto:${person.email}`}>
+        <Mail size={14} />
+        <span>{person.email}</span>
+      </a>
+      {person.phone ? (
+        <a className="org-contact-line" href={`tel:${person.phone.replace(/\s+/g, '')}`}>
+          <Phone size={14} />
+          <span>{person.phone}</span>
+        </a>
+      ) : null}
+      {person.telegram ? (
+        <a
+          className="org-contact-line"
+          href={telegramHref(person.telegram)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <TelegramIcon />
+          <span>{person.telegram}</span>
+        </a>
+      ) : null}
+    </div>
+  )
+}
+
 export default function CompanyContacts() {
   const token = useAuthStore((s) => s.token)
   const me = useAuthStore((s) => s.user)
   const toast = useToast()
   const [q, setQ] = useState('')
   const [showJitsiChoice, setShowJitsiChoice] = useState(false)
+  const [selected, setSelected] = useState<DirectoryPerson | null>(null)
   const { data: people = [], isLoading } = useQuery({
     queryKey: ['contacts'],
     queryFn: async () => {
@@ -51,11 +129,29 @@ export default function CompanyContacts() {
     },
   })
 
+  useEffect(() => {
+    if (!selected) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelected(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected])
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
     if (!needle) return people
     return people.filter((p) =>
-      [p.full_name, p.email, p.job_title, p.phone, p.telegram, p.username]
+      [
+        p.full_name,
+        p.email,
+        p.job_title,
+        p.phone,
+        p.telegram,
+        p.username,
+        p.direction,
+        ...orgRoleLabels(p.org_roles),
+      ]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle))
     )
@@ -110,7 +206,7 @@ export default function CompanyContacts() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Имя, почта, должность, телефон"
+          placeholder="Имя, почта, роль, направление"
         />
         <span className="org-count">{filtered.length}</span>
       </div>
@@ -139,49 +235,44 @@ export default function CompanyContacts() {
       ) : (
         <div className="org-contact-list">
           {filtered.map((person) => (
-            <div key={person.email} className="org-contact-card">
+            <button
+              type="button"
+              key={person.email}
+              className="org-contact-card"
+              onClick={() => setSelected(person)}
+            >
               <PeerAvatar src={person.avatar_url} email={person.email} name={person.full_name} size={48} />
               <div className="org-contact-body">
                 <div className="org-contact-name">
                   {person.full_name}
                   {person.is_busy ? <span className="org-busy-badge">Занят</span> : null}
                 </div>
-                <div className="org-contact-meta">{person.job_title || 'Сотрудник'}</div>
-                {person.is_busy && person.busy_until ? (
-                  <div className="org-contact-meta org-busy-line">
-                    {person.busy_title || 'Встреча'} до{' '}
-                    {new Date(person.busy_until).toLocaleTimeString('ru-RU', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                ) : null}
-                <a className="org-contact-line" href={`mailto:${person.email}`}>
+                <div className="org-contact-meta">{personSubtitle(person)}</div>
+                <div className="org-contact-line">
                   <Mail size={14} />
                   <span>{person.email}</span>
-                </a>
-                {person.phone ? (
-                  <a className="org-contact-line" href={`tel:${person.phone.replace(/\s+/g, '')}`}>
-                    <Phone size={14} />
-                    <span>{person.phone}</span>
-                  </a>
-                ) : null}
-                {person.telegram ? (
-                  <a
-                    className="org-contact-line"
-                    href={telegramHref(person.telegram)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <TelegramIcon />
-                    <span>{person.telegram}</span>
-                  </a>
-                ) : null}
+                </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
+      {selected ? (
+        <div className="org-contact-overlay" onClick={() => setSelected(null)} role="presentation">
+          <div
+            className="org-contact-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="org-contact-title"
+          >
+            <button type="button" className="org-contact-close" onClick={() => setSelected(null)} aria-label="Закрыть">
+              <X size={20} />
+            </button>
+            <h2 id="org-contact-title">Контакт</h2>
+            <ContactDetail person={selected} />
+          </div>
+        </div>
+      ) : null}
       <JitsiRoomChoice
         open={showJitsiChoice}
         onClose={() => setShowJitsiChoice(false)}

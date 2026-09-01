@@ -10,8 +10,11 @@ interface User {
   phone?: string
   job_title?: string
   telegram?: string
+  org_roles?: string[]
+  direction?: string
   avatar_url?: string
   is_admin: boolean
+  is_technical?: boolean
   is_active: boolean
 }
 

@@ -171,6 +171,8 @@
   border-radius: 16px;
   width: 100%;
   max-width: 500px;
+  max-height: min(90vh, 900px);
+  overflow-y: auto;
   color: var(--color-text);
   border: 1px solid var(--color-border);
 }
@@ -191,7 +193,7 @@
   color: var(--color-text);
 }
 
-.modal .form-group input,
+.modal .form-group input:not([type='checkbox']),
 .modal .form-group select {
   width: 100%;
   padding: 0.75rem;
@@ -314,6 +316,12 @@ tbody tr:hover {
 .badge-user {
   background: #dfe6e9;
   color: #2d3436;
+}
+
+.badge-tech {
+  margin-left: 0.4rem;
+  background: rgba(10, 227, 255, 0.16);
+  color: var(--color-primary);
 }
 
 .btn-delete {
@@ -688,7 +696,7 @@ tbody tr:hover {
     padding: 0.55rem 0.65rem;
   }
 
-  .modal .form-group input,
+  .modal .form-group input:not([type='checkbox']),
   .modal .form-group select,
   .modal .form-group textarea {
     font-size: 16px;

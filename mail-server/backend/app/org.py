@@ -36,6 +36,7 @@ from app.mail_body import format_meeting_when, meeting_invite_html, meeting_invi
 from app.mail_sync import allocate_imap_uid
 from app.mailbox import find_local_mailbox
 from app.models import CalendarAttendee, CalendarBusySlot, CalendarEvent, Email, User
+from app.org_profile import normalize_org_roles
 from app.outbound import deliver_raw_outbound
 from app.recipients import partition_local_external
 from app.schemas import (
@@ -62,6 +63,8 @@ def _person(user: User, busy: Optional[CalendarBusySlot] = None) -> DirectoryPer
         email=user.email,
         full_name=user.full_name,
         job_title=user.job_title,
+        org_roles=normalize_org_roles(getattr(user, "org_roles", None)),
+        direction=(getattr(user, "direction", None) or "").strip() or None,
         avatar_url=local_avatar_api_path(user.email)
         or to_browser_avatar_url(user.avatar_url)
         or user.avatar_url,
@@ -96,7 +99,7 @@ def _calendar_ics(events: list[CalendarEvent]) -> str:
 
 
 async def _load_colleagues(db: AsyncSession, query: str, limit: int) -> list[User]:
-    stmt = select(User).where(User.is_active.is_(True))
+    stmt = select(User).where(User.is_active.is_(True), User.is_technical.is_(False))
     if query:
         like = f"%{query}%"
         stmt = stmt.where(
@@ -106,6 +109,8 @@ async def _load_colleagues(db: AsyncSession, query: str, limit: int) -> list[Use
                 User.username.ilike(like),
                 User.job_title.ilike(like),
                 User.phone.ilike(like),
+                User.direction.ilike(like),
+                User.org_roles.ilike(like),
             )
         )
     result = await db.execute(stmt.order_by(User.full_name.asc()).limit(limit))

@@ -1,6 +1,21 @@
 import { Request, Response } from 'express';
 import { MailInboundSyncService } from '../services/mailInboundSync.service.js';
 import { TelegramNewsDmService } from '../services/telegramNewsDm.service.js';
+import { normalizeOrgRoles } from '../utils/orgRoles.js';
+
+function parseOptionalString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (value === null) return '';
+  return undefined;
+}
+
+function parseOptionalBoolean(value: unknown): boolean | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (value === 'true' || value === 1 || value === '1') return true;
+  if (value === 'false' || value === 0 || value === '0') return false;
+  return undefined;
+}
 
 export class MailInboundSyncController {
   private service = new MailInboundSyncService();
@@ -24,12 +39,11 @@ export class MailInboundSyncController {
           : req.body?.job_title === null
             ? null
             : undefined;
-      const telegram =
-        typeof req.body?.telegram === 'string'
-          ? req.body.telegram
-          : req.body?.telegram === null
-            ? null
-            : undefined;
+      const telegram = parseOptionalString(req.body?.telegram);
+      const org_roles =
+        req.body?.org_roles === undefined ? undefined : normalizeOrgRoles(req.body.org_roles);
+      const direction = parseOptionalString(req.body?.direction);
+      const is_technical = parseOptionalBoolean(req.body?.is_technical);
       const avatar_url =
         typeof req.body?.avatar_url === 'string' && req.body.avatar_url
           ? req.body.avatar_url
@@ -56,6 +70,9 @@ export class MailInboundSyncController {
         phone,
         job_title,
         telegram,
+        org_roles,
+        direction,
+        is_technical,
         avatar_url,
         avatar_base64,
         avatar_content_type,

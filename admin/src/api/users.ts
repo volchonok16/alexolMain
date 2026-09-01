@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { OrgRoleId } from '@/utils/orgRoles';
 
 export interface User {
   id: string;
@@ -11,6 +12,9 @@ export interface User {
   role: 'admin' | 'user';
   photo?: string | null;
   birthDate?: string | null;
+  orgRoles?: OrgRoleId[] | string[] | null;
+  direction?: string | null;
+  isTechnical?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,8 +39,17 @@ export interface UserPayload {
   jobTitle?: string;
   telegram?: string;
   birthDate?: string;
+  orgRoles?: OrgRoleId[];
+  direction?: string;
+  isTechnical?: boolean;
   photo?: File;
 }
+
+const appendOrgFields = (formData: FormData, data: UserPayload) => {
+  formData.append('orgRoles', JSON.stringify(data.orgRoles ?? []));
+  formData.append('direction', data.direction || '');
+  formData.append('isTechnical', data.isTechnical ? 'true' : 'false');
+};
 
 export const usersApi = {
   getMe: async (): Promise<User> => {
@@ -62,6 +75,7 @@ export const usersApi = {
     if (data.jobTitle) formData.append('jobTitle', data.jobTitle);
     if (data.telegram) formData.append('telegram', data.telegram);
     if (data.birthDate) formData.append('birthDate', data.birthDate);
+    appendOrgFields(formData, data);
     if (data.photo) formData.append('photo', data.photo);
 
     const response = await apiClient.post<{ data: User }>('/users', formData, {
@@ -80,6 +94,7 @@ export const usersApi = {
     formData.append('jobTitle', data.jobTitle || '');
     formData.append('telegram', data.telegram || '');
     formData.append('birthDate', data.birthDate || '');
+    appendOrgFields(formData, data);
     if (data.password) formData.append('password', data.password);
     if (data.photo) formData.append('photo', data.photo);
 

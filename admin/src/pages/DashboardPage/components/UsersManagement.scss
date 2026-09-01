@@ -52,6 +52,33 @@
     }
   }
 
+  &__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+  }
+
+  &__chip {
+    display: inline-flex;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &__tech {
+    display: inline-flex;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #0AE3FF;
+    background: rgba(10, 227, 255, 0.12);
+  }
+
   &__row {
     cursor: pointer;
   }

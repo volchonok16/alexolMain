@@ -7,6 +7,7 @@ import { Users, LogOut, UserPlus, Trash2, Edit, Shield, ShieldOff, Mail, FileTex
 import { ThemeSwitch } from '../components/ThemeSwitch'
 import { PasswordInput } from '../components/PasswordInput'
 import { useToast } from '../components/Toast'
+import { OrgProfileFields } from '../components/OrgProfileFields'
 import { openSiteAdmin, useChatHandoff } from '../sso'
 import {
   starterHtml,
@@ -14,6 +15,7 @@ import {
   type EmailTemplate,
   type TemplateType,
 } from '../utils/templateStarters'
+import { orgRoleLabels, normalizeOrgRoles, type OrgRoleId } from '../utils/orgRoles'
 import './AdminDashboard.css'
 
 interface User {
@@ -24,7 +26,10 @@ interface User {
   phone?: string
   job_title?: string
   telegram?: string
+  org_roles?: string[]
+  direction?: string
   is_admin: boolean
+  is_technical?: boolean
   created_at: string
 }
 
@@ -46,16 +51,22 @@ export default function AdminDashboard() {
     job_title: '',
     phone: '',
     telegram: '',
+    org_roles: [] as OrgRoleId[],
+    direction: '',
     password: '',
     is_admin: false,
+    is_technical: false,
   })
   const [editFormData, setEditFormData] = useState({
     full_name: '',
     job_title: '',
     phone: '',
     telegram: '',
+    org_roles: [] as OrgRoleId[],
+    direction: '',
     password: '',
     is_admin: false,
+    is_technical: false,
   })
 
   const [showTemplatesModal, setShowTemplatesModal] = useState(false)
@@ -95,7 +106,18 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowCreateForm(false)
-      setFormData({ full_name: '', username: '', job_title: '', phone: '', telegram: '', password: '', is_admin: false })
+      setFormData({
+        full_name: '',
+        username: '',
+        job_title: '',
+        phone: '',
+        telegram: '',
+        org_roles: [],
+        direction: '',
+        password: '',
+        is_admin: false,
+        is_technical: false,
+      })
       toast.success('Пользователь создан')
     },
     onError: (error: any) => {
@@ -224,8 +246,11 @@ export default function AdminDashboard() {
       job_title: user.job_title || '',
       phone: user.phone || '',
       telegram: user.telegram || '',
+      org_roles: normalizeOrgRoles(user.org_roles),
+      direction: user.direction || '',
       password: '',
       is_admin: user.is_admin,
+      is_technical: Boolean(user.is_technical),
     })
     setShowEditForm(true)
   }
@@ -238,6 +263,9 @@ export default function AdminDashboard() {
       updateData.job_title = editFormData.job_title
       updateData.phone = editFormData.phone
       updateData.telegram = editFormData.telegram
+      updateData.org_roles = editFormData.org_roles
+      updateData.direction = editFormData.direction
+      updateData.is_technical = editFormData.is_technical
       if (editFormData.password) updateData.password = editFormData.password
       updateData.is_admin = editFormData.is_admin
       
@@ -455,8 +483,17 @@ export default function AdminDashboard() {
                   />
                 </div>
 
+                <OrgProfileFields
+                  orgRoles={formData.org_roles}
+                  onOrgRolesChange={(org_roles) => setFormData({ ...formData, org_roles })}
+                  direction={formData.direction}
+                  onDirectionChange={(direction) => setFormData({ ...formData, direction })}
+                  isTechnical={formData.is_technical}
+                  onTechnicalChange={(is_technical) => setFormData({ ...formData, is_technical })}
+                />
+
                 <div className="form-group">
-                  <label>Роль</label>
+                  <label>Права</label>
                   <select
                     value={formData.is_admin ? 'admin' : 'user'}
                     onChange={(e) =>
@@ -538,8 +575,17 @@ export default function AdminDashboard() {
                   />
                 </div>
 
+                <OrgProfileFields
+                  orgRoles={editFormData.org_roles}
+                  onOrgRolesChange={(org_roles) => setEditFormData({ ...editFormData, org_roles })}
+                  direction={editFormData.direction}
+                  onDirectionChange={(direction) => setEditFormData({ ...editFormData, direction })}
+                  isTechnical={editFormData.is_technical}
+                  onTechnicalChange={(is_technical) => setEditFormData({ ...editFormData, is_technical })}
+                />
+
                 <div className="form-group">
-                  <label>Роль</label>
+                  <label>Права</label>
                   <select
                     value={editFormData.is_admin ? 'admin' : 'user'}
                     onChange={(e) =>
@@ -577,7 +623,9 @@ export default function AdminDashboard() {
                   <th>Email</th>
                   <th>Телефон</th>
                   <th>Телеграм</th>
-                  <th>Роль</th>
+                  <th>Роли</th>
+                  <th>Направление</th>
+                  <th>Права</th>
                   <th>Дата создания</th>
                   <th>Действия</th>
                 </tr>
@@ -591,7 +639,12 @@ export default function AdminDashboard() {
                     <td data-label="Email">{user.email}</td>
                     <td data-label="Телефон">{user.phone || '-'}</td>
                     <td data-label="Телеграм">{user.telegram || '-'}</td>
-                    <td data-label="Роль">
+                    <td data-label="Роли">
+                      {orgRoleLabels(user.org_roles).join(', ') || '-'}
+                      {user.is_technical ? <span className="badge badge-tech">Техн.</span> : null}
+                    </td>
+                    <td data-label="Направление">{user.direction || '-'}</td>
+                    <td data-label="Права">
                       <span className={`badge ${user.is_admin ? 'badge-admin' : 'badge-user'}`}>
                         {user.is_admin ? 'Админ' : 'Пользователь'}
                       </span>

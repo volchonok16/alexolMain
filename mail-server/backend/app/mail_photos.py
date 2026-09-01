@@ -12,6 +12,7 @@ from urllib.parse import quote
 from app.avatar_resolve import load_avatar_bytes
 from app.config import settings
 from app.models import User
+from app.org_profile import org_role_labels
 
 def image_bytes_to_jpeg(data: bytes, max_side: int = 240, max_bytes: int = 100_000) -> Optional[bytes]:
     """Outlook GAL photos are JPEG (`jpegPhoto` / `thumbnailPhoto`)."""
@@ -122,9 +123,19 @@ def user_to_vcard(user: User) -> str:
         f"FN:{_vcard_escape(user.full_name or user.email)}",
         f"N:{_vcard_escape(last)};{_vcard_escape(first)};;;",
         f"EMAIL;TYPE=WORK,INTERNET:{user.email}",
-        f"ORG:{_vcard_escape(settings.MAIL_DOMAIN)}",
         f"URL:{public_vcard_url(user.email)}",
     ]
+    direction = (getattr(user, "direction", None) or "").strip()
+    org = settings.MAIL_DOMAIN
+    if direction:
+        lines.append(f"ORG:{_vcard_escape(org)};{_vcard_escape(direction)}")
+    else:
+        lines.append(f"ORG:{_vcard_escape(org)}")
+    role_labels = org_role_labels(getattr(user, "org_roles", None))
+    if role_labels:
+        lines.append(f"ROLE:{_vcard_escape(', '.join(role_labels))}")
+    if direction:
+        lines.append(f"NOTE:{_vcard_escape('Направление: ' + direction)}")
     if user.job_title:
         lines.append(f"TITLE:{_vcard_escape(user.job_title)}")
     if user.phone:

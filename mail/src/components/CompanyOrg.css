@@ -71,12 +71,24 @@
   border-radius: 12px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
+  background-image: none;
   text-decoration: none;
   color: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
+  box-shadow: none;
+  transform: none;
 }
 
 .org-contact-card:hover {
   border-color: var(--color-primary);
+  background: var(--color-surface);
+  background-image: none;
+  box-shadow: none;
+  transform: none;
 }
 
 .org-contact-body {
@@ -316,6 +328,89 @@
   gap: 0.75rem;
 }
 
+.org-contact-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.org-contact-modal {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: min(90vh, 720px);
+  overflow: auto;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.org-contact-modal h2 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
+.org-contact-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  background-image: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 999px;
+  box-shadow: none;
+  transform: none;
+}
+
+.org-contact-close:hover {
+  background: rgba(148, 163, 184, 0.18);
+  background-image: none;
+  box-shadow: none;
+  transform: none;
+}
+
+.org-contact-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.org-contact-detail-head {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.org-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.org-detail-row span {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.org-detail-row strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 @media (max-width: 768px) {
   .form-row {
     grid-template-columns: 1fr;
@@ -394,5 +489,16 @@
   .cal-event {
     flex-direction: column;
     gap: 0.35rem;
+  }
+
+  .org-contact-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .org-contact-modal {
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   }
 }

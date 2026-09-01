@@ -7,9 +7,10 @@ import { useUsers } from '../hooks/useUsers';
 import { Pagination } from './Pagination';
 import { UserModal } from './UserModal';
 import { UserDetailModal } from './UserDetailModal';
+import { orgRoleLabels } from '@/utils/orgRoles';
 import './UsersManagement.scss';
 
-const roleLabel = (role: string) => (role === 'admin' ? 'Админ' : 'Пользователь');
+const rightsLabel = (role: string) => (role === 'admin' ? 'Админ' : 'Пользователь');
 
 export const UsersManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -116,11 +117,15 @@ export const UsersManagement = () => {
                 <th>Фото</th>
                 <th>ФИО</th>
                 <th>Логин</th>
-                <th>Роль</th>
+                <th>Роли</th>
+                <th>Направление</th>
+                <th>Права</th>
               </tr>
             </thead>
             <tbody>
-              {users.map(user => (
+              {users.map(user => {
+                const roleLabels = orgRoleLabels(user.orgRoles);
+                return (
                 <tr
                   key={user.id}
                   className="users-management__row"
@@ -142,13 +147,26 @@ export const UsersManagement = () => {
                     ) : null}
                   </td>
                   <td data-label="Логин">{user.login}</td>
-                  <td data-label="Роль">
+                  <td data-label="Роли">
+                    <div className="users-management__pills">
+                      {roleLabels.map(label => (
+                        <span key={label} className="users-management__chip">
+                          {label}
+                        </span>
+                      ))}
+                      {!roleLabels.length && !user.isTechnical ? '—' : null}
+                      {user.isTechnical ? <span className="users-management__tech">Техн.</span> : null}
+                    </div>
+                  </td>
+                  <td data-label="Направление">{user.direction || '—'}</td>
+                  <td data-label="Права">
                     <span className={`users-management__role users-management__role--${user.role}`}>
-                      {roleLabel(user.role)}
+                      {rightsLabel(user.role)}
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

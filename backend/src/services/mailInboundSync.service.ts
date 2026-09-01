@@ -4,6 +4,7 @@ import { normalizeLogin } from '../utils/login.js';
 import { MailSyncService } from './mailSync.service.js';
 import { config } from '../config/env.js';
 import { deleteFile, savePhotoFromBase64, savePhotoFromUrl } from '../utils/fileUpload.js';
+import { normalizeOrgRoles, type OrgRoleId } from '../utils/orgRoles.js';
 
 type MailInboundPayload = {
   username: string;
@@ -14,6 +15,9 @@ type MailInboundPayload = {
   phone?: string | null;
   job_title?: string | null;
   telegram?: string | null;
+  org_roles?: OrgRoleId[];
+  direction?: string | null;
+  is_technical?: boolean;
   avatar_url?: string | null;
   avatar_base64?: string | null;
   avatar_content_type?: string | null;
@@ -68,6 +72,10 @@ export class MailInboundSyncService {
       payload.job_title === undefined ? undefined : payload.job_title?.trim() || null;
     const telegram =
       payload.telegram === undefined ? undefined : payload.telegram?.trim() || null;
+    const orgRoles = payload.org_roles === undefined ? undefined : normalizeOrgRoles(payload.org_roles);
+    const direction =
+      payload.direction === undefined ? undefined : payload.direction?.trim() || null;
+    const isTechnical = payload.is_technical;
 
     const existing = await this.userRepo.findByLogin(login);
     if (existing) {
@@ -79,6 +87,9 @@ export class MailInboundSyncService {
         phone?: string | null;
         jobTitle?: string | null;
         telegram?: string | null;
+        orgRoles?: OrgRoleId[];
+        direction?: string | null;
+        isTechnical?: boolean;
         password?: string;
         photo?: string | null;
       } = {
@@ -89,6 +100,9 @@ export class MailInboundSyncService {
       if (phone !== undefined) data.phone = phone;
       if (jobTitle !== undefined) data.jobTitle = jobTitle;
       if (telegram !== undefined) data.telegram = telegram;
+      if (orgRoles !== undefined) data.orgRoles = orgRoles;
+      if (direction !== undefined) data.direction = direction;
+      if (isTechnical !== undefined) data.isTechnical = isTechnical;
       if (payload.password) {
         data.password = await bcrypt.hash(payload.password, 10);
       }
@@ -114,6 +128,9 @@ export class MailInboundSyncService {
       phone: phone ?? null,
       jobTitle: jobTitle ?? null,
       telegram: telegram ?? null,
+      orgRoles: orgRoles ?? [],
+      direction: direction ?? null,
+      isTechnical: Boolean(isTechnical),
       photo: photo ?? null,
     });
   }

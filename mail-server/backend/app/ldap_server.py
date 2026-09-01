@@ -26,6 +26,7 @@ from app.ldap_directory import (
     parse_bind_identity,
     user_ldap_attrs,
 )
+from app.org_profile import is_technical_user
 from app.mail_photos import user_ldap_photos
 from app.models import User
 from ldap3.operation.bind import bind_response_operation
@@ -170,6 +171,8 @@ class LDAPSession:
             out: list[tuple[str, dict[str, list[str]]]] = []
             used: set[str] = set()
             for user in rows:
+                if is_technical_user(user):
+                    continue
                 attrs = user_ldap_attrs(user, settings.MAIL_DOMAIN)
                 dn = ldap_user_dn(user.username, settings.MAIL_DOMAIN, user.full_name or "")
                 if dn.lower() in used:

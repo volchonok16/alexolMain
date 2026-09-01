@@ -59,6 +59,7 @@ from app.org import router as org_router
 from app.oauth import router as oauth_router
 from app.rocketchat_profile import schedule_rocketchat_profile_sync
 from app.chat_profile_loop import start_chat_profile_loop, stop_chat_profile_loop
+from app.org_profile import apply_org_profile_fields
 from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy import text
 from urllib.parse import unquote
@@ -198,6 +199,18 @@ async def startup_event():
                 "ALTER TABLE emails ADD COLUMN IF NOT EXISTS is_trashed "
                 "BOOLEAN NOT NULL DEFAULT FALSE"
             )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_technical "
+                "BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS org_roles VARCHAR")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS direction VARCHAR")
         )
         # Existing admin-created templates become org-shared so users keep access
         await conn.execute(
@@ -371,6 +384,7 @@ async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Dep
         job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
+        **admin_sync.org_sync_fields(user),
     )
 
     return {"message": "Новый пароль отправлен в Telegram."}
@@ -534,6 +548,7 @@ async def create_user(
         is_admin=bool(user_data.is_admin),
         is_active=True
     )
+    apply_org_profile_fields(user, user_data, create=True)
     
     db.add(user)
     await db.commit()
@@ -549,6 +564,7 @@ async def create_user(
         job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
+        **admin_sync.org_sync_fields(user),
     )
     if not synced:
         await db.delete(user)
@@ -625,6 +641,7 @@ async def update_user_by_admin(
         user.job_title = (user_data.job_title or "").strip() or None
     if user_data.telegram is not None:
         user.telegram = (user_data.telegram or "").strip() or None
+    apply_org_profile_fields(user, user_data)
     if user_data.password is not None:
         user.hashed_password = get_password_hash(user_data.password)
     if user_data.is_admin is not None:
@@ -651,6 +668,7 @@ async def update_user_by_admin(
         job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
+        **admin_sync.org_sync_fields(user),
     )
 
     schedule_rocketchat_profile_sync(user)
@@ -686,6 +704,7 @@ async def make_user_admin(
         job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
+        **admin_sync.org_sync_fields(user),
     )
 
     return {"message": f"User {user.email} is now an admin", "user": user}
@@ -726,6 +745,7 @@ async def remove_user_admin(
         job_title=user.job_title,
         telegram=user.telegram,
         avatar_url=user.avatar_url,
+        **admin_sync.org_sync_fields(user),
     )
 
     return {"message": f"Admin privileges removed from {user.email}", "user": user}
@@ -746,6 +766,7 @@ async def update_profile(
         current_user.job_title = (user_data.job_title or "").strip() or None
     if user_data.telegram is not None:
         current_user.telegram = (user_data.telegram or "").strip() or None
+    apply_org_profile_fields(current_user, user_data)
     if user_data.password:
         current_user.hashed_password = get_password_hash(user_data.password)
     
@@ -762,6 +783,7 @@ async def update_profile(
         job_title=current_user.job_title,
         telegram=current_user.telegram,
         avatar_url=current_user.avatar_url,
+        **admin_sync.org_sync_fields(current_user),
     )
 
     schedule_rocketchat_profile_sync(current_user)
@@ -816,6 +838,7 @@ async def upload_avatar(
         job_title=current_user.job_title,
         telegram=current_user.telegram,
         avatar_url=avatar_url,
+        **admin_sync.org_sync_fields(current_user),
     )
 
     schedule_rocketchat_profile_sync(current_user)
@@ -1301,6 +1324,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
             existing.job_title = (user_data.job_title or "").strip() or None
         if user_data.telegram is not None:
             existing.telegram = (user_data.telegram or "").strip() or None
+        apply_org_profile_fields(existing, user_data)
         if user_data.password:
             existing.hashed_password = get_password_hash(user_data.password)
         _apply_avatar_from_sync(existing, user_data)
@@ -1326,6 +1350,7 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
         is_admin=bool(user_data.is_admin),
         is_active=bool(user_data.is_active),
     )
+    apply_org_profile_fields(user, user_data, create=True)
     _apply_avatar_from_sync(user, user_data)
     db.add(user)
     await db.commit()
@@ -1348,6 +1373,9 @@ async def sync_create_user(user_data: SyncUserCreate, db: AsyncSession = Depends
             phone=user_data.phone,
             job_title=user_data.job_title,
             telegram=user_data.telegram,
+            org_roles=user_data.org_roles,
+            direction=user_data.direction,
+            is_technical=user_data.is_technical,
             avatar_url=user_data.avatar_url,
         ),
         db,
@@ -1395,6 +1423,7 @@ async def sync_update_user(
         user.job_title = (user_data.job_title or "").strip() or None
     if user_data.telegram is not None:
         user.telegram = (user_data.telegram or "").strip() or None
+    apply_org_profile_fields(user, user_data)
     if getattr(user_data, "avatar_url", None):
         user.avatar_url = user_data.avatar_url
 

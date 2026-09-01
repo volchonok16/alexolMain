@@ -1,7 +1,8 @@
 import { User } from '@/api/users';
 import { Avatar } from '@/shared/ui/Avatar';
+import { orgRoleLabels } from '@/utils/orgRoles';
 
-const roleLabel = (role: string) => (role === 'admin' ? 'Админ' : 'Пользователь');
+const rightsLabel = (role: string) => (role === 'admin' ? 'Админ' : 'Пользователь');
 
 const formatBirthDate = (value?: string | null) => {
   if (!value) return '—';
@@ -23,6 +24,8 @@ export const UserDetailModal = ({
   onEdit,
   onDelete,
 }: UserDetailModalProps) => {
+  const roles = orgRoleLabels(user.orgRoles);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal users-management__detail" onClick={e => e.stopPropagation()}>
@@ -38,9 +41,12 @@ export const UserDetailModal = ({
           />
           <div>
             <p className="users-management__detail-name">{user.name}</p>
-            <span className={`users-management__role users-management__role--${user.role}`}>
-              {roleLabel(user.role)}
-            </span>
+            <div className="users-management__pills">
+              <span className={`users-management__role users-management__role--${user.role}`}>
+                {rightsLabel(user.role)}
+              </span>
+              {user.isTechnical ? <span className="users-management__tech">Техн.</span> : null}
+            </div>
           </div>
         </div>
 
@@ -48,6 +54,22 @@ export const UserDetailModal = ({
           <div>
             <dt>Должность</dt>
             <dd>{user.jobTitle || '—'}</dd>
+          </div>
+          <div>
+            <dt>Роли</dt>
+            <dd>{roles.length ? roles.join(', ') : '—'}</dd>
+          </div>
+          <div>
+            <dt>Направление</dt>
+            <dd>{user.direction || '—'}</dd>
+          </div>
+          <div>
+            <dt>Права</dt>
+            <dd>{rightsLabel(user.role)}</dd>
+          </div>
+          <div>
+            <dt>Технический аккаунт</dt>
+            <dd>{user.isTechnical ? 'Да, скрыт в контактах почты' : 'Нет'}</dd>
           </div>
           <div>
             <dt>Логин</dt>

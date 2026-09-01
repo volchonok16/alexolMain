@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { User } from '@/api/users';
 import { resolveApiAssetUrl } from '@/api/client';
 import { PasswordInput } from '@/shared/ui/PasswordInput';
+import { normalizeOrgRoles, type OrgRoleId } from '@/utils/orgRoles';
+import { OrgProfileFields } from './OrgProfileFields';
 
 interface UserModalProps {
   user: User | null;
@@ -17,12 +19,15 @@ interface UserModalProps {
     jobTitle?: string;
     telegram?: string;
     birthDate?: string;
+    orgRoles?: OrgRoleId[];
+    direction?: string;
+    isTechnical?: boolean;
     photo?: File;
   }) => void;
   /** Render as page card instead of overlay dialog */
   embedded?: boolean;
   title?: string;
-  /** Hide role field (e.g. own settings) */
+  /** Hide rights field (e.g. own settings) */
   lockRole?: boolean;
   cancelLabel?: string;
 }
@@ -50,6 +55,9 @@ export const UserModal = ({
   const [phone, setPhone] = useState(user?.phone || '');
   const [jobTitle, setJobTitle] = useState(user?.jobTitle || '');
   const [telegram, setTelegram] = useState(user?.telegram || '');
+  const [orgRoles, setOrgRoles] = useState<OrgRoleId[]>(normalizeOrgRoles(user?.orgRoles));
+  const [direction, setDirection] = useState(user?.direction || '');
+  const [isTechnical, setIsTechnical] = useState(Boolean(user?.isTechnical));
   const [photo, setPhoto] = useState<File | undefined>();
   const [preview, setPreview] = useState(user?.photo ? resolveApiAssetUrl(user.photo) : '');
 
@@ -75,6 +83,9 @@ export const UserModal = ({
       jobTitle,
       telegram,
       birthDate,
+      orgRoles,
+      direction,
+      isTechnical,
       photo,
       ...(password ? { password } : {}),
     });
@@ -107,13 +118,24 @@ export const UserModal = ({
           />
         </div>
 
+        <OrgProfileFields
+          orgRoles={orgRoles}
+          onOrgRolesChange={setOrgRoles}
+          direction={direction}
+          onDirectionChange={setDirection}
+          isTechnical={isTechnical}
+          onTechnicalChange={setIsTechnical}
+          disabled={isSaving}
+        />
+
         {!lockRole && (
           <div className="modal__field">
-            <label>Роль</label>
+            <label>Права</label>
             <select value={role} onChange={e => setRole(e.target.value as 'admin' | 'user')} disabled={isSaving}>
               <option value="user">Пользователь</option>
               <option value="admin">Админ</option>
             </select>
+            <p className="modal__hint">Доступ в админ-панель. Роли компании выбираются отдельно выше.</p>
           </div>
         )}
 

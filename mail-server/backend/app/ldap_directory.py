@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from typing import Any, Iterable
 
+from app.org_profile import org_role_labels
+
 ANR_ATTRS = (
     "cn",
     "sn",
@@ -131,11 +133,18 @@ def user_ldap_attrs(user: Any, mail_domain: str) -> dict[str, list[str]]:
     if title:
         attrs["title"] = [title]
         attrs["description"] = [title]
+    role_labels = org_role_labels(getattr(user, "org_roles", None))
+    if role_labels:
+        attrs["employeeType"] = role_labels
+        extra = "Роли: " + ", ".join(role_labels)
+        attrs["info"] = (attrs.get("info") or []) + [extra]
+        if not title:
+            attrs["description"] = role_labels
     telegram = (getattr(user, "telegram", None) or "").strip().lstrip("@")
     if telegram:
         attrs["labeledURI"] = [f"https://t.me/{telegram}"]
         attrs["wWWHomePage"] = [f"https://t.me/{telegram}"]
-        attrs["info"] = [f"Telegram: @{telegram}"]
+        attrs["info"] = (attrs.get("info") or []) + [f"Telegram: @{telegram}"]
     attrs["entryDN"] = [dn]
     if email:
         attrs["rfc822Mailbox"] = [email]
@@ -144,8 +153,10 @@ def user_ldap_attrs(user: Any, mail_domain: str) -> dict[str, list[str]]:
     attrs["o"] = [mail_domain]
     attrs["company"] = [mail_domain]
     attrs["organizationName"] = [mail_domain]
-    attrs["physicalDeliveryOfficeName"] = [mail_domain]
-    attrs["department"] = [mail_domain]
+    direction = (getattr(user, "direction", None) or "").strip()
+    office = direction or mail_domain
+    attrs["physicalDeliveryOfficeName"] = [office]
+    attrs["department"] = [office]
     if given and sn:
         attrs["initials"] = ["".join(p[0] for p in parts if p)[:2].upper()]
     return {k: v for k, v in attrs.items() if v}

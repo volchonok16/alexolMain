@@ -4,6 +4,7 @@ import { saveFile, deleteFile } from '../utils/fileUpload.js';
 import { normalizeLogin } from '../utils/login.js';
 import { MailSyncService, toAbsolutePhotoUrl } from './mailSync.service.js';
 import { config } from '../config/env.js';
+import { normalizeOrgRoles, type OrgRoleId } from '../utils/orgRoles.js';
 
 const parseBirthDate = (value?: string | null) => {
   if (!value) return null;
@@ -32,6 +33,11 @@ const normalizeJobTitle = (jobTitle?: string | null) => {
   return value || null;
 };
 
+const normalizeDirection = (direction?: string | null) => {
+  const value = direction?.trim();
+  return value || null;
+};
+
 export class UserService {
   private userRepo = new UserRepository();
   private mailSync = new MailSyncService();
@@ -56,6 +62,9 @@ export class UserService {
     jobTitle?: string | null;
     telegram?: string | null;
     birthDate?: string | null;
+    orgRoles?: OrgRoleId[];
+    direction?: string | null;
+    isTechnical?: boolean;
     photo?: Express.Multer.File;
   }) {
     const login = normalizeLogin(data.login);
@@ -81,6 +90,9 @@ export class UserService {
     const phone = normalizePhone(data.phone);
     const jobTitle = normalizeJobTitle(data.jobTitle);
     const telegram = normalizeTelegram(data.telegram);
+    const orgRoles = normalizeOrgRoles(data.orgRoles);
+    const direction = normalizeDirection(data.direction);
+    const isTechnical = Boolean(data.isTechnical);
     const photoUrl = data.photo ? await saveFile(data.photo) : null;
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
@@ -93,6 +105,9 @@ export class UserService {
       phone,
       job_title: jobTitle,
       telegram,
+      org_roles: orgRoles,
+      direction,
+      is_technical: isTechnical,
       avatar_url: toAbsolutePhotoUrl(photoUrl),
     });
     if (!mailOk) {
@@ -111,6 +126,9 @@ export class UserService {
       phone,
       jobTitle,
       telegram,
+      orgRoles,
+      direction,
+      isTechnical,
       birthDate: parseBirthDate(data.birthDate),
       photo: photoUrl,
     });
@@ -128,6 +146,9 @@ export class UserService {
       jobTitle?: string | null;
       telegram?: string | null;
       birthDate?: string | null;
+      orgRoles?: OrgRoleId[];
+      direction?: string | null;
+      isTechnical?: boolean;
       photo?: Express.Multer.File;
     }
   ) {
@@ -169,6 +190,12 @@ export class UserService {
       data.jobTitle !== undefined ? normalizeJobTitle(data.jobTitle) : user.jobTitle ?? null;
     const nextTelegram =
       data.telegram !== undefined ? normalizeTelegram(data.telegram) : user.telegram ?? null;
+    const nextOrgRoles =
+      data.orgRoles !== undefined ? normalizeOrgRoles(data.orgRoles) : normalizeOrgRoles(user.orgRoles);
+    const nextDirection =
+      data.direction !== undefined ? normalizeDirection(data.direction) : user.direction ?? null;
+    const nextIsTechnical =
+      data.isTechnical !== undefined ? Boolean(data.isTechnical) : Boolean(user.isTechnical);
 
     const mailOk = await this.mailSync.updateMailbox(previousLogin, {
       full_name: nextName,
@@ -178,6 +205,9 @@ export class UserService {
       phone: nextPhone,
       job_title: nextJobTitle,
       telegram: nextTelegram,
+      org_roles: nextOrgRoles,
+      direction: nextDirection,
+      is_technical: nextIsTechnical,
       avatar_url: toAbsolutePhotoUrl(photoUrl),
       new_username: data.login && data.login !== previousLogin ? data.login : undefined,
     });
@@ -195,6 +225,9 @@ export class UserService {
       phone: data.phone !== undefined ? nextPhone : undefined,
       jobTitle: data.jobTitle !== undefined ? nextJobTitle : undefined,
       telegram: data.telegram !== undefined ? nextTelegram : undefined,
+      orgRoles: data.orgRoles !== undefined ? nextOrgRoles : undefined,
+      direction: data.direction !== undefined ? nextDirection : undefined,
+      isTechnical: data.isTechnical !== undefined ? nextIsTechnical : undefined,
       birthDate: data.birthDate === undefined ? undefined : parseBirthDate(data.birthDate),
       photo: photoUrl,
       ...(data.password ? { password: await bcrypt.hash(data.password, 10) } : {}),

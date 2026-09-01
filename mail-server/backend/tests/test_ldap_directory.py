@@ -21,6 +21,8 @@ def _person(**kwargs):
         username=kwargs.get("username", "kapustkin"),
         phone=kwargs.get("phone", "+79990001122"),
         job_title=kwargs.get("job_title", "Engineer"),
+        org_roles=kwargs.get("org_roles"),
+        direction=kwargs.get("direction"),
     )
 
 
@@ -96,6 +98,15 @@ class FilterMatchTests(unittest.TestCase):
         self.assertEqual(self.attrs["mobile"], ["+79990001122"])
         self.assertEqual(self.attrs["title"], ["Engineer"])
         self.assertEqual(self.attrs["company"], ["alexol.io"])
+        self.assertEqual(self.attrs["department"], ["alexol.io"])
+
+    def test_direction_and_roles(self):
+        attrs = user_ldap_attrs(
+            _person(direction="Backend", org_roles='["manager","employee"]'),
+            "alexol.io",
+        )
+        self.assertEqual(attrs["department"], ["Backend"])
+        self.assertEqual(attrs["employeeType"], ["Руководитель", "Сотрудник"])
 
     def test_list_all_filter(self):
         from app.ldap_directory import is_list_all_filter

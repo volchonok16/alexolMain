@@ -41,10 +41,12 @@
     }
 
     &--compact {
-      overflow-x: hidden;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
 
       table {
-        min-width: 0;
+        min-width: 64rem;
       }
     }
 
@@ -220,7 +222,22 @@
       font-size: 0.875rem;
     }
 
-    input, textarea, select {
+    input[type='checkbox'] {
+      width: 1.1rem;
+      height: 1.1rem;
+      min-height: 0;
+      padding: 0;
+      flex-shrink: 0;
+      accent-color: #0AE3FF;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid rgba(10, 227, 255, 0.35);
+      appearance: auto;
+    }
+
+    input:not([type='checkbox']),
+    textarea,
+    select {
       padding: 0.75rem;
       background: #0A0C10;
       border: 1px solid rgba(10, 227, 255, 0.2);

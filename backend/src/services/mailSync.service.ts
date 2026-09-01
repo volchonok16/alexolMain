@@ -9,6 +9,9 @@ type SyncEnsurePayload = {
   phone?: string | null;
   job_title?: string | null;
   telegram?: string | null;
+  org_roles?: string[] | null;
+  direction?: string | null;
+  is_technical?: boolean;
   avatar_url?: string | null;
 };
 
@@ -81,6 +84,9 @@ export class MailSyncService {
     if (payload.phone !== undefined) body.phone = payload.phone;
     if (payload.job_title !== undefined) body.job_title = payload.job_title ?? '';
     if (payload.telegram !== undefined) body.telegram = payload.telegram ?? '';
+    if (payload.org_roles !== undefined) body.org_roles = payload.org_roles ?? [];
+    if (payload.direction !== undefined) body.direction = payload.direction ?? '';
+    if (payload.is_technical !== undefined) body.is_technical = Boolean(payload.is_technical);
     if (payload.avatar_url) body.avatar_url = payload.avatar_url;
 
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -122,6 +128,9 @@ export class MailSyncService {
       phone?: string | null;
       job_title?: string | null;
       telegram?: string | null;
+      org_roles?: string[] | null;
+      direction?: string | null;
+      is_technical?: boolean;
       avatar_url?: string | null;
       new_username?: string;
     }
@@ -136,6 +145,9 @@ export class MailSyncService {
       phone: payload.phone,
       job_title: payload.job_title,
       telegram: payload.telegram,
+      org_roles: payload.org_roles,
+      direction: payload.direction,
+      is_technical: payload.is_technical,
       avatar_url: payload.avatar_url,
     });
 

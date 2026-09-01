@@ -93,5 +93,6 @@ async def sync_chat_profiles_from_rocketchat() -> None:
                 job_title=user.job_title,
                 telegram=user.telegram,
                 avatar_url=user.avatar_url,
+                **admin_sync.org_sync_fields(user),
             )
             logger.info("chat profile pulled into mail for %s", email)
