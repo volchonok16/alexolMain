@@ -101,6 +101,9 @@ class Settings(BaseSettings):
     OAUTH_ATLASSIAN_CLIENT_SECRET: Optional[str] = None
     # OIDC groups claim. Bitbucket DC uses stash-users, not bitbucket-users.
     OAUTH_ATLASSIAN_GROUPS: str = "jira-software-users,confluence-users,stash-users"
+    OAUTH_ATLASSIAN_GROUPS_JIRA: str = "jira-software-users"
+    OAUTH_ATLASSIAN_GROUPS_CONFLUENCE: str = "confluence-users"
+    OAUTH_ATLASSIAN_GROUPS_BITBUCKET: str = "stash-users"
     # Comma-separated exact callback URLs. Default: chat + Atlassian OIDC callbacks.
     OAUTH_ROCKETCHAT_REDIRECT_URI: Optional[str] = None
     # Admin API to push avatar / phone / telegram / job title into the RC profile.

@@ -46,7 +46,7 @@ from app.smtp_server import smtp_server
 from app.imap_server import imap_server
 from app.ldap_server import ldap_server
 from app.minio_client import minio_client
-from app.avatar_resolve import peer_info_map, to_browser_avatar_url, parse_from_header, import_avatar_to_minio
+from app.avatar_resolve import peer_info_map, to_browser_avatar_url, parse_from_header, import_avatar_to_minio, load_avatar_bytes
 from app.outbound import deliver_composed_email
 from app.recipients import (
     format_to_header,
@@ -60,7 +60,8 @@ from app.oauth import router as oauth_router
 from app.rocketchat_profile import schedule_rocketchat_profile_sync
 from app.chat_profile_loop import start_chat_profile_loop, stop_chat_profile_loop
 from app.org_profile import apply_org_profile_fields
-from fastapi.responses import StreamingResponse, RedirectResponse
+from app.mail_photos import avatar_sync_entry
+from fastapi.responses import StreamingResponse, RedirectResponse, Response
 from sqlalchemy import text
 from urllib.parse import unquote
 
@@ -108,6 +109,15 @@ def verify_mail_sync_key(x_mail_sync_key: Optional[str] = Header(None, alias="X-
             detail="Invalid sync key",
         )
     return True
+
+
+def verify_mail_sync_key_optional(
+    x_mail_sync_key: Optional[str] = Header(None, alias="X-Mail-Sync-Key"),
+):
+    """Avatar bytes: X-Mail-Sync-Key if sent, otherwise public (Atlassian REST fetch)."""
+    if not x_mail_sync_key:
+        return True
+    return verify_mail_sync_key(x_mail_sync_key)
 
 
 async def _push_mailbox_downstream(user: User, *, password: Optional[str] = None) -> None:
@@ -1342,6 +1352,56 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
     await db.refresh(user)
     schedule_rocketchat_profile_sync(user)
     return user
+
+
+@app.get("/api/internal/sync/avatars", dependencies=[Depends(verify_mail_sync_key)])
+async def sync_list_avatars(db: AsyncSession = Depends(get_db)):
+    """Atlassian cron: mailbox emails with public avatar URLs and change stamps."""
+    result = await db.execute(
+        select(User).where(
+            User.is_active.is_(True),
+            User.avatar_url.isnot(None),
+            User.avatar_url != "",
+        )
+    )
+    out = []
+    for user in result.scalars().all():
+        entry = avatar_sync_entry(user)
+        if entry:
+            out.append(entry)
+    return out
+
+
+@app.get("/api/internal/users/{email:path}/avatar")
+async def sync_user_avatar(
+    email: str,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_mail_sync_key_optional),
+):
+    """Image bytes for Atlassian avatar sync (X-Mail-Sync-Key)."""
+    addr = unquote(email or "").strip().lower()
+    if addr.startswith("mailto:"):
+        addr = addr[7:]
+    if addr.endswith("/avatar"):
+        addr = addr[: -len("/avatar")]
+    result = await db.execute(select(User).where(func.lower(User.email) == addr))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="No photo", headers={"Cache-Control": "no-store"})
+    loaded = load_avatar_bytes(user.avatar_url) if user.avatar_url else None
+    if not loaded:
+        await admin_sync.ensure_user_avatar(user, db)
+        loaded = load_avatar_bytes(user.avatar_url)
+    if not loaded:
+        raise HTTPException(status_code=404, detail="No photo", headers={"Cache-Control": "no-store"})
+    data, content_type, _name = loaded
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={
+            "Cache-Control": "private, max-age=300",
+        },
+    )
 
 
 @app.post("/api/internal/users", response_model=UserResponse, dependencies=[Depends(verify_mail_sync_key)])

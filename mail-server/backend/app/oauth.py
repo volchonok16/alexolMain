@@ -99,12 +99,25 @@ def _oauth_groups(client_id: str = "") -> list[str]:
     ]
     if _is_chat_client(cid):
         return []
+
+    def _product_groups(setting_name: str, default: str) -> list[str]:
+        raw = (getattr(settings, setting_name, None) or "").strip() or default
+        items = _csv(raw) or [default]
+        return [
+            "jira-software-users" if item.strip().lower() == "jira-users" else item
+            for item in items
+            if item.strip().lower() != "bitbucket-users"
+        ]
+
     if "jira" in cid and "confluence" not in cid and "bitbucket" not in cid and "atlassian" not in cid:
-        return ["jira-software-users"]
+        return _product_groups("OAUTH_ATLASSIAN_GROUPS_JIRA", "jira-software-users")
     if "confluence" in cid:
-        return ["confluence-users"]
+        return _product_groups("OAUTH_ATLASSIAN_GROUPS_CONFLUENCE", "confluence-users")
     if "bitbucket" in cid:
-        return ["stash-users"]
+        groups = _product_groups("OAUTH_ATLASSIAN_GROUPS_BITBUCKET", "stash-users")
+        if "stash-users" not in groups:
+            groups.append("stash-users")
+        return groups
     if "jira-software-users" not in groups:
         groups.append("jira-software-users")
     if "stash-users" not in groups:

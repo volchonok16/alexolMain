@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import re
+from datetime import timezone
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 import io
@@ -80,6 +82,41 @@ def oauth_picture_url(email: str) -> str:
     """Public HTTPS avatar for OIDC `picture` (Bitbucket downloads without auth)."""
     base = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
     return f"{base}/api/users/avatar/{quote((email or '').strip().lower(), safe='@.')}"
+
+
+def internal_avatar_url(email: str) -> str:
+    base = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
+    return f"{base}/api/internal/users/{quote((email or '').strip().lower(), safe='@.')}/avatar"
+
+
+def avatar_updated_at_unix(user: User) -> int:
+    """Bumps when avatar_url or profile updated_at changes so Atlassian cron can skip."""
+    url = (getattr(user, "avatar_url", None) or "").strip()
+    if not url:
+        return 0
+    updated = getattr(user, "updated_at", None)
+    ts = 0
+    if updated is not None:
+        try:
+            aware = updated if getattr(updated, "tzinfo", None) else updated.replace(tzinfo=timezone.utc)
+            ts = int(aware.timestamp())
+        except Exception:
+            ts = 0
+    digest = int(hashlib.sha256(url.encode("utf-8")).hexdigest()[:8], 16) % 10000
+    return ts + digest
+
+
+def avatar_sync_entry(user: User) -> Optional[dict]:
+    email = (getattr(user, "email", None) or "").strip().lower()
+    if not email or not (getattr(user, "avatar_url", None) or "").strip():
+        return None
+    if getattr(user, "is_active", True) is False:
+        return None
+    return {
+        "email": email,
+        "avatar_updated_at": avatar_updated_at_unix(user),
+        "avatar_url": internal_avatar_url(email),
+    }
 
 
 def public_vcard_url(email: str) -> str:

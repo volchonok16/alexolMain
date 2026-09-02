@@ -16,6 +16,10 @@ Header: `X-Mail-Sync-Key: <MAIL_SYNC_SECRET>`
 **admin → mail:** create/update/delete пользователя в админке →
 `POST /api/internal/users`, `PUT …`, `DELETE …`, `POST /api/internal/users/ensure`
 
+**Atlassian avatar cron:** `GET /api/internal/sync/avatars` (ключ) →
+`[{email, avatar_updated_at, avatar_url}]`. Картинка:
+`GET /api/internal/users/{email}/avatar` (ключ или без авторизации).
+
 **mail → admin:** create/update/delete в mail UI →
 `POST /api/internal/mail-sync/users/ensure`, `DELETE /api/internal/mail-sync/users/{username}`
 
