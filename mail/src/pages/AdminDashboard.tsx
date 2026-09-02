@@ -16,6 +16,8 @@ import {
   type TemplateType,
 } from '../utils/templateStarters'
 import { orgRoleLabels, normalizeOrgRoles, type OrgRoleId } from '../utils/orgRoles'
+import { resolveAvatarUrl } from '../utils/avatarUrl'
+import { PeerAvatar } from '../components/PeerAvatar'
 import './AdminDashboard.css'
 
 interface User {
@@ -31,6 +33,7 @@ interface User {
   is_admin: boolean
   is_technical?: boolean
   created_at: string
+  avatar_url?: string | null
 }
 
 export default function AdminDashboard() {
@@ -153,6 +156,27 @@ export default function AdminDashboard() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Ошибка обновления пользователя')
+    },
+  })
+
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async ({ userId, file }: { userId: number; file: File }) => {
+      const body = new FormData()
+      body.append('file', file)
+      const { data } = await api.post(`/admin/users/${userId}/avatar`, body, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return data as { avatar_url: string; id: number }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      const next = resolveAvatarUrl(data.avatar_url) || data.avatar_url
+      const busted = next.includes('?') ? `${next}&t=${Date.now()}` : `${next}?t=${Date.now()}`
+      setEditingUser((prev) => (prev && prev.id === data.id ? { ...prev, avatar_url: busted } : prev))
+      toast.success('Фото обновлено')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Не удалось загрузить фото')
     },
   })
 
@@ -524,6 +548,30 @@ export default function AdminDashboard() {
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <h3>Редактирование пользователя</h3>
               <p className="edit-user-email">{editingUser.email}</p>
+              <div className="admin-user-photo">
+                <PeerAvatar
+                  src={editingUser.avatar_url}
+                  email={editingUser.email}
+                  name={editingUser.full_name}
+                  size={72}
+                />
+                <label className="btn-secondary admin-user-photo__btn">
+                  {uploadAvatarMutation.isPending ? 'Сохранение…' : 'Поставить фото'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    hidden
+                    disabled={uploadAvatarMutation.isPending}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (file) {
+                        uploadAvatarMutation.mutate({ userId: editingUser.id, file })
+                      }
+                    }}
+                  />
+                </label>
+              </div>
               <form onSubmit={handleUpdate}>
                 <div className="form-group">
                   <label>ФИО</label>
@@ -617,6 +665,7 @@ export default function AdminDashboard() {
             <table>
               <thead>
                 <tr>
+                  <th>Фото</th>
                   <th>ID</th>
                   <th>ФИО</th>
                   <th>Должность</th>
@@ -633,6 +682,14 @@ export default function AdminDashboard() {
               <tbody>
                 {users?.map((user) => (
                   <tr key={user.id}>
+                    <td data-label="Фото">
+                      <PeerAvatar
+                        src={user.avatar_url}
+                        email={user.email}
+                        name={user.full_name}
+                        size={36}
+                      />
+                    </td>
                     <td data-label="ID">{user.id}</td>
                     <td data-label="ФИО">{user.full_name}</td>
                     <td data-label="Должность">{user.job_title || '-'}</td>

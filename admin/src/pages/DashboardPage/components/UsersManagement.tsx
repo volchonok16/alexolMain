@@ -103,27 +103,20 @@ export const UsersManagement = () => {
     }
   };
 
-  const handlePhoto = async (file: File) => {
-    if (!viewingUser) return;
+  const handlePhoto = async (user: User, file: File) => {
     setPhotoError(null);
     setSaveError(null);
     try {
-      const updated = await updateUser({ id: viewingUser.id, data: toPayload(viewingUser, { photo: file }) });
-      setViewingUser(updated);
+      const updated = await updateUser({ id: user.id, data: toPayload(user, { photo: file }) });
+      if (viewingUser?.id === updated.id) {
+        setViewingUser(updated);
+      }
       if (updated.id === currentUser?.id) {
         await refreshUser();
       }
     } catch (err) {
       setPhotoError(apiErrorMessage(err, 'Не удалось сохранить фото. Нужен JPG, PNG или WebP.'));
     }
-  };
-
-  const handleTableWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    const node = event.currentTarget;
-    if (node.scrollWidth <= node.clientWidth) return;
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-    node.scrollLeft += event.deltaY;
-    event.preventDefault();
   };
 
   if (isLoading) return <div className="dashboard__container">Загрузка...</div>;
@@ -139,20 +132,18 @@ export const UsersManagement = () => {
       </div>
 
       {saveError && <div className="dashboard__error">{saveError}</div>}
+      {photoError && <div className="dashboard__error">{photoError}</div>}
 
       <div className="users-management__stats">
         <p>Всего: {pagination?.total || 0}</p>
         <p>На странице: {users.length}</p>
-        <p>Нажмите на строку, чтобы открыть полную карточку</p>
+        <p>Нажмите на строку, чтобы открыть карточку. Фото можно поставить сразу в колонке «Фото».</p>
       </div>
 
       {users.length === 0 ? (
         <div className="dashboard__empty">Пользователей пока нет</div>
       ) : (
-        <div
-          className="dashboard__table dashboard__table--compact"
-          onWheel={handleTableWheel}
-        >
+        <div className="dashboard__table dashboard__table--compact">
           <table>
             <thead>
               <tr>
@@ -176,14 +167,30 @@ export const UsersManagement = () => {
                   className="users-management__row"
                   onClick={() => setViewingUser(user)}
                 >
-                  <td data-label="Фото">
-                    <Avatar
-                      src={user.photo}
-                      alt={user.name}
-                      className="users-management__photo"
-                      emptyClassName="users-management__photo users-management__photo--empty"
-                      fallback={user.name.slice(0, 1).toUpperCase()}
-                    />
+                  <td
+                    data-label="Фото"
+                    className="users-management__photo-cell"
+                    onClick={event => event.stopPropagation()}
+                  >
+                    <label className="users-management__photo-picker users-management__photo-picker--table">
+                      <Avatar
+                        src={user.photo}
+                        alt={user.name}
+                        className="users-management__photo"
+                        emptyClassName="users-management__photo users-management__photo--empty"
+                        fallback={user.name.slice(0, 1).toUpperCase()}
+                      />
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={event => {
+                          const file = event.target.files?.[0];
+                          event.target.value = '';
+                          if (file) void handlePhoto(user, file);
+                        }}
+                        disabled={isSaving}
+                      />
+                    </label>
                   </td>
                   <td data-label="ФИО">
                     <div className="users-management__name">{user.name}</div>
@@ -240,7 +247,7 @@ export const UsersManagement = () => {
           }}
           onEdit={() => handleEdit(viewingUser)}
           onDelete={() => handleDelete(viewingUser.id)}
-          onPhoto={handlePhoto}
+          onPhoto={file => handlePhoto(viewingUser, file)}
         />
       )}
 

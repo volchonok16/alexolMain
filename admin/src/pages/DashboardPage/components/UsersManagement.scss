@@ -119,7 +119,12 @@
     font-size: 1.25rem;
   }
 
+  &__photo-cell {
+    width: 3.25rem;
+  }
+
   &__photo-picker {
+    position: relative;
     display: inline-flex;
     flex-direction: column;
     align-items: center;
@@ -128,6 +133,10 @@
     color: #0AE3FF;
     font-size: 0.8rem;
     font-weight: 600;
+
+    &--table {
+      gap: 0;
+    }
 
     input {
       position: absolute;

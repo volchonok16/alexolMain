@@ -842,6 +842,45 @@ async def upload_avatar(
     return {"avatar_url": browser_url}
 
 
+@app.post("/api/admin/users/{user_id}/avatar")
+async def admin_upload_user_avatar(
+    user_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_current_admin_user),
+):
+    """Admin sets another mailbox user's photo."""
+    _ = admin
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    content_type = (file.content_type or "").lower()
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    if content_type in ("image/heic", "image/heif"):
+        raise HTTPException(
+            status_code=400,
+            detail="HEIC не поддерживается. Сохраните фото как JPG или PNG.",
+        )
+    raw_name = file.filename or "avatar.jpg"
+    file_extension = raw_name.rsplit(".", 1)[-1].lower() if "." in raw_name else "jpg"
+    if file_extension not in ("jpg", "jpeg", "png", "webp", "gif"):
+        file_extension = "jpg"
+    file_name = f"{user.username}_{uuid.uuid4().hex}.{file_extension}"
+    file_data = await file.read()
+    if not file_data:
+        raise HTTPException(status_code=400, detail="Empty file")
+    avatar_url = minio_client.upload_file(
+        io.BytesIO(file_data), file_name, content_type or "image/jpeg"
+    )
+    user.avatar_url = avatar_url
+    await db.commit()
+    await _push_mailbox_downstream(user)
+    browser_url = to_browser_avatar_url(avatar_url) or avatar_url
+    return {"avatar_url": browser_url, "id": user.id}
+
+
 async def _emails_to_response(db: AsyncSession, emails) -> List[EmailResponse]:
     """Attach from/to avatar URLs and display names."""
     rows = list(emails)
