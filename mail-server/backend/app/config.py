@@ -90,9 +90,16 @@ class Settings(BaseSettings):
 
     # Rocket.Chat SSO (Custom OAuth). Same client id/secret as rocket/env.example.
     CHAT_PUBLIC_URL: str = "https://chat.alexol.io"
+    JIRA_PUBLIC_URL: str = "https://jira.alexol.io"
+    CONFLUENCE_PUBLIC_URL: str = "https://confluence.alexol.io"
+    BITBUCKET_PUBLIC_URL: str = "https://bitbucket.alexol.io"
     OAUTH_ROCKETCHAT_CLIENT_ID: str = "alexol-chat"
     OAUTH_ROCKETCHAT_CLIENT_SECRET: Optional[str] = None
-    # Comma-separated exact callback URLs. Default: {CHAT_PUBLIC_URL}/_oauth/alexol
+    # Comma-separated OAuth client_ids (chat + Atlassian). Empty → rocket id + Atlassian defaults.
+    OAUTH_CLIENT_IDS: Optional[str] = None
+    # Separate client secret for Jira / Confluence / Bitbucket (not the chat secret).
+    OAUTH_ATLASSIAN_CLIENT_SECRET: Optional[str] = None
+    # Comma-separated exact callback URLs. Default: chat + Atlassian OIDC callbacks.
     OAUTH_ROCKETCHAT_REDIRECT_URI: Optional[str] = None
     # Admin API to push avatar / phone / telegram / job title into the RC profile.
     ROCKETCHAT_API_URL: Optional[str] = None

@@ -1,7 +1,8 @@
-"""OAuth2 authorization-code provider for Rocket.Chat (and other Alexol apps).
+"""OAuth2 / OIDC authorization-code provider for Rocket.Chat and Atlassian.
 
 Users are mailboxes: email, full_name, username, public avatar.
 A first SSO login auto-creates the Rocket.Chat account via Custom OAuth.
+Atlassian (Jira / Confluence / Bitbucket) uses a separate client secret.
 """
 from __future__ import annotations
 
@@ -34,6 +35,14 @@ OAUTH_ACCESS_TTL_SEC = 3600
 OAUTH_SESSION_TTL_SEC = 60 * 60 * 24 * 7
 OAUTH_COOKIE = "alexol_oauth"
 
+CHAT_CLIENT_IDS = ("alexol-chat", "alexol-rocketchat")
+ATLASSIAN_CLIENT_IDS = (
+    "alexol-atlassian",
+    "alexol-jira",
+    "alexol-confluence",
+    "alexol-bitbucket",
+)
+
 
 def _oauth_secret() -> str:
     secret = (settings.OAUTH_ROCKETCHAT_CLIENT_SECRET or "").strip() or (
@@ -51,12 +60,59 @@ def _client_id() -> str:
     return (settings.OAUTH_ROCKETCHAT_CLIENT_ID or "alexol-chat").strip()
 
 
+def _csv(raw: Optional[str]) -> list[str]:
+    return [item.strip() for item in (raw or "").split(",") if item.strip()]
+
+
+def _allowed_client_ids() -> list[str]:
+    configured = _csv(getattr(settings, "OAUTH_CLIENT_IDS", None))
+    if configured:
+        return configured
+    ids = [_client_id()]
+    for extra in ATLASSIAN_CLIENT_IDS:
+        if extra not in ids:
+            ids.append(extra)
+    return ids
+
+
+def _is_atlassian_client(client_id: str) -> bool:
+    cid = (client_id or "").strip().lower()
+    if cid in ATLASSIAN_CLIENT_IDS:
+        return True
+    return any(token in cid for token in ("jira", "confluence", "bitbucket", "atlassian"))
+
+
+def _is_chat_client(client_id: str) -> bool:
+    cid = (client_id or "").strip().lower()
+    return cid in CHAT_CLIENT_IDS or cid == _client_id().lower()
+
+
+def _client_secret_for(client_id: str) -> str:
+    atlassian = (getattr(settings, "OAUTH_ATLASSIAN_CLIENT_SECRET", None) or "").strip()
+    rocket = (settings.OAUTH_ROCKETCHAT_CLIENT_SECRET or "").strip()
+    if _is_atlassian_client(client_id):
+        return atlassian or rocket
+    return rocket
+
+
 def _allowed_redirects() -> list[str]:
     raw = (settings.OAUTH_ROCKETCHAT_REDIRECT_URI or "").strip()
-    if not raw:
-        chat = (settings.CHAT_PUBLIC_URL or "https://chat.alexol.io").rstrip("/")
-        return [f"{chat}/_oauth/alexol"]
-    return [item.strip() for item in raw.split(",") if item.strip()]
+    if raw:
+        return _csv(raw)
+    chat = (settings.CHAT_PUBLIC_URL or "https://chat.alexol.io").rstrip("/")
+    jira = (getattr(settings, "JIRA_PUBLIC_URL", None) or "https://jira.alexol.io").rstrip("/")
+    confluence = (
+        getattr(settings, "CONFLUENCE_PUBLIC_URL", None) or "https://confluence.alexol.io"
+    ).rstrip("/")
+    bitbucket = (
+        getattr(settings, "BITBUCKET_PUBLIC_URL", None) or "https://bitbucket.alexol.io"
+    ).rstrip("/")
+    return [
+        f"{chat}/_oauth/alexol",
+        f"{jira}/plugins/servlet/oidc/callback",
+        f"{confluence}/plugins/servlet/oidc/callback",
+        f"{bitbucket}/plugins/servlet/oidc/callback",
+    ]
 
 
 def redirect_uri_allowed(redirect_uri: str) -> bool:
@@ -73,7 +129,11 @@ def redirect_uri_allowed(redirect_uri: str) -> bool:
 
 
 def client_id_allowed(client_id: str) -> bool:
-    return (client_id or "").strip() == _client_id()
+    got = (client_id or "").strip()
+    if not got:
+        return False
+    allowed = {item.lower() for item in _allowed_client_ids()}
+    return got.lower() in allowed
 
 
 def encode_oauth_jwt(payload: dict[str, Any], ttl_sec: int) -> str:
@@ -160,21 +220,53 @@ def _session_cookie(request: Request, token: str) -> dict[str, Any]:
     }
 
 
-def _login_html(error: str = "", hidden: dict[str, str] | None = None) -> str:
+def _login_html(
+    error: str = "",
+    hidden: dict[str, str] | None = None,
+    client_id: str = "",
+) -> str:
     fields = hidden or {}
+    cid = client_id or fields.get("client_id") or ""
+    atlassian = _is_atlassian_client(cid)
     hidden_inputs = "".join(
         f'<input type="hidden" name="{key}" value="{_html(value)}" />'
         for key, value in fields.items()
         if value
     )
     err = f'<p class="error">{_html(error)}</p>' if error else ""
-    chat = _html((settings.CHAT_PUBLIC_URL or "https://chat.alexol.io").rstrip("/"))
+    mail = _html((settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/"))
+    if atlassian:
+        title = "Вход Alexol — Atlassian"
+        heading = "Alexol Atlassian"
+        button = "Войти в Атласиан"
+        jira = _html((getattr(settings, "JIRA_PUBLIC_URL", None) or "https://jira.alexol.io").rstrip("/"))
+        confluence = _html(
+            (getattr(settings, "CONFLUENCE_PUBLIC_URL", None) or "https://confluence.alexol.io").rstrip("/")
+        )
+        bitbucket = _html(
+            (getattr(settings, "BITBUCKET_PUBLIC_URL", None) or "https://bitbucket.alexol.io").rstrip("/")
+        )
+        hint = (
+            f'Профиль (ФИО, фото, почта) подтянется с <a href="{mail}">{mail.replace("https://", "")}</a>. '
+            f'Jira: <a href="{jira}">{jira}</a>. '
+            f'Confluence: <a href="{confluence}">{confluence}</a>. '
+            f'Bitbucket: <a href="{bitbucket}">{bitbucket}</a>'
+        )
+    else:
+        title = "Вход Alexol — чат"
+        heading = "Alexol Chat"
+        button = "Войти в чат"
+        chat = _html((settings.CHAT_PUBLIC_URL or "https://chat.alexol.io").rstrip("/"))
+        hint = (
+            f'Профиль (ФИО, фото, почта) подтянется с <a href="{mail}">{mail.replace("https://", "")}</a>. '
+            f'Чат: {chat}'
+        )
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Вход Alexol — чат</title>
+  <title>{title}</title>
   <style>
     :root {{ color-scheme: dark; }}
     body {{
@@ -205,7 +297,7 @@ def _login_html(error: str = "", hidden: dict[str, str] | None = None) -> str:
 </head>
 <body>
   <form class="card" method="post" action="/api/oauth/authorize">
-    <h1>Alexol Chat</h1>
+    <h1>{heading}</h1>
     <p class="sub">Тот же логин и пароль, что у почты</p>
     {hidden_inputs}
     <label for="login">Email или логин</label>
@@ -213,8 +305,8 @@ def _login_html(error: str = "", hidden: dict[str, str] | None = None) -> str:
     <label for="password">Пароль</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required />
     {err}
-    <button type="submit">Войти в чат</button>
-    <p class="hint">Профиль (ФИО, фото, почта) подтянется с <a href="https://mail.alexol.io">mail.alexol.io</a>. Чат: {chat}</p>
+    <button type="submit">{button}</button>
+    <p class="hint">{hint}</p>
   </form>
 </body>
 </html>"""
@@ -230,17 +322,17 @@ def _html(value: str) -> str:
     )
 
 
-def _auth_code_for(user: User, redirect_uri: str, client_id: str) -> str:
-    return encode_oauth_jwt(
-        {
-            "typ": OAUTH_CODE_TYP,
-            "sub": (user.email or "").lower(),
-            "uid": user.id,
-            "redirect_uri": redirect_uri,
-            "client_id": client_id,
-        },
-        OAUTH_CODE_TTL_SEC,
-    )
+def _auth_code_for(user: User, redirect_uri: str, client_id: str, nonce: str = "") -> str:
+    payload: dict[str, Any] = {
+        "typ": OAUTH_CODE_TYP,
+        "sub": (user.email or "").lower(),
+        "uid": user.id,
+        "redirect_uri": redirect_uri,
+        "client_id": client_id,
+    }
+    if nonce:
+        payload["nonce"] = nonce
+    return encode_oauth_jwt(payload, OAUTH_CODE_TTL_SEC)
 
 
 def _redirect_with_code(
@@ -251,8 +343,9 @@ def _redirect_with_code(
     state: str,
     *,
     set_session: bool,
+    nonce: str = "",
 ) -> RedirectResponse:
-    code = _auth_code_for(user, redirect_uri, client_id)
+    code = _auth_code_for(user, redirect_uri, client_id, nonce)
     parsed = urlparse(redirect_uri)
     sep = "&" if parsed.query else "?"
     target = f"{redirect_uri}{sep}{urlencode({'code': code, 'state': state})}"
@@ -285,26 +378,40 @@ async def authorize_get(
     redirect_uri: str = "",
     state: str = "",
     scope: str = "",
+    nonce: str = "",
     db: AsyncSession = Depends(get_db),
 ):
     _ = scope
     if response_type != "code":
-        return HTMLResponse(_login_html("Поддерживается только authorization code"), status_code=400)
+        return HTMLResponse(
+            _login_html("Поддерживается только authorization code", client_id=client_id),
+            status_code=400,
+        )
     if not client_id_allowed(client_id) or not redirect_uri_allowed(redirect_uri):
-        return HTMLResponse(_login_html("Неверный OAuth-клиент или redirect_uri"), status_code=400)
+        return HTMLResponse(
+            _login_html("Неверный OAuth-клиент или redirect_uri", client_id=client_id),
+            status_code=400,
+        )
 
     hidden = {
         "response_type": response_type,
         "client_id": client_id,
         "redirect_uri": redirect_uri,
         "state": state,
+        "nonce": nonce,
     }
     existing = await _user_from_session(request, db)
     if existing:
         return _redirect_with_code(
-            request, existing, redirect_uri, client_id, state, set_session=True
+            request,
+            existing,
+            redirect_uri,
+            client_id,
+            state,
+            set_session=True,
+            nonce=nonce,
         )
-    return HTMLResponse(_login_html("", hidden))
+    return HTMLResponse(_login_html("", hidden, client_id))
 
 
 @router.post("/oauth/authorize")
@@ -319,21 +426,32 @@ async def authorize_post(
     redirect_uri = str(form.get("redirect_uri") or "")
     state = str(form.get("state") or "")
     response_type = str(form.get("response_type") or "code")
+    nonce = str(form.get("nonce") or "")
     hidden = {
         "response_type": response_type,
         "client_id": client_id,
         "redirect_uri": redirect_uri,
         "state": state,
+        "nonce": nonce,
     }
     if response_type != "code" or not client_id_allowed(client_id) or not redirect_uri_allowed(redirect_uri):
-        return HTMLResponse(_login_html("Неверный OAuth-клиент или redirect_uri", hidden), status_code=400)
+        return HTMLResponse(
+            _login_html("Неверный OAuth-клиент или redirect_uri", hidden, client_id),
+            status_code=400,
+        )
 
     user = await find_mailbox(db, login)
     if not user or not verify_password(password, user.hashed_password):
-        return HTMLResponse(_login_html("Неверный email или пароль", hidden), status_code=401)
+        return HTMLResponse(
+            _login_html("Неверный email или пароль", hidden, client_id),
+            status_code=401,
+        )
 
-    schedule_rocketchat_profile_sync(user)
-    return _redirect_with_code(request, user, redirect_uri, client_id, state, set_session=True)
+    if _is_chat_client(client_id):
+        schedule_rocketchat_profile_sync(user)
+    return _redirect_with_code(
+        request, user, redirect_uri, client_id, state, set_session=True, nonce=nonce
+    )
 
 
 def _parse_basic_client(request: Request) -> tuple[str, str]:
@@ -368,7 +486,7 @@ async def oauth_token(request: Request, db: AsyncSession = Depends(get_db)):
     client_id = client_id or basic_id
     client_secret = client_secret or basic_secret
 
-    expected_secret = (settings.OAUTH_ROCKETCHAT_CLIENT_SECRET or "").strip()
+    expected_secret = _client_secret_for(client_id)
     if grant_type != "authorization_code":
         return JSONResponse({"error": "unsupported_grant_type"}, status_code=400)
     if (
@@ -392,13 +510,36 @@ async def oauth_token(request: Request, db: AsyncSession = Depends(get_db)):
         {"typ": OAUTH_ACCESS_TYP, "sub": (user.email or "").lower(), "uid": user.id},
         OAUTH_ACCESS_TTL_SEC,
     )
-    schedule_rocketchat_profile_sync(user)
-    return {
+    if _is_chat_client(client_id):
+        schedule_rocketchat_profile_sync(user)
+    token_body: dict[str, Any] = {
         "access_token": access,
         "token_type": "bearer",
         "expires_in": OAUTH_ACCESS_TTL_SEC,
         "scope": "openid profile email",
     }
+    token_body["id_token"] = _id_token_for(
+        user, client_id, nonce=str(payload.get("nonce") or "")
+    )
+    return token_body
+
+
+def _id_token_for(user: User, client_id: str, nonce: str = "") -> str:
+    info = oauth_userinfo(user)
+    mail = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
+    claims: dict[str, Any] = {
+        "iss": mail,
+        "aud": client_id,
+        "sub": info["sub"],
+        "email": info["email"],
+        "email_verified": True,
+        "name": info["name"],
+        "preferred_username": info["preferred_username"],
+        "picture": info.get("picture") or "",
+    }
+    if nonce:
+        claims["nonce"] = nonce
+    return encode_oauth_jwt(claims, OAUTH_ACCESS_TTL_SEC)
 
 
 def _bearer_token(request: Request, access_token: Optional[str] = None) -> str:
@@ -473,13 +614,30 @@ async def oauth_discovery():
         "userinfo_endpoint": f"{mail}/api/oauth/userinfo",
         "response_types_supported": ["code"],
         "grant_types_supported": ["authorization_code"],
+        "subject_types_supported": ["public"],
+        "id_token_signing_alg_values_supported": ["HS256"],
+        "token_endpoint_auth_methods_supported": [
+            "client_secret_post",
+            "client_secret_basic",
+        ],
         "scopes_supported": ["openid", "profile", "email"],
+        "claims_supported": [
+            "sub",
+            "email",
+            "email_verified",
+            "name",
+            "preferred_username",
+            "picture",
+        ],
     }
 
 
 @router.get("/oauth/health")
 async def oauth_health():
-    configured = bool((settings.OAUTH_ROCKETCHAT_CLIENT_SECRET or "").strip())
+    configured = bool(
+        (settings.OAUTH_ROCKETCHAT_CLIENT_SECRET or "").strip()
+        or (getattr(settings, "OAUTH_ATLASSIAN_CLIENT_SECRET", None) or "").strip()
+    )
     return Response(
         content='{"ok":true,"configured":%s}' % ("true" if configured else "false"),
         media_type="application/json",

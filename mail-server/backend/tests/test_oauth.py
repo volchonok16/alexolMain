@@ -76,6 +76,31 @@ class OauthHelpersTests(unittest.TestCase):
             )
             self.assertFalse(redirect_uri_allowed("https://evil.example/_oauth/alexol"))
 
+    def test_client_ids_allow_chat_and_atlassian(self):
+        from app.oauth import client_id_allowed, _login_html
+
+        with patch("app.oauth.settings") as settings:
+            settings.OAUTH_ROCKETCHAT_CLIENT_ID = "alexol-chat"
+            settings.OAUTH_CLIENT_IDS = (
+                "alexol-chat,alexol-atlassian,alexol-jira,alexol-confluence,alexol-bitbucket"
+            )
+            settings.MAIL_PUBLIC_URL = "https://mail.alexol.io"
+            settings.CHAT_PUBLIC_URL = "https://chat.alexol.io"
+            settings.JIRA_PUBLIC_URL = "https://jira.alexol.io"
+            settings.CONFLUENCE_PUBLIC_URL = "https://confluence.alexol.io"
+            settings.BITBUCKET_PUBLIC_URL = "https://bitbucket.alexol.io"
+            self.assertTrue(client_id_allowed("alexol-chat"))
+            self.assertTrue(client_id_allowed("alexol-jira"))
+            self.assertTrue(client_id_allowed("alexol-atlassian"))
+            self.assertFalse(client_id_allowed("unknown-app"))
+            chat_html = _login_html("", {"client_id": "alexol-chat"}, "alexol-chat")
+            self.assertIn("Войти в чат", chat_html)
+            self.assertIn("Alexol Chat", chat_html)
+            atl_html = _login_html("", {"client_id": "alexol-jira"}, "alexol-jira")
+            self.assertIn("Войти в Атласиан", atl_html)
+            self.assertIn("Alexol Atlassian", atl_html)
+            self.assertIn("jira.alexol.io", atl_html)
+
     def test_code_jwt_roundtrip(self):
         from app.oauth import OAUTH_CODE_TYP, decode_oauth_jwt, encode_oauth_jwt
 
