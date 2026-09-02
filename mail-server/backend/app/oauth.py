@@ -42,6 +42,7 @@ ATLASSIAN_CLIENT_IDS = (
     "alexol-confluence",
     "alexol-bitbucket",
 )
+ATLASSIAN_DEFAULT_GROUPS = ("jira-users", "confluence-users", "stash-users")
 
 
 def _oauth_secret() -> str:
@@ -85,6 +86,16 @@ def _is_atlassian_client(client_id: str) -> bool:
 def _is_chat_client(client_id: str) -> bool:
     cid = (client_id or "").strip().lower()
     return cid in CHAT_CLIENT_IDS or cid == _client_id().lower()
+
+
+def _oauth_groups() -> list[str]:
+    raw = (getattr(settings, "OAUTH_ATLASSIAN_GROUPS", None) or "").strip()
+    groups = _csv(raw) if raw else list(ATLASSIAN_DEFAULT_GROUPS)
+    # Bitbucket Data Center application access group is stash-users.
+    groups = [item for item in groups if item.lower() != "bitbucket-users"]
+    if "stash-users" not in groups:
+        groups.append("stash-users")
+    return groups
 
 
 def _client_secret_for(client_id: str) -> str:
@@ -192,6 +203,7 @@ def oauth_userinfo(user: User) -> dict[str, Any]:
         "title": job_title,
         "bio": " · ".join(bio_parts),
         "nickname": telegram or "",
+        "groups": _oauth_groups(),
     }
     if user.is_admin:
         info["roles"] = ["admin"]
@@ -536,6 +548,7 @@ def _id_token_for(user: User, client_id: str, nonce: str = "") -> str:
         "name": info["name"],
         "preferred_username": info["preferred_username"],
         "picture": info.get("picture") or "",
+        "groups": info.get("groups") or [],
     }
     if nonce:
         claims["nonce"] = nonce
@@ -628,6 +641,7 @@ async def oauth_discovery():
             "name",
             "preferred_username",
             "picture",
+            "groups",
         ],
     }
 

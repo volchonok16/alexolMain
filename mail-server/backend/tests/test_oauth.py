@@ -42,6 +42,8 @@ class OauthHelpersTests(unittest.TestCase):
         self.assertEqual(info["job_title"], "Engineer")
         self.assertIn("Engineer", info["bio"])
         self.assertEqual(info["roles"], ["admin"])
+        self.assertEqual(info["groups"], ["jira-users", "confluence-users", "stash-users"])
+        self.assertNotIn("bitbucket-users", info["groups"])
 
     def test_chat_handoff_starts_oauth(self):
         from urllib.parse import parse_qs, urlparse

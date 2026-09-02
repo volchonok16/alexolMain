@@ -91,6 +91,7 @@ services:
       OAUTH_ROCKETCHAT_CLIENT_SECRET: ${OAUTH_ROCKETCHAT_CLIENT_SECRET:-}
       OAUTH_CLIENT_IDS: ${OAUTH_CLIENT_IDS:-alexol-chat,alexol-atlassian,alexol-jira,alexol-confluence,alexol-bitbucket}
       OAUTH_ATLASSIAN_CLIENT_SECRET: ${OAUTH_ATLASSIAN_CLIENT_SECRET:-}
+      OAUTH_ATLASSIAN_GROUPS: ${OAUTH_ATLASSIAN_GROUPS:-jira-users,confluence-users,stash-users}
       OAUTH_ROCKETCHAT_REDIRECT_URI: ${OAUTH_ROCKETCHAT_REDIRECT_URI:-https://chat.alexol.io/_oauth/alexol,https://jira.alexol.io/plugins/servlet/oidc/callback,https://confluence.alexol.io/plugins/servlet/oidc/callback,https://bitbucket.alexol.io/plugins/servlet/oidc/callback}
       # rocket_chat on alexol_mail_sync — not host.docker.internal (RC is 127.0.0.1:18300)
       ROCKETCHAT_API_URL: ${ROCKETCHAT_API_URL:-http://rocket_chat:3000}

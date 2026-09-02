@@ -105,6 +105,7 @@ Atlassian (отдельный client secret, та же форма входа):
 ```
 OAUTH_CLIENT_IDS=alexol-chat,alexol-atlassian,alexol-jira,alexol-confluence,alexol-bitbucket
 OAUTH_ATLASSIAN_CLIENT_SECRET=
+OAUTH_ATLASSIAN_GROUPS=jira-users,confluence-users,stash-users
 OAUTH_ROCKETCHAT_REDIRECT_URI=https://chat.alexol.io/_oauth/alexol,https://jira.alexol.io/plugins/servlet/oidc/callback,https://confluence.alexol.io/plugins/servlet/oidc/callback,https://bitbucket.alexol.io/plugins/servlet/oidc/callback
 ```
 
