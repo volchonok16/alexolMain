@@ -43,8 +43,16 @@ class OauthHelpersTests(unittest.TestCase):
         self.assertEqual(info["job_title"], "Engineer")
         self.assertIn("Engineer", info["bio"])
         self.assertEqual(info["roles"], ["admin"])
-        self.assertEqual(info["groups"], ["jira-users", "confluence-users", "stash-users"])
+        self.assertEqual(
+            info["groups"],
+            ["jira-software-users", "confluence-users", "stash-users"],
+        )
         self.assertNotIn("bitbucket-users", info["groups"])
+        self.assertNotIn("jira-users", info["groups"])
+        jira_info = oauth_userinfo(user, "alexol-jira")
+        self.assertEqual(jira_info["groups"], ["jira-software-users"])
+        self.assertEqual(jira_info["name"], "Alexander Taraskin")
+        self.assertEqual(oauth_userinfo(user, "alexol-bitbucket")["groups"], ["stash-users"])
 
     def test_userinfo_splits_russian_display_name(self):
         from app.oauth import oauth_userinfo, split_display_name

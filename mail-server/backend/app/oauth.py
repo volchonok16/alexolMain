@@ -42,7 +42,7 @@ ATLASSIAN_CLIENT_IDS = (
     "alexol-confluence",
     "alexol-bitbucket",
 )
-ATLASSIAN_DEFAULT_GROUPS = ("jira-users", "confluence-users", "stash-users")
+ATLASSIAN_DEFAULT_GROUPS = ("jira-software-users", "confluence-users", "stash-users")
 
 
 def _oauth_secret() -> str:
@@ -88,11 +88,25 @@ def _is_chat_client(client_id: str) -> bool:
     return cid in CHAT_CLIENT_IDS or cid == _client_id().lower()
 
 
-def _oauth_groups() -> list[str]:
+def _oauth_groups(client_id: str = "") -> list[str]:
+    cid = (client_id or "").strip().lower()
     raw = (getattr(settings, "OAUTH_ATLASSIAN_GROUPS", None) or "").strip()
     groups = _csv(raw) if raw else list(ATLASSIAN_DEFAULT_GROUPS)
-    # Bitbucket Data Center application access group is stash-users.
-    groups = [item for item in groups if item.lower() != "bitbucket-users"]
+    groups = [
+        "jira-software-users" if item.strip().lower() == "jira-users" else item
+        for item in groups
+        if item.strip().lower() != "bitbucket-users"
+    ]
+    if _is_chat_client(cid):
+        return []
+    if "jira" in cid and "confluence" not in cid and "bitbucket" not in cid and "atlassian" not in cid:
+        return ["jira-software-users"]
+    if "confluence" in cid:
+        return ["confluence-users"]
+    if "bitbucket" in cid:
+        return ["stash-users"]
+    if "jira-software-users" not in groups:
+        groups.append("jira-software-users")
     if "stash-users" not in groups:
         groups.append("stash-users")
     return groups
@@ -182,7 +196,7 @@ def split_display_name(name: str, fallback: str = "") -> tuple[str, str]:
     return parts[0], " ".join(parts[1:])
 
 
-def oauth_userinfo(user: User) -> dict[str, Any]:
+def oauth_userinfo(user: User, client_id: str = "") -> dict[str, Any]:
     email = (user.email or "").strip().lower()
     username = (user.username or email.split("@", 1)[0]).strip().lower()
     name = (user.full_name or username or email).strip()
@@ -213,7 +227,7 @@ def oauth_userinfo(user: User) -> dict[str, Any]:
         "title": job_title,
         "bio": " · ".join(bio_parts),
         "nickname": telegram or "",
-        "groups": _oauth_groups(),
+        "groups": _oauth_groups(client_id),
     }
     if user.is_admin:
         info["roles"] = ["admin"]
@@ -529,7 +543,12 @@ async def oauth_token(request: Request, db: AsyncSession = Depends(get_db)):
         return JSONResponse({"error": "invalid_grant"}, status_code=400)
 
     access = encode_oauth_jwt(
-        {"typ": OAUTH_ACCESS_TYP, "sub": (user.email or "").lower(), "uid": user.id},
+        {
+            "typ": OAUTH_ACCESS_TYP,
+            "sub": (user.email or "").lower(),
+            "uid": user.id,
+            "client_id": client_id,
+        },
         OAUTH_ACCESS_TTL_SEC,
     )
     if _is_chat_client(client_id):
@@ -547,7 +566,7 @@ async def oauth_token(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 def _id_token_for(user: User, client_id: str, nonce: str = "") -> str:
-    info = oauth_userinfo(user)
+    info = oauth_userinfo(user, client_id)
     mail = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
     claims: dict[str, Any] = {
         "iss": mail,
@@ -590,7 +609,7 @@ async def oauth_userinfo_endpoint(
     user = await find_mailbox(db, payload.get("sub") or "")
     if not user:
         raise HTTPException(status_code=401, detail="Unknown user")
-    return oauth_userinfo(user)
+    return oauth_userinfo(user, str(payload.get("client_id") or ""))
 
 
 @router.post("/oauth/chat-handoff")
