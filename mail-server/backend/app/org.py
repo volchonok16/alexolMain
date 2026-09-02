@@ -633,6 +633,7 @@ async def download_contacts_vcf(
 
 
 @router.get("/public/avatar/{email:path}")
+@router.get("/users/avatar/{email:path}")
 async def public_avatar(email: str, db: AsyncSession = Depends(get_db)):
     addr = unquote(email or "").strip().lower()
     if addr.startswith("mailto:"):

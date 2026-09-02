@@ -76,6 +76,12 @@ def public_avatar_url(email: str) -> str:
     return f"{base}/api/public/avatar/{quote((email or '').strip().lower(), safe='@.')}"
 
 
+def oauth_picture_url(email: str) -> str:
+    """Public HTTPS avatar for OIDC `picture` (Bitbucket downloads without auth)."""
+    base = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
+    return f"{base}/api/users/avatar/{quote((email or '').strip().lower(), safe='@.')}"
+
+
 def public_vcard_url(email: str) -> str:
     base = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
     return f"{base}/api/public/vcard/{quote((email or '').strip().lower(), safe='@.')}"

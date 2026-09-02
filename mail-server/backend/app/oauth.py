@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user, verify_password, _user_from_access_token
 from app.config import settings
 from app.database import get_db
-from app.mail_photos import public_avatar_url
+from app.mail_photos import oauth_picture_url
 from app.mailbox import find_local_mailbox
 from app.models import User
 from app.rocketchat_profile import chat_browser_login_url, schedule_rocketchat_profile_sync
@@ -173,11 +173,21 @@ def decode_oauth_jwt(token: str, typ: str) -> dict[str, Any]:
     return payload
 
 
+def split_display_name(name: str, fallback: str = "") -> tuple[str, str]:
+    parts = [part for part in (name or "").strip().split() if part]
+    if not parts:
+        return (fallback or "", "")
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " ".join(parts[1:])
+
+
 def oauth_userinfo(user: User) -> dict[str, Any]:
     email = (user.email or "").strip().lower()
     username = (user.username or email.split("@", 1)[0]).strip().lower()
     name = (user.full_name or username or email).strip()
-    picture = public_avatar_url(email) if email else ""
+    given_name, family_name = split_display_name(name, username)
+    picture = oauth_picture_url(email) if email else ""
     phone = (getattr(user, "phone", None) or "").strip()
     telegram = (getattr(user, "telegram", None) or "").strip().lstrip("@")
     job_title = (getattr(user, "job_title", None) or "").strip()
@@ -194,8 +204,8 @@ def oauth_userinfo(user: User) -> dict[str, Any]:
         "avatar": picture,
         "avatarUrl": picture,
         "avatar_url": picture,
-        "given_name": name.split(" ", 1)[0] if name else username,
-        "family_name": name.split(" ", 1)[1] if name and " " in name else "",
+        "given_name": given_name,
+        "family_name": family_name,
         "phone": phone,
         "telephone": phone,
         "telegram": telegram,
@@ -546,6 +556,8 @@ def _id_token_for(user: User, client_id: str, nonce: str = "") -> str:
         "email": info["email"],
         "email_verified": True,
         "name": info["name"],
+        "given_name": info.get("given_name") or "",
+        "family_name": info.get("family_name") or "",
         "preferred_username": info["preferred_username"],
         "picture": info.get("picture") or "",
         "groups": info.get("groups") or [],
@@ -639,6 +651,8 @@ async def oauth_discovery():
             "email",
             "email_verified",
             "name",
+            "given_name",
+            "family_name",
             "preferred_username",
             "picture",
             "groups",

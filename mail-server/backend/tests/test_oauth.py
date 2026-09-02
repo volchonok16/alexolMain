@@ -21,20 +21,21 @@ class OauthHelpersTests(unittest.TestCase):
             job_title="Engineer",
         )
         with patch(
-            "app.oauth.public_avatar_url",
-            return_value="https://mail.alexol.io/api/public/avatar/altaraskin@alexol.io",
+            "app.oauth.oauth_picture_url",
+            return_value="https://mail.alexol.io/api/users/avatar/altaraskin@alexol.io",
         ):
             info = oauth_userinfo(user)
         self.assertEqual(info["id"], "7")
         self.assertEqual(info["username"], "altaraskin")
         self.assertEqual(info["email"], "altaraskin@alexol.io")
+        self.assertEqual(info["sub"], "altaraskin@alexol.io")
         self.assertTrue(info["email_verified"])
         self.assertEqual(info["name"], "Alexander Taraskin")
         self.assertEqual(info["given_name"], "Alexander")
         self.assertEqual(info["family_name"], "Taraskin")
         self.assertEqual(
             info["picture"],
-            "https://mail.alexol.io/api/public/avatar/altaraskin@alexol.io",
+            "https://mail.alexol.io/api/users/avatar/altaraskin@alexol.io",
         )
         self.assertEqual(info["avatarUrl"], info["picture"])
         self.assertEqual(info["phone"], "+79990001122")
@@ -44,6 +45,33 @@ class OauthHelpersTests(unittest.TestCase):
         self.assertEqual(info["roles"], ["admin"])
         self.assertEqual(info["groups"], ["jira-users", "confluence-users", "stash-users"])
         self.assertNotIn("bitbucket-users", info["groups"])
+
+    def test_userinfo_splits_russian_display_name(self):
+        from app.oauth import oauth_userinfo, split_display_name
+
+        self.assertEqual(split_display_name("Иван Иванов"), ("Иван", "Иванов"))
+        user = SimpleNamespace(
+            id=8,
+            email="ivan@alexol.io",
+            username="ivan",
+            full_name="Иван Иванов",
+            is_admin=False,
+            phone="",
+            telegram="",
+            job_title="",
+        )
+        with patch(
+            "app.oauth.oauth_picture_url",
+            return_value="https://mail.alexol.io/api/users/avatar/ivan@alexol.io",
+        ):
+            info = oauth_userinfo(user)
+        self.assertEqual(info["name"], "Иван Иванов")
+        self.assertEqual(info["given_name"], "Иван")
+        self.assertEqual(info["family_name"], "Иванов")
+        self.assertEqual(
+            info["picture"],
+            "https://mail.alexol.io/api/users/avatar/ivan@alexol.io",
+        )
 
     def test_chat_handoff_starts_oauth(self):
         from urllib.parse import parse_qs, urlparse
