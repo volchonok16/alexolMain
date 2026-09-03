@@ -88,41 +88,65 @@ def _is_chat_client(client_id: str) -> bool:
     return cid in CHAT_CLIENT_IDS or cid == _client_id().lower()
 
 
-def _oauth_groups(client_id: str = "") -> list[str]:
+def _normalize_group_names(items: list[str]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        name = "jira-software-users" if item.strip().lower() == "jira-users" else item.strip()
+        if not name or name.lower() == "bitbucket-users" or name in seen:
+            continue
+        seen.add(name)
+        out.append(name)
+    return out
+
+
+def _product_groups(setting_name: str, default: str) -> list[str]:
+    raw = (getattr(settings, setting_name, None) or "").strip() or default
+    return _normalize_group_names(_csv(raw) or [default])
+
+
+def _oauth_groups(client_id: str = "", *, is_admin: bool = False) -> list[str]:
     cid = (client_id or "").strip().lower()
     raw = (getattr(settings, "OAUTH_ATLASSIAN_GROUPS", None) or "").strip()
-    groups = _csv(raw) if raw else list(ATLASSIAN_DEFAULT_GROUPS)
-    groups = [
-        "jira-software-users" if item.strip().lower() == "jira-users" else item
-        for item in groups
-        if item.strip().lower() != "bitbucket-users"
-    ]
+    groups = _normalize_group_names(_csv(raw) if raw else list(ATLASSIAN_DEFAULT_GROUPS))
     if _is_chat_client(cid):
         return []
 
-    def _product_groups(setting_name: str, default: str) -> list[str]:
-        raw = (getattr(settings, setting_name, None) or "").strip() or default
-        items = _csv(raw) or [default]
-        return [
-            "jira-software-users" if item.strip().lower() == "jira-users" else item
-            for item in items
-            if item.strip().lower() != "bitbucket-users"
-        ]
+    jira_only = (
+        "jira" in cid
+        and "confluence" not in cid
+        and "bitbucket" not in cid
+        and "atlassian" not in cid
+    )
+    confluence_only = "confluence" in cid
+    bitbucket_only = "bitbucket" in cid
 
-    if "jira" in cid and "confluence" not in cid and "bitbucket" not in cid and "atlassian" not in cid:
-        return _product_groups("OAUTH_ATLASSIAN_GROUPS_JIRA", "jira-software-users")
-    if "confluence" in cid:
-        return _product_groups("OAUTH_ATLASSIAN_GROUPS_CONFLUENCE", "confluence-users")
-    if "bitbucket" in cid:
+    if jira_only:
+        groups = _product_groups("OAUTH_ATLASSIAN_GROUPS_JIRA", "jira-software-users")
+    elif confluence_only:
+        groups = _product_groups("OAUTH_ATLASSIAN_GROUPS_CONFLUENCE", "confluence-users")
+    elif bitbucket_only:
         groups = _product_groups("OAUTH_ATLASSIAN_GROUPS_BITBUCKET", "stash-users")
         if "stash-users" not in groups:
             groups.append("stash-users")
-        return groups
-    if "jira-software-users" not in groups:
-        groups.append("jira-software-users")
-    if "stash-users" not in groups:
-        groups.append("stash-users")
-    return groups
+    else:
+        if "jira-software-users" not in groups:
+            groups.append("jira-software-users")
+        if "stash-users" not in groups:
+            groups.append("stash-users")
+
+    if is_admin:
+        if jira_only or not (confluence_only or bitbucket_only):
+            groups.extend(
+                _product_groups("OAUTH_ATLASSIAN_GROUPS_JIRA_ADMIN", "jira-administrators")
+            )
+        if confluence_only or not (jira_only or bitbucket_only):
+            groups.extend(
+                _product_groups(
+                    "OAUTH_ATLASSIAN_GROUPS_CONFLUENCE_ADMIN", "confluence-administrators"
+                )
+            )
+    return _normalize_group_names(groups)
 
 
 def _client_secret_for(client_id: str) -> str:
@@ -240,7 +264,7 @@ def oauth_userinfo(user: User, client_id: str = "") -> dict[str, Any]:
         "title": job_title,
         "bio": " · ".join(bio_parts),
         "nickname": telegram or "",
-        "groups": _oauth_groups(client_id),
+        "groups": _oauth_groups(client_id, is_admin=bool(getattr(user, "is_admin", False))),
     }
     if user.is_admin:
         info["roles"] = ["admin"]

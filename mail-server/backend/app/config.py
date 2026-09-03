@@ -104,6 +104,9 @@ class Settings(BaseSettings):
     OAUTH_ATLASSIAN_GROUPS_JIRA: str = "jira-software-users"
     OAUTH_ATLASSIAN_GROUPS_CONFLUENCE: str = "confluence-users"
     OAUTH_ATLASSIAN_GROUPS_BITBUCKET: str = "stash-users"
+    # Extra groups when mailbox is_admin=true (SSO overwrites Jira/Confluence groups on login).
+    OAUTH_ATLASSIAN_GROUPS_JIRA_ADMIN: str = "jira-administrators"
+    OAUTH_ATLASSIAN_GROUPS_CONFLUENCE_ADMIN: str = "confluence-administrators"
     # Comma-separated exact callback URLs. Default: chat + Atlassian OIDC callbacks.
     OAUTH_ROCKETCHAT_REDIRECT_URI: Optional[str] = None
     # Admin API to push avatar / phone / telegram / job title into the RC profile.
