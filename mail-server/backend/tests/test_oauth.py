@@ -66,6 +66,10 @@ class OauthHelpersTests(unittest.TestCase):
             ["confluence-users", "confluence-administrators"],
         )
         self.assertEqual(oauth_userinfo(user, "alexol-bitbucket")["groups"], ["stash-users"])
+        self.assertEqual(
+            oauth_userinfo(user, "alexol-bamboo")["groups"],
+            ["bamboo-users", "bamboo-admin"],
+        )
 
     def test_userinfo_splits_russian_display_name(self):
         from app.oauth import oauth_userinfo, split_display_name
@@ -133,7 +137,7 @@ class OauthHelpersTests(unittest.TestCase):
         with patch("app.oauth.settings") as settings:
             settings.OAUTH_ROCKETCHAT_CLIENT_ID = "alexol-chat"
             settings.OAUTH_CLIENT_IDS = (
-                "alexol-chat,alexol-atlassian,alexol-jira,alexol-confluence,alexol-bitbucket"
+                "alexol-chat,alexol-atlassian,alexol-jira,alexol-confluence,alexol-bitbucket,alexol-bamboo"
             )
             settings.MAIL_PUBLIC_URL = "https://mail.alexol.io"
             settings.CHAT_PUBLIC_URL = "https://chat.alexol.io"
@@ -143,6 +147,7 @@ class OauthHelpersTests(unittest.TestCase):
             self.assertTrue(client_id_allowed("alexol-chat"))
             self.assertTrue(client_id_allowed("alexol-jira"))
             self.assertTrue(client_id_allowed("alexol-atlassian"))
+            self.assertTrue(client_id_allowed("alexol-bamboo"))
             self.assertFalse(client_id_allowed("unknown-app"))
             chat_html = _login_html("", {"client_id": "alexol-chat"}, "alexol-chat")
             self.assertIn("Войти в чат", chat_html)

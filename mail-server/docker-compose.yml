@@ -87,17 +87,20 @@ services:
       JIRA_PUBLIC_URL: ${JIRA_PUBLIC_URL:-https://jira.alexol.io}
       CONFLUENCE_PUBLIC_URL: ${CONFLUENCE_PUBLIC_URL:-https://confluence.alexol.io}
       BITBUCKET_PUBLIC_URL: ${BITBUCKET_PUBLIC_URL:-https://bitbucket.alexol.io}
+      BAMBOO_PUBLIC_URL: ${BAMBOO_PUBLIC_URL:-https://bamboo.alexol.io}
       OAUTH_ROCKETCHAT_CLIENT_ID: ${OAUTH_ROCKETCHAT_CLIENT_ID:-alexol-chat}
       OAUTH_ROCKETCHAT_CLIENT_SECRET: ${OAUTH_ROCKETCHAT_CLIENT_SECRET:-}
-      OAUTH_CLIENT_IDS: ${OAUTH_CLIENT_IDS:-alexol-chat,alexol-atlassian,alexol-jira,alexol-confluence,alexol-bitbucket}
+      OAUTH_CLIENT_IDS: ${OAUTH_CLIENT_IDS:-alexol-chat,alexol-atlassian,alexol-jira,alexol-confluence,alexol-bitbucket,alexol-bamboo}
       OAUTH_ATLASSIAN_CLIENT_SECRET: ${OAUTH_ATLASSIAN_CLIENT_SECRET:-}
       OAUTH_ATLASSIAN_GROUPS: ${OAUTH_ATLASSIAN_GROUPS:-jira-software-users,confluence-users,stash-users}
       OAUTH_ATLASSIAN_GROUPS_JIRA: ${OAUTH_ATLASSIAN_GROUPS_JIRA:-jira-software-users}
       OAUTH_ATLASSIAN_GROUPS_CONFLUENCE: ${OAUTH_ATLASSIAN_GROUPS_CONFLUENCE:-confluence-users}
       OAUTH_ATLASSIAN_GROUPS_BITBUCKET: ${OAUTH_ATLASSIAN_GROUPS_BITBUCKET:-stash-users}
+      OAUTH_ATLASSIAN_GROUPS_BAMBOO: ${OAUTH_ATLASSIAN_GROUPS_BAMBOO:-bamboo-users}
       OAUTH_ATLASSIAN_GROUPS_JIRA_ADMIN: ${OAUTH_ATLASSIAN_GROUPS_JIRA_ADMIN:-jira-administrators}
       OAUTH_ATLASSIAN_GROUPS_CONFLUENCE_ADMIN: ${OAUTH_ATLASSIAN_GROUPS_CONFLUENCE_ADMIN:-confluence-administrators}
-      OAUTH_ROCKETCHAT_REDIRECT_URI: ${OAUTH_ROCKETCHAT_REDIRECT_URI:-https://chat.alexol.io/_oauth/alexol,https://jira.alexol.io/plugins/servlet/oidc/callback,https://confluence.alexol.io/plugins/servlet/oidc/callback,https://bitbucket.alexol.io/plugins/servlet/oidc/callback}
+      OAUTH_ATLASSIAN_GROUPS_BAMBOO_ADMIN: ${OAUTH_ATLASSIAN_GROUPS_BAMBOO_ADMIN:-bamboo-admin}
+      OAUTH_ROCKETCHAT_REDIRECT_URI: ${OAUTH_ROCKETCHAT_REDIRECT_URI:-https://chat.alexol.io/_oauth/alexol,https://jira.alexol.io/plugins/servlet/oidc/callback,https://confluence.alexol.io/plugins/servlet/oidc/callback,https://bitbucket.alexol.io/plugins/servlet/oidc/callback,https://bamboo.alexol.io/plugins/servlet/oidc/callback}
       # rocket_chat on alexol_mail_sync — not host.docker.internal (RC is 127.0.0.1:18300)
       ROCKETCHAT_API_URL: ${ROCKETCHAT_API_URL:-http://rocket_chat:3000}
       ROCKETCHAT_ADMIN_USERNAME: ${ROCKETCHAT_ADMIN_USERNAME:-admin}

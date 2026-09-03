@@ -41,6 +41,7 @@ ATLASSIAN_CLIENT_IDS = (
     "alexol-jira",
     "alexol-confluence",
     "alexol-bitbucket",
+    "alexol-bamboo",
 )
 ATLASSIAN_DEFAULT_GROUPS = ("jira-software-users", "confluence-users", "stash-users")
 
@@ -80,7 +81,9 @@ def _is_atlassian_client(client_id: str) -> bool:
     cid = (client_id or "").strip().lower()
     if cid in ATLASSIAN_CLIENT_IDS:
         return True
-    return any(token in cid for token in ("jira", "confluence", "bitbucket", "atlassian"))
+    return any(
+        token in cid for token in ("jira", "confluence", "bitbucket", "bamboo", "atlassian")
+    )
 
 
 def _is_chat_client(client_id: str) -> bool:
@@ -116,10 +119,12 @@ def _oauth_groups(client_id: str = "", *, is_admin: bool = False) -> list[str]:
         "jira" in cid
         and "confluence" not in cid
         and "bitbucket" not in cid
+        and "bamboo" not in cid
         and "atlassian" not in cid
     )
     confluence_only = "confluence" in cid
     bitbucket_only = "bitbucket" in cid
+    bamboo_only = "bamboo" in cid
 
     if jira_only:
         groups = _product_groups("OAUTH_ATLASSIAN_GROUPS_JIRA", "jira-software-users")
@@ -129,6 +134,10 @@ def _oauth_groups(client_id: str = "", *, is_admin: bool = False) -> list[str]:
         groups = _product_groups("OAUTH_ATLASSIAN_GROUPS_BITBUCKET", "stash-users")
         if "stash-users" not in groups:
             groups.append("stash-users")
+    elif bamboo_only:
+        groups = _product_groups("OAUTH_ATLASSIAN_GROUPS_BAMBOO", "bamboo-users")
+        if "bamboo-users" not in groups:
+            groups.append("bamboo-users")
     else:
         if "jira-software-users" not in groups:
             groups.append("jira-software-users")
@@ -136,16 +145,18 @@ def _oauth_groups(client_id: str = "", *, is_admin: bool = False) -> list[str]:
             groups.append("stash-users")
 
     if is_admin:
-        if jira_only or not (confluence_only or bitbucket_only):
+        if jira_only or not (confluence_only or bitbucket_only or bamboo_only):
             groups.extend(
                 _product_groups("OAUTH_ATLASSIAN_GROUPS_JIRA_ADMIN", "jira-administrators")
             )
-        if confluence_only or not (jira_only or bitbucket_only):
+        if confluence_only or not (jira_only or bitbucket_only or bamboo_only):
             groups.extend(
                 _product_groups(
                     "OAUTH_ATLASSIAN_GROUPS_CONFLUENCE_ADMIN", "confluence-administrators"
                 )
             )
+        if bamboo_only:
+            groups.extend(_product_groups("OAUTH_ATLASSIAN_GROUPS_BAMBOO_ADMIN", "bamboo-admin"))
     return _normalize_group_names(groups)
 
 
@@ -169,11 +180,15 @@ def _allowed_redirects() -> list[str]:
     bitbucket = (
         getattr(settings, "BITBUCKET_PUBLIC_URL", None) or "https://bitbucket.alexol.io"
     ).rstrip("/")
+    bamboo = (
+        getattr(settings, "BAMBOO_PUBLIC_URL", None) or "https://bamboo.alexol.io"
+    ).rstrip("/")
     return [
         f"{chat}/_oauth/alexol",
         f"{jira}/plugins/servlet/oidc/callback",
         f"{confluence}/plugins/servlet/oidc/callback",
         f"{bitbucket}/plugins/servlet/oidc/callback",
+        f"{bamboo}/plugins/servlet/oidc/callback",
     ]
 
 
@@ -319,11 +334,15 @@ def _login_html(
         bitbucket = _html(
             (getattr(settings, "BITBUCKET_PUBLIC_URL", None) or "https://bitbucket.alexol.io").rstrip("/")
         )
+        bamboo = _html(
+            (getattr(settings, "BAMBOO_PUBLIC_URL", None) or "https://bamboo.alexol.io").rstrip("/")
+        )
         hint = (
             f'Профиль (ФИО, фото, почта) подтянется с <a href="{mail}">{mail.replace("https://", "")}</a>. '
             f'Jira: <a href="{jira}">{jira}</a>. '
             f'Confluence: <a href="{confluence}">{confluence}</a>. '
-            f'Bitbucket: <a href="{bitbucket}">{bitbucket}</a>'
+            f'Bitbucket: <a href="{bitbucket}">{bitbucket}</a>. '
+            f'Bamboo: <a href="{bamboo}">{bamboo}</a>'
         )
     else:
         title = "Вход Alexol — чат"

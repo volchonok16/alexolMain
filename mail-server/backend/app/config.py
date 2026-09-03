@@ -93,6 +93,7 @@ class Settings(BaseSettings):
     JIRA_PUBLIC_URL: str = "https://jira.alexol.io"
     CONFLUENCE_PUBLIC_URL: str = "https://confluence.alexol.io"
     BITBUCKET_PUBLIC_URL: str = "https://bitbucket.alexol.io"
+    BAMBOO_PUBLIC_URL: str = "https://bamboo.alexol.io"
     OAUTH_ROCKETCHAT_CLIENT_ID: str = "alexol-chat"
     OAUTH_ROCKETCHAT_CLIENT_SECRET: Optional[str] = None
     # Comma-separated OAuth client_ids (chat + Atlassian). Empty → rocket id + Atlassian defaults.
@@ -104,9 +105,11 @@ class Settings(BaseSettings):
     OAUTH_ATLASSIAN_GROUPS_JIRA: str = "jira-software-users"
     OAUTH_ATLASSIAN_GROUPS_CONFLUENCE: str = "confluence-users"
     OAUTH_ATLASSIAN_GROUPS_BITBUCKET: str = "stash-users"
+    OAUTH_ATLASSIAN_GROUPS_BAMBOO: str = "bamboo-users"
     # Extra groups when mailbox is_admin=true (SSO overwrites Jira/Confluence groups on login).
     OAUTH_ATLASSIAN_GROUPS_JIRA_ADMIN: str = "jira-administrators"
     OAUTH_ATLASSIAN_GROUPS_CONFLUENCE_ADMIN: str = "confluence-administrators"
+    OAUTH_ATLASSIAN_GROUPS_BAMBOO_ADMIN: str = "bamboo-admin"
     # Comma-separated exact callback URLs. Default: chat + Atlassian OIDC callbacks.
     OAUTH_ROCKETCHAT_REDIRECT_URI: Optional[str] = None
     # Admin API to push avatar / phone / telegram / job title into the RC profile.
