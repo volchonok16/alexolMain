@@ -119,6 +119,22 @@ def avatar_sync_entry(user: User) -> Optional[dict]:
     }
 
 
+def atlassian_directory_entry(user: User) -> Optional[dict]:
+    """Directory row for Atlassian user sync. username matches SSO (email)."""
+    email = (getattr(user, "email", None) or "").strip().lower()
+    if not email:
+        return None
+    name = (getattr(user, "full_name", None) or "").strip() or email
+    return {
+        "email": email,
+        "full_name": name,
+        "is_active": bool(getattr(user, "is_active", True)),
+        "is_admin": bool(getattr(user, "is_admin", False)),
+        "username": email,
+        "bitbucket_slug": email.replace("@", "_"),
+    }
+
+
 def public_vcard_url(email: str) -> str:
     base = (settings.MAIL_PUBLIC_URL or "https://mail.alexol.io").rstrip("/")
     return f"{base}/api/public/vcard/{quote((email or '').strip().lower(), safe='@.')}"

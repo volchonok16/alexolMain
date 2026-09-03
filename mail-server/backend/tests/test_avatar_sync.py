@@ -51,3 +51,29 @@ class AvatarSyncPayloadTests(unittest.TestCase):
                 )
             )
         )
+
+
+class AtlassianDirectoryTests(unittest.TestCase):
+    def test_slug_and_sso_username(self):
+        from app.mail_photos import atlassian_directory_entry
+
+        entry = atlassian_directory_entry(
+            SimpleNamespace(
+                email="altaraskin@alexol.io",
+                full_name="Altar Askin",
+                is_active=True,
+                is_admin=False,
+                username="altaraskin",
+            )
+        )
+        self.assertEqual(
+            entry,
+            {
+                "email": "altaraskin@alexol.io",
+                "full_name": "Altar Askin",
+                "is_active": True,
+                "is_admin": False,
+                "username": "altaraskin@alexol.io",
+                "bitbucket_slug": "altaraskin_alexol.io",
+            },
+        )

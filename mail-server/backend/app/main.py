@@ -60,7 +60,7 @@ from app.oauth import router as oauth_router
 from app.rocketchat_profile import schedule_rocketchat_profile_sync
 from app.chat_profile_loop import start_chat_profile_loop, stop_chat_profile_loop
 from app.org_profile import apply_org_profile_fields
-from app.mail_photos import avatar_sync_entry
+from app.mail_photos import avatar_sync_entry, atlassian_directory_entry
 from fastapi.responses import StreamingResponse, RedirectResponse, Response
 from sqlalchemy import text
 from urllib.parse import unquote
@@ -1391,6 +1391,18 @@ async def sync_ensure_user(user_data: SyncUserEnsure, db: AsyncSession = Depends
     await db.refresh(user)
     schedule_rocketchat_profile_sync(user)
     return user
+
+
+@app.get("/api/internal/users", dependencies=[Depends(verify_mail_sync_key)])
+async def sync_list_users(db: AsyncSession = Depends(get_db)):
+    """Atlassian user sync: mailboxes as SSO identities (email = username)."""
+    result = await db.execute(select(User).order_by(User.id))
+    out = []
+    for user in result.scalars().all():
+        entry = atlassian_directory_entry(user)
+        if entry:
+            out.append(entry)
+    return out
 
 
 @app.get("/api/internal/sync/avatars", dependencies=[Depends(verify_mail_sync_key)])
