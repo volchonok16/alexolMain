@@ -1,5 +1,5 @@
 export type LangId = 'en' | 'es' | 'fr' | 'de';
-export type DeckTheme = 'basics' | 'travel' | 'food' | 'custom';
+export type DeckTheme = 'basics' | 'travel' | 'food' | 'custom' | 'tutor';
 export type QuizMode = 'ask' | 'study';
 
 export type Card = {
@@ -9,7 +9,9 @@ export type Card = {
   front: string;
   back: string;
   example?: string;
-  source: 'starter' | 'custom';
+  image?: string;
+  lessonId?: string;
+  source: 'starter' | 'custom' | 'assigned';
   createdAt: number;
 };
 
@@ -17,6 +19,9 @@ export type CardProgress = {
   known: number;
   unknown: number;
   lastSeen: number;
+  /** 0 = новое, 1–5 = изучаю, 6 = знаю. Шесть кружков, как в словаре Skyeng. */
+  stage: number;
+  inStudy: boolean;
 };
 
 export type LangMeta = {

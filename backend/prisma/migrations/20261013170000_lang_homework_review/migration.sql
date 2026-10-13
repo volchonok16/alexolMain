@@ -1,0 +1,2 @@
+ALTER TABLE "LangHomework" ADD COLUMN "review" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "LangHomework" ADD COLUMN "checked" BOOLEAN NOT NULL DEFAULT false;

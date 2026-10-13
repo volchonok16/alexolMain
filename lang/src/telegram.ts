@@ -7,7 +7,17 @@ type ThemeParams = {
   secondary_bg_color?: string;
 };
 
+export type TelegramUser = {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+};
+
 type TelegramWebApp = {
+  initData?: string;
+  initDataUnsafe?: { user?: TelegramUser };
   ready: () => void;
   expand: () => void;
   setHeaderColor?: (color: string) => void;
@@ -54,6 +64,14 @@ export function haptic(kind: 'tap' | 'ok' | 'no' = 'tap'): void {
   if (kind === 'ok') hapticApi.notificationOccurred('success');
   else if (kind === 'no') hapticApi.notificationOccurred('error');
   else hapticApi.impactOccurred('light');
+}
+
+export function telegramInitData(): string {
+  return getTelegram()?.initData || '';
+}
+
+export function telegramUser(): TelegramUser | null {
+  return getTelegram()?.initDataUnsafe?.user ?? null;
 }
 
 export function queryLang(): string | null {

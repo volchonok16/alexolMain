@@ -40,6 +40,25 @@ textarea {
   color: inherit;
 }
 
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 112px;
+  margin: 0;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  padding: 12px 14px;
+  outline: none;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+textarea:focus {
+  border-color: var(--cyan);
+}
+
 button {
   cursor: pointer;
   border: none;
@@ -122,7 +141,7 @@ button {
 
 .grid {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .grid.langs {
@@ -130,6 +149,9 @@ button {
 }
 
 .tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   text-align: left;
   padding: 16px;
   border-radius: var(--radius);
@@ -142,6 +164,21 @@ button {
   transform: scale(0.98);
 }
 
+.tile.has-ring {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tile-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+}
+
 .tile .emoji {
   font-size: 1.5rem;
   display: block;
@@ -149,15 +186,54 @@ button {
 }
 
 .tile .title {
+  display: block;
   font-weight: 650;
   font-size: 1rem;
+  line-height: 1.25;
 }
 
 .tile .meta {
-  margin-top: 4px;
+  display: block;
+  margin-top: 6px;
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.35;
+}
+
+.lessons-first {
+  margin-bottom: 16px;
+}
+
+.lessons-done {
+  margin-top: 16px;
+}
+
+.tile.is-done,
+.lesson-scale.is-done,
+.task.is-checked {
+  background: rgba(62, 224, 163, 0.12);
+  border-color: rgba(62, 224, 163, 0.55);
+}
+
+.tile.is-done .meta,
+.checked-label {
+  color: #3ee0a3;
+}
+
+.note-box {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.note-box strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.78rem;
+}
+
+.note-box p {
+  margin: 0;
 }
 
 .modes {
@@ -393,7 +469,8 @@ button {
 }
 
 .form input,
-.form textarea {
+.form textarea,
+.form select {
   width: 100%;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -403,7 +480,8 @@ button {
 }
 
 .form input:focus,
-.form textarea:focus {
+.form textarea:focus,
+.form select:focus {
   border-color: var(--cyan);
 }
 
@@ -493,4 +571,407 @@ button {
   border-color: var(--cyan);
   color: var(--cyan);
   background: rgba(10, 227, 255, 0.1);
+}
+
+.dict-head {
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  margin-bottom: 14px;
+}
+
+.dict-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dict-head-row strong {
+  font-size: 1.6rem;
+  letter-spacing: -0.03em;
+  color: var(--ok);
+}
+
+.dict-head-row span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: right;
+  line-height: 1.35;
+}
+
+.dict-bar {
+  height: 8px;
+  margin-top: 12px;
+  background: var(--bg-3);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.dict-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff8a3d, #ffc14d, #3ee0a3);
+}
+
+.dict-note {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.dict-actions {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dict-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dict-search {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.dict-search input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  padding: 12px 14px;
+  outline: none;
+}
+
+.dict-search input:focus {
+  border-color: var(--cyan);
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 10px;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.filters::-webkit-scrollbar {
+  display: none;
+}
+
+.filters .chip {
+  flex-shrink: 0;
+}
+
+.deck-add {
+  margin: 4px 0 12px;
+}
+
+.dict-add {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.word-main {
+  min-width: 0;
+}
+
+.word.is-study {
+  border-color: var(--line);
+}
+
+.word-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.stage-ring {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.stage-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.stage-ring circle {
+  fill: none;
+  stroke-width: 3.2;
+}
+
+.stage-ring circle.track {
+  stroke: rgba(168, 176, 192, 0.28);
+}
+
+.stage-ring circle.fill {
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 18px 18px;
+  transition: stroke-dashoffset 0.35s ease;
+}
+
+.stage-ring b {
+  position: relative;
+  z-index: 1;
+  max-width: 70%;
+  overflow: hidden;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.lesson-scales {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.lesson-scale {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+
+.lesson-scale strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.lesson-scale span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.lesson-scale .stage-ring {
+  display: inline-grid;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.stage-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stage-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  border: 1.5px solid rgba(168, 176, 192, 0.45);
+  background: transparent;
+}
+
+.stage-dots.is-lg {
+  gap: 6px;
+}
+
+.stage-dots.is-lg i {
+  width: 12px;
+  height: 12px;
+}
+
+.stage-dots i.is-on {
+  border-color: transparent;
+}
+
+.study-switch {
+  flex-shrink: 0;
+  align-self: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.study-switch.is-on {
+  color: #041018;
+  background: var(--ok);
+  border-color: transparent;
+}
+
+.flash-photo {
+  width: min(100%, 280px);
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+.word-photo {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.preview {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.task {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+
+.answer-field,
+.task label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.answer-field span {
+  display: block;
+}
+
+.task textarea {
+  width: 100%;
+  min-height: 112px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  padding: 12px 14px;
+  outline: none;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.task textarea:focus {
+  border-color: var(--cyan);
+}
+
+.section-label {
+  font-size: 0.95rem;
+  margin: 0 2px 10px;
+}
+
+.task h2,
+.task-form h2 {
+  font-size: 1rem;
+}
+
+.task p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.task-form {
+  margin-top: 18px;
+}
+
+.word-btn {
+  width: 100%;
+  text-align: left;
+}
+
+.admin-user {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.admin-user .word-btn {
+  width: 100%;
+}
+
+.admin-user .translation {
+  line-height: 1.35;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-user .admin-actions .btn {
+  flex: 1;
+  width: auto;
+  min-height: 44px;
+}
+
+.staff-switch {
+  display: grid;
+  grid-template-columns: repeat(var(--switch-cols, 2), minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+
+.staff-switch button {
+  min-height: 40px;
+  border-radius: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.staff-switch button.is-active {
+  color: #041018;
+  background: var(--ok);
+}
+
+.flash-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
 }

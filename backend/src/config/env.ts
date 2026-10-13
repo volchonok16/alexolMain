@@ -9,29 +9,34 @@ const parseCorsOrigin = (origin: string | undefined): string[] => {
     'http://localhost:3000', // Swagger UI
     'http://localhost:5173', // Frontend dev
     'http://localhost:5174', // Admin dev
+    'http://localhost:5175', // Lang mini app
   ];
   
   const productionOrigins = [
     'https://alexol.io',
     'https://admin.alexol.io',
     'https://mail.alexol.io',
+    'https://lang.alexol.io',
   ];
   
+  const langOrigins = ['https://lang.alexol.io', 'http://localhost:5175'];
+
   if (!origin) {
     // If no CORS_ORIGIN is set, include both localhost and production
     console.warn('[CORS] No CORS_ORIGIN env variable set, using defaults');
-    return [...localhostOrigins, ...productionOrigins];
+    return [...new Set([...localhostOrigins, ...productionOrigins, ...langOrigins])];
   }
   
   const customOrigins = origin.split(',').map(url => url.trim()).filter(url => url);
   
   // In development, merge with localhost origins
   if (process.env.NODE_ENV === 'development') {
-    return [...new Set([...customOrigins, ...localhostOrigins])];
+    return [...new Set([...customOrigins, ...localhostOrigins, ...langOrigins])];
   }
   
-  // In production, use only custom origins (or production defaults if custom is empty)
-  return customOrigins.length > 0 ? customOrigins : productionOrigins;
+  // In production, use custom origins and always allow the language mini app.
+  const base = customOrigins.length > 0 ? customOrigins : productionOrigins;
+  return [...new Set([...base, ...langOrigins])];
 };
 
 const parseCsv = (value: string | undefined, fallback: string[]): string[] => {
@@ -91,6 +96,8 @@ export const config = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
   telegramNewsBotToken: process.env.TELEGRAM_NEWS_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN!,
   telegramChatId: process.env.TELEGRAM_CHAT_ID!,
+  speakBotToken: process.env.SPEAK_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '',
+  langTutorIds: parseCsv(process.env.LANG_TUTOR_IDS, []),
   minio: {
     endPoint: parseMinioEndpoint(process.env.MINIO_ENDPOINT),
     port: parseInt(process.env.MINIO_PORT || '9000'),

@@ -102,6 +102,72 @@ model QaConversation {
   @@index([unread])
 }
 
+model LangLearner {
+  telegramId String             @id
+  firstName  String
+  lastName   String?
+  username   String?
+  photoUrl   String?
+  isAdmin    Boolean            @default(false)
+  isTutor    Boolean            @default(false)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  words      LangAssignedWord[]
+  homework   LangHomework[]
+  lessons    LangLesson[]
+}
+
+model LangLesson {
+  id        String             @id @default(uuid())
+  learnerId String
+  learner   LangLearner        @relation(fields: [learnerId], references: [telegramId], onDelete: Cascade)
+  title     String
+  sortOrder Int                @default(0)
+  createdAt DateTime           @default(now())
+  words     LangAssignedWord[]
+  homework  LangHomework[]
+
+  @@index([learnerId])
+}
+
+model LangAssignedWord {
+  id        String      @id @default(uuid())
+  learnerId String
+  learner   LangLearner @relation(fields: [learnerId], references: [telegramId], onDelete: Cascade)
+  lessonId  String?
+  lesson    LangLesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lang      String      @default("en")
+  front     String
+  back      String
+  image     String?     @db.Text
+  example   String?
+  stage     Int         @default(0)
+  known     Int         @default(0)
+  unknown   Int         @default(0)
+  createdAt DateTime    @default(now())
+
+  @@index([learnerId])
+  @@index([lessonId])
+}
+
+model LangHomework {
+  id        String      @id @default(uuid())
+  learnerId String
+  learner   LangLearner @relation(fields: [learnerId], references: [telegramId], onDelete: Cascade)
+  lessonId  String?
+  lesson    LangLesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title     String
+  task      String
+  answer    String      @default("")
+  review    String      @default("")
+  checked   Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([learnerId])
+  @@index([lessonId])
+}
+
 model QaMessage {
   id             String         @id @default(uuid())
   conversationId String

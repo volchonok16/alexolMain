@@ -12,6 +12,7 @@ export const DECKS: DeckMeta[] = [
   { id: 'travel', emoji: '✈️', title: 'Путешествие', hint: 'Самолёт, аэропорт, отель' },
   { id: 'food', emoji: '🍽', title: 'Еда', hint: 'Кафе, меню, заказ' },
   { id: 'custom', emoji: '✏️', title: 'Мои слова', hint: 'Добавляешь сам - это и есть карточки' },
+  { id: 'tutor', emoji: '📖', title: 'Все уроки', hint: 'Слова, которые задал админ' },
 ];
 
 type SeedWord = {
@@ -21,7 +22,7 @@ type SeedWord = {
   example?: string;
 };
 
-const SEED: Record<LangId, Record<Exclude<DeckTheme, 'custom'>, SeedWord[]>> = {
+const SEED: Record<LangId, Record<Exclude<DeckTheme, 'custom' | 'tutor'>, SeedWord[]>> = {
   en: {
     basics: [
       { slug: 'hello', front: 'hello', back: 'привет', example: 'Hello! How are you?' },
