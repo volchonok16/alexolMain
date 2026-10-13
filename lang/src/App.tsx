@@ -102,6 +102,7 @@ export default function App() {
   const [online, setOnline] = useState(() => navigator.onLine);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [account, setAccount] = useState<LangAccount | null>(null);
+  const [entryError, setEntryError] = useState('');
   const [panel, setPanel] = useState<PanelId>('study');
   const [homework, setHomework] = useState<RemoteHomework[]>([]);
   const [lessons, setLessons] = useState<RemoteLesson[]>([]);
@@ -109,11 +110,13 @@ export default function App() {
     if (!telegramInitData() && !(import.meta.env.DEV && hasDevAccount())) {
       setAccount(null);
       setHomework([]);
+      setEntryError('');
       return;
     }
     try {
       const bundle = await langApi.me();
       setAccount(bundle.user);
+      setEntryError('');
       setHomework(bundle.homework);
       setLessons(bundle.lessons);
       setStore((prev) => applyAssigned(prev, bundle.words));
@@ -122,6 +125,7 @@ export default function App() {
         setAccount(null);
         setHomework([]);
         setLessons([]);
+        setEntryError(error.message);
       }
     }
   }, []);
@@ -129,6 +133,10 @@ export default function App() {
   useEffect(() => {
     initTelegram();
     void refreshAccount();
+    const later = window.setTimeout(() => {
+      initTelegram();
+      void refreshAccount();
+    }, 600);
     const on = () => setOnline(true);
     const off = () => setOnline(false);
     const onInstall = (event: Event) => {
@@ -139,6 +147,7 @@ export default function App() {
     window.addEventListener('offline', off);
     window.addEventListener('beforeinstallprompt', onInstall);
     return () => {
+      window.clearTimeout(later);
       window.removeEventListener('online', on);
       window.removeEventListener('offline', off);
       window.removeEventListener('beforeinstallprompt', onInstall);
@@ -193,6 +202,7 @@ export default function App() {
           online={online}
           lastLang={store.lastLang}
           account={account}
+          entryError={entryError}
           panel={panel}
           onPanel={choosePanel}
           onLang={openLang}
@@ -374,6 +384,7 @@ function HomeScreen({
   online,
   lastLang,
   account,
+  entryError,
   panel,
   onPanel,
   onLang,
@@ -382,6 +393,7 @@ function HomeScreen({
   online: boolean;
   lastLang: LangId | null;
   account: LangAccount | null;
+  entryError: string;
   panel: PanelId;
   onPanel: (panel: PanelId) => void;
   onLang: (lang: LangId) => void;
@@ -400,9 +412,11 @@ function HomeScreen({
         <span className={`badge${online ? '' : ' is-offline'}`}>
           {account
             ? accountLabel(account)
-            : online
-              ? 'Открой из Telegram, чтобы админ увидел тебя'
-              : 'Офлайн · карточки на устройстве'}
+            : entryError
+              ? entryError
+              : online
+                ? 'Открой из Telegram, чтобы админ увидел тебя'
+                : 'Офлайн · карточки на устройстве'}
         </span>
       </div>
       <PanelSwitch account={account} panel={panel} onChange={onPanel} />

@@ -43,8 +43,16 @@ declare global {
   }
 }
 
+const INIT_KEY = 'lang-tg-init';
+
 export function getTelegram(): TelegramWebApp | undefined {
   return window.Telegram?.WebApp;
+}
+
+function initDataFromHash(): string {
+  const hash = window.location.hash.replace(/^#/, '');
+  if (!hash.includes('tgWebAppData')) return '';
+  return new URLSearchParams(hash).get('tgWebAppData') || '';
 }
 
 export function initTelegram(): TelegramWebApp | undefined {
@@ -67,7 +75,20 @@ export function haptic(kind: 'tap' | 'ok' | 'no' = 'tap'): void {
 }
 
 export function telegramInitData(): string {
-  return getTelegram()?.initData || '';
+  const live = getTelegram()?.initData || initDataFromHash();
+  if (live) {
+    try {
+      sessionStorage.setItem(INIT_KEY, live);
+    } catch {
+      /* sessionStorage может быть закрыт */
+    }
+    return live;
+  }
+  try {
+    return sessionStorage.getItem(INIT_KEY) || '';
+  } catch {
+    return '';
+  }
 }
 
 export function telegramUser(): TelegramUser | null {

@@ -35,6 +35,8 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://alexol.io,https://admin.alexol.io,https://api.alexol.io}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      # Карточки проверяют подпись Mini App этим токеном. .env в образ не копируется.
+      SPEAK_BOT_TOKEN: ${SPEAK_BOT_TOKEN}
       TELEGRAM_NEWS_BOT_TOKEN: ${TELEGRAM_NEWS_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}

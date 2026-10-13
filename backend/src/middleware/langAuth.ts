@@ -36,7 +36,8 @@ export async function requireLangUser(req: LangRequest, res: Response, next: Nex
       ? validateTelegramInitData(initData, config.speakBotToken)
       : devIdentity(req);
     if (!identity) {
-      return res.status(401).json({ error: 'Открой карточки из Telegram' });
+      const message = initData ? 'Сервер не подтвердил вход Telegram' : 'Открой карточки из Telegram';
+      return res.status(401).json({ error: message });
     }
     req.langUser = await upsertLearner(identity);
     next();
