@@ -784,25 +784,29 @@ button {
 
 .stage-dots {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  max-width: 168px;
 }
 
 .stage-dots i {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 99px;
   border: 1.5px solid rgba(168, 176, 192, 0.45);
   background: transparent;
 }
 
 .stage-dots.is-lg {
-  gap: 6px;
+  gap: 4px;
+  max-width: 220px;
 }
 
 .stage-dots.is-lg i {
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
 }
 
 .stage-dots i.is-on {
@@ -827,6 +831,56 @@ button {
   border-color: transparent;
 }
 
+.flash-dir {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.spell {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  padding: 12px 14px;
+  outline: none;
+  text-align: center;
+}
+
+.spell:focus {
+  border-color: var(--cyan);
+}
+
+.token-build {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.token-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+}
+
+.token-row.is-bank {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.token {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
 .flash-photo {
   width: min(100%, 280px);
   max-height: 180px;
@@ -847,6 +901,69 @@ button {
   max-height: 160px;
   object-fit: cover;
   border-radius: 14px;
+}
+
+.task-photo {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.task-draft {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.draft-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.draft-head .kill {
+  color: var(--no);
+  padding: 4px 8px;
+}
+
+.lesson-picks {
+  display: grid;
+  gap: 8px;
+}
+
+.lesson-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  text-align: left;
+}
+
+.lesson-pick span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.lesson-pick.is-active {
+  border-color: rgba(62, 224, 163, 0.55);
+  background: rgba(62, 224, 163, 0.12);
+}
+
+.task-form .btn.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .task {

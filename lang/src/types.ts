@@ -19,7 +19,7 @@ export type CardProgress = {
   known: number;
   unknown: number;
   lastSeen: number;
-  /** 0 = новое, 1–5 = изучаю, 6 = знаю. Шесть кружков, как в словаре Skyeng. */
+  /** 0 = новое, 1–14 = изучаю, 15 = знаю. */
   stage: number;
   inStudy: boolean;
 };

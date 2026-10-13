@@ -45,6 +45,7 @@ type Homework = {
   lessonId: string | null;
   title: string;
   task: string;
+  image: string | null;
   answer: string;
   review: string;
   checked: boolean;
@@ -79,6 +80,7 @@ function load(): Db {
     const homework = (raw.homework || []).map((item) => ({
       ...item,
       lessonId: item.lessonId ?? null,
+      image: item.image ?? null,
       review: item.review ?? '',
       checked: Boolean(item.checked),
     }));
@@ -190,6 +192,7 @@ function publicHomework(item: Homework) {
     lessonId: item.lessonId,
     title: item.title,
     task: item.task,
+    image: item.image,
     answer: item.answer,
     review: item.review,
     checked: item.checked,
@@ -252,8 +255,17 @@ export function langDevApi(): Plugin {
           }
           if (method === 'GET' && path === '/api/lang/students') {
             if (!staff()) return;
+            const fresh = load();
             return send(res, 200, {
-              students: load().users.filter((item) => item.telegramId !== user.telegramId).map(present),
+              students: fresh.users
+                .filter((item) => item.telegramId !== user.telegramId)
+                .map((item) => ({
+                  ...present(item),
+                  lessons: fresh.lessons
+                    .filter((lesson) => lesson.learnerId === item.telegramId)
+                    .sort((a, b) => a.sortOrder - b.sortOrder)
+                    .map((lesson) => ({ id: lesson.id, title: lesson.title, sortOrder: lesson.sortOrder })),
+                })),
             });
           }
           const adminMatch = path.match(/^\/api\/lang\/students\/([^/]+)\/admin$/);
@@ -369,7 +381,7 @@ export function langDevApi(): Plugin {
             if (!word) return send(res, 404, { error: 'Слово не найдено' });
             if (word.learnerId !== user.telegramId) return send(res, 403, { error: 'Это слово другого ученика' });
             const body = JSON.parse((await readBody(req)) || '{}') as { stage?: number; known?: number; unknown?: number };
-            word.stage = Math.max(0, Math.min(6, Math.round(Number(body.stage) || 0)));
+            word.stage = Math.max(0, Math.min(15, Math.round(Number(body.stage) || 0)));
             word.known = Math.max(0, Math.round(Number(body.known) || 0));
             word.unknown = Math.max(0, Math.round(Number(body.unknown) || 0));
             save(db);
@@ -405,10 +417,18 @@ export function langDevApi(): Plugin {
             if (!db.users.some((item) => item.telegramId === learnerId)) {
               return send(res, 404, { error: 'Ученик ещё не открывал карточки' });
             }
-            const body = JSON.parse((await readBody(req)) || '{}') as { title?: string; task?: string; lessonId?: string };
+            const body = JSON.parse((await readBody(req)) || '{}') as {
+              title?: string;
+              task?: string;
+              lessonId?: string;
+              image?: string;
+            };
             const title = (body.title || '').trim();
             const task = (body.task || '').trim();
             if (!title || !task) return send(res, 400, { error: 'Нужны название и текст задания' });
+            if (body.image && (body.image.length > 500_000 || !/^data:image\/(jpeg|png|webp);base64,/.test(body.image))) {
+              return send(res, 400, { error: 'Нужна картинка JPEG, PNG или WebP' });
+            }
             if (!body.lessonId || !db.lessons.some((lesson) => lesson.id === body.lessonId && lesson.learnerId === learnerId)) {
               return send(res, 400, { error: 'Сначала выбери урок' });
             }
@@ -418,6 +438,7 @@ export function langDevApi(): Plugin {
               lessonId: body.lessonId,
               title,
               task,
+              image: body.image || null,
               answer: '',
               review: '',
               checked: false,

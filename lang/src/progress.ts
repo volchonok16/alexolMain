@@ -1,6 +1,4 @@
-export const STAGE_MAX = 6;
-
-const STAGE_COLOR = ['#8b93a7', '#ff5d73', '#ff8a3d', '#ffc14d', '#d4e15a', '#69d98a', '#3ee0a3'];
+export const STAGE_MAX = 15;
 
 export function clampStage(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -20,7 +18,11 @@ export function stageLabel(stage: number): string {
 }
 
 export function stageColor(stage: number): string {
-  return STAGE_COLOR[clampStage(stage)] ?? STAGE_COLOR[0];
+  const value = clampStage(stage);
+  if (value <= 0) return '#8b93a7';
+  const t = value / STAGE_MAX;
+  const hue = Math.round(8 + t * 148);
+  return `hsl(${hue} 82% 62%)`;
 }
 
 export type StudyBucket = 'fresh' | 'learning' | 'known';

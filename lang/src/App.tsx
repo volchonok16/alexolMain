@@ -34,7 +34,22 @@ import {
 } from './storage';
 import { getTelegram, haptic, initTelegram, queryLang, telegramInitData } from './telegram';
 import { suggestRuTranslations } from './translate';
-import type { DeckTheme, LangId, QuizMode } from './types';
+import { answersMatch, pickKind, shuffleIndexes, tokenize, type ExerciseKind } from './exercise';
+import { canRecognizeSpeech, canSpeakAloud, recognizeSpeech, speakAloud, speechLang } from './speech';
+import type { Card, DeckTheme, LangId, QuizMode } from './types';
+
+type Drill = { card: Card; kind: ExerciseKind; fromBack: boolean };
+
+function makeDrills(cards: Card[], mode: QuizMode): Drill[] {
+  const speak = canRecognizeSpeech();
+  const listen = canSpeakAloud();
+  return cards.map((card) => {
+    const fromBack = Math.random() < 0.5;
+    if (mode === 'ask') return { card, kind: 'recall', fromBack };
+    const answer = fromBack ? card.front : card.back;
+    return { card, kind: pickKind(answer, speak, listen), fromBack };
+  });
+}
 
 type LessonDeck = `lesson:${string}`;
 type DeckPick = DeckTheme | 'all' | 'study' | LessonDeck;
@@ -482,7 +497,7 @@ function DecksScreen({
   const allCount = deckCards(store, lang, 'all').length;
   const customCount = cardsFor(store, lang, 'custom').length;
   const study = studyCards(store, lang);
-  const knownCount = study.filter((card) => (store.progress[card.id]?.stage ?? 0) >= 6).length;
+  const knownCount = study.filter((card) => (store.progress[card.id]?.stage ?? 0) >= STAGE_MAX).length;
   const lessonRows = [...lessons]
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((lesson) => {
@@ -539,8 +554,8 @@ function DecksScreen({
             <strong>Слова к изучению</strong>
             <span>
               {study.length === 0
-                ? 'Отметь слова, которые нужно учить. У каждого — шкала из 6 шагов.'
-                : `${knownCount} знаю из ${study.length}. Шкала из 6 шагов, как в словаре Skyeng.`}
+                ? 'Отметь слова, которые нужно учить. У каждого — шкала из 15 шагов.'
+                : `${knownCount} знаю из ${study.length}. Шкала из 15 шагов: узнавание, написание, фраза, произношение.`}
             </span>
           </span>
         </button>
@@ -656,7 +671,9 @@ function ModesScreen({
             </span>
             <span>
               <strong>Спросить друга</strong>
-              <span>Слово и перевод сразу видны. Ты читаешь и спрашиваешь второго человека.</span>
+              <span>
+                Карточка то со слова, то с перевода. Обе стороны сразу видны, и ты спрашиваешь второго.
+              </span>
             </span>
           </button>
           <button className="mode" type="button" onClick={() => onPick('study')}>
@@ -665,7 +682,9 @@ function ModesScreen({
             </span>
             <span>
               <strong>Учить самому</strong>
-              <span>Сначала слово, перевод открывается по нажатию.</span>
+              <span>
+                Каждый раз случайно: вспомнить, написать, собрать фразу из слов или произнести. С русского и наоборот. Шкала из 15 шагов.
+              </span>
             </span>
           </button>
         </div>
@@ -701,18 +720,44 @@ function QuizScreen({
 }) {
   const [queue, setQueue] = useState(() => {
     const cards = deckCards(store, lang, deck);
-    return deck === 'study' ? studyQueue(cards, store.progress) : shuffleWeighted(cards, store.progress);
+    const ordered = deck === 'study' ? studyQueue(cards, store.progress) : shuffleWeighted(cards, store.progress);
+    return makeDrills(ordered, mode);
   });
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(mode === 'ask');
   const [known, setKnown] = useState(0);
   const [unknown, setUnknown] = useState(0);
   const [shownStage, setShownStage] = useState<number | null>(null);
+  const [draft, setDraft] = useState('');
+  const [bank, setBank] = useState<number[]>([]);
+  const [placed, setPlaced] = useState<number[]>([]);
+  const [listening, setListening] = useState(false);
+  const [note, setNote] = useState('');
+  const [round, setRound] = useState(0);
   const done = index >= queue.length;
-  const card = queue[index];
+  const prompt = queue[index];
+  const card = prompt?.card;
+  const kind: ExerciseKind = prompt?.kind ?? 'recall';
+  const fromBack = Boolean(prompt?.fromBack);
+  const foreignName = langById(lang)?.nameRu ?? 'Слово';
+  const cue = card ? (fromBack ? card.back : card.front) : '';
+  const solution = card ? (fromBack ? card.front : card.back) : '';
+  const tokens = tokenize(solution);
   const title = deckTitle;
   const inStudy = Boolean(card && store.progress[card.id]?.inStudy);
   const liveStage = shownStage ?? (card ? store.progress[card.id]?.stage ?? 0 : 0);
+  const taskLabel =
+    kind === 'write'
+      ? 'Напиши ответ'
+      : kind === 'order'
+        ? 'Собери фразу'
+        : kind === 'speak'
+          ? 'Произнеси'
+          : kind === 'listen'
+            ? 'Напиши, что слышишь'
+            : fromBack
+              ? `Русский → ${foreignName}`
+              : `${foreignName} → русский`;
 
   useEffect(() => {
     if (shownStage === null) return;
@@ -720,19 +765,56 @@ function QuizScreen({
       setIndex((n) => n + 1);
       setRevealed(mode === 'ask');
       setShownStage(null);
-    }, 560);
+      setNote('');
+    }, 700);
     return () => window.clearTimeout(timer);
   }, [shownStage, mode]);
 
+  useEffect(() => {
+    const drill = queue[index];
+    if (!drill || drill.kind !== 'listen') return;
+    const text = drill.fromBack ? drill.card.front : drill.card.back;
+    const native = !drill.fromBack;
+    if (!speakAloud(text, speechLang(lang, native))) {
+      setQueue((prev) => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, kind: 'write' } : item)));
+    }
+    // queue is read for the current card; depending on it would replay speech after a fallback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, lang, round]);
+
   const again = () => {
     const cards = deckCards(store, lang, deck);
-    setQueue(deck === 'study' ? studyQueue(cards, store.progress) : shuffleWeighted(cards, store.progress));
+    const ordered = deck === 'study' ? studyQueue(cards, store.progress) : shuffleWeighted(cards, store.progress);
+    setQueue(makeDrills(ordered, mode));
     setIndex(0);
     setRevealed(mode === 'ask');
     setKnown(0);
     setUnknown(0);
     setShownStage(null);
+    setDraft('');
+    setNote('');
+    setBank([]);
+    setPlaced([]);
+    setRound((value) => value + 1);
   };
+
+  useEffect(() => {
+    const drill = queue[index];
+    setDraft('');
+    setNote('');
+    setListening(false);
+    if (!drill) return;
+    const text = drill.fromBack ? drill.card.front : drill.card.back;
+    if (drill.kind === 'order') {
+      setBank(shuffleIndexes(tokenize(text).length));
+      setPlaced([]);
+      return;
+    }
+    setBank([]);
+    setPlaced([]);
+    // Same as the listen effect: rerun when the card changes, not when the queue array is replaced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, round]);
 
   const answer = (isKnown: boolean) => {
     if (!card || shownStage !== null) return;
@@ -741,12 +823,37 @@ function QuizScreen({
     onMark(card.id, isKnown);
     if (isKnown) setKnown((n) => n + 1);
     else setUnknown((n) => n + 1);
-    if (mode === 'study' && inStudy) {
-      setShownStage(nextStage(prevStage, isKnown));
+    const graded = kind !== 'recall';
+    if (graded) setRevealed(true);
+    if ((mode === 'study' && inStudy) || graded) {
+      setShownStage(mode === 'study' && inStudy ? nextStage(prevStage, isKnown) : prevStage);
       return;
     }
     setIndex((n) => n + 1);
     setRevealed(mode === 'ask');
+  };
+
+  const checkBuilt = (value: string) => {
+    const ok = answersMatch(value, solution);
+    setNote(ok ? 'Верно' : `Нужно: ${solution}`);
+    answer(ok);
+  };
+
+  const pronounce = async () => {
+    if (!card || listening || shownStage !== null) return;
+    setListening(true);
+    setNote('Слушаю…');
+    try {
+      const heard = await recognizeSpeech(speechLang(lang, !fromBack));
+      const ok = heard.some((line) => answersMatch(line, solution));
+      setNote(ok ? 'Услышал верно' : `Услышал: ${heard[0] || '—'}. Нужно: ${solution}`);
+      answer(ok);
+    } catch {
+      setNote('Произношение недоступно. Напиши слово.');
+      setQueue((prev) => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, kind: 'write' } : item)));
+    } finally {
+      setListening(false);
+    }
   };
 
   if (done) {
@@ -793,50 +900,132 @@ function QuizScreen({
         <i style={{ width: `${(index / queue.length) * 100}%` }} />
       </div>
       <div className="card-stage">
-        <button
+        <div
           className="flash"
-          type="button"
           onClick={() => {
-            if (mode === 'study' && !revealed) {
+            if (kind === 'recall' && !revealed && shownStage === null) {
               haptic();
               setRevealed(true);
             }
           }}
         >
-          <span className="flash-inner">
-            {card.image && <img className="flash-photo" src={card.image} alt="" />}
-            <span className="flash-front">{card.front}</span>
-            {revealed ? (
-              <>
-                <span className="flash-translation">{card.back}</span>
-                {card.example && <span className="flash-example">{card.example}</span>}
-              </>
-            ) : (
-              <span className="flash-hint">Нажми, чтобы открыть перевод</span>
+          <div className="flash-inner">
+            {card.image && kind === 'recall' && <img className="flash-photo" src={card.image} alt="" />}
+            <span className="flash-dir">{taskLabel}</span>
+            {kind !== 'listen' && <span className="flash-front">{kind === 'speak' ? solution : cue}</span>}
+            {kind === 'listen' && <span className="flash-front">Слушай</span>}
+            {kind === 'order' && (
+              <div className="token-build">
+                <div className="token-row">
+                  {placed.length === 0 && <span className="flash-hint">Нажимай слова по порядку</span>}
+                  {placed.map((tokenIndex, place) => (
+                    <button
+                      key={`placed-${place}-${tokenIndex}`}
+                      className="token"
+                      type="button"
+                      disabled={shownStage !== null}
+                      onClick={() => {
+                        setPlaced((prev) => prev.filter((_, item) => item !== place));
+                        setBank((prev) => [...prev, tokenIndex]);
+                      }}
+                    >
+                      {tokens[tokenIndex]}
+                    </button>
+                  ))}
+                </div>
+                <div className="token-row is-bank">
+                  {bank.map((tokenIndex, place) => (
+                    <button
+                      key={`bank-${place}-${tokenIndex}`}
+                      className="token"
+                      type="button"
+                      disabled={shownStage !== null}
+                      onClick={() => {
+                        setBank((prev) => prev.filter((_, item) => item !== place));
+                        setPlaced((prev) => [...prev, tokenIndex]);
+                      }}
+                    >
+                      {tokens[tokenIndex]}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
+            {(kind === 'write' || kind === 'listen') && (
+              <input
+                className="spell"
+                value={draft}
+                disabled={shownStage !== null}
+                placeholder={kind === 'listen' ? 'Что ты услышал' : 'Ответ'}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    checkBuilt(draft);
+                  }
+                }}
+              />
+            )}
+            {kind === 'recall' &&
+              (revealed ? (
+                <>
+                  <span className="flash-translation">{solution}</span>
+                  {card.example && <span className="flash-example">{card.example}</span>}
+                </>
+              ) : (
+                <span className="flash-hint">{fromBack ? 'Нажми, чтобы открыть слово' : 'Нажми, чтобы открыть перевод'}</span>
+              ))}
+            {note && <span className="flash-translation">{note}</span>}
             {mode === 'study' && inStudy && (
               <span className="flash-stage">
                 <WordRing stage={liveStage} size={64} />
                 <StageDots stage={liveStage} size="lg" />
-                <span>{stageLabel(liveStage)}</span>
+                <span>
+                  {stageLabel(liveStage)} · {liveStage} из {STAGE_MAX}
+                </span>
               </span>
             )}
-          </span>
-        </button>
+          </div>
+        </div>
       </div>
       <div className="actions">
-        {revealed ? (
-          <>
-            <button className="btn no" type="button" onClick={() => answer(false)} disabled={shownStage !== null}>
-              {mode === 'study' ? 'Не помню' : 'Не знает'}
+        {kind === 'recall' &&
+          (revealed ? (
+            <>
+              <button className="btn no" type="button" onClick={() => answer(false)} disabled={shownStage !== null}>
+                {mode === 'study' ? 'Не помню' : 'Не знает'}
+              </button>
+              <button className="btn ok" type="button" onClick={() => answer(true)} disabled={shownStage !== null}>
+                {mode === 'study' ? 'Помню' : 'Знает'}
+              </button>
+            </>
+          ) : (
+            <button className="btn primary full" type="button" onClick={() => setRevealed(true)}>
+              {fromBack ? 'Показать слово' : 'Показать перевод'}
             </button>
-            <button className="btn ok" type="button" onClick={() => answer(true)} disabled={shownStage !== null}>
-              {mode === 'study' ? 'Помню' : 'Знает'}
-            </button>
-          </>
-        ) : (
-          <button className="btn primary full" type="button" onClick={() => setRevealed(true)}>
-            Показать перевод
+          ))}
+        {(kind === 'write' || kind === 'listen' || kind === 'order') && (
+          <button
+            className="btn primary full"
+            type="button"
+            disabled={shownStage !== null || (kind === 'order' ? placed.length !== tokens.length : !draft.trim())}
+            onClick={() => checkBuilt(kind === 'order' ? placed.map((tokenIndex) => tokens[tokenIndex]).join(' ') : draft)}
+          >
+            Проверить
+          </button>
+        )}
+        {kind === 'speak' && (
+          <button className="btn primary full" type="button" disabled={listening || shownStage !== null} onClick={() => void pronounce()}>
+            {listening ? 'Слушаю…' : 'Говорить'}
+          </button>
+        )}
+        {(kind === 'listen' || kind === 'speak') && (
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => speakAloud(solution, speechLang(lang, !fromBack))}
+          >
+            Послушать
           </button>
         )}
       </div>

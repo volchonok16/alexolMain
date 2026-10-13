@@ -13,13 +13,16 @@ export function LessonTasks({
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState('');
 
+  const savedAnswers = items.map((item) => `${item.id}\n${item.answer}`).join('\n---\n');
   useEffect(() => {
-    const next: Record<string, string> = {};
-    items.forEach((item) => {
-      next[item.id] = item.answer;
+    setDrafts((prev) => {
+      const next: Record<string, string> = {};
+      items.forEach((item) => {
+        next[item.id] = item.id in prev ? prev[item.id] : item.answer;
+      });
+      return next;
     });
-    setDrafts(next);
-  }, [items]);
+  }, [savedAnswers, items]);
 
   const save = async (id: string) => {
     setSaving(id);
@@ -42,6 +45,7 @@ export function LessonTasks({
         <article key={item.id} className={`task${item.checked ? ' is-checked' : ''}`}>
           <h2>{item.title}</h2>
           {item.checked && <p className="checked-label">Проверено</p>}
+          {item.image && <img className="task-photo" src={item.image} alt="" />}
           <p>{item.task}</p>
           {item.review && (
             <div className="note-box">

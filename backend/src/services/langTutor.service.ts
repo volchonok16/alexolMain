@@ -123,6 +123,7 @@ const homeworkSelect = {
   lessonId: true,
   title: true,
   task: true,
+  image: true,
   answer: true,
   review: true,
   checked: true,
@@ -190,7 +191,15 @@ export async function bundleFor(telegramId: string) {
 export async function listStudents(actorId: string) {
   const actor = await prisma.langLearner.findUnique({ where: { telegramId: actorId } });
   if (!actor || !isStaff(roleFor(actor))) throw new LangError(403, 'Это админ-панель');
-  const users = await prisma.langLearner.findMany({ orderBy: { updatedAt: 'desc' } });
+  const users = await prisma.langLearner.findMany({
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      lessons: {
+        select: { id: true, title: true, sortOrder: true },
+        orderBy: { sortOrder: 'asc' },
+      },
+    },
+  });
   return users
     .filter((user) => user.telegramId !== actorId)
     .map((user) => ({ ...user, role: roleFor(user) }));
@@ -294,7 +303,7 @@ export async function saveProgress(
   const word = await prisma.langAssignedWord.findUnique({ where: { id: wordId } });
   if (!word) throw new LangError(404, 'Слово не найдено');
   if (word.learnerId !== actorId) throw new LangError(403, 'Это слово другого ученика');
-  const stage = Math.max(0, Math.min(6, Math.round(Number(input.stage) || 0)));
+  const stage = Math.max(0, Math.min(15, Math.round(Number(input.stage) || 0)));
   return prisma.langAssignedWord.update({
     where: { id: wordId },
     data: {
@@ -318,18 +327,19 @@ export async function resetProgress(actorId: string, learnerId: string, lessonId
 export async function addHomework(
   actorId: string,
   learnerId: string,
-  input: { title?: unknown; task?: unknown; lessonId?: unknown },
+  input: { title?: unknown; task?: unknown; lessonId?: unknown; image?: unknown },
 ) {
   await assertStaff(actorId, learnerId);
   const title = cleanText(input.title, 120);
   const task = cleanText(input.task, 4000);
   const lessonId = cleanText(input.lessonId, 80);
+  const image = cleanImage(input.image);
   if (!title || !task) throw new LangError(400, 'Нужны название и текст задания');
   if (!lessonId) throw new LangError(400, 'Сначала выбери урок');
   const lesson = await prisma.langLesson.findFirst({ where: { id: lessonId, learnerId } });
   if (!lesson) throw new LangError(404, 'Урок не найден');
   return prisma.langHomework.create({
-    data: { learnerId, lessonId, title, task },
+    data: { learnerId, lessonId, title, task, image },
     select: homeworkSelect,
   });
 }

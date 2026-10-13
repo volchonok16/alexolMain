@@ -158,6 +158,7 @@ model LangHomework {
   lesson    LangLesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   title     String
   task      String
+  image     String?     @db.Text
   answer    String      @default("")
   review    String      @default("")
   checked   Boolean     @default(false)

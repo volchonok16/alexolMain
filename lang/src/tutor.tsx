@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { LANGS } from './data';
 import { WordRing } from './dictionary';
 import { readCardImage } from './imageFile';
-import { accountLabel, langApi, panelsFor, type LangAccount, type LangBundle, type PanelId } from './langApi';
+import { accountLabel, langApi, panelsFor, type LangAccount, type LangBundle, type LangStudent, type PanelId } from './langApi';
 import type { LangId } from './types';
 
 function roleName(user: Pick<LangAccount, 'role' | 'isAdmin' | 'isTutor'>) {
@@ -12,6 +12,19 @@ function roleName(user: Pick<LangAccount, 'role' | 'isAdmin' | 'isTutor'>) {
   if (user.role === 'admin' || user.isAdmin) parts.push('админ');
   if (user.role === 'tutor' || user.isTutor) parts.push('репетитор');
   return parts.join(' · ') || 'ученик';
+}
+
+type TaskDraft = { key: string; title: string; task: string; image: string };
+
+function ruCount(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? one : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? few : many;
+  return `${count} ${word}`;
+}
+
+function blankTask(): TaskDraft {
+  return { key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', task: '', image: '' };
 }
 
 const PANEL_LABEL: Record<PanelId, string> = {
@@ -56,7 +69,7 @@ export function TutorScreen({
   onBack: () => void;
 }) {
   const [me, setMe] = useState<LangAccount | null>(null);
-  const [students, setStudents] = useState<LangAccount[]>([]);
+  const [students, setStudents] = useState<LangStudent[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bundle, setBundle] = useState<LangBundle | null>(null);
   const [lessonId, setLessonId] = useState('');
@@ -66,8 +79,7 @@ export function TutorScreen({
   const [back, setBack] = useState('');
   const [image, setImage] = useState('');
   const [lang, setLang] = useState<LangId>('en');
-  const [title, setTitle] = useState('');
-  const [task, setTask] = useState('');
+  const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>(() => [blankTask()]);
   const [reviews, setReviews] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
@@ -139,14 +151,32 @@ export function TutorScreen({
       await openStudent(selectedId);
     });
 
-  const addTask = () =>
+  const addTasks = () =>
     run(async () => {
-      if (!selectedId || !lessonId || !title.trim() || !task.trim()) return;
-      await langApi.addHomework(selectedId, { title, task, lessonId });
-      setTitle('');
-      setTask('');
+      if (!selectedId || !lessonId) return;
+      const ready = taskDrafts.filter((item) => item.title.trim() || item.task.trim() || item.image);
+      if (ready.length === 0) return;
+      if (ready.some((item) => !item.title.trim() || !item.task.trim())) {
+        throw new Error('В каждом задании нужны название и текст');
+      }
+      for (const item of ready) {
+        await langApi.addHomework(selectedId, {
+          title: item.title.trim(),
+          task: item.task.trim(),
+          lessonId,
+          image: item.image || undefined,
+        });
+        setTaskDrafts((prev) => {
+          const rest = prev.filter((draft) => draft.key !== item.key);
+          return rest.length > 0 ? rest : [blankTask()];
+        });
+      }
       await openStudent(selectedId);
     });
+
+  const updateDraft = (key: string, patch: Partial<TaskDraft>) => {
+    setTaskDrafts((prev) => prev.map((item) => (item.key === key ? { ...item, ...patch } : item)));
+  };
 
   const checkTask = (id: string, checked: boolean) =>
     run(async () => {
@@ -198,7 +228,12 @@ export function TutorScreen({
               <div key={student.telegramId} className="word admin-user">
                 <button className="word-btn" type="button" onClick={() => void openStudent(student.telegramId)}>
                   <div className="front">{accountLabel(student)}</div>
-                  <div className="translation">{roleName(student)} · уроки и слова</div>
+                  <div className="translation">
+                    {roleName(student)}
+                    {student.lessons.length > 0
+                      ? ` · ${student.lessons.map((lesson) => lesson.title).join(' · ')}`
+                      : ' · уроков пока нет'}
+                  </div>
                 </button>
                 {(canSetAdmin || canSetTutor) && (
                   <div className="admin-actions">
@@ -247,16 +282,29 @@ export function TutorScreen({
               Создать «Урок {bundle.lessons.length + 1}»
             </button>
             {bundle.lessons.length > 0 && (
-              <label>
-                Открытый урок
-                <select value={lessonId} onChange={(event) => setLessonId(event.target.value)}>
-                  {bundle.lessons.map((lesson) => (
-                    <option key={lesson.id} value={lesson.id}>
-                      {lesson.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="lesson-picks" role="list">
+                {bundle.lessons.map((lesson) => {
+                  const words = bundle.words.filter((word) => word.lessonId === lesson.id).length;
+                  const tasks = bundle.homework.filter((item) => item.lessonId === lesson.id).length;
+                  return (
+                    <button
+                      key={lesson.id}
+                      className={`lesson-pick${lesson.id === lessonId ? ' is-active' : ''}`}
+                      type="button"
+                      onClick={() => {
+                        setLessonId(lesson.id);
+                        setDraftTitle(lesson.title);
+                        setTaskDrafts([blankTask()]);
+                      }}
+                    >
+                      <strong>{lesson.title}</strong>
+                      <span>
+                        {ruCount(words, 'слово', 'слова', 'слов')} · {ruCount(tasks, 'задание', 'задания', 'заданий')}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
             {selectedLesson && (
               <label>
@@ -380,7 +428,7 @@ export function TutorScreen({
                   <div className="translation">{word.back}</div>
                   <div className="word-progress">
                     <WordRing stage={word.stage} size={28} />
-                    <span>шаг {word.stage} из 6</span>
+                    <span>шаг {word.stage} из 15</span>
                   </div>
                 </div>
                 <button
@@ -401,7 +449,7 @@ export function TutorScreen({
             className="form task-form"
             onSubmit={(event) => {
               event.preventDefault();
-              void addTask();
+              void addTasks();
             }}
           >
             <h2>Домашнее задание{selectedLesson ? ` к «${selectedLesson.title}»` : ''}</h2>
@@ -409,21 +457,76 @@ export function TutorScreen({
               <p className="hint-line">Сначала создай урок. Задание пишется к нему.</p>
             ) : (
               <>
-                <label>
-                  Название
-                  <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Про аэропорт" />
-                </label>
-                <label>
-                  Задание
-                  <textarea
-                    value={task}
-                    onChange={(event) => setTask(event.target.value)}
-                    placeholder="Составь 5 предложений со словами урока"
-                    rows={4}
-                  />
-                </label>
+                <p className="hint-line">Можно записать сразу несколько заданий. У каждого своя картинка, если нужна.</p>
+                {taskDrafts.map((draft, index) => (
+                  <div key={draft.key} className="task-draft">
+                    <div className="draft-head">
+                      <strong>Задание {index + 1}</strong>
+                      {taskDrafts.length > 1 && (
+                        <button
+                          className="kill"
+                          type="button"
+                          aria-label="Убрать задание"
+                          onClick={() => setTaskDrafts((prev) => prev.filter((item) => item.key !== draft.key))}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <label>
+                      Название
+                      <input
+                        value={draft.title}
+                        onChange={(event) => updateDraft(draft.key, { title: event.target.value })}
+                        placeholder="Про аэропорт"
+                      />
+                    </label>
+                    <label>
+                      Задание
+                      <textarea
+                        value={draft.task}
+                        onChange={(event) => updateDraft(draft.key, { task: event.target.value })}
+                        placeholder="Составь 5 предложений со словами урока"
+                        rows={4}
+                      />
+                    </label>
+                    <label>
+                      Картинка, если нужна
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = '';
+                          if (!file) return;
+                          try {
+                            updateDraft(draft.key, { image: await readCardImage(file) });
+                          } catch (reason) {
+                            setError(reason instanceof Error ? reason.message : 'Картинка не прочиталась');
+                          }
+                        }}
+                      />
+                    </label>
+                    {draft.image && (
+                      <>
+                        <img className="preview" src={draft.image} alt="" />
+                        <button className="btn ghost" type="button" onClick={() => updateDraft(draft.key, { image: '' })}>
+                          Убрать картинку
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                <button
+                  className="btn ghost"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setTaskDrafts((prev) => [...prev, blankTask()])}
+                >
+                  <Plus size={16} /> Ещё задание
+                </button>
                 <button className="btn primary" type="submit" disabled={busy || !lessonId}>
-                  Оставить задание
+                  {taskDrafts.length > 1 ? 'Сохранить задания' : 'Оставить задание'}
                 </button>
               </>
             )}
@@ -433,6 +536,7 @@ export function TutorScreen({
               <article key={item.id} className={`task${item.checked ? ' is-checked' : ''}`}>
                 <h2>{item.title}</h2>
                 <p className="translation">{item.checked ? 'Проверено' : selectedLesson?.title}</p>
+                {item.image && <img className="task-photo" src={item.image} alt="" />}
                 <p>{item.task}</p>
                 <div className="note-box">
                   <strong>Заметка ученика</strong>
@@ -468,6 +572,7 @@ export function TutorScreen({
               <article key={item.id} className={`task${item.checked ? ' is-checked' : ''}`}>
                 <h2>{item.title}</h2>
                 <p className="translation">Без урока{item.checked ? ' · проверено' : ''}</p>
+                {item.image && <img className="task-photo" src={item.image} alt="" />}
                 <p>{item.task}</p>
                 <div className="note-box">
                   <strong>Заметка ученика</strong>

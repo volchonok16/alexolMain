@@ -50,10 +50,15 @@ export type RemoteHomework = {
   lessonId: string | null;
   title: string;
   task: string;
+  image: string | null;
   answer: string;
   review: string;
   checked: boolean;
   updatedAt: string;
+};
+
+export type LangStudent = LangAccount & {
+  lessons: RemoteLesson[];
 };
 
 export type LangBundle = {
@@ -128,7 +133,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const langApi = {
   me: () => request<LangBundle>('/api/lang/me'),
-  students: () => request<{ students: LangAccount[] }>('/api/lang/students'),
+  students: () => request<{ students: LangStudent[] }>('/api/lang/students'),
   student: (telegramId: string) => request<LangBundle>(`/api/lang/students/${encodeURIComponent(telegramId)}`),
   setAdmin: (telegramId: string, isAdmin: boolean) =>
     request<LangAccount>(`/api/lang/students/${encodeURIComponent(telegramId)}/admin`, {
@@ -170,7 +175,7 @@ export const langApi = {
       method: 'POST',
       body: JSON.stringify({ lessonId }),
     }),
-  addHomework: (telegramId: string, body: { title: string; task: string; lessonId: string }) =>
+  addHomework: (telegramId: string, body: { title: string; task: string; lessonId: string; image?: string }) =>
     request<RemoteHomework>(`/api/lang/students/${encodeURIComponent(telegramId)}/homework`, {
       method: 'POST',
       body: JSON.stringify(body),
