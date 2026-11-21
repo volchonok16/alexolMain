@@ -4,6 +4,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+# Отдельный бот только для публикации новостей в канал (polling не нужен).
+# Если не задан - для постинга используется TELEGRAM_BOT_TOKEN (как раньше).
+TELEGRAM_NEWS_BOT_TOKEN = os.getenv("TELEGRAM_NEWS_BOT_TOKEN")
+# Языковой tutor-бот (Alexol Speak): отдельный токен, отдельный polling.
+SPEAK_BOT_TOKEN = os.getenv("SPEAK_BOT_TOKEN")
+# Mini App с офлайн-карточками (открывается из бота).
+SPEAK_WEBAPP_URL = (os.getenv("SPEAK_WEBAPP_URL") or "https://lang.alexol.io").rstrip("/")
+# STT: local = бесплатно (Whisper на сервере), openrouter = платно через API
+SPEAK_STT_BACKEND = os.getenv("SPEAK_STT_BACKEND", "local")
+SPEAK_WHISPER_LOCAL_MODEL = os.getenv("SPEAK_WHISPER_LOCAL_MODEL", "small")
+SPEAK_STT_MODEL = os.getenv("SPEAK_STT_MODEL", "openai/whisper-1")
+SPEAK_TTS_MODEL = os.getenv("SPEAK_TTS_MODEL", "deepgram/flux-tts:free")
+# Один голос для всех ответов (OpenRouter Flux). Провайдеры через запятую: openrouter, edge, gtts
+SPEAK_TTS_VOICE = os.getenv("SPEAK_TTS_VOICE", "flux-kit-en")
+SPEAK_TTS_PROVIDERS = os.getenv("SPEAK_TTS_PROVIDERS", "openrouter,gtts")
+# Скорость озвучки по умолчанию (B1): 0.85 slow, 0.95 b1, 1.0 normal, 1.1 fast
+SPEAK_TTS_SPEED_DEFAULT = float(os.getenv("SPEAK_TTS_SPEED_DEFAULT", "0.95"))
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 # Куда слать заявки / обращения (не новости).
 # Приоритет: TELEGRAM_REQUESTS_CHAT_ID -> TELEGRAM_CHAT_ID -> TELEGRAM_CHANNEL_ID
@@ -13,6 +30,22 @@ TELEGRAM_REQUESTS_CHAT_ID = (
     or TELEGRAM_CHANNEL_ID
 )
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+# OpenRouter за Cloudflare часто режет RU IP (HTTP 403 "Access denied by security policy").
+# Прокси вне РФ: OPENROUTER_HTTP_PROXY или стандартные HTTPS_PROXY / HTTP_PROXY.
+OPENROUTER_HTTP_PROXY = (
+    os.getenv("OPENROUTER_HTTP_PROXY")
+    or os.getenv("HTTPS_PROXY")
+    or os.getenv("HTTP_PROXY")
+    or os.getenv("https_proxy")
+    or os.getenv("http_proxy")
+    or ""
+).strip() or None
+# Optional dedicated proxy for api.telegram.org (502 Bad Gateway from RU IPs).
+TELEGRAM_HTTP_PROXY = (
+    os.getenv("TELEGRAM_HTTP_PROXY")
+    or os.getenv("TELEGRAM_PROXY")
+    or ""
+).strip() or None
 
 # VK API настройки
 VK_ACCESS_TOKEN = os.getenv("VK_ACCESS_TOKEN")
@@ -29,7 +62,50 @@ TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE")
 TDATA_PATH = os.getenv("TDATA_PATH", "tdata")
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-r1-distill-qwen-32b")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-nano-30b-a3b:free")
+
+_openrouter_fallback_models_env = os.getenv(
+    "OPENROUTER_FALLBACK_MODELS",
+    ",".join(
+        [
+            "nvidia/nemotron-3-nano-30b-a3b:free",
+            "openrouter/free",
+            "google/gemma-4-26b-a4b:free",
+            "openai/gpt-oss-20b:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "qwen/qwen3.6-plus:free",
+            "google/gemma-3-27b-it:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+        ]
+    ),
+)
+OPENROUTER_FALLBACK_MODELS = [
+    model.strip()
+    for model in _openrouter_fallback_models_env.split(",")
+    if model.strip()
+]
+
+# Speak tutor: openrouter/free — роутер на актуальные free-модели (старые :free slugs часто 404).
+SPEAK_OPENROUTER_MODEL = os.getenv("SPEAK_OPENROUTER_MODEL", "openrouter/free")
+_speak_fallback_env = os.getenv(
+    "SPEAK_OPENROUTER_FALLBACK_MODELS",
+    ",".join(
+        [
+            "openrouter/free",
+            "poolside/laguna-xs.2:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "meta-llama/llama-3.2-3b-instruct:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "qwen/qwen3-next-80b-a3b-instruct:free",
+        ]
+    ),
+)
+SPEAK_OPENROUTER_FALLBACK_MODELS = [
+    model.strip()
+    for model in _speak_fallback_env.split(",")
+    if model.strip()
+]
 
 # Backend news integration (optional)
 # Example:
@@ -112,6 +188,34 @@ IT_KEYWORDS = [
     "код",
     "алгоритм",
     "программное обеспечение",
+    "linux",
+    "windows",
+    "android",
+    "ios",
+    "python",
+    "javascript",
+    "github",
+    "gitlab",
+    "docker",
+    "kubernetes",
+    "nvidia",
+    "intel",
+    "amd",
+    "apple",
+    "google",
+    "microsoft",
+    "openai",
+    "chatgpt",
+    "яндекс",
+    "gigachat",
+    "huggingface",
+    "hugging face",
+    "raspberry",
+    "node.js",
+    "copilot",
+    "gpu",
+    "cpu",
+    "api",
 ]
 
 FINTECH_KEYWORDS = [
@@ -163,23 +267,29 @@ FINTECH_KEYWORDS = [
     "paytech",
 ]
 
+# Для обратной совместимости (больше не используется напрямую планировщиком).
 POST_HOUR = int(os.getenv("POST_HOUR", "10"))
-# Второй пост новостей в день (например 20:00). Если не задан — один пост в POST_HOUR.
-POST_HOUR_EVENING = os.getenv("POST_HOUR_EVENING")
-if POST_HOUR_EVENING is not None and POST_HOUR_EVENING != "":
-    POST_HOUR_EVENING = int(POST_HOUR_EVENING)
-else:
-    POST_HOUR_EVENING = None
+
+# Часовые окна публикации новостей: (начало_часа, конец_часа).
+# Случайная минута внутри каждого окна выбирается при старте бота.
+# Формат в .env: NEWS_WINDOWS=10-11,14-15,18-19,22-23
+_news_windows_env = os.getenv("NEWS_WINDOWS", "10-11,14-15,18-19,22-23")
+NEWS_WINDOWS = [
+    (int(pair.split("-")[0]), int(pair.split("-")[1]))
+    for pair in _news_windows_env.split(",")
+    if "-" in pair
+]
+
 TIMEZONE = os.getenv("TIMEZONE", "Europe/Moscow")
 
 MAX_POST_LENGTH = 3000
 
 # Подпись с ссылкой на канал, которая будет добавляться в конец каждого поста.
-# Формат по умолчанию — HTML-ссылка для Telegram:
-# <a href="https://t.me/+B3Ru2nZS8K82MDc6">Alexol | Подписаться</a>
-# VK и Instagram получают тот же текст, но без HTML (в VK будет "Alexol | Подписаться (https://t.me/+B3Ru2nZS8K82MDc6)").
+# Формат по умолчанию - HTML-ссылка для Telegram:
+# <a href="https://t.me/+Pa6BxvSbBUI0NjIy">Alexol | Подписаться</a>
+# VK и Instagram получают тот же текст, но без HTML (в VK будет "Alexol | Подписаться (https://t.me/+Pa6BxvSbBUI0NjIy)").
 SUBSCRIBE_FOOTER = os.getenv(
     "SUBSCRIBE_FOOTER",
-    '<a href="https://t.me/+B3Ru2nZS8K82MDc6">Alexol | Подписаться</a>',
+    '<a href="https://t.me/+Pa6BxvSbBUI0NjIy">Alexol | Подписаться</a>',
 )
 

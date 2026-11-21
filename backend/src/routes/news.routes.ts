@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { NewsController } from '../controllers/news.controller.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, requireAdmin } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 
 export const newsRouter = Router();
@@ -36,7 +36,7 @@ const controller = new NewsController();
  *       201:
  *         description: Новость создана
  */
-newsRouter.post('/', authenticate, upload.single('photo'), controller.create);
+newsRouter.post('/', authenticate, requireAdmin, upload.single('photo'), controller.create);
 
 /**
  * @swagger
@@ -99,7 +99,7 @@ newsRouter.get('/:id', controller.getById);
  *       200:
  *         description: Новость обновлена
  */
-newsRouter.put('/:id', authenticate, upload.single('photo'), controller.update);
+newsRouter.put('/:id', authenticate, requireAdmin, upload.single('photo'), controller.update);
 
 /**
  * @swagger
@@ -119,4 +119,4 @@ newsRouter.put('/:id', authenticate, upload.single('photo'), controller.update);
  *       200:
  *         description: Новость удалена
  */
-newsRouter.delete('/:id', authenticate, controller.delete);
+newsRouter.delete('/:id', authenticate, requireAdmin, controller.delete);

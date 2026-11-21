@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -12,8 +13,11 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters,
 )
+from telegram.warnings import PTBUserWarning
 
 import config
+from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
+from src.telegram_http import application_builder
 
 
 NAME, COMPANY, EMAIL, PHONE, BUDGET, DESCRIPTION = range(6)
@@ -70,7 +74,7 @@ def format_request_message(req: ProjectRequest, user_mention: str | None = None)
     if req.description:
         parts.append(req.description)
     else:
-        parts.append("—")
+        parts.append("-")
 
     return "".join(parts)
 
@@ -187,11 +191,16 @@ async def handle_description(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.pop("project_request", None)
-    await update.message.reply_text("Окей, заявку отменили. Если захочешь начать заново — напиши /project.")
+    await update.message.reply_text("Окей, заявку отменили. Если захочешь начать заново - напиши /project.")
     return ConversationHandler.END
 
 
 def setup_requests_bot(application: Application) -> None:
+    warnings.filterwarnings(
+        "ignore",
+        message="If 'per_message=False'",
+        category=PTBUserWarning,
+    )
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("project", project_entry)],
         states={
@@ -203,6 +212,9 @@ def setup_requests_bot(application: Application) -> None:
             DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_description)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_chat=True,
+        per_user=True,
+        per_message=False,
     )
 
     application.add_handler(CommandHandler("start", start))
@@ -215,9 +227,10 @@ def run_requests_bot() -> None:
     if not config.TELEGRAM_REQUESTS_CHAT_ID:
         raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
 
-    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+    application = application_builder(config.TELEGRAM_BOT_TOKEN).build()
 
     setup_requests_bot(application)
+    setup_polling_error_handler(application)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
+    block_forever_after_polling_conflict()

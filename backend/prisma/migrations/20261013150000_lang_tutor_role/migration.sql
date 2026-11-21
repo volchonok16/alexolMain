@@ -1,0 +1,1 @@
+ALTER TABLE "LangLearner" ADD COLUMN "isTutor" BOOLEAN NOT NULL DEFAULT false;

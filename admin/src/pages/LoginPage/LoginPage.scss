@@ -1,10 +1,13 @@
 .login-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #0A0C10;
   padding: 1.5rem;
+  padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
 
   &__container {
     width: 100%;
@@ -85,6 +88,27 @@
 
     &:hover {
       box-shadow: 0 0 30px rgba(10, 227, 255, 0.5);
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .login-page {
+    padding: 1rem;
+
+    &__card {
+      padding: 1.5rem 1.15rem;
+    }
+
+    &__title {
+      font-size: 1.45rem;
+      margin-bottom: 1.35rem;
+    }
+
+    &__input,
+    &__button {
+      font-size: 16px;
+      min-height: 2.85rem;
     }
   }
 }

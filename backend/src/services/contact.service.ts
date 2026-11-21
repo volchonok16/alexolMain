@@ -1,4 +1,5 @@
 import { config } from '../config/env.js';
+import { LeadRepository } from '../repositories/lead.repository.js';
 
 interface ContactData {
   name: string;
@@ -9,17 +10,34 @@ interface ContactData {
   description: string;
   pageCount?: number;
   calculatedPrice?: number;
+  source?: string;
 }
 
 export class ContactService {
   private botToken = config.telegramBotToken;
   private chatId = config.telegramChatId;
+  private leadRepository = new LeadRepository();
 
-  async sendToTelegram(data: ContactData) {
+  async submit(data: ContactData) {
+    const lead = await this.leadRepository.create({
+      ...data,
+      source: data.source || 'contact_form',
+    });
+
+    try {
+      await this.sendToTelegram(data);
+    } catch (error) {
+      console.error('[Contact] Telegram delivery failed, lead saved to DB', error);
+    }
+
+    return { success: true, id: lead.id };
+  }
+
+  private async sendToTelegram(data: ContactData) {
     const message = this.formatMessage(data);
-    
+
     const url = `https://api.telegram.org/bot${this.botToken}/sendMessage`;
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -67,8 +85,9 @@ export class ContactService {
     if (data.budget) message += `<b>Бюджет:</b> ${data.budget}\n`;
     if (data.pageCount) message += `<b>Количество страниц:</b> ${data.pageCount}\n`;
     if (data.calculatedPrice) message += `<b>Расчетная цена:</b> ${data.calculatedPrice} ₽\n`;
+    if (data.source) message += `<b>Источник:</b> ${data.source}\n`;
     message += `\n<b>Описание:</b>\n${data.description}`;
-    
+
     return message;
   }
 }

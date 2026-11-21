@@ -8,7 +8,7 @@ export class ContactController {
   send = async (req: Request, res: Response) => {
     try {
       const data = contactSchema.parse(req.body);
-      await this.service.sendToTelegram(data);
+      await this.service.submit(data);
       res.json({ success: true, message: 'Message sent successfully' });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

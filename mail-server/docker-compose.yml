@@ -1,0 +1,208 @@
+x-mail-logs: &mail-logs
+  driver: json-file
+  options:
+    max-size: "8m"
+    max-file: "3"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: mail_postgres
+    restart: unless-stopped
+    logging: *mail-logs
+    environment:
+      POSTGRES_USER: mailuser
+      POSTGRES_PASSWORD: mailpass
+      POSTGRES_DB: maildb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "17432:5432"  # PostgreSQL (очень нестандартный порт)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mailuser -d maildb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      mail_network:
+        aliases:
+          - postgres
+          - mail_postgres
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: mail_minio
+    restart: unless-stopped
+    logging: *mail-logs
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "17900:9000"  # MinIO API (очень нестандартный порт)
+      - "17901:9001"  # MinIO Console (очень нестандартный порт)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      mail_network:
+        aliases:
+          - minio
+          - mail_minio
+
+  # Backend API + SMTP/IMAP Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mail_backend
+    logging: *mail-logs
+    environment:
+      # mail_postgres = container_name (stable DNS when backend is on two networks)
+      DATABASE_URL: postgresql+asyncpg://mailuser:mailpass@mail_postgres:5432/maildb
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: avatars
+      MINIO_SECURE: "false"
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production-12345}
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-alexol.io}
+      MAIL_HOSTNAME: ${MAIL_HOSTNAME:-mail.alexol.io}
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@alexol.io}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-change-me-mail-admin-password}
+      # Shared secret with alexolMain backend (MAIL_SYNC_SECRET) for user provisioning
+      MAIL_SYNC_SECRET: ${MAIL_SYNC_SECRET:-change-me-mail-sync-secret}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      MAIL_PUBLIC_URL: ${MAIL_PUBLIC_URL:-https://mail.alexol.io}
+      JITSI_PUBLIC_URL: ${JITSI_PUBLIC_URL:-https://meet.alexol.io}
+      JITSI_JWT_APP_ID: ${JITSI_JWT_APP_ID:-alexol}
+      JITSI_JWT_APP_SECRET: ${JITSI_JWT_APP_SECRET:-}
+      CHAT_PUBLIC_URL: ${CHAT_PUBLIC_URL:-https://chat.alexol.io}
+      JIRA_PUBLIC_URL: ${JIRA_PUBLIC_URL:-https://jira.alexol.io}
+      CONFLUENCE_PUBLIC_URL: ${CONFLUENCE_PUBLIC_URL:-https://confluence.alexol.io}
+      BITBUCKET_PUBLIC_URL: ${BITBUCKET_PUBLIC_URL:-https://bitbucket.alexol.io}
+      BAMBOO_PUBLIC_URL: ${BAMBOO_PUBLIC_URL:-https://bamboo.alexol.io}
+      OAUTH_ROCKETCHAT_CLIENT_ID: ${OAUTH_ROCKETCHAT_CLIENT_ID:-alexol-chat}
+      OAUTH_ROCKETCHAT_CLIENT_SECRET: ${OAUTH_ROCKETCHAT_CLIENT_SECRET:-}
+      OAUTH_CLIENT_IDS: ${OAUTH_CLIENT_IDS:-alexol-chat,alexol-atlassian,alexol-jira,alexol-confluence,alexol-bitbucket,alexol-bamboo}
+      OAUTH_ATLASSIAN_CLIENT_SECRET: ${OAUTH_ATLASSIAN_CLIENT_SECRET:-}
+      OAUTH_ATLASSIAN_GROUPS: ${OAUTH_ATLASSIAN_GROUPS:-jira-software-users,confluence-users,stash-users}
+      OAUTH_ATLASSIAN_GROUPS_JIRA: ${OAUTH_ATLASSIAN_GROUPS_JIRA:-jira-software-users}
+      OAUTH_ATLASSIAN_GROUPS_CONFLUENCE: ${OAUTH_ATLASSIAN_GROUPS_CONFLUENCE:-confluence-users}
+      OAUTH_ATLASSIAN_GROUPS_BITBUCKET: ${OAUTH_ATLASSIAN_GROUPS_BITBUCKET:-stash-users}
+      OAUTH_ATLASSIAN_GROUPS_BAMBOO: ${OAUTH_ATLASSIAN_GROUPS_BAMBOO:-bamboo-users}
+      OAUTH_ATLASSIAN_GROUPS_JIRA_ADMIN: ${OAUTH_ATLASSIAN_GROUPS_JIRA_ADMIN:-jira-administrators}
+      OAUTH_ATLASSIAN_GROUPS_CONFLUENCE_ADMIN: ${OAUTH_ATLASSIAN_GROUPS_CONFLUENCE_ADMIN:-confluence-administrators}
+      OAUTH_ATLASSIAN_GROUPS_BAMBOO_ADMIN: ${OAUTH_ATLASSIAN_GROUPS_BAMBOO_ADMIN:-bamboo-admin}
+      OAUTH_ROCKETCHAT_REDIRECT_URI: ${OAUTH_ROCKETCHAT_REDIRECT_URI:-https://chat.alexol.io/_oauth/alexol,https://jira.alexol.io/plugins/servlet/oidc/callback,https://confluence.alexol.io/plugins/servlet/oidc/callback,https://bitbucket.alexol.io/plugins/servlet/oidc/callback,https://bamboo.alexol.io/plugins/servlet/oidc/callback}
+      # rocket_chat on alexol_mail_sync — not host.docker.internal (RC is 127.0.0.1:18300)
+      ROCKETCHAT_API_URL: ${ROCKETCHAT_API_URL:-http://rocket_chat:3000}
+      ROCKETCHAT_ADMIN_USERNAME: ${ROCKETCHAT_ADMIN_USERNAME:-admin}
+      ROCKETCHAT_ADMIN_PASSWORD: ${ROCKETCHAT_ADMIN_PASSWORD:-}
+      # Reverse sync mail → admin (same Docker network alexol_mail_sync)
+      ALEXOL_API_URL: ${ALEXOL_API_URL:-http://alexol_backend:3000}
+      # Свой SMTP: отправка напрямую по MX (без SendGrid). Для relay задайте в .env:
+      # SMTP_RELAY_ENABLED=true, SMTP_RELAY_HOST=..., SMTP_RELAY_PASSWORD=...
+      SMTP_RELAY_ENABLED: "false"
+      # Sync URL для аутентификации на порту 587 (логин/пароль из БД)
+      DATABASE_URL_SYNC: postgresql://mailuser:mailpass@mail_postgres:5432/maildb
+      # SAN cert (mail.alexol.io входит в live/alexol.io после certbot --expand)
+      SMTP_TLS_CERT_FILE: "/etc/letsencrypt/live/alexol.io/fullchain.pem"
+      SMTP_TLS_KEY_FILE: "/etc/letsencrypt/live/alexol.io/privkey.pem"
+      # DKIM (ключ: ./dkim/private.pem → generate: python3 scripts/generate_dkim.py)
+      DKIM_ENABLED: ${DKIM_ENABLED:-true}
+      DKIM_SELECTOR: ${DKIM_SELECTOR:-default}
+      DKIM_PRIVATE_KEY_PATH: /etc/dkim/private.pem
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./dkim:/etc/dkim:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "chat.alexol.io:host-gateway"
+    ports:
+      - "127.0.0.1:17000:8000"  # API только для localhost (nginx проксирует)
+      - "0.0.0.0:25:25"         # SMTP приём (публичный - для всех почтовых серверов)
+      - "0.0.0.0:465:465"       # SMTP SSL (публичный - для почтовых клиентов, Apple Mail)
+      - "0.0.0.0:587:587"       # SMTP Submission STARTTLS (публичный - для почтовых клиентов)
+      - "0.0.0.0:2465:465"      # SMTPS запасной (если 465 фильтрует хостер/провайдер)
+      - "0.0.0.0:2587:587"      # Submission запасной (если 587 фильтрует хостер/провайдер)
+      - "0.0.0.0:143:143"       # IMAP plain/STARTTLS (публичный - для почтовых клиентов)
+      - "0.0.0.0:993:993"       # IMAP SSL/TLS (публичный - для почтовых клиентов)
+      - "0.0.0.0:389:389"       # LDAP (Outlook адресная книга / проверка имён)
+      - "0.0.0.0:636:636"       # LDAPS
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - mail_network
+      - alexol_mail_sync
+    restart: unless-stopped
+
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      POSTGRES_USER: mailuser
+      POSTGRES_PASSWORD: mailpass
+      POSTGRES_DB: maildb
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - minio_data:/minio_data:ro
+      - ./dkim:/dkim:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mail_network
+    restart: "no"
+    entrypoint: ["/scripts/backup.sh"]
+
+  restore:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      POSTGRES_USER: mailuser
+      POSTGRES_PASSWORD: mailpass
+      POSTGRES_DB: maildb
+      RESTORE_DATE: ${RESTORE_DATE:-}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - minio_data:/minio_data
+      - ./dkim:/dkim
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mail_network
+    restart: "no"
+    entrypoint: ["/scripts/restore.sh"]
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  mail_network:
+    driver: bridge
+  # Shared with alexolMain backend. external: compose down must not delete it.
+  alexol_mail_sync:
+    name: alexol_mail_sync
+    external: true
+

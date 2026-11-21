@@ -52,6 +52,7 @@ export const usePricingModal = () => {
       description: `Тип: ${formData.appType}, Количество: ${formData.pageCount}`,
       pageCount: formData.pageCount,
       calculatedPrice,
+      source: 'pricing_modal',
     });
   };
 

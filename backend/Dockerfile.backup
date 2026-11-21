@@ -1,0 +1,8 @@
+FROM postgres:16-alpine
+
+RUN apk add --no-cache bash tar gzip
+
+COPY scripts/backup.sh scripts/restore.sh /scripts/
+RUN chmod +x /scripts/backup.sh /scripts/restore.sh
+
+WORKDIR /scripts

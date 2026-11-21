@@ -1,0 +1,9 @@
+FROM mongo:8.0
+
+RUN apt-get update -y && apt-get install -y --no-install-recommends bash tar gzip \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY scripts/backup.sh scripts/restore.sh /scripts/
+RUN chmod +x /scripts/backup.sh /scripts/restore.sh
+
+WORKDIR /scripts

@@ -90,7 +90,7 @@ CORS_ORIGIN=https://admin.alexol.io,https://alexol.io
 
 **БЕЗ пробелов** вокруг запятой!
 
-### Если нет или неправильно — исправьте:
+### Если нет или неправильно - исправьте:
 ```bash
 nano /var/www/alexol.io/back/.env
 ```
@@ -165,7 +165,7 @@ CORS_ORIGIN=https://admin.alexol.io,https://alexol.io
 sudo docker-compose logs -f backend
 ```
 
-Затем в браузере попробуйте логин. Если в логах **ничего не появляется** — значит nginx блокирует или возвращает свой ответ.
+Затем в браузере попробуйте логин. Если в логах **ничего не появляется** - значит nginx блокирует или возвращает свой ответ.
 
 ### Проверка 2: Какой статус возвращает preflight?
 В браузере → DevTools → Network → найдите `login` запрос с методом `OPTIONS` → посмотрите Status Code.
@@ -178,7 +178,7 @@ sudo docker-compose logs -f backend
 
 ## Если ничего не помогло
 
-Временный workaround на время отладки — измените запросы так, чтобы не требовался preflight:
+Временный workaround на время отладки - измените запросы так, чтобы не требовался preflight:
 
 1. В `admin/src/api/client.ts` уберите заголовок `Authorization` из дефолтных:
 ```typescript
@@ -199,7 +199,7 @@ apiClient.interceptors.request.use(config => {
 });
 ```
 
-Но это НЕ решение — только для проверки что проблема именно в preflight.
+Но это НЕ решение - только для проверки что проблема именно в preflight.
 
 ---
 

@@ -9,11 +9,21 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { authRouter } from './routes/auth.routes.js';
 import { userRouter } from './routes/user.routes.js';
 import { newsRouter } from './routes/news.routes.js';
+import { courseRouter } from './routes/course.routes.js';
 import { contactRouter } from './routes/contact.routes.js';
+import { leadRouter } from './routes/lead.routes.js';
+import { portfolioRouter } from './routes/portfolio.routes.js';
+import { mailSyncRouter } from './routes/mailSync.routes.js';
+import { qaRouter } from './routes/qa.routes.js';
+import { langRouter } from './routes/lang.routes.js';
 import { initAdmin } from './utils/initAdmin.js';
+import { seedPortfolio } from './utils/seedPortfolio.js';
+import { initMinio } from './config/minio.js';
+import { applyServerTimeouts } from './utils/longTimeout.js';
+import { qaService } from './services/qa.service.js';
 
 const app = express();
-
+app.set('trust proxy', 1);
 app.use(helmet());
 
 // CORS configuration - must be before other middleware
@@ -22,14 +32,10 @@ const corsOptions: cors.CorsOptions = {
     // Allow requests with no origin (like mobile apps, curl, Postman, Swagger UI)
     if (!origin) return callback(null, true);
     
-    // Log for debugging
-    console.log(`[CORS] Incoming request from origin: ${origin}`);
-    console.log(`[CORS] Allowed origins:`, config.corsOrigins);
-    
     if (config.corsOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`[CORS] ❌ Blocked origin: ${origin}`);
+      console.warn(`[CORS] Blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -58,15 +64,33 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
+app.use('/api/internal/mail-sync', mailSyncRouter);
 app.use('/api/news', newsRouter);
+app.use('/api/courses', courseRouter);
+app.use('/api/portfolio', portfolioRouter);
 app.use('/api/contact', contactRouter);
+app.use('/api/leads', leadRouter);
+app.use('/api/qa', qaRouter);
+app.use('/api/lang', langRouter);
 
 app.use(errorHandler);
 
-// Запуск сервера с автоматической инициализацией админа
-app.listen(config.port, async () => {
+const server = app.listen(config.port, async () => {
   console.log(`🚀 Server running on port ${config.port}`);
-  
-  // Инициализация админа при первом запуске
+
   await initAdmin();
+  await initMinio();
+
+  try {
+    await seedPortfolio();
+  } catch (error) {
+    console.error('[Portfolio] Seed failed:', error);
+  }
+
+  await qaService.cleanupExpired();
+  setInterval(() => {
+    void qaService.cleanupExpired();
+  }, 15 * 60 * 1000);
 });
+
+applyServerTimeouts(server);

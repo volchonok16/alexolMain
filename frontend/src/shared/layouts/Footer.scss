@@ -150,19 +150,6 @@
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
-
-    svg {
-      height: 40px;
-      width: auto;
-
-      .alexol-primary {
-        fill: var(--color-text);
-      }
-
-      .alexol-accent {
-        fill: var(--color-primary);
-      }
-    }
   }
 
   &__description {
@@ -308,9 +295,17 @@
     height: 1rem;
     color: #78d5ca;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0AE3FF;
 
     [data-theme='light'] & {
       color: #167c73;
+    }
+
+    svg {
+      display: block;
     }
   }
 

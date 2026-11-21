@@ -1,0 +1,1 @@
+/* Branding overlay disabled. Stock Rocket.Chat login and workspace UI. */

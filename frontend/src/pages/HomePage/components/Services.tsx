@@ -1,9 +1,9 @@
-import { Code, Users, Palette, Brain, Wrench, Building2, LucideIcon } from 'lucide-react';
 import { useTranslation } from '../../../shared/utils/translations';
 import { Reveal } from '@/shared/ui/Reveal';
+import { Icon3D, type Icon3DType } from '@/shared/ui/Icon3D';
 
 interface Service {
-  icon: LucideIcon;
+  icon: Icon3DType;
   key: string;
 }
 
@@ -11,12 +11,12 @@ export const Services = () => {
   const { t } = useTranslation();
 
   const services: Service[] = [
-    { icon: Code, key: 'development' },
-    { icon: Users, key: 'outsourcing' },
-    { icon: Palette, key: 'design' },
-    { icon: Brain, key: 'ai' },
-    { icon: Wrench, key: 'support' },
-    { icon: Building2, key: 'consulting' },
+    { icon: 'development', key: 'development' },
+    { icon: 'outsourcing', key: 'outsourcing' },
+    { icon: 'design', key: 'design' },
+    { icon: 'ai', key: 'ai' },
+    { icon: 'support', key: 'support' },
+    { icon: 'consulting', key: 'consulting' },
   ];
 
   return (
@@ -39,14 +39,13 @@ export const Services = () => {
 
 const ServiceCard = ({ service, index }: { service: Service; index: number }) => {
   const { t } = useTranslation();
-  const Icon = service.icon;
 
   return (
     <Reveal delay={index * 0.1} className="service-card">
       <div className="service-card__glow" />
       <div className="service-card__content">
         <div className="service-card__icon">
-          <Icon />
+          <Icon3D type={service.icon} spin={false} />
         </div>
         <h3 className="service-card__title">{t(`services.items.${service.key}.title`)}</h3>
         <p className="service-card__description">{t(`services.items.${service.key}.description`)}</p>

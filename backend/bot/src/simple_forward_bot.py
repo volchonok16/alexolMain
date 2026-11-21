@@ -10,18 +10,20 @@ from telegram.ext import (
 )
 
 import config
+from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
+from src.telegram_http import application_builder
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Здравствуйте! 👋 Вас приветствует команда Alexol.\n\n"
-        "Мы помогаем компаниям разрабатывать и развивать цифровые продукты — от идеи до запуска и поддержки.\n\n"
+        "Мы помогаем компаниям разрабатывать и развивать цифровые продукты - от идеи до запуска и поддержки.\n\n"
         "Чтобы мы могли предложить вам наиболее подходящее решение, пожалуйста, в одном сообщении укажите:\n\n"
         "✅ Ваше имя и название компании\n\n"
         "💡 Что вы планируете разработать или доработать\n\n"
         "📝 Краткое описание задачи и бизнес-контекста\n\n"
         "📞 Удобный способ связи\n\n"
-        "Ваше обращение будет передано команде — мы изучим задачу и свяжемся с вами с предложением по дальнейшим шагам. 🚀"
+        "Ваше обращение будет передано команде - мы изучим задачу и свяжемся с вами с предложением по дальнейшим шагам. 🚀"
     )
 
 
@@ -65,9 +67,10 @@ def run_forward_bot() -> None:
     if not config.TELEGRAM_REQUESTS_CHAT_ID:
         raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
 
-    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+    application = application_builder(config.TELEGRAM_BOT_TOKEN).build()
 
     setup_forward_bot(application)
+    setup_polling_error_handler(application)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
+    block_forever_after_polling_conflict()

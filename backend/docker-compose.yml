@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -37,12 +35,40 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://alexol.io,https://admin.alexol.io,https://api.alexol.io}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      # Карточки проверяют подпись Mini App этим токеном. .env в образ не копируется.
+      SPEAK_BOT_TOKEN: ${SPEAK_BOT_TOKEN}
+      TELEGRAM_NEWS_BOT_TOKEN: ${TELEGRAM_NEWS_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-courses}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://api.alexol.io}
+      MINIO_MAX_VIDEO_SIZE_MB: ${MINIO_MAX_VIDEO_SIZE_MB:-10240}
+      # Reach mail-server over shared Docker network (not host.docker.internal -
+      # mail API is bound to 127.0.0.1:17000 on the host and is unreachable that way).
+      MAIL_API_URL: ${MAIL_API_URL:-http://mail_backend:8000}
+      MAIL_SYNC_SECRET: ${MAIL_SYNC_SECRET:-}
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-alexol.io}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-https://api.alexol.io}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free}
+      OPENROUTER_FALLBACK_MODELS: ${OPENROUTER_FALLBACK_MODELS:-}
+      OPENROUTER_HTTP_PROXY: ${OPENROUTER_HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      OPENROUTER_TIMEOUT_MS: ${OPENROUTER_TIMEOUT_MS:-180000}
+      OPENROUTER_PER_MODEL_TIMEOUT_MS: ${OPENROUTER_PER_MODEL_TIMEOUT_MS:-90000}
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_started
     networks:
       - alexol_network
+      - alexol_mail_sync
     volumes:
       - ./uploads:/app/uploads
     healthcheck:
@@ -52,10 +78,33 @@ services:
       retries: 3
       start_period: 40s
 
+  minio:
+    image: minio/minio:latest
+    container_name: alexol_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    networks:
+      - alexol_network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 20s
+
   bot_news:
     build:
       context: ./bot
       dockerfile: Dockerfile
+    image: alexol_bot:latest
     container_name: alexol_bot_news
     restart: unless-stopped
     depends_on:
@@ -66,6 +115,7 @@ services:
     environment:
       - TZ=${TIMEZONE:-Europe/Moscow}
       - TDATA_PATH=/app/tdata
+      # Секреты только через env_file — ${VAR} в compose ломает пароли со спецсимволами (!) )
     command: ["python", "main.py", "--mode", "bot"]
     networks:
       - alexol_network
@@ -77,6 +127,7 @@ services:
     build:
       context: ./bot
       dockerfile: Dockerfile
+    image: alexol_bot:latest
     container_name: alexol_bot_requests
     restart: unless-stopped
     depends_on:
@@ -96,11 +147,100 @@ services:
       - ./bot/data:/app/data
       - ./bot/tdata:/app/tdata
 
+  bot_speak:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    image: alexol_bot:latest
+    container_name: alexol_bot_speak
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - TZ=${TIMEZONE:-Europe/Moscow}
+      - SPEAK_BOT_TOKEN=${SPEAK_BOT_TOKEN}
+      - SPEAK_STT_BACKEND=${SPEAK_STT_BACKEND:-local}
+      - SPEAK_WHISPER_LOCAL_MODEL=${SPEAK_WHISPER_LOCAL_MODEL:-small}
+      - SPEAK_STT_MODEL=${SPEAK_STT_MODEL:-openai/whisper-1}
+      - SPEAK_TTS_MODEL=${SPEAK_TTS_MODEL:-deepgram/flux-tts:free}
+      - SPEAK_TTS_VOICE=${SPEAK_TTS_VOICE:-flux-kit-en}
+      - SPEAK_TTS_PROVIDERS=${SPEAK_TTS_PROVIDERS:-openrouter,gtts}
+      - SPEAK_OPENROUTER_MODEL=${SPEAK_OPENROUTER_MODEL:-qwen/qwen3.6-plus:free}
+    command: ["python", "main.py", "--mode", "speak"]
+    volumes:
+      - whisper_cache:/root/.cache/huggingface
+    networks:
+      - alexol_network
+
+  # Ежедневный бэкап: cron 59 23 * * * (см. scripts/crontab.example)
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alexol_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      POSTGRES_DB: ${POSTGRES_DB:-alexol_db}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - ./uploads:/uploads:ro
+      - ./bot/data:/bot_data:ro
+      - ./bot/tdata:/bot_tdata:ro
+      - minio_data:/minio_data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - alexol_network
+    restart: "no"
+    entrypoint: ["/scripts/backup.sh"]
+
+  restore:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    profiles:
+      - backup
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alexol_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      POSTGRES_DB: ${POSTGRES_DB:-alexol_db}
+      RESTORE_DATE: ${RESTORE_DATE:-}
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - ./backups:/backups
+      - ./uploads:/uploads
+      - ./bot/data:/bot_data
+      - ./bot/tdata:/bot_tdata
+      - minio_data:/minio_data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - alexol_network
+    restart: "no"
+    entrypoint: ["/scripts/restore.sh"]
+
 volumes:
   postgres_data:
+    driver: local
+  whisper_cache:
+    driver: local
+  minio_data:
     driver: local
 
 networks:
   alexol_network:
     driver: bridge
+  # Shared with mail-server. Created in CI if missing; never owned by one compose project.
+  alexol_mail_sync:
+    name: alexol_mail_sync
+    external: true
 

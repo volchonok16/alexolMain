@@ -8,13 +8,22 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  login     String   @unique
+  id        String    @id @default(cuid())
+  login     String    @unique
   password  String
   name      String
-  role      String   @default("admin")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  email     String?   @unique
+  phone     String?
+  jobTitle  String?
+  telegram    String?
+  orgRoles    String?
+  direction   String?
+  isTechnical Boolean   @default(false)
+  role        String    @default("user")
+  photo       String?
+  birthDate DateTime? @db.Date
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model News {
@@ -25,4 +34,149 @@ model News {
   creationDate DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  topic       String
+  description String
+  videoUrl    String
+  videoKey    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PortfolioItem {
+  id            String   @id @default(uuid())
+  category      String
+  titleRu       String
+  titleEn       String
+  descriptionRu String
+  descriptionEn String
+  resultRu      String
+  resultEn      String
+  link          String?
+  imageUrl      String
+  imageKey      String
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Lead {
+  id              String   @id @default(uuid())
+  name            String
+  company         String?
+  email           String
+  phone           String?
+  budget          String?
+  description     String
+  pageCount       Int?
+  calculatedPrice Int?
+  source          String   @default("contact_form")
+  status          String   @default("new")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model QaBotSettings {
+  id        String   @id @default("default")
+  prompt    String   @default("")
+  maxChars  Int      @default(1000)
+  updatedAt DateTime @updatedAt
+}
+
+model QaConversation {
+  id          String      @id @default(uuid())
+  sessionId   String      @unique
+  source      String      @default("api")
+  mode        String      @default("ai")
+  lastPreview String      @default("")
+  unread      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  messages    QaMessage[]
+
+  @@index([updatedAt])
+  @@index([unread])
+}
+
+model LangLearner {
+  telegramId String             @id
+  firstName  String
+  lastName   String?
+  username   String?
+  photoUrl   String?
+  isAdmin    Boolean            @default(false)
+  isTutor    Boolean            @default(false)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  words      LangAssignedWord[]
+  homework   LangHomework[]
+  lessons    LangLesson[]
+}
+
+model LangLesson {
+  id        String             @id @default(uuid())
+  learnerId String
+  learner   LangLearner        @relation(fields: [learnerId], references: [telegramId], onDelete: Cascade)
+  title     String
+  sortOrder Int                @default(0)
+  createdAt DateTime           @default(now())
+  words     LangAssignedWord[]
+  homework  LangHomework[]
+
+  @@index([learnerId])
+}
+
+model LangAssignedWord {
+  id        String      @id @default(uuid())
+  learnerId String
+  learner   LangLearner @relation(fields: [learnerId], references: [telegramId], onDelete: Cascade)
+  lessonId  String?
+  lesson    LangLesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lang      String      @default("en")
+  front     String
+  back      String
+  image     String?     @db.Text
+  example   String?
+  stage     Int         @default(0)
+  known     Int         @default(0)
+  unknown   Int         @default(0)
+  createdAt DateTime    @default(now())
+
+  @@index([learnerId])
+  @@index([lessonId])
+}
+
+model LangHomework {
+  id        String      @id @default(uuid())
+  learnerId String
+  learner   LangLearner @relation(fields: [learnerId], references: [telegramId], onDelete: Cascade)
+  lessonId  String?
+  lesson    LangLesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title     String
+  task      String
+  image     String?     @db.Text
+  answer    String      @default("")
+  review    String      @default("")
+  checked   Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([learnerId])
+  @@index([lessonId])
+}
+
+model QaMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   QaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  author         String         @default("user")
+  content        String
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
 }

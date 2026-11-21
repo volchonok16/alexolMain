@@ -214,7 +214,7 @@ export const Contact = () => {
                   icon={Mail}
                   label={details.emailLabel}
                   value="support@alexol.io"
-                  href="mailto:support@alexol.io"
+                  href="mailto:info@alexol.io"
                 />
                 <ContactItem
                   icon={Phone}
@@ -255,7 +255,7 @@ const ContactItem = ({
 }) => (
   <div className="contact-item">
     <div className="contact-item__icon">
-      <Icon />
+      <Icon size={24} strokeWidth={1.75} className="contact-item__icon-svg" />
     </div>
     <div className="contact-item__content">
       <div className="contact-item__label">{label}</div>

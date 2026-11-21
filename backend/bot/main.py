@@ -7,51 +7,149 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
-from telegram import Update
-from telegram.ext import Application
-
 from src.post_generator import PostGenerator
+from src.polling_error_handler import block_forever_after_polling_conflict, setup_polling_error_handler
 from src.telegram_bot import TelegramPublisher
+from src.telegram_http import application_builder
+from src.news_start import setup_news_start
 from src.project_requests_bot import run_requests_bot, setup_requests_bot
 from src.simple_forward_bot import run_forward_bot, setup_forward_bot
+from src.speak_tutor_bot import run_speak_bot
 
+from src import database as db
 import config
 import pytz
 
 
 scheduler = None
 generator = None
+_publish_lock = asyncio.Lock()
+# Окна ~4 часа; после рестарта догоняем слот, пока не началось следующее.
+NEWS_MISFIRE_GRACE_SECONDS = 4 * 60 * 60
 
 
-async def publish_news_post():
-    """Одна публикация новостного поста (вызывается по расписанию)."""
-    global scheduler, generator
-    await generator.run_once()
+def _bot_timezone():
+    return pytz.timezone(str(config.TIMEZONE))
+
+
+def _now():
+    return datetime.now(_bot_timezone())
+
+
+def _as_local(value: datetime) -> datetime:
+    tz = _bot_timezone()
+    if value.tzinfo is None:
+        return tz.localize(value)
+    return value.astimezone(tz)
+
+
+def _news_windows() -> list[tuple[int, int]]:
+    return list(getattr(config, "NEWS_WINDOWS", [(10, 11), (14, 15), (18, 19), (22, 23)]))
+
+
+def due_news_window_start(*, only_ended: bool = False) -> datetime | None:
+    """Начало самого свежего окна, за которое уже пора публиковать."""
+    now = _now()
+    starts: list[datetime] = []
+    for start_hour, end_hour in _news_windows():
+        start_today = now.replace(hour=start_hour, minute=0, second=0, microsecond=0)
+        end_today = now.replace(hour=end_hour, minute=0, second=0, microsecond=0)
+        if end_today <= start_today:
+            end_today += timedelta(days=1)
+        for day_offset in (0, -1):
+            start = start_today + timedelta(days=day_offset)
+            end = end_today + timedelta(days=day_offset)
+            if now >= (end if only_ended else start):
+                starts.append(start)
+    return max(starts) if starts else None
+
+
+def news_already_published_since(window_start: datetime) -> bool:
+    last = db.get_last_news_published_at()
+    if last is None:
+        return False
+    return _as_local(last) >= window_start
+
+
+async def publish_news_post(reason: str = "schedule", only_ended_window: bool = False):
+    """Публикация новости, если за текущее/пропущенное окно ещё нет поста."""
+    global generator
+    async with _publish_lock:
+        if not generator:
+            print(f"⏭ Пропуск публикации ({reason}): генератор ещё не готов")
+            return
+        window_start = due_news_window_start(only_ended=only_ended_window)
+        if window_start is None:
+            print(f"⏭ Пропуск публикации ({reason}): окно ещё не началось")
+            return
+        if news_already_published_since(window_start):
+            print(
+                f"⏭ Пропуск публикации ({reason}): за окно с {window_start.strftime('%d.%m %H:%M')} уже есть пост"
+            )
+            return
+        last = db.get_last_news_published_at()
+        last_label = _as_local(last).strftime("%d.%m %H:%M") if last else "нет"
+        print(
+            f"🚀 Публикация новости ({reason}): окно с {window_start.strftime('%d.%m %H:%M')}, "
+            f"последний пост {last_label}"
+        )
+        try:
+            await generator.run_once()
+        except BaseException as e:
+            if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                raise
+            print(f"❌ Ошибка публикации новостного поста: {e}")
+
+
+async def catch_up_missed_news():
+    """Догон пропущенного окна, если слот уже закончился, а поста нет."""
+    await publish_news_post(reason="catch-up", only_ended_window=True)
 
 
 def schedule_news_posts():
-    """Планируем новостные посты: утром в POST_HOUR и вечером в POST_HOUR_EVENING (если задан)."""
+    """4 публикации в день в случайную минуту внутри каждого часового окна.
+
+    Окна (по умолчанию): 10–11, 14–15, 18–19, 22–23.
+    Переопределить можно через NEWS_WINDOWS в config.py.
+    """
     global scheduler
     tz = config.TIMEZONE
 
-    scheduler.add_job(
-        publish_news_post,
-        CronTrigger(hour=config.POST_HOUR, minute=0, timezone=tz),
-        id="post_generator_morning",
-        name="Новости (утро)",
-        replace_existing=True,
-    )
-    print(f"📅 Новости: ежедневно в {config.POST_HOUR:02d}:00 ({tz})")
+    windows = _news_windows()
 
-    if getattr(config, "POST_HOUR_EVENING", None) is not None:
+    for i, (start_hour, end_hour) in enumerate(windows, 1):
+        # Случайная минута внутри окна, фиксируется при старте бота на весь день.
+        minute = random.randint(0, 59)
+        # Выбираем час: если окно шире одного часа, случайно выбираем час внутри диапазона.
+        if end_hour > start_hour + 1:
+            hour = random.randint(start_hour, end_hour - 1)
+        else:
+            hour = start_hour
+
         scheduler.add_job(
             publish_news_post,
-            CronTrigger(hour=config.POST_HOUR_EVENING, minute=0, timezone=tz),
-            id="post_generator_evening",
-            name="Новости (вечер)",
+            CronTrigger(hour=hour, minute=minute, timezone=tz),
+            id=f"post_generator_{i}",
+            name=f"Новости {i}/4 ({start_hour:02d}–{end_hour:02d}ч)",
             replace_existing=True,
+            misfire_grace_time=NEWS_MISFIRE_GRACE_SECONDS,
+            coalesce=True,
+            max_instances=1,
+            kwargs={"reason": "schedule"},
         )
-        print(f"📅 Новости: ежедневно в {config.POST_HOUR_EVENING:02d}:00 ({tz})")
+        print(f"📅 Новости {i}/4: ежедневно в {hour:02d}:{minute:02d} ({tz})")
+
+    scheduler.add_job(
+        catch_up_missed_news,
+        IntervalTrigger(minutes=15, timezone=tz),
+        id="news_catch_up",
+        name="Догон пропущенных новостей",
+        replace_existing=True,
+        misfire_grace_time=600,
+        coalesce=True,
+        max_instances=1,
+    )
+    print("📅 Догон пропущенных новостей: каждые 15 минут после конца окна")
 
 
 async def publish_lead_post():
@@ -68,11 +166,11 @@ def schedule_lead_posts():
 
     scheduler.add_job(
         publish_lead_post,
-        # Каждый чётный день месяца в config.POST_HOUR:00
-        CronTrigger(day="2-31/2", hour=config.POST_HOUR, minute=0),
+        CronTrigger(day="2-31/2", hour=config.POST_HOUR, minute=0, timezone=config.TIMEZONE),
         id="lead_generator",
         name="Посты о поиске новых проектов",
         replace_existing=True,
+        misfire_grace_time=600,
     )
     print("📅 Промо-посты о поиске проектов будут публиковаться каждые 3 дня")
 
@@ -86,28 +184,51 @@ async def run_bot():
     print("=" * 60)
     print("🤖 IT News Bot для Telegram")
     print("=" * 60)
+    generator.print_status()
+    windows = getattr(config, "NEWS_WINDOWS", [(10, 11), (14, 15), (18, 19), (22, 23)])
+    windows_str = ", ".join(f"{s:02d}–{e:02d}ч" for s, e in windows)
     print(f"📢 Канал: {config.TELEGRAM_CHANNEL_ID}")
-    print(f"⏰ Публикация: ежедневно в {config.POST_HOUR:02d}:00 ({config.TIMEZONE})", end="")
-    if getattr(config, "POST_HOUR_EVENING", None) is not None:
-        print(f" и в {config.POST_HOUR_EVENING:02d}:00")
-    else:
-        print()
+    print(f"⏰ Публикация новостей: {len(windows)} раза в день | окна: {windows_str} ({config.TIMEZONE})")
     print(f"🧠 AI модель: {config.OPENROUTER_MODEL}")
+    if config.OPENROUTER_HTTP_PROXY:
+        print(f"🌐 OpenRouter proxy: {config.OPENROUTER_HTTP_PROXY.split('@')[-1]}")
+    else:
+        print("🌐 OpenRouter proxy: не задан (при 403 security policy нужен прокси вне РФ)")
     print("=" * 60)
 
-    print("\n🚀 Публикация первого поста при запуске...")
-    await generator.run_once()
+    news_token = config.TELEGRAM_NEWS_BOT_TOKEN or config.TELEGRAM_BOT_TOKEN
+    if not news_token:
+        raise RuntimeError("TELEGRAM_NEWS_BOT_TOKEN / TELEGRAM_BOT_TOKEN is not set")
 
-    scheduler.start()
-    schedule_news_posts()
-    schedule_lead_posts()
+    application = application_builder(news_token).build()
+    setup_news_start(application)
+    setup_polling_error_handler(application)
 
-    try:
-        while True:
-            await asyncio.sleep(60)
-    except (KeyboardInterrupt, SystemExit):
-        print("\n🛑 Остановка бота...")
-        scheduler.shutdown()
+    async with application:
+        await application.start()
+        if application.updater:
+            await application.updater.start_polling(drop_pending_updates=True)
+            print("📬 /start: бот принимает личные сообщения для сброса пароля почты")
+
+        scheduler.start()
+        schedule_news_posts()
+        schedule_lead_posts()
+
+        last = db.get_last_news_published_at()
+        last_label = _as_local(last).strftime("%d.%m %H:%M") if last else "нет"
+        print(f"\n📰 Последняя новость в SQLite: {last_label}")
+        print("🚀 Если утреннее/дневное окно уже прошло без поста — публикуем догон.")
+        await publish_news_post(reason="startup")
+
+        try:
+            while True:
+                await asyncio.sleep(60)
+        except (KeyboardInterrupt, SystemExit):
+            print("\n🛑 Остановка бота...")
+        finally:
+            scheduler.shutdown()
+            if application.updater:
+                await application.updater.stop()
 
 
 async def run_once():
@@ -118,6 +239,69 @@ async def run_once():
 async def preview():
     generator = PostGenerator()
     await generator.preview_post()
+
+
+async def diagnose():
+    """Полная диагностика: конфиг, Telegram, backend, OpenRouter, SQLite."""
+    from src import database as db
+
+    print("=" * 60)
+    print("🔍 Диагностика новостного бота")
+    print("=" * 60)
+
+    generator = PostGenerator()
+    generator.print_status()
+
+    stats = db.get_stats()
+    print(f"\n📊 SQLite: спарсено={stats.get('total_parsed', 0)}, "
+          f"сгенерировано={stats.get('total_generated', 0)}, "
+          f"опубликовано={stats.get('total_published', 0)}, "
+          f"неиспользованных={stats.get('unused_parsed', 0)}")
+
+    publisher = TelegramPublisher()
+    bot_info = await publisher.get_bot_info()
+    if bot_info:
+        print(f"\n✅ Telegram: @{bot_info.get('username')} (id={bot_info.get('id')})")
+    else:
+        print("\n❌ Telegram: не удалось подключиться (проверь TELEGRAM_NEWS_BOT_TOKEN)")
+
+    if generator.backend_news:
+        ok, msg = await generator.backend_news.test_connection()
+        print(f"{'✅' if ok else '❌'} Backend API: {msg}")
+        await generator.backend_news.aclose()
+    else:
+        print("❌ Backend API: интеграция отключена")
+
+    if config.OPENROUTER_API_KEY:
+        try:
+            import httpx
+            from src.http_utils import openrouter_client_kwargs, is_openrouter_security_block
+
+            async with httpx.AsyncClient(**openrouter_client_kwargs(15.0)) as client:
+                resp = await client.get(
+                    f"{config.OPENROUTER_BASE_URL}/models",
+                    headers={"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"},
+                )
+            if resp.status_code == 200:
+                print("✅ OpenRouter: API доступен")
+            elif is_openrouter_security_block(resp.status_code, resp.text):
+                print("❌ OpenRouter: 403 security policy — нужен OPENROUTER_HTTP_PROXY вне РФ")
+            else:
+                print(f"❌ OpenRouter: HTTP {resp.status_code} {(resp.text or '')[:120]}")
+        except Exception as e:
+            print(f"❌ OpenRouter: {e}")
+    else:
+        print("❌ OpenRouter: OPENROUTER_API_KEY не задан")
+
+    print("\n📰 RSS (1 статья)...")
+    articles = await generator.rss_parser.get_random_articles(1)
+    if articles:
+        print(f"✅ RSS OK: {articles[0].title[:70]}...")
+    else:
+        print("❌ RSS: не удалось получить статьи")
+
+    print("\n💡 Ручной прогон: python main.py --mode once")
+    print("=" * 60)
 
 
 async def test_connection():
@@ -179,24 +363,27 @@ def run_requests_and_forward_bot() -> None:
     if not config.TELEGRAM_REQUESTS_CHAT_ID:
         raise RuntimeError("TELEGRAM_REQUESTS_CHAT_ID / TELEGRAM_CHAT_ID / TELEGRAM_CHANNEL_ID is not set")
 
-    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+    application = application_builder(config.TELEGRAM_BOT_TOKEN).build()
 
     setup_requests_bot(application)
     setup_forward_bot(application)
+    setup_polling_error_handler(application)
 
     # Используем настройки по умолчанию; отдельный список allowed_updates не обязателен.
     application.run_polling()
+    block_forever_after_polling_conflict()
 
 
 def main():
     parser = argparse.ArgumentParser(description="IT News Bot для Telegram")
     parser.add_argument(
         "--mode",
-        choices=["bot", "once", "preview", "test", "stats", "fetch", "requests", "forward"],
+        choices=["bot", "once", "preview", "test", "diagnose", "stats", "fetch", "requests", "forward", "speak"],
         default="bot",
         help=(
-            "Режим: bot, once, preview, test, stats (статистика), fetch (загрузить контент), "
-            "requests (приём заявок на проекты), forward (простая пересылка сообщений)"
+            "Режим: bot, once, preview, test, diagnose (диагностика), stats (статистика), "
+            "fetch (загрузить контент), requests (приём заявок на проекты), "
+            "forward (простая пересылка сообщений), speak (языковой tutor)"
         ),
     )
 
@@ -210,6 +397,8 @@ def main():
         asyncio.run(preview())
     elif args.mode == "test":
         asyncio.run(test_connection())
+    elif args.mode == "diagnose":
+        asyncio.run(diagnose())
     elif args.mode == "stats":
         asyncio.run(show_stats())
     elif args.mode == "fetch":
@@ -219,6 +408,8 @@ def main():
         run_requests_and_forward_bot()
     elif args.mode == "forward":
         run_forward_bot()
+    elif args.mode == "speak":
+        run_speak_bot()
 
 
 if __name__ == "__main__":

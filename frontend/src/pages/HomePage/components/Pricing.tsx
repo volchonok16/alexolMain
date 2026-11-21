@@ -1,27 +1,29 @@
 import { useState } from 'react';
-import { Layers, Network, Monitor, Palette, Link2, Clock, BarChart3, Headphones, LucideIcon } from 'lucide-react';
 import { PricingModal } from './modals/PricingModal';
 import { useTranslation } from '@/shared/utils/translations';
 import { Reveal } from '@/shared/ui/Reveal';
+import { Icon3D, type Icon3DType } from '@/shared/ui/Icon3D';
 
 interface Factor {
-  icon: LucideIcon;
+  icon: Icon3DType;
   key: string;
 }
+
+const EMPHASIZED_ICONS = new Set<Icon3DType>(['integrations', 'clock', 'lifebuoy']);
 
 export const Pricing = () => {
   const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const factors: Factor[] = [
-    { icon: Layers, key: 'functionality' },
-    { icon: Network, key: 'architecture' },
-    { icon: Monitor, key: 'platforms' },
-    { icon: Palette, key: 'design' },
-    { icon: Link2, key: 'integrations' },
-    { icon: Clock, key: 'timeline' },
-    { icon: BarChart3, key: 'scale' },
-    { icon: Headphones, key: 'support' },
+    { icon: 'functionality', key: 'functionality' },
+    { icon: 'architecture', key: 'architecture' },
+    { icon: 'platforms', key: 'platforms' },
+    { icon: 'design', key: 'design' },
+    { icon: 'integrations', key: 'integrations' },
+    { icon: 'clock', key: 'timeline' },
+    { icon: 'scale', key: 'scale' },
+    { icon: 'lifebuoy', key: 'support' },
   ];
 
   return (
@@ -58,12 +60,11 @@ export const Pricing = () => {
 
 const FactorCard = ({ factor, index }: { factor: Factor; index: number }) => {
   const { t } = useTranslation();
-  const Icon = factor.icon;
 
   return (
     <Reveal delay={index * 0.05} className="factor-card">
-      <div className="factor-card__icon">
-        <Icon />
+      <div className={`factor-card__icon${EMPHASIZED_ICONS.has(factor.icon) ? ' factor-card__icon--emphasized' : ''}`}>
+        <Icon3D type={factor.icon} spin={false} />
       </div>
       <p className="factor-card__label">{t(`pricing.factors.${factor.key}`)}</p>
     </Reveal>

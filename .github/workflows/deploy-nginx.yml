@@ -1,0 +1,66 @@
+# Nginx на push в master ставит job deploy-nginx в deploy.yml.
+# Этот workflow — только ручной повтор.
+
+name: Deploy Nginx (manual)
+
+on:
+    workflow_dispatch:
+
+jobs:
+    deploy-nginx:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Prepare directories
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S mkdir -p "/tmp/nginx-deploy-${{ github.run_id }}"
+                      echo "${{ secrets.PWD }}" | sudo -S chown -R $USER:$USER "/tmp/nginx-deploy-${{ github.run_id }}"
+
+            - name: Upload nginx configs
+              uses: appleboy/scp-action@v1
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  source: "backend/nginx/**"
+                  target: "/tmp/nginx-deploy-${{ github.run_id }}"
+                  overwrite: true
+                  strip_components: 2
+
+            - name: Install nginx configs and reload
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: ${{ secrets.SERVER_USER }}
+                  key: ${{ secrets.SERVER_SSH_KEY }}
+                  port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+                  script: |
+                      echo "${{ secrets.PWD }}" | sudo -S bash -lc 'set -e
+                      shopt -s nullglob
+                      SRC=/tmp/nginx-deploy-${{ github.run_id }}
+                      for f in "$SRC"/sites/*.conf; do
+                        install -m 644 "$f" "/etc/nginx/sites-available/$(basename "$f" .conf)"
+                      done
+                      if [ -f "$SRC/upstream.conf" ]; then
+                        install -m 644 "$SRC/upstream.conf" /etc/nginx/sites-available/upstream
+                      fi
+                      mkdir -p /var/www/alexol.io/prana/html /var/www/alexol.io/lang/html
+                      for name in upstream alexol.io admin.alexol.io api.alexol.io be.alexol.io chat.alexol.io lang.alexol.io mail.alexol.io meet.alexol.io minio.alexol.io prana.alexol.io voentorg77.ru; do
+                        if [ -f "/etc/nginx/sites-available/$name" ]; then
+                          ln -sf "/etc/nginx/sites-available/$name" "/etc/nginx/sites-enabled/$name"
+                        fi
+                      done
+                      rm -f /etc/nginx/sites-enabled/default
+                      nginx -t
+                      systemctl reload nginx
+                      rm -rf "$SRC"
+                      echo "nginx reloaded"'

@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import Optional, Tuple
 
 from src.rss_parser import RSSParser
@@ -11,6 +12,113 @@ from src.instagram_publisher import InstagramPublisher
 from src.emoji_handler import EmojiHandler
 from src import database as db
 import config
+
+# Источники из sources.json - это уже IT-издания. Их не режем по общим словам вроде «технология».
+TRUSTED_IT_SOURCE_MARKERS = (
+    "habr",
+    "opennet",
+    "3dnews",
+    "computerra",
+    "tproger",
+    "ixbt",
+    "thecode",
+    "типичный",
+    "habr_com",
+    "tproger_official",
+)
+
+# Короткое «дума» раньше ловило «придумали»/«подумать» и сжигало почти все русские IT-новости.
+WAR_KEYWORDS = [
+    "война",
+    "военный",
+    "боевые действия",
+    "обстрел",
+    "нападение",
+    "сражение",
+    "вооружённый",
+    "вооруженный",
+    "вооружение",
+    "ракетный удар",
+    "авиаудар",
+    "спецоперация",
+    "мобилизация",
+]
+
+POLITICS_KEYWORDS = [
+    "политика",
+    "политический",
+    "политик",
+    "депутат",
+    "партия",
+    "выборы",
+    "избиратель",
+    "роскомнадзор",
+    "ркн",
+    "роском",
+    "рособрнадзор",
+    "роспотребнадзор",
+    "цензура",
+    "санкции",
+    "санкционный",
+    "госдума",
+    "совет федерации",
+    "федеральный совет",
+    "путин",
+    "медведев",
+    "мишустин",
+    "нарышкин",
+    "володин",
+    "оппозиция",
+    "оппозиционный",
+    "митинг",
+    "демонстрация",
+]
+
+PROHIBITED_KEYWORDS = [
+    "вейп",
+    "вейпинг",
+    "vape",
+    "vaping",
+    "вейпер",
+    "вейперы",
+    "электронная сигарета",
+    "электронные сигареты",
+    "электронка",
+    "курение",
+    "табак",
+    "никотин",
+    "сигареты",
+    "сигарета",
+    "сигара",
+    "кальян",
+    "табачный",
+    "табачная",
+    "табачные",
+]
+
+
+def _contains_keyword(text: str, keyword: str) -> bool:
+    if not keyword:
+        return False
+    if " " in keyword:
+        return keyword in text
+    return (
+        re.search(
+            rf"(?<![0-9a-zа-яё]){re.escape(keyword)}(?![0-9a-zа-яё])",
+            text,
+            flags=re.IGNORECASE,
+        )
+        is not None
+    )
+
+
+def _has_any_keyword(text: str, keywords: list[str]) -> bool:
+    return any(_contains_keyword(text, keyword) for keyword in keywords)
+
+
+def _is_trusted_it_source(post: dict) -> bool:
+    blob = f"{post.get('source_name', '')} {post.get('original_link', '')}".lower()
+    return any(marker in blob for marker in TRUSTED_IT_SOURCE_MARKERS)
 
 
 class PostGenerator:
@@ -38,6 +146,28 @@ class PostGenerator:
                 print(f"🧩 Backend news integration enabled: {config.BACKEND_API_URL}")
             except Exception as e:
                 print(f"⚠️ Не удалось инициализировать Backend news интеграцию: {e}")
+        else:
+            missing = []
+            if not config.BACKEND_API_URL:
+                missing.append("BACKEND_API_URL")
+            if not config.BACKEND_ADMIN_LOGIN:
+                missing.append("BACKEND_ADMIN_LOGIN")
+            if not config.BACKEND_ADMIN_PASSWORD:
+                missing.append("BACKEND_ADMIN_PASSWORD")
+            print(f"⚠️ Backend news integration disabled (нет: {', '.join(missing)})")
+
+    def print_status(self):
+        token = config.TELEGRAM_NEWS_BOT_TOKEN or config.TELEGRAM_BOT_TOKEN
+        print(f"   Telegram token: {'✅' if token else '❌'}")
+        print(f"   Telegram channel: {config.TELEGRAM_CHANNEL_ID or '❌ не задан'}")
+        print(f"   OpenRouter key: {'✅' if config.OPENROUTER_API_KEY else '❌'}")
+        print(f"   OpenRouter proxy: {config.OPENROUTER_HTTP_PROXY or 'не задан'}")
+        print(f"   Backend API: {config.BACKEND_API_URL or '❌ не задан'}")
+        print(f"   Backend admin: {'✅' if config.BACKEND_ADMIN_LOGIN and config.BACKEND_ADMIN_PASSWORD else '❌'}")
+        pwd = config.BACKEND_ADMIN_PASSWORD or ""
+        if pwd:
+            print(f"   Backend password: задан, длина {len(pwd)} символов")
+        print(f"   Backend client: {'✅ активен' if self.backend_news else '❌ отключён'}")
 
     def _append_footer(self, text: str) -> str:
         footer = (getattr(config, "SUBSCRIBE_FOOTER", "") or "").strip()
@@ -62,7 +192,12 @@ class PostGenerator:
         await self.rss_parser.get_random_articles(20)
 
         print("   Telegram каналы...")
-        await self.telegram_parser.fetch_all_channels(5)
+        try:
+            await self.telegram_parser.fetch_all_channels(5)
+        except BaseException as e:
+            if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                raise
+            print(f"⚠️ Не удалось загрузить Telegram-каналы, продолжаем с RSS: {e}")
 
         stats = db.get_stats()
         print(
@@ -70,126 +205,33 @@ class PostGenerator:
         )
 
     def _filter_posts(self, posts: list[dict]) -> list[dict]:
-        war_keywords = [
-            "война",
-            "военный",
-            "конфликт",
-            "боевые",
-            "атака",
-            "обстрел",
-            "нападение",
-            "сражение",
-            "вооружённый",
-            "вооруженный",
-            "вооружение",
-            "оружие",
-            "бомба",
-            "ракета",
-            "снаряд",
-            "военные действия",
-            "военная операция",
-            "спецоперация",
-            "мобилизация",
-        ]
-
-        politics_keywords = [
-            "политика",
-            "политический",
-            "политик",
-            "депутат",
-            "партия",
-            "выборы",
-            "избиратель",
-            "роскомнадзор",
-            "ркн",
-            "роском",
-            "рособрнадзор",
-            "роспотребнадзор",
-            "блокировка",
-            "блокируют",
-            "заблокирован",
-            "заблокировали",
-            "разблокировка",
-            "цензура",
-            "запрет",
-            "запретили",
-            "запрещено",
-            "запрещают",
-            "санкции",
-            "санкционный",
-            "санкционированный",
-            "власть",
-            "власти",
-            "правительство",
-            "министерство",
-            "министр",
-            "президент",
-            "госдума",
-            "дума",
-            "совет федерации",
-            "федеральный совет",
-            "путин",
-            "медведев",
-            "мишустин",
-            "нарышкин",
-            "володин",
-            "оппозиция",
-            "оппозиционный",
-            "протест",
-            "митинг",
-            "демонстрация",
-        ]
-
-        prohibited_keywords = [
-            "вейп",
-            "вейпинг",
-            "vape",
-            "vaping",
-            "вейпер",
-            "вейперы",
-            "электронная сигарета",
-            "электронные сигареты",
-            "электронка",
-            "курение",
-            "табак",
-            "никотин",
-            "сигареты",
-            "сигарета",
-            "сигара",
-            "кальян",
-            "трубка",
-            "табачный",
-            "табачная",
-            "табачные",
-        ]
-
         filtered = []
         for post in posts:
             title_lower = post["original_title"].lower()
             text_lower = post["original_text"].lower()
             full_text = title_lower + " " + text_lower
 
-            if any(keyword in title_lower or keyword in text_lower for keyword in war_keywords):
+            if _has_any_keyword(full_text, WAR_KEYWORDS):
                 print(f"⚠️ Пост содержит тему о войне, пропускаем: {post['original_title'][:50]}...")
                 db.mark_parsed_post_used(post["id"])
                 continue
 
-            if any(keyword in title_lower or keyword in text_lower for keyword in politics_keywords):
+            if _has_any_keyword(full_text, POLITICS_KEYWORDS):
                 print(f"⚠️ Пост содержит политическую тему, пропускаем: {post['original_title'][:50]}...")
                 db.mark_parsed_post_used(post["id"])
                 continue
 
-            if any(keyword in title_lower or keyword in text_lower for keyword in prohibited_keywords):
+            if _has_any_keyword(full_text, PROHIBITED_KEYWORDS):
                 print(
                     f"⚠️ Пост содержит запрещённую тему (вейпы/курение), пропускаем: {post['original_title'][:50]}..."
                 )
                 db.mark_parsed_post_used(post["id"])
                 continue
 
-            has_it = any(keyword in full_text for keyword in getattr(config, "IT_KEYWORDS", []))
-            has_fintech = any(keyword in full_text for keyword in getattr(config, "FINTECH_KEYWORDS", []))
+            has_it = _has_any_keyword(full_text, getattr(config, "IT_KEYWORDS", []))
+            has_fintech = _has_any_keyword(full_text, getattr(config, "FINTECH_KEYWORDS", []))
 
-            if not (has_it or has_fintech):
+            if not (has_it or has_fintech or _is_trusted_it_source(post)):
                 print(
                     f"⚠️ Пост не относится к тематикам финтех/IT, пропускаем: {post['original_title'][:50]}..."
                 )
@@ -197,9 +239,9 @@ class PostGenerator:
                 continue
 
             if not post.get("image_url"):
-                print(f"⚠️ Пост без изображения, пропускаем: {post['original_title'][:50]}...")
-                db.mark_parsed_post_used(post["id"])
-                continue
+                print(
+                    f"ℹ️ Пост без исходного изображения, возьмём стоковую картинку: {post['original_title'][:50]}..."
+                )
 
             filtered.append(post)
 
@@ -232,9 +274,9 @@ class PostGenerator:
         has_it = it_keywords_found > 0
         has_fintech = fintech_keywords_found > 0
         if has_fintech and not has_it:
-            score += 10  # чистый финтех — чуть выше
+            score += 10  # чистый финтех - чуть выше
         elif has_it and not has_fintech:
-            score -= 3  # чистый IT — совсем небольшой штраф
+            score -= 3  # чистый IT - совсем небольшой штраф
 
         if any(word in title for word in ["новый", "новое", "новые", "новинка", "революция", "прорыв", "инновация"]):
             score += 15
@@ -275,104 +317,11 @@ class PostGenerator:
     def _check_prohibited_content(self, text: str) -> tuple[bool, str]:
         text_lower = text.lower()
 
-        war_keywords = [
-            "война",
-            "военный",
-            "конфликт",
-            "боевые",
-            "атака",
-            "обстрел",
-            "нападение",
-            "сражение",
-            "вооружённый",
-            "вооруженный",
-            "вооружение",
-            "оружие",
-            "бомба",
-            "ракета",
-            "снаряд",
-            "военные действия",
-            "военная операция",
-            "спецоперация",
-            "мобилизация",
-        ]
-
-        politics_keywords = [
-            "политика",
-            "политический",
-            "политик",
-            "депутат",
-            "партия",
-            "выборы",
-            "избиратель",
-            "роскомнадзор",
-            "ркн",
-            "роском",
-            "рособрнадзор",
-            "роспотребнадзор",
-            "блокировка",
-            "блокируют",
-            "заблокирован",
-            "заблокировали",
-            "разблокировка",
-            "цензура",
-            "запрет",
-            "запретили",
-            "запрещено",
-            "запрещают",
-            "санкции",
-            "санкционный",
-            "санкционированный",
-            "власть",
-            "власти",
-            "правительство",
-            "министерство",
-            "министр",
-            "президент",
-            "госдума",
-            "дума",
-            "совет федерации",
-            "федеральный совет",
-            "путин",
-            "медведев",
-            "мишустин",
-            "нарышкин",
-            "володин",
-            "оппозиция",
-            "оппозиционный",
-            "протест",
-            "митинг",
-            "демонстрация",
-        ]
-
-        prohibited_keywords = [
-            "вейп",
-            "вейпинг",
-            "vape",
-            "vaping",
-            "вейпер",
-            "вейперы",
-            "электронная сигарета",
-            "электронные сигареты",
-            "электронка",
-            "курение",
-            "табак",
-            "никотин",
-            "сигареты",
-            "сигарета",
-            "сигара",
-            "кальян",
-            "трубка",
-            "табачный",
-            "табачная",
-            "табачные",
-        ]
-
-        if any(keyword in text_lower for keyword in war_keywords):
+        if _has_any_keyword(text_lower, WAR_KEYWORDS):
             return True, "война"
-        if any(keyword in text_lower for keyword in politics_keywords):
+        if _has_any_keyword(text_lower, POLITICS_KEYWORDS):
             return True, "политика"
-        if any(keyword in text_lower for keyword in prohibited_keywords):
+        if _has_any_keyword(text_lower, PROHIBITED_KEYWORDS):
             return True, "вейпы/курение"
         return False, ""
 
@@ -460,7 +409,7 @@ class PostGenerator:
             text_len = len(rewritten_text)
             if text_len > 1000:
                 print(f"⚠️ Текст слишком длинный ({text_len} символов, нужно до 1000)")
-                print("   ❌ Не обрезаем текст посередине — просим AI перегенерировать пост")
+                print("   ❌ Не обрезаем текст посередине - просим AI перегенерировать пост")
                 if attempt < max_attempts:
                     used_post_ids.add(selected_post["id"])
                     db.mark_parsed_post_used(selected_post["id"])
@@ -476,25 +425,13 @@ class PostGenerator:
             print(f"✅ AI выбрал пост: {selected_post['original_title'][:60]}...")
             print(f"   📏 Длина текста: {len(rewritten_text)} символов")
 
-            print("🖼️ Проверяем наличие исходного изображения для выбранного поста...")
+            print("🖼️ Подбираем изображение для поста...")
             image_url = selected_post.get("image_url")
-
-            if not image_url:
-                print("   ⚠️ У выбранного поста нет изображения (image_url пустой), пробуем другой пост...")
-                used_post_ids.add(selected_post["id"])
-                db.mark_parsed_post_used(selected_post["id"])
-                if attempt < max_attempts:
-                    print(f"   🔄 Попытка {attempt + 1}/{max_attempts} с другими постами...")
-                    continue
-                print("   ❌ Достигнут лимит попыток без поста с изображением")
-                return None, None, None, None
-
             image_data = await self.image_handler.get_image_for_article(image_url)
 
             if not image_data or not self.image_handler.validate_image(image_data):
                 print("   ⚠️ Не удалось получить валидное изображение для поста, пробуем другой...")
                 used_post_ids.add(selected_post["id"])
-                db.mark_parsed_post_used(selected_post["id"])
                 if attempt < max_attempts:
                     print(f"   🔄 Попытка {attempt + 1}/{max_attempts} с другими постами...")
                     continue
@@ -706,7 +643,7 @@ class PostGenerator:
             processed_text = text
             parse_mode = None
 
-        # Сначала — фирменные баннеры; если нет — картинки под тему «мы ищем проекты» (бизнес, команда, работа над проектом).
+        # Сначала - фирменные баннеры; если нет - картинки под тему «мы ищем проекты» (бизнес, команда, работа над проектом).
         image = await self.image_handler.get_brand_banner()
         if not image:
             image = await self.image_handler.get_lead_post_image()

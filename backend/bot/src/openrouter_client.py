@@ -4,6 +4,12 @@ import re
 
 import config
 from src.emoji_handler import EmojiHandler
+from src.http_utils import (
+    format_openrouter_error_body,
+    is_openrouter_security_block,
+    openrouter_client_kwargs,
+    openrouter_unavailable_hints,
+)
 
 
 class OpenRouterClient:
@@ -12,17 +18,41 @@ class OpenRouterClient:
         self.base_url = config.OPENROUTER_BASE_URL
         self.model = config.OPENROUTER_MODEL
         self.emoji_handler = EmojiHandler()
-        self.fallback_models = [
-            "deepseek/deepseek-r1-distill-qwen-32b",
-            "google/gemini-2.0-flash-exp:free",
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "qwen/qwen-2.5-coder-32b-instruct:free",
-            "deepseek/deepseek-chat:free",
-            "mistralai/mistral-small-24b-instruct-2501:free",
-            "google/gemma-2-9b-it:free",
-            "meta-llama/llama-3.2-3b-instruct:free",
-            "huggingfaceh4/zephyr-7b-beta:free",
-        ]
+        self.fallback_models = config.OPENROUTER_FALLBACK_MODELS
+        self._security_block = False
+
+    def _normalize_markdown_formatting(self, text: str) -> str:
+        """Приводит частые Markdown-ответы моделей к HTML, который понимает Telegram."""
+        text = re.sub(r"```(?:\w+)?\s*([\s\S]*?)```", r"\1", text)
+        text = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", text)
+        text = re.sub(r"\*\*([^\n*][\s\S]*?[^\n*])\*\*", r"<b>\1</b>", text)
+        text = re.sub(r"__([^\n_][\s\S]*?[^\n_])__", r"<b>\1</b>", text)
+        text = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"<i>\1</i>", text)
+        text = re.sub(r"`([^`\n]+)`", r"<code>\1</code>", text)
+        text = re.sub(r"(?m)^\s*[-*_]{3,}\s*$", "", text)
+        text = re.sub(r"#{2,}", "", text)
+        text = re.sub(r"\*{2,}", "", text)
+        return text
+
+    def _looks_broken_russian_post(self, text: str) -> bool:
+        """Отбраковывает ответы, где после очистки почти не осталось русского текста."""
+        stripped = text.strip()
+        if not stripped or stripped.upper().startswith("SKIP"):
+            return False
+
+        cyrillic_count = len(re.findall(r"[А-Яа-яЁё]", stripped))
+        alnum_count = len(re.findall(r"[A-Za-zА-Яа-яЁё0-9]", stripped))
+        markup_noise = len(re.findall(r"[#*]{2,}", stripped))
+        placeholder_noise = len(re.findall(r"\[[A-Z_]{3,}\]", stripped))
+
+        if cyrillic_count < 80:
+            return True
+        if alnum_count and cyrillic_count / alnum_count < 0.35:
+            return True
+        if cyrillic_count < 120 and (markup_noise >= 3 or placeholder_noise >= 4):
+            return True
+
+        return False
 
     def _clean_ai_response(self, text: str) -> str:
         """Очищает ответ AI от артефактов, китайских символов и других нежелательных элементов"""
@@ -44,7 +74,8 @@ class OpenRouterClient:
             tag = match.group(0)
             # имя тега без <, > и /, в нижнем регистре
             m = re.match(r"</?\s*([a-zA-Z0-9]+)", tag)
-            allowed = {"b", "i", "code"}
+            # <a href="..."> сохраняем целиком, остальные разрешённые теги - тоже
+            allowed = {"b", "i", "code", "a"}
             if m and m.group(1).lower() in allowed:
                 html_tags.append(tag)
                 return f"__HTML_TAG_{len(html_tags)-1}__"
@@ -69,7 +100,7 @@ class OpenRouterClient:
         text = re.sub(r"[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]", "", text)
 
         # Разрешаем базовую пунктуацию и тире/дефисы, чтобы не склеивать слова вроде "январе–феврале".
-        allowed_chars = r"a-zA-Zа-яА-ЯёЁ0-9\s\.,!?;:\(\)\[\]\{\}\-\—–\+\*\/=\'\"@#\$%&_\|\\`~"
+        allowed_chars = r"a-zA-Zа-яА-ЯёЁ0-9\s\.,!?;:\(\)\[\]\{\}\-\-–\+\*\/=\'\"@#\$%&_\|\\`~"
         text = re.sub(f"[^{allowed_chars}]", "", text)
 
         # Удаляем "случайные" иностранные слова (unlock/enabling/menjadi и т.п.),
@@ -158,14 +189,28 @@ class OpenRouterClient:
         text = re.sub(r"\s+([,.;:!?])", r"\1", text)
         text = re.sub(r"([,.;:!?])([^\s\n])", r"\1 \2", text)
 
+        # Убираем мусорную пунктуацию: ",," -> "", ", ." -> ".", ". ," -> "."
+        text = re.sub(r",{2,}", "", text)
+        text = re.sub(r"\s*,\s*\.", ".", text)
+        text = re.sub(r"\.\s*,\s*", ". ", text)
+        # Убираем осиротевшие одиночные запятые/точки в начале строки или после пробела перед концом
+        text = re.sub(r"(\s|^)[,.](\s|$)", " ", text)
+
         # Исправляем склейки вида "гигантыcpu" -> "гигант CPU" / "гигантами CPU"
         text = re.sub(r"([А-Яа-яЁё]+)cpu\b", r"\1 CPU", text, flags=re.IGNORECASE)
+
+        # Исправляем склейки кириллицы с латиницей: "видеоcontent" -> "видео content",
+        # "включаяentertainment" -> "включая entertainment"
+        text = re.sub(r"([А-Яа-яЁё])([a-zA-Z])", r"\1 \2", text)
+        text = re.sub(r"([a-zA-Z])([А-Яа-яЁё])", r"\1 \2", text)
 
         for i, emoji in enumerate(emojis):
             text = text.replace(f"__EMOJI_{i}__", emoji)
 
         for i, tag in enumerate(html_tags):
             text = text.replace(f"__HTML_TAG_{i}__", tag)
+
+        text = self._normalize_markdown_formatting(text)
 
         lines = text.split("\n")
         cleaned_lines = []
@@ -206,8 +251,23 @@ class OpenRouterClient:
             if response.status_code == 200:
                 data = response.json()
                 if "choices" in data and len(data["choices"]) > 0:
-                    raw_text = data["choices"][0]["message"]["content"].strip()
+                    message = data["choices"][0].get("message") or {}
+                    raw_text = message.get("content")
+                    if isinstance(raw_text, list):
+                        raw_text = "".join(
+                            part.get("text", "") if isinstance(part, dict) else str(part) for part in raw_text
+                        )
+                    if not raw_text:
+                        raw_text = message.get("reasoning") or message.get("reasoning_content") or ""
+                    raw_text = (raw_text or "").strip()
+                    raw_text = re.sub(r"<think>[\s\S]*?</think>", "", raw_text, flags=re.IGNORECASE).strip()
+                    if not raw_text:
+                        print(f"      ⚠️ Пустой content от {model}")
+                        return None
                     cleaned_text = self._clean_ai_response(raw_text)
+                    if self._looks_broken_russian_post(cleaned_text):
+                        print(f"      ⚠️ Ответ от {model} похож на сломанный формат, пробуем другую модель")
+                        return None
                     if cleaned_text and len(cleaned_text) > 10:
                         return cleaned_text
                     else:
@@ -225,13 +285,11 @@ class OpenRouterClient:
                 print("      ⚠️ Лимит запросов, пробуем другую модель...")
                 return None
             else:
-                try:
-                    error_data = response.json()
-                    if "error" in error_data:
-                        error_msg = error_data["error"].get("message", "Unknown error")
-                        print(f"      ⚠️ {response.status_code}: {error_msg[:80]}")
-                except Exception:
-                    print(f"      ⚠️ HTTP {response.status_code}: {response.text[:80]}")
+                error_msg = format_openrouter_error_body(response)
+                print(f"      ⚠️ HTTP {response.status_code}: {error_msg[:120]}")
+                if is_openrouter_security_block(response.status_code, error_msg):
+                    self._security_block = True
+                    print("      🚫 Cloudflare/geo block - дальше модели не перебираем")
                 return None
         except httpx.TimeoutException:
             print(f"      ⚠️ Таймаут запроса к {model}")
@@ -240,68 +298,70 @@ class OpenRouterClient:
             print(f"      ⚠️ Ошибка: {str(e)[:80]}")
             return None
 
+    async def _try_models(self, prompt: str, timeout: float, label: str = "") -> Optional[str]:
+        models_to_try = [self.model] + [m for m in self.fallback_models if m != self.model]
+        self._security_block = False
+        prefix = f"{label} " if label else ""
+
+        async with httpx.AsyncClient(**openrouter_client_kwargs(timeout)) as client:
+            for i, model in enumerate(models_to_try, 1):
+                print(f"   {prefix}Попытка {i}/{len(models_to_try)}: {model}")
+                result = await self._try_model(client, model, prompt)
+                if result:
+                    print(f"   {prefix}✅ Успешно использована модель: {model}")
+                    return result
+                print(f"   {prefix}❌ Модель {model} не доступна")
+                if self._security_block:
+                    break
+
+        openrouter_unavailable_hints(saw_security_block=self._security_block)
+        return None
+
+
     async def rewrite_article(self, title: str, description: str, source: str) -> Optional[str]:
         emoji_list = self.emoji_handler.get_emoji_list_for_prompt()
 
-        prompt = f"""Ты — профессиональный редактор и копирайтер, главный редактор Telegram-канала про финтех и IT. Напиши профессиональный, но живой пост.
+        prompt = f"""Ты - профессиональный редактор и копирайтер, главный редактор Telegram-канала про финтех и IT. Напиши профессиональный, но живой пост.
 
 ИСХОДНИК:
 Заголовок: {title}
 Текст: {description}
 
-СТИЛЬ — редакторский:
+СТИЛЬ - редакторский:
 • Пиши ТОЛЬКО по-русски (без английских и других иностранных слов в середине предложений, кроме коротких аббревиатур вроде AI, IT, API, SQL и названий компаний/продуктов)
 • Грамотный литературный русский без орфографических и грамматических ошибок
 • Короткие абзацы (2-3 предложения)
 • Пустая строка между абзацами
 • Живой язык, конкретика
-• ЗАВЕРШАЙ мысль — не оставляй вопросы без ответа!
+• ЗАВЕРШАЙ мысль - не оставляй вопросы без ответа!
 • В заголовке и в первом абзаце назови ключевую компанию/продукт (если они есть в исходнике). Не пиши "представила" без субъекта.
 
 СТРУКТУРА (строго):
 <b>💡 Название компании/продукта + короткое действие</b>
 
-1 абзац: кто и что сделал — конкретная компания/продукт и ключевое действие (запустил, представил, обновил и т.п.).
+1 абзац: кто и что сделал - конкретная компания/продукт и ключевое действие (запустил, представил, обновил и т.п.).
 
 2 абзац: зачем это нужно пользователям/бизнесу, какие конкретные задачи решает функциональность.
 
-3 абзац (особенно для финтех-новостей): к чему это приведёт — влияние на рынок, конкурентов, банки, финтех-сервисы, возможные риски и ограничения.
+3 абзац (особенно для финтех-новостей): к чему это приведёт - влияние на рынок, конкурентов, банки, финтех-сервисы, возможные риски и ограничения.
 
-Не добавляй подпись, хэштеги или ссылки — они добавляются автоматически.
+Не добавляй подпись, хэштеги или ссылки - они добавляются автоматически.
 
 ФОРМАТИРОВАНИЕ:
-• <b>жирный</b> — заголовки
-• <i>курсив</i> — акценты
-• <code>код</code> — термины
+• <b>жирный</b> - заголовки
+• <i>курсив</i> - акценты
+• <code>код</code> - термины
 • Эмодзи: {emoji_list}
 
 ⚠️ ДЛИНА: 700-850 символов.
 
-ЗАПРЕЩЕНО: война, политика, Роскомнадзор, блокировки, вейпы — верни SKIP
+ЗАПРЕЩЕНО: война, политика, Роскомнадзор, блокировки, вейпы - верни SKIP
 
 НЕ используй хэштеги (#тег1 и т.п.).
 
-Ответ — только готовый пост или SKIP:"""
+Ответ - только готовый пост или SKIP:"""
 
-        models_to_try = [self.model] + [m for m in self.fallback_models if m != self.model]
-
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            for model in models_to_try:
-                print(f"   Попытка модели: {model}")
-                result = await self._try_model(client, model, prompt)
-                if result:
-                    print(f"   ✅ Успешно использована модель: {model}")
-                    return result
-                else:
-                    print(f"   ❌ Модель {model} не доступна")
-
-            print("\n❌ Все модели недоступны!")
-            print("   💡 Проверь:")
-            print("      1. Актуальные бесплатные модели на https://openrouter.ai/models")
-            print("      2. Правильность API ключа в .env файле")
-            print("      3. Баланс на OpenRouter (даже бесплатные модели требуют регистрации)")
-            print("      4. Попробуй обновить OPENROUTER_MODEL в .env на актуальную модель")
-            return None
+        return await self._try_models(prompt, timeout=90.0)
 
     async def rewrite_article_from_multiple(self, posts: list[dict]) -> Optional[tuple[dict, str]]:
         emoji_list = self.emoji_handler.get_emoji_list_for_prompt()
@@ -316,14 +376,14 @@ class OpenRouterClient:
 ---
 """
 
-        prompt = f"""Ты — профессиональный редактор и копирайтер, главный редактор Telegram-канала про финтех и IT. Пиши профессионально, но живо и интересно.
+        prompt = f"""Ты - профессиональный редактор и копирайтер, главный редактор Telegram-канала про финтех и IT. Пиши профессионально, но живо и интересно.
 
 Вот {len(posts)} новостей:
 {posts_text}
 
 ЗАДАЧА: Выбери ОДНУ самую интересную IT/финтех-новость и напиши пост.
 
-СТИЛЬ — редакторский:
+СТИЛЬ - редакторский:
 • Пиши ТОЛЬКО по-русски (без английских и других иностранных слов в середине предложений, кроме коротких аббревиатур вроде AI, IT, API, SQL и названий компаний/продуктов)
 • Грамотный литературный русский без орфографических и грамматических ошибок
 • Короткие абзацы (2-3 предложения)
@@ -335,18 +395,18 @@ class OpenRouterClient:
 СТРУКТУРА (строго):
 <b>💡 Название компании/продукта + короткое действие</b>
 
-1 абзац: кто и что сделал — конкретная компания/продукт и ключевое действие (запустил, представил, обновил и т.п.).
+1 абзац: кто и что сделал - конкретная компания/продукт и ключевое действие (запустил, представил, обновил и т.п.).
 
-2 абзац: что именно меняется для пользователей/бизнеса — функциональность, условия, ограничения, где это работает.
+2 абзац: что именно меняется для пользователей/бизнеса - функциональность, условия, ограничения, где это работает.
 
-3 абзац: вывод редактора — как это повлияет на рынок (особенно если это финтех: банки, платёжные сервисы, регуляторы, конкуренты), к каким трендам это ведёт. НЕ задавай вопрос без ответа!
+3 абзац: вывод редактора - как это повлияет на рынок (особенно если это финтех: банки, платёжные сервисы, регуляторы, конкуренты), к каким трендам это ведёт. НЕ задавай вопрос без ответа!
 
-Не добавляй подпись, хэштеги или ссылки — они добавляются автоматически.
+Не добавляй подпись, хэштеги или ссылки - они добавляются автоматически.
 
 ФОРМАТИРОВАНИЕ:
-• <b>жирный</b> — заголовки
-• <i>курсив</i> — акценты
-• <code>код</code> — термины
+• <b>жирный</b> - заголовки
+• <i>курсив</i> - акценты
+• <code>код</code> - термины
 • Эмодзи: {emoji_list}
 
 ⚠️ ДЛИНА: 700-850 символов.
@@ -357,9 +417,9 @@ class OpenRouterClient:
 НЕ используй хэштеги (#тег1 и т.п.).
 
 Формат ответа (строго):
-1. Первая строка — только цифра номера поста (1-{len(posts)})
-2. Вторая строка — пустая
-3. Остальное — готовый пост
+1. Первая строка - только цифра номера поста (1-{len(posts)})
+2. Вторая строка - пустая
+3. Остальное - готовый пост
 
 Пример:
 2
@@ -369,8 +429,9 @@ class OpenRouterClient:
 """
 
         models_to_try = [self.model] + [m for m in self.fallback_models if m != self.model]
+        self._security_block = False
 
-        async with httpx.AsyncClient(timeout=150.0) as client:
+        async with httpx.AsyncClient(**openrouter_client_kwargs(150.0)) as client:
             for i, model in enumerate(models_to_try, 1):
                 print(f"   Попытка {i}/{len(models_to_try)}: {model}")
                 result = await self._try_model(client, model, prompt)
@@ -422,15 +483,12 @@ class OpenRouterClient:
                         return (selected_post, rewritten_text)
 
                     return (selected_post, result_clean)
-                else:
-                    print(f"   ❌ Модель {model} не доступна")
 
-            print("\n❌ Все модели недоступны!")
-            print("   💡 Проверь:")
-            print("      1. Актуальные бесплатные модели на https://openrouter.ai/models")
-            print("      2. Правильность API ключа в .env файле")
-            print("      3. Баланс на OpenRouter (даже бесплатные модели требуют регистрации)")
-            print("      4. Попробуй обновить OPENROUTER_MODEL в .env на актуальную модель")
+                print(f"   ❌ Модель {model} не доступна")
+                if self._security_block:
+                    break
+
+            openrouter_unavailable_hints(saw_security_block=self._security_block)
             return None
 
     async def generate_image_prompt(
@@ -453,10 +511,10 @@ class OpenRouterClient:
 ❌ БЕЗ людей, лиц, рук
 ❌ БЕЗ абстракций ("innovation", "future")
 
-Ответ — только запрос:"""
+Ответ - только запрос:"""
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(**openrouter_client_kwargs(30.0)) as client:
                 response = await client.post(
                     f"{self.base_url}/chat/completions",
                     headers={
@@ -475,9 +533,18 @@ class OpenRouterClient:
 
                 if response.status_code == 200:
                     data = response.json()
-                    raw_text = data["choices"][0]["message"]["content"].strip()
+                    message = (data.get("choices") or [{}])[0].get("message") or {}
+                    raw_text = message.get("content") or ""
+                    if isinstance(raw_text, list):
+                        raw_text = "".join(
+                            part.get("text", "") if isinstance(part, dict) else str(part) for part in raw_text
+                        )
+                    raw_text = (raw_text or "").strip()
                     cleaned_text = self._clean_ai_response(raw_text)
                     return cleaned_text if cleaned_text else None
+                body = format_openrouter_error_body(response)
+                if is_openrouter_security_block(response.status_code, body):
+                    print(f"🚫 OpenRouter image prompt: {body}")
                 return None
 
         except Exception as e:
@@ -490,26 +557,26 @@ class OpenRouterClient:
 Вариант 1:
 👋 Друзья, важная новость!
 
-Мы в Alexol ищем проекты и готовы к новым интересным задачам: разработка под ключ, цифровизация бизнеса, корпоративные системы, веб и мобильные приложения. Если у вас или ваших знакомых есть идея или готовая задача — сейчас самое время написать нам!
+Мы в Alexol ищем проекты и готовы к новым интересным задачам: разработка под ключ, цифровизация бизнеса, корпоративные системы, веб и мобильные приложения. Если у вас или ваших знакомых есть идея или готовая задача - сейчас самое время написать нам!
 
 🚀 Как связаться:
-— Заявка на сайте: https://alexol.io
-— Написать в бота: @AlexolBot
+- Заявка на сайте: <a href="https://alexol.io">alexol.io</a>
+- Написать в бота: @AlexolBot
 
 Работаем быстро, честно и с душой. Ждём ваши задачи! 💻✨
 
 ---
 Вариант 2:
-📢 Alexol ищет проекты — готовы к новым задачам!
+📢 Alexol ищет проекты - готовы к новым задачам!
 
 Мы в активном поиске интересных разработок. В приоритете:
-— Корпоративные системы
-— Веб- и мобильные приложения
-— Цифровизация и автоматизация
+- Корпоративные системы
+- Веб- и мобильные приложения
+- Цифровизация и автоматизация
 
 ✅ 7+ лет опыта, 150+ проектов, команда senior-специалистов.
 
-📌 Оставить заявку: https://alexol.io или в Telegram: @AlexolBot
+📌 Оставить заявку: <a href="https://alexol.io">alexol.io</a> или в Telegram: @AlexolBot
 
 Будем рады сотрудничеству! 🤝
 
@@ -517,9 +584,9 @@ class OpenRouterClient:
 Вариант 3:
 ⚡️ Мы ищем проекты и готовы взяться за вашу задачу
 
-Качественная разработка под ключ: корпсистемы, веб-сервисы, мобильные приложения. Расскажите о задаче — предложим решение.
+Качественная разработка под ключ: корпсистемы, веб-сервисы, мобильные приложения. Расскажите о задаче - предложим решение.
 
-🌐 https://alexol.io  |  🤖 @AlexolBot
+🌐 <a href="https://alexol.io">alexol.io</a>  |  🤖 @AlexolBot
 
 Ждём вас! 🚀
 
@@ -527,46 +594,34 @@ class OpenRouterClient:
 Вариант 4:
 🔥 Alexol открыт к новым проектам
 
-Ищем интересные задачи в разработке ПО. Есть идея или готовый бриф? Пишите — обсудим и предложим план.
+Ищем интересные задачи в разработке ПО. Есть идея или готовый бриф? Пишите - обсудим и предложим план.
 
 🏆 7 лет, 150+ проектов, от идеи до поддержки.
 
-📬 Сайт: https://alexol.io  |  Бот: @AlexolBot
+📬 Сайт: <a href="https://alexol.io">alexol.io</a>  |  Бот: @AlexolBot
 """
 
-        prompt = f"""Ты — профессиональный редактор и копирайтер Telegram-канала компании по разработке ПО Alexol.
+        prompt = f"""Ты - профессиональный редактор и копирайтер Telegram-канала компании по разработке ПО Alexol.
 
-Тема поста: МЫ ИЩЕМ ПРОЕКТЫ. Мы готовы к новым интересным задачам, разработкам под ключ, цифровизации бизнеса — корпоративные системы, веб, мобильные приложения. Нужен живой, приглашающий тон: приглашаем клиентов и партнёров предложить задачу.
+Тема поста: МЫ ИЩЕМ ПРОЕКТЫ. Мы готовы к новым интересным задачам, разработкам под ключ, цифровизации бизнеса - корпоративные системы, веб, мобильные приложения. Нужен живой, приглашающий тон: приглашаем клиентов и партнёров предложить задачу.
 
-Ниже — примеры постов в том же духе:
+Ниже - примеры постов в том же духе:
 {examples}
 
 ЗАДАЧА:
-— Сгенерируй НОВЫЙ вариант поста на русском языке.
-— Суть: Alexol ищет проекты, готов к новым задачам и разработкам; приглашаем оставлять заявки.
-— Обязательно упомяни: сайт https://alexol.io и Telegram-бота @AlexolBot.
-— Стиль: дружелюбный, профессиональный, без канцелярита.
+- Сгенерируй НОВЫЙ вариант поста на русском языке.
+- Суть: Alexol ищет проекты, готов к новым задачам и разработкам; приглашаем оставлять заявки.
+- Для ссылки на сайт ОБЯЗАТЕЛЬНО используй HTML-тег: <a href="https://alexol.io">alexol.io</a>
+- Telegram-бот указывай как: @AlexolBot
+- Стиль: дружелюбный, профессиональный, без канцелярита.
 
 ТРЕБОВАНИЯ:
-— 2–4 абзаца, короткие строки.
-— Эмодзи уместно, но без перебора.
-— 350–700 символов.
-— Не копируй примеры дословно — своя вариация. Без нумерации и слов «Вариант 1/2/3».
+- 2–4 абзаца, короткие строки.
+- Эмодзи уместно, но без перебора.
+- 350–700 символов.
+- Не копируй примеры дословно - своя вариация. Без нумерации и слов «Вариант 1/2/3».
 
 Ответ: только готовый текст поста, без пояснений."""
 
-        models_to_try = [self.model] + [m for m in self.fallback_models if m != self.model]
-
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            for i, model in enumerate(models_to_try, 1):
-                print(f"   [lead] Попытка {i}/{len(models_to_try)}: {model}")
-                result = await self._try_model(client, model, prompt)
-                if result:
-                    print(f"   [lead] ✅ Успешно использована модель: {model}")
-                    return result
-                else:
-                    print(f"   [lead] ❌ Модель {model} не доступна")
-
-        print("[lead] ❌ Не удалось сгенерировать промо-пост (все модели недоступны)")
-        return None
+        return await self._try_models(prompt, timeout=90.0, label="[lead]")
 
