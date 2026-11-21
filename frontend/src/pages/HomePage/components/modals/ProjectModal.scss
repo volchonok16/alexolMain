@@ -13,10 +13,10 @@
 
   &__label {
     font-size: 0.875rem;
-    color: #A8B0C0;
+    color: #a8b0c0;
 
-    [data-theme="light"] & {
-      color: #64748B;
+    [data-theme='light'] & {
+      color: #64748b;
     }
   }
 
@@ -24,7 +24,7 @@
   &__select,
   &__textarea {
     padding: 0.75rem 1rem;
-    background: #0A0C10;
+    background: #0a0c10;
     border: 1px solid rgba(10, 227, 255, 0.2);
     border-radius: 0.5rem;
     color: white;
@@ -32,24 +32,24 @@
 
     &:focus {
       outline: none;
-      border-color: #0AE3FF;
+      border-color: #0ae3ff;
     }
 
     &::placeholder {
-      color: #A8B0C0;
+      color: #a8b0c0;
     }
 
-    [data-theme="light"] & {
-      background: #FFFFFF;
+    [data-theme='light'] & {
+      background: #ffffff;
       border: 1px solid rgba(8, 145, 178, 0.3);
-      color: #0F172A;
+      color: #0f172a;
 
       &:focus {
-        border-color: #0891B2;
+        border-color: #0891b2;
       }
 
       &::placeholder {
-        color: #64748B;
+        color: #64748b;
       }
     }
   }
@@ -61,23 +61,46 @@
   &__submit {
     width: 100%;
     padding: 1rem 2rem;
-    background: linear-gradient(to right, #0AE3FF, #1B91F7);
+    background: var(--action-bg);
     border-radius: 0.5rem;
     border: none;
     color: white;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s ease;
+    box-shadow: var(--action-shadow);
 
     &:hover {
-      box-shadow: 0 0 30px rgba(10, 227, 255, 0.5);
+      background: var(--action-bg-hover);
+      box-shadow: var(--action-shadow-hover);
+      transform: translateY(-1px);
     }
+  }
 
-    [data-theme="light"] & {
-      background: linear-gradient(to right, #0891B2, #0369A1);
-
-      &:hover {
-        box-shadow: 0 0 30px rgba(8, 145, 178, 0.5);
-      }
-    }
+  &__consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    color: #a4b4b8;
+    font-size: 0.76rem;
+    line-height: 1.5;
+  }
+  &__consent input {
+    flex: 0 0 auto;
+    margin-top: 0.15rem;
+    accent-color: #287f75;
+  }
+  &__error {
+    color: #ff9c91;
+    font-size: 0.82rem;
+  }
+  &__submit:disabled {
+    cursor: wait;
+    opacity: 0.7;
+  }
+  [data-theme='light'] &__consent {
+    color: #52666a;
+  }
+  [data-theme='light'] &__error {
+    color: #a33e35;
   }
 }

@@ -4,6 +4,9 @@ import { Header } from './shared/layouts/Header';
 import { Footer } from './shared/layouts/Footer';
 import { HomePage } from './pages/HomePage';
 import { NewsPage } from './pages/NewsPage';
+import { SpeechesPage } from './pages/SpeechesPage';
+import { RouteMetadata } from './shared/layouts/RouteMetadata';
+import { ScrollReset } from './shared/layouts/ScrollReset';
 import { ThemeProvider, LanguageProvider } from './shared/contexts';
 import './styles/globals.scss';
 
@@ -23,6 +26,8 @@ const App = () => {
       <LanguageProvider>
         <ThemeProvider>
           <BrowserRouter>
+            <RouteMetadata />
+            <ScrollReset />
             <Routes>
               <Route
                 path="/"
@@ -37,6 +42,14 @@ const App = () => {
                 element={
                   <PublicLayout>
                     <NewsPage />
+                  </PublicLayout>
+                }
+              />
+              <Route
+                path="/speeches"
+                element={
+                  <PublicLayout>
+                    <SpeechesPage />
                   </PublicLayout>
                 }
               />

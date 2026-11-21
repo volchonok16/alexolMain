@@ -40,7 +40,7 @@
 
   &__button {
     padding: 0.75rem 1.5rem;
-    background: linear-gradient(to right, #0AE3FF, #1B91F7);
+    background: var(--action-bg);
     border-radius: 0.5rem;
     border: none;
     color: white;
@@ -48,15 +48,9 @@
     transition: all 0.3s;
 
     &:hover {
-      box-shadow: 0 0 20px rgba(10, 227, 255, 0.4);
+      background: var(--action-bg-hover);
+      box-shadow: var(--action-shadow-hover);
     }
 
-    [data-theme="light"] & {
-      background: linear-gradient(to right, #0891B2, #0369A1);
-
-      &:hover {
-        box-shadow: 0 0 20px rgba(8, 145, 178, 0.4);
-      }
-    }
   }
 }

@@ -6,6 +6,7 @@ import { ImageWithFallback, ErrorState } from '@/shared/ui';
 import { useNews } from '../HomePage/hooks/useNews';
 import { NewsModal } from './components/NewsModal';
 import './NewsPage.scss';
+import { useLanguage } from '@/shared/contexts';
 
 const getPaginationPages = (current: number, total: number): (number | '...')[] => {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -15,6 +16,25 @@ const getPaginationPages = (current: number, total: number): (number | '...')[] 
 };
 
 export const NewsPage = () => {
+  const { language } = useLanguage();
+  const copy =
+    language === 'ru'
+      ? {
+          loading: 'Загрузка…',
+          back: 'На главную',
+          title: 'Все статьи',
+          error: 'Не удалось загрузить новости',
+          errorDetails: 'Попробуйте обновить страницу или вернитесь позже',
+          empty: 'Новостей пока нет',
+        }
+      : {
+          loading: 'Loading…',
+          back: 'Home',
+          title: 'All articles',
+          error: 'Could not load news',
+          errorDetails: 'Try refreshing the page or come back later',
+          empty: 'No articles yet',
+        };
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const { news, totalPages, isLoading, error } = useNews(page);
@@ -27,9 +47,9 @@ export const NewsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="news-page">
+      <div className="news-page" lang={language}>
         <div className="news-page__container">
-          <h2>Загрузка...</h2>
+          <h2>{copy.loading}</h2>
         </div>
       </div>
     );
@@ -37,19 +57,16 @@ export const NewsPage = () => {
 
   if (error) {
     return (
-      <div className="news-page">
+      <div className="news-page" lang={language}>
         <div className="news-page__container">
           <div className="news-page__header">
             <button onClick={() => navigate(-1)} className="news-page__back">
               <ArrowLeft size={20} />
-              Назад
+              {copy.back}
             </button>
-            <h1 className="news-page__title">Все статьи</h1>
+            <h1 className="news-page__title">{copy.title}</h1>
           </div>
-          <ErrorState
-            title="Не удалось загрузить новости"
-            description="Попробуйте обновить страницу или вернитесь позже"
-          />
+          <ErrorState title={copy.error} description={copy.errorDetails} />
         </div>
       </div>
     );
@@ -57,30 +74,30 @@ export const NewsPage = () => {
 
   if (!news || news.length === 0) {
     return (
-      <div className="news-page">
+      <div className="news-page" lang={language}>
         <div className="news-page__container">
           <div className="news-page__header">
             <button onClick={() => navigate(-1)} className="news-page__back">
               <ArrowLeft size={20} />
-              Назад
+              {copy.back}
             </button>
-            <h1 className="news-page__title">Все статьи</h1>
+            <h1 className="news-page__title">{copy.title}</h1>
           </div>
-          <p>Новостей пока нет</p>
+          <p>{copy.empty}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="news-page">
+    <div className="news-page" lang={language}>
       <div className="news-page__container">
         <div className="news-page__header">
           <button onClick={() => navigate(-1)} className="news-page__back">
             <ArrowLeft size={20} />
-            Назад
+            {copy.back}
           </button>
-          <h1 className="news-page__title">Все статьи</h1>
+          <h1 className="news-page__title">{copy.title}</h1>
         </div>
 
         <AnimatePresence mode="wait">
@@ -122,17 +139,15 @@ export const NewsPage = () => {
 
         {totalPages > 1 && (
           <div className="news-page__pagination">
-            <button
-              className="pagination__btn"
-              onClick={() => changePage(page - 1)}
-              disabled={page === 1}
-            >
+            <button className="pagination__btn" onClick={() => changePage(page - 1)} disabled={page === 1}>
               <ChevronLeft size={18} />
             </button>
 
             {getPaginationPages(page, totalPages).map((p, i) =>
               p === '...' ? (
-                <span key={`dots-${i}`} className="pagination__dots">…</span>
+                <span key={`dots-${i}`} className="pagination__dots">
+                  …
+                </span>
               ) : (
                 <button
                   key={p}
@@ -144,11 +159,7 @@ export const NewsPage = () => {
               )
             )}
 
-            <button
-              className="pagination__btn"
-              onClick={() => changePage(page + 1)}
-              disabled={page === totalPages}
-            >
+            <button className="pagination__btn" onClick={() => changePage(page + 1)} disabled={page === totalPages}>
               <ChevronRight size={18} />
             </button>
           </div>

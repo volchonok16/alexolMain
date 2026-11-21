@@ -10,35 +10,53 @@ html {
 }
 
 :root {
-  --color-primary: #0AE3FF;
-  --color-secondary: #1B91F7;
-  --color-accent: #7BF7FF;
-  --color-text: #FFFFFF;
-  --color-text-muted: #A8B0C0;
-  --color-bg: #0A0C10;
-  --color-bg-secondary: #0C0F16;
+  --color-primary: #0ae3ff;
+  --color-secondary: #1b91f7;
+  --color-accent: #7bf7ff;
+  --color-text: #ffffff;
+  --color-text-muted: #a8b0c0;
+  --color-bg: #0a0c10;
+  --color-bg-secondary: #0c0f16;
+  --page-ink: #080d12;
+  --page-surface: #101920;
+  --page-line: rgba(173, 204, 211, 0.12);
+  --action-bg: linear-gradient(110deg, #176f68, #205c59);
+  --action-bg-hover: linear-gradient(110deg, #21877c, #28716a);
+  --action-text: #f4fffd;
+  --action-shadow: 0 8px 24px rgba(25, 103, 96, 0.22);
+  --action-shadow-hover: 0 12px 30px rgba(25, 103, 96, 0.32);
 }
 
-[data-theme="light"] {
-  --color-primary: #0891B2;
-  --color-secondary: #0369A1;
-  --color-accent: #06B6D4;
-  --color-text: #0F172A;
+[data-theme='light'] {
+  --color-primary: #0891b2;
+  --color-secondary: #0369a1;
+  --color-accent: #06b6d4;
+  --color-text: #0f172a;
   --color-text-muted: #475569;
-  --color-bg: #F8FAFC;
-  --color-bg-secondary: #F1F5F9;
+  --color-bg: #f8fafc;
+  --color-bg-secondary: #f1f5f9;
+  --page-ink: #edf3f4;
+  --page-surface: #f7faf9;
+  --page-line: rgba(22, 76, 79, 0.15);
+  --action-bg: linear-gradient(110deg, #176f68, #205c59);
+  --action-bg-hover: linear-gradient(110deg, #21877c, #28716a);
+  --action-text: #f4fffd;
+  --action-shadow: 0 8px 24px rgba(25, 103, 96, 0.2);
+  --action-shadow-hover: 0 12px 30px rgba(25, 103, 96, 0.3);
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
+    'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-bg);
-  background-image: radial-gradient(ellipse at 20% 50%, rgba(10, 227, 255, 0.04) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(27, 145, 247, 0.04) 0%, transparent 60%);
+  background-color: #080d12;
+  background-image:
+    radial-gradient(ellipse at 78% 8%, rgba(59, 129, 124, 0.13), transparent 39%),
+    radial-gradient(ellipse at 8% 34%, rgba(25, 70, 84, 0.14), transparent 44%),
+    linear-gradient(180deg, #0a1117 0%, #080d12 44%, #0a1116 76%, #080d12 100%);
   color: var(--color-text);
   line-height: 1.6;
   overflow-x: hidden;
@@ -46,38 +64,45 @@ body {
   position: relative;
 }
 
-[data-theme="light"] body {
-  background-image: radial-gradient(ellipse at 20% 50%, rgba(8, 145, 178, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(3, 105, 161, 0.06) 0%, transparent 60%);
+[data-theme='light'] body {
+  background-color: #edf3f4;
+  background-image:
+    radial-gradient(ellipse at 80% 8%, rgba(77, 164, 151, 0.13), transparent 40%),
+    radial-gradient(ellipse at 8% 38%, rgba(87, 147, 158, 0.11), transparent 45%),
+    linear-gradient(180deg, #f5f8f7 0%, #edf3f4 52%, #f5f8f7 100%);
 }
 
-.bg-layer {
+body::before {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0;
-  transition: opacity 0.6s ease;
-  z-index: -1;
+  z-index: 0;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(151, 189, 194, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(151, 189, 194, 0.022) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, black, transparent 92%);
+  content: '';
   pointer-events: none;
-
-  &--loaded {
-    opacity: 1;
-  }
 }
 
-h1, h2, h3, h4, h5, h6 {
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: 600;
   line-height: 1.2;
 }
 
 h1 {
   font-size: 3.5rem;
-  
+
   @media (max-width: 768px) {
     font-size: 2.5rem;
   }
@@ -85,7 +110,7 @@ h1 {
 
 h2 {
   font-size: 2.5rem;
-  
+
   @media (max-width: 768px) {
     font-size: 2rem;
   }
@@ -113,21 +138,71 @@ button {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-secondary);
+  background: #111c20;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, var(--color-primary), var(--color-secondary));
+  background: linear-gradient(to bottom, #287f75, #195b56);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, var(--color-accent), var(--color-primary));
+  background: linear-gradient(to bottom, #3c9b8d, #28766e);
 }
 
-@keyframes breathe {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.05); }
+[data-theme='light'] ::-webkit-scrollbar-track {
+  background: #dce8e6;
+}
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #378b80, #22645e);
+}
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #4b9f91, #2d796f);
+}
+
+:is(
+  .header__button,
+  .header__mobile-button,
+  .button--primary,
+  .contact__submit,
+  .error-state__button,
+  [class$='__submit'],
+  [class$='__button--primary']
+) {
+  background: var(--action-bg);
+  color: var(--action-text);
+  box-shadow: var(--action-shadow);
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+:is(
+    .header__button,
+    .header__mobile-button,
+    .button--primary,
+    .contact__submit,
+    .error-state__button,
+    [class$='__submit'],
+    [class$='__button--primary']
+  ):hover:not(:disabled) {
+  background: var(--action-bg-hover);
+  box-shadow: var(--action-shadow-hover);
+  transform: translateY(-2px);
+}
+
+:is(
+  .header__button,
+  .header__mobile-button,
+  .button--primary,
+  .contact__submit,
+  .error-state__button,
+  [class$='__submit'],
+  [class$='__button--primary']
+):focus-visible {
+  outline: 2px solid #86e6d9;
+  outline-offset: 3px;
 }
 
 // Prevent animation flicker

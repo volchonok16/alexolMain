@@ -60,23 +60,18 @@
   &__submit {
     width: 100%;
     padding: 1rem 2rem;
-    background: linear-gradient(to right, #0AE3FF, #1B91F7);
+    background: var(--action-bg);
     border-radius: 0.5rem;
     border: none;
     color: white;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s ease;
+    box-shadow: var(--action-shadow);
 
     &:hover {
-      box-shadow: 0 0 30px rgba(10, 227, 255, 0.5);
-    }
-
-    [data-theme="light"] & {
-      background: linear-gradient(to right, #0891B2, #0369A1);
-
-      &:hover {
-        box-shadow: 0 0 30px rgba(8, 145, 178, 0.5);
-      }
+      background: var(--action-bg-hover);
+      box-shadow: var(--action-shadow-hover);
+      transform: translateY(-1px);
     }
   }
 }

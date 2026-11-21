@@ -2,30 +2,45 @@ import { useState } from 'react';
 import { Menu, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ProjectModal } from '@/pages/HomePage/components/modals';
+import { Link } from 'react-router-dom';
 import { useTheme, useLanguage } from '@/shared/contexts';
-import { useTranslation } from '@/shared/utils/translations';
+import { marketingCopy } from '@/shared/utils/marketingCopy';
 import './Header.scss';
 
 export const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
-  const { t } = useTranslation();
+  const copy = marketingCopy[language].header;
 
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleContactClick = () => {
+    if (location.pathname !== '/') {
+      navigate('/#contact');
+      setIsOpen(false);
+      return;
+    }
+    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+    setIsOpen(false);
+  };
+
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!href.startsWith('#')) {
+      e.preventDefault();
+      navigate(href);
+      setIsOpen(false);
+      return;
+    }
     e.preventDefault();
     const id = href.replace('#', '');
     if (location.pathname !== '/') {
-      navigate('/');
-      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 100);
+      navigate(`/#${id}`);
     } else {
       document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
     }
+    setIsOpen(false);
   };
 
   const toggleLanguage = () => {
@@ -33,18 +48,18 @@ export const Header = () => {
   };
 
   const navItems = [
-    { label: t('header.nav.about'), href: '#about' },
-    { label: t('header.nav.services'), href: '#services' },
-    { label: t('header.nav.solutions'), href: '#portfolio' },
-    { label: t('header.nav.news'), href: '#news' },
-    { label: t('header.nav.contact'), href: '#contact' },
+    { label: copy.challenges, href: '#challenges' },
+    { label: copy.services, href: '#services' },
+    { label: copy.process, href: '#journey' },
+    { label: copy.projects, href: '#portfolio' },
+    { label: copy.development, href: '#development' },
   ];
 
   return (
     <>
       <header className="header">
         <div className="header__container">
-          <div className="header__logo">
+          <Link to="/" className="header__logo" aria-label={language === 'ru' ? 'Alexol — главная' : 'Alexol — home'}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 416 80" preserveAspectRatio="xMidYMid meet">
               <path
                 className="alexol-accent"
@@ -72,7 +87,7 @@ export const Header = () => {
                 <path className="alexol-primary" d="M308,0 L322,0 L322,80 L308,80 Z" />
               </g>
             </svg>
-          </div>
+          </Link>
 
           <nav className="header__nav">
             {navItems.map(item => (
@@ -83,7 +98,11 @@ export const Header = () => {
           </nav>
 
           <div className="header__cta">
-            <button onClick={toggleLanguage} className="header__lang-toggle">
+            <button
+              onClick={toggleLanguage}
+              className="header__lang-toggle"
+              aria-label={language === 'ru' ? 'Switch language to English' : 'Переключить язык на русский'}
+            >
               <span className="header__lang-flag">
                 {language === 'ru' ? (
                   <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
@@ -114,8 +133,11 @@ export const Header = () => {
             <button onClick={toggleTheme} className="header__theme-toggle">
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <button onClick={() => setIsModalOpen(true)} className="header__button">
-              {t('header.discussProject')}
+            <a href="/speeches" className="header__talk-link">
+              {copy.speeches}
+            </a>
+            <button onClick={() => handleContactClick()} className="header__button">
+              {copy.discuss}
             </button>
           </div>
 
@@ -134,13 +156,25 @@ export const Header = () => {
             >
               <nav className="header__mobile-nav">
                 {navItems.map(item => (
-                  <a key={item.label} href={item.href} onClick={e => { handleNavClick(e, item.href); setIsOpen(false); }} className="header__mobile-link">
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={e => {
+                      handleNavClick(e, item.href);
+                      setIsOpen(false);
+                    }}
+                    className="header__mobile-link"
+                  >
                     {item.label}
                   </a>
                 ))}
 
                 <div className="header__mobile-controls">
-                  <button onClick={toggleLanguage} className="header__lang-toggle">
+                  <button
+                    onClick={toggleLanguage}
+                    className="header__lang-toggle"
+                    aria-label={language === 'ru' ? 'Switch language to English' : 'Переключить язык на русский'}
+                  >
                     <span className="header__lang-flag">
                       {language === 'ru' ? (
                         <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
@@ -174,16 +208,27 @@ export const Header = () => {
                   </button>
                 </div>
 
-                <button onClick={() => setIsModalOpen(true)} className="header__mobile-button">
-                  {t('header.discussProject')}
+                <a
+                  href="/speeches"
+                  className="header__mobile-link header__mobile-link--standalone"
+                  onClick={e => handleNavClick(e, '/speeches')}
+                >
+                  {copy.speeches}
+                </a>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleContactClick();
+                  }}
+                  className="header__mobile-button"
+                >
+                  {copy.discuss}
                 </button>
               </nav>
             </motion.div>
           )}
         </AnimatePresence>
       </header>
-
-      <ProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </>
   );
 };

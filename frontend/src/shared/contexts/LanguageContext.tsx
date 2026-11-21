@@ -4,16 +4,20 @@ import type { Language } from '@/shared/utils/translations';
 
 const meta = {
   ru: {
-    title: 'Alexol — Разработка ПО на заказ',
-    description: 'Профессиональная разработка Web, Mobile, Enterprise решений. Полный цикл от аналитики до внедрения. 7+ лет опыта, 150+ проектов.',
-    keywords: 'разработка ПО на заказ, веб-разработка, мобильные приложения, enterprise решения, аутсорсинг разработки, UI/UX дизайн, AI/ML интеграции, alexol, алексол',
+    title: 'Alexol — ИИ и автоматизация для бизнеса',
+    description:
+      'Помогаем компаниям разобраться в возможностях ИИ, обучить команды, оптимизировать процессы и внедрить программные решения. Москва и вся Россия.',
+    keywords:
+      'внедрение ИИ в бизнес, автоматизация бизнес-процессов, аудит процессов, обучение ИИ сотрудников, разработка ПО на заказ, Alexol, Алексол',
     lang: 'ru',
     ogLocale: 'ru_RU',
   },
   en: {
-    title: 'Alexol — Custom Software Development',
-    description: 'Professional development of Web, Mobile, Enterprise solutions. Full cycle from analysis to implementation. 7+ years of experience, 150+ projects.',
-    keywords: 'custom software development, web development, mobile apps, enterprise solutions, outsourcing, UI/UX design, AI/ML integrations, alexol',
+    title: 'Alexol — AI and business automation',
+    description:
+      'We help companies explore practical AI, train teams, improve processes and implement software solutions.',
+    keywords:
+      'business AI implementation, process automation, process audit, corporate AI training, custom software development, Alexol',
     lang: 'en',
     ogLocale: 'en_US',
   },
@@ -22,15 +26,43 @@ const meta = {
 const updateMeta = (lang: Language) => {
   const m = meta[lang];
   document.documentElement.setAttribute('lang', m.lang);
-  document.title = m.title;
-  document.querySelector('meta[name="title"]')?.setAttribute('content', m.title);
-  document.querySelector('meta[name="description"]')?.setAttribute('content', m.description);
+  const routeContent =
+    lang === 'ru'
+      ? {
+          '/': [m.title, m.description],
+          '/speeches': [
+            'Корпоративные выступления об ИИ — Alexol',
+            'Корпоративные выступления и практикумы об искусственном интеллекте для руководителей и команд. Живые демонстрации и разбор задач бизнеса.',
+          ],
+          '/news': [
+            'Новости и материалы — Alexol',
+            'Новости и материалы Alexol о разработке программного обеспечения и технологиях для бизнеса.',
+          ],
+        }
+      : {
+          '/': [m.title, m.description],
+          '/speeches': [
+            'Corporate AI Talks & Workshops — Alexol',
+            'Corporate AI talks and practical workshops for business leaders and teams. Live demonstrations and real-world business scenarios.',
+          ],
+          '/news': [
+            'News & Insights — Alexol',
+            'Alexol news and insights on software development and technology for business.',
+          ],
+        };
+  const [title, description] = routeContent[window.location.pathname as keyof typeof routeContent] ?? routeContent['/'];
+  document.title = title;
+  document.querySelector('meta[name="title"]')?.setAttribute('content', title);
+  document.querySelector('meta[name="description"]')?.setAttribute('content', description);
   document.querySelector('meta[name="keywords"]')?.setAttribute('content', m.keywords);
-  document.querySelector('meta[property="og:title"]')?.setAttribute('content', m.title);
-  document.querySelector('meta[property="og:description"]')?.setAttribute('content', m.description);
+  document.querySelector('meta[property="og:title"]')?.setAttribute('content', title);
+  document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
+  document.querySelector('meta[property="twitter:title"]')?.setAttribute('content', title);
+  document.querySelector('meta[property="twitter:description"]')?.setAttribute('content', description);
   document.querySelector('meta[property="og:locale"]')?.setAttribute('content', m.ogLocale);
-  document.querySelector('meta[property="twitter:title"]')?.setAttribute('content', m.title);
-  document.querySelector('meta[property="twitter:description"]')?.setAttribute('content', m.description);
+  const canonical = `${window.location.origin}${window.location.pathname}`;
+  document.querySelector('meta[property="og:url"]')?.setAttribute('content', canonical);
+  document.querySelector('link[rel="canonical"]')?.setAttribute('href', canonical);
 };
 
 interface LanguageContextType {

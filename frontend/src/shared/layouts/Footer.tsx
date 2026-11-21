@@ -2,16 +2,27 @@ import { Mail, Phone, MessageCircle, Send, LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { OfferModal } from '../ui';
 import './Footer.scss';
-import { useTranslation } from '../utils/translations';
+import { useLanguage } from '../contexts';
+import { marketingCopy } from '../utils/marketingCopy';
 
 export const Footer = () => {
-  const { t } = useTranslation();
+  const { language } = useLanguage();
+  const copy = marketingCopy[language].footer;
   const currentYear = new Date().getFullYear();
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
 
   return (
     <footer className="footer">
       <div className="footer__container">
+        <div className="footer__invite">
+          <div>
+            <span className="footer__eyebrow">ALEXOL / BUSINESS TECHNOLOGY</span>
+            <h2>{copy.invite}</h2>
+          </div>
+          <a href="/#contact" className="footer__invite-action">
+            {copy.inviteAction}<span aria-hidden="true">↗</span>
+          </a>
+        </div>
         <div className="footer__grid">
           <div className="footer__brand">
             <div className="footer__logo">
@@ -43,37 +54,35 @@ export const Footer = () => {
                 </g>
               </svg>
             </div>
-            <p className="footer__description">{t('footer.description')}</p>
+            <p className="footer__description">{copy.description}</p>
+            <p className="footer__base">{copy.base}</p>
             <div className="footer__social">
-              <SocialLink icon={MessageCircle} href="https://wa.me/79095175557" />
-              <SocialLink icon={Send} href="https://t.me/alexolcorp" />
+                <SocialLink icon={MessageCircle} href="https://wa.me/79095175557" label="WhatsApp" />
+                <SocialLink icon={Send} href="https://t.me/alexolcorp" label="Telegram" />
             </div>
           </div>
 
           <div className="footer__column">
-            <h4 className="footer__title">{t('footer.services')}</h4>
+            <h4 className="footer__title">{copy.services}</h4>
             <ul className="footer__links">
-              <FooterLink label={t('footer.links.development')} href="#" />
-              <FooterLink label={t('footer.links.outsourcing')} href="#" />
-              <FooterLink label={t('footer.links.design')} href="#" />
-              <FooterLink label={t('footer.links.ai')} href="#" />
-              <FooterLink label={t('footer.links.consulting')} href="#" />
+              <FooterLink label={copy.links[0]} href="/speeches" />
+              <FooterLink label={copy.links[1]} href="/#services" />
+              <FooterLink label={copy.links[2]} href="/#services" />
+              <FooterLink label={copy.links[3]} href="/#services" />
             </ul>
           </div>
 
           <div className="footer__column">
-            <h4 className="footer__title">{t('footer.solutions')}</h4>
+            <h4 className="footer__title">{copy.solutions}</h4>
             <ul className="footer__links">
-              <FooterLink label="eCommerce" href="#" />
-              <FooterLink label="FinTech" href="#" />
-              <FooterLink label="MedTech" href="#" />
-              <FooterLink label="ERP/CRM" href="#" />
-              <FooterLink label={t('footer.links.aiSolutions')} href="#" />
+              {copy.softwareLinks.map(label => (
+                <FooterLink key={label} label={label} href="/#development" />
+              ))}
             </ul>
           </div>
 
           <div className="footer__column">
-            <h4 className="footer__title">{t('footer.contacts')}</h4>
+            <h4 className="footer__title">{copy.contacts}</h4>
             <ul className="footer__contacts">
               <li className="footer__contact">
                 <Mail className="footer__contact-icon" />
@@ -93,11 +102,11 @@ export const Footer = () => {
 
         <div className="footer__bottom">
           <p className="footer__copyright">
-            © {currentYear} Alexol. {t('footer.copyright')}
+            © {currentYear} Alexol. {copy.copyright}
           </p>
           <div className="footer__legal">
             <button onClick={() => setIsOfferModalOpen(true)} className="footer__legal-link">
-              {t('footer.offer')}
+              {copy.offer}
             </button>
           </div>
         </div>
@@ -118,9 +127,9 @@ const FooterLink = ({ label, href }: { label: string; href: string }) => {
   );
 };
 
-const SocialLink = ({ icon: Icon, href }: { icon: LucideIcon; href: string }) => {
+const SocialLink = ({ icon: Icon, href, label }: { icon: LucideIcon; href: string; label: string }) => {
   return (
-    <a href={href} className="footer__social-link" target="_blank" rel="noopener noreferrer">
+    <a href={href} className="footer__social-link" aria-label={label} target="_blank" rel="noopener noreferrer">
       <Icon />
     </a>
   );

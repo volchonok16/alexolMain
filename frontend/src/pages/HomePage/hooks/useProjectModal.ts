@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { contactApi } from '@/api';
 
@@ -14,8 +14,9 @@ export const useProjectModal = () => {
   const mutation = useMutation({
     mutationFn: contactApi.sendContact,
   });
+  const { mutate, reset } = mutation;
 
-  const handleChange = (
+  const handleChange = useCallback((
     e:
       | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
       | { target: { name: string; value: string } }
@@ -24,22 +25,27 @@ export const useProjectModal = () => {
       ...prev,
       [e.target.name]: e.target.value,
     }));
-  };
+  }, []);
 
-  const prefillEmail = (email: string) => {
+  const prefillEmail = useCallback((email: string) => {
     setFormData(prev => ({ ...prev, email }));
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate({
+    mutate({
       name: formData.name,
       email: formData.email,
       phone: formData.phone,
       budget: formData.budget,
       description: formData.message,
     });
-  };
+  }, [formData, mutate]);
+
+  const resetForm = useCallback(() => {
+    setFormData({ name: '', email: '', phone: '', budget: '', message: '' });
+    reset();
+  }, [reset]);
 
   return {
     formData,
@@ -48,7 +54,7 @@ export const useProjectModal = () => {
     isLoading: mutation.isPending,
     isSuccess: mutation.isSuccess,
     error: mutation.error,
-    resetForm: () => setFormData({ name: '', email: '', phone: '', budget: '', message: '' }),
+    resetForm,
     prefillEmail,
   };
 };

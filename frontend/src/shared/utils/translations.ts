@@ -6,6 +6,8 @@ const translations = {
       about: { ru: 'О нас', en: 'About' },
       services: { ru: 'Услуги', en: 'Services' },
       solutions: { ru: 'Решения', en: 'Solutions' },
+      speeches: { ru: 'Выступления', en: 'Talks & workshops' },
+      development: { ru: 'Разработка ПО', en: 'Software development' },
       cases: { ru: 'Кейсы', en: 'Cases' },
       news: { ru: 'Новости', en: 'News' },
       contact: { ru: 'Контакты', en: 'Contact' },
@@ -76,8 +78,8 @@ const translations = {
     title: { ru: 'Превращаем бизнес-задачи в', en: 'We transform business challenges into' },
     titleHighlight: { ru: 'эффективные программные решения', en: 'effective software solutions' },
     description: {
-      ru: 'Alexol — компания по разработке программного обеспечения на заказ. Специализируемся на создании сложных корпоративных систем, веб-приложений и мобильных решений. Обеспечиваем полный цикл разработки: от аналитики и проектирования до внедрения и технической поддержки.',
-      en: 'Alexol is a custom software development company. We specialize in creating complex enterprise systems, web applications, and mobile solutions. We provide a full development cycle: from analysis and design to implementation and technical support.',
+      ru: 'Alexol — технологический партнёр по оптимизации бизнес-процессов, внедрению автоматизации и разработке программных решений. Помогаем оценить задачу, выбрать подход и довести его до внедрения и поддержки.',
+      en: 'Alexol is a technology partner for business process improvement, automation and custom software. We help assess the task, choose an approach and deliver implementation and support.',
     },
     button: { ru: 'О компании', en: 'About company' },
     metrics: {
@@ -344,8 +346,8 @@ const translations = {
   contact: {
     title: { ru: 'Начать сотрудничество', en: 'Start Cooperation' },
     description: {
-      ru: 'Оставьте заявку, и мы свяжемся с вами для обсуждения проекта',
-      en: 'Submit a request and we will contact you to discuss the project',
+      ru: 'Выберите направление и расскажите, какие процессы или задачи хотите обсудить',
+      en: 'Choose an area and tell us which processes or tasks you would like to discuss',
     },
     notice: {
       ru: '💼 Ответим на вашу заявку в течение 24 часов в рабочие дни',
@@ -382,8 +384,8 @@ const translations = {
   },
   footer: {
     description: {
-      ru: 'Профессиональная разработка программного обеспечения на заказ. Реализуем проекты любой сложности с гарантией качества и соблюдением сроков.',
-      en: 'Professional custom software development. We implement projects of any complexity with quality guarantee and deadline compliance.',
+      ru: 'Помогаем компаниям оптимизировать процессы, применять автоматизацию и создавать программные решения под реальные задачи бизнеса.',
+      en: 'We help companies improve processes, apply automation and build software for real business needs.',
     },
     services: { ru: 'Услуги', en: 'Services' },
     solutions: { ru: 'Решения', en: 'Solutions' },
