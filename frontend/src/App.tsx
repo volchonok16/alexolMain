@@ -1,9 +1,8 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Header } from './shared/layouts/Header';
 import { Footer } from './shared/layouts/Footer';
 import { HomePage } from './pages/HomePage';
-import { NewsPage } from './pages/NewsPage';
 import { SpeechesPage } from './pages/SpeechesPage';
 import { RouteMetadata } from './shared/layouts/RouteMetadata';
 import { ScrollReset } from './shared/layouts/ScrollReset';
@@ -37,14 +36,7 @@ const App = () => {
                   </PublicLayout>
                 }
               />
-              <Route
-                path="/news"
-                element={
-                  <PublicLayout>
-                    <NewsPage />
-                  </PublicLayout>
-                }
-              />
+              <Route path="/news" element={<Navigate to="/" replace />} />
               <Route
                 path="/speeches"
                 element={

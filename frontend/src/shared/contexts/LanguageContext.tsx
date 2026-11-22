@@ -34,20 +34,12 @@ const updateMeta = (lang: Language) => {
             'Корпоративные выступления об ИИ — Alexol',
             'Корпоративные выступления и практикумы об искусственном интеллекте для руководителей и команд. Живые демонстрации и разбор задач бизнеса.',
           ],
-          '/news': [
-            'Новости и материалы — Alexol',
-            'Новости и материалы Alexol о разработке программного обеспечения и технологиях для бизнеса.',
-          ],
         }
       : {
           '/': [m.title, m.description],
           '/speeches': [
             'Corporate AI Talks & Workshops — Alexol',
             'Corporate AI talks and practical workshops for business leaders and teams. Live demonstrations and real-world business scenarios.',
-          ],
-          '/news': [
-            'News & Insights — Alexol',
-            'Alexol news and insights on software development and technology for business.',
           ],
         };
   const [title, description] = routeContent[window.location.pathname as keyof typeof routeContent] ?? routeContent['/'];

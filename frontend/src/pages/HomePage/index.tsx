@@ -4,7 +4,6 @@ import { useLanguage } from '@/shared/contexts';
 import { marketingCopy } from '@/shared/utils/marketingCopy';
 import { ScrollExperience } from '@/shared/ui/ScrollExperience';
 import { Portfolio } from './components/Portfolio';
-import { News } from './components/News';
 import { Contact } from './components/Contact';
 import './HomePage.scss';
 
@@ -334,9 +333,6 @@ export const HomePage = () => {
             <ArrowRight size={17} />
           </a>
         </section>
-        <div id="news" data-reveal="left" data-rail-label={language === 'ru' ? 'Новости' : 'News'}>
-          <News />
-        </div>
         <div id="contact" data-reveal="right" data-rail-label={language === 'ru' ? 'Форма' : 'Enquiry'}>
           <Contact />
         </div>

@@ -14,10 +14,6 @@ const pages = {
       description:
         'Корпоративные выступления и практикумы об искусственном интеллекте для руководителей и команд. Живые демонстрации и разбор задач бизнеса.',
     },
-    '/news': {
-      title: 'Новости и материалы — Alexol',
-      description: 'Новости и материалы Alexol о разработке программного обеспечения и технологиях для бизнеса.',
-    },
   },
   en: {
     '/': {
@@ -29,10 +25,6 @@ const pages = {
       title: 'Corporate AI Talks & Workshops — Alexol',
       description:
         'Corporate AI talks and practical workshops for business leaders and teams. Live demonstrations and real-world business scenarios.',
-    },
-    '/news': {
-      title: 'News & Insights — Alexol',
-      description: 'Alexol news and insights on software development and technology for business.',
     },
   },
 };
@@ -50,6 +42,14 @@ export const RouteMetadata = () => {
       document.querySelector(selector)?.setAttribute(attribute, value);
     };
 
+    const hidden = pathname === '/news' || pathname.startsWith('/news/');
+    setMeta(
+      'meta[name="robots"]',
+      'content',
+      hidden
+        ? 'noindex, nofollow'
+        : 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1',
+    );
     setMeta('meta[name="description"]', 'content', page.description);
     setMeta('meta[property="og:title"]', 'content', page.title);
     setMeta('meta[property="og:description"]', 'content', page.description);
